@@ -1,12 +1,12 @@
 // src/compiler.cpp
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/stack_guard.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/stack_guard.hpp>
 
 #include <stdexcept>
 #include <unordered_set>
 
-namespace numkit {
+namespace nk {
 
 // RAII guard for END_VAL compilation context
 class IndexContextGuard
@@ -4609,4 +4609,4 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
     return os.str();
 }
 
-} // namespace numkit
+} // namespace nk

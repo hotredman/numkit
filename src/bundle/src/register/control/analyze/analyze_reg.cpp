@@ -6,21 +6,21 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/control/analyze/analyze.hpp>
+#include <nk/control/analyze/analyze.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <utility>
 
-namespace numkit::control {
+namespace nk::control {
 namespace detail {
 
 void dcgain_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("dcgain: requires sys",
-                    0, 0, "dcgain", "", "numkit:dcgain:nargin");
+                    0, 0, "dcgain", "", "nk:dcgain:nargin");
     o[0] = dcgain(a[0], c.engine->resource());
 }
 
@@ -28,7 +28,7 @@ void margin_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("margin: requires sys",
-                    0, 0, "margin", "", "numkit:margin:nargin");
+                    0, 0, "margin", "", "nk:margin:nargin");
     auto m = margin(a[0], c.engine->resource());
     if (o.size() >= 1) o[0] = std::move(m.Gm);
     if (o.size() >= 2) o[1] = std::move(m.Pm);
@@ -40,7 +40,7 @@ void stepinfo_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("stepinfo: requires sys",
-                    0, 0, "stepinfo", "", "numkit:stepinfo:nargin");
+                    0, 0, "stepinfo", "", "nk:stepinfo:nargin");
     o[0] = stepinfo(a[0], c.engine->resource());
 }
 
@@ -48,7 +48,7 @@ void hinfnorm_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("hinfnorm: requires sys",
-                    0, 0, "hinfnorm", "", "numkit:hinfnorm:nargin");
+                    0, 0, "hinfnorm", "", "nk:hinfnorm:nargin");
     o[0] = hinfnorm(a[0], c.engine->resource());
 }
 
@@ -56,9 +56,9 @@ void allmargin_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("allmargin: requires sys",
-                    0, 0, "allmargin", "", "numkit:allmargin:nargin");
+                    0, 0, "allmargin", "", "nk:allmargin:nargin");
     o[0] = allmargin(a[0], c.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::control
+} // namespace nk::control

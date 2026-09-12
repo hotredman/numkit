@@ -8,10 +8,10 @@
 // signatures and the parts of the output that are stable
 // (output class, shape, sum-of-coefficients, McClellan default).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FIR2DTest : public ::testing::Test
 {

@@ -2,8 +2,8 @@
 //
 // Tests for F1: upfirdn / interp / intfilt / fftfilt.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -11,7 +11,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class MultirateExtrasTest : public ::testing::Test
 {

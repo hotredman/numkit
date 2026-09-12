@@ -23,7 +23,7 @@ gram(ss([-1 0;0 -2],[1;1],[1 1],0),'c')  % MATLAB sum=1.41667
 ```
 
 ## Root cause
-Not implemented. Each, however, reduces to a solver numkit now has:
+Not implemented. Each, however, reduces to a solver nk now has:
 `lqr`/`dlqr` are the algebraic Riccati gain (care/dare — see
 control/care-dare.md, fixed 2026-06-19); `gram` is a Lyapunov solve
 (lyap/dlyap, already shipped).
@@ -54,7 +54,7 @@ Deferred: lqr/dlqr cross-term `N` and the `lqr(sys,…)` form (the
 ## References
 - `src/bundle/src/register/control/riccati/riccati_reg.cpp` (`lqr_reg`,
   `dlqr_reg`), `src/toolboxes/control/src/state/state.cpp` (`gram`),
-  `.../include/numkit/control/state/state.hpp`,
+  `.../include/nk/control/state/state.hpp`,
   `src/bundle/src/register/control/state/state_reg.cpp` (`gram_reg`).
 - `tools/parity/specs/{lqr,dlqr,gram}.json`.
 - related: control/care-dare.md (lqr/dlqr wrap these), control/hinfnorm.md

@@ -12,5 +12,5 @@
     "d1r", "d1i", "d2r", "d3i",
     "er", "ei"
   ],
-  "comment": "Sig: y = sign(Z) for complex Z. MATLAB: sign(z) = z/abs(z) for z != 0, else 0; result is complex. sign(3-4i)=0.6-0.8i, sign(1i)=0+1i, sign(complex(0,0))=0+0i, sign([3+4i 0 -2i])=[0.6+0.8i 0 0-1i], sign(2+2i)=0.7071+0.7071i. numkit previously threw 'Cannot convert complex with nonzero imaginary part to double scalar' (sign routed through the double-only unaryDouble); fixed 2026-05-30 (complex branch in rounding.cpp). NOTE: ; only inside matrix-literal INPUTS."
+  "comment": "Sig: y = sign(Z) for complex Z. MATLAB: sign(z) = z/abs(z) for z != 0, else 0; result is complex. sign(3-4i)=0.6-0.8i, sign(1i)=0+1i, sign(complex(0,0))=0+0i, sign([3+4i 0 -2i])=[0.6+0.8i 0 0-1i], sign(2+2i)=0.7071+0.7071i. nk previously threw 'Cannot convert complex with nonzero imaginary part to double scalar' (sign routed through the double-only unaryDouble); fixed 2026-05-30 (complex branch in rounding.cpp). NOTE: ; only inside matrix-literal INPUTS."
 }

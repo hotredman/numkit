@@ -1,16 +1,16 @@
 // math/src/complex/complex.cpp
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -74,7 +74,7 @@ Value complex(const Value &re, const Value &im, std::pmr::memory_resource *mr)
     const Value &shape = re.isScalar() ? im : re;
     if (!re.isScalar() && !im.isScalar() && re.dims() != im.dims())
         throw Error("complex: real and imaginary parts must have matching dimensions",
-                     0, 0, "complex", "", "numkit:complex:dimagree");
+                     0, 0, "complex", "", "nk:complex:dimagree");
     auto r = createLike(shape, ValueType::COMPLEX, p);
     Complex *dst = r.complexDataMut();
     const size_t n = shape.numel();
@@ -140,4 +140,4 @@ Value unwrap(const Value &p, double tol, int dim, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

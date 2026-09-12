@@ -3,10 +3,10 @@
 // Regression guard for raw2planar / planar2raw — Bayer CFA mosaic
 // ↔ 4-plane sensor-element deinterleave.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RawPlanarTest : public ::testing::Test
 {

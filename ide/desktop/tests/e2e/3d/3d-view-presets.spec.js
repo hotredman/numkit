@@ -3,7 +3,7 @@
 // setView imperative method to snap the camera to a standard
 // orientation (top, bottom, front, back, left, right, iso).
 //
-// Verified end-to-end via the canvas.__numkit3dCtx test hook.
+// Verified end-to-end via the canvas.__nk3dCtx test hook.
 
 import { test, expect } from '../../helpers/shared.js';
 
@@ -17,7 +17,7 @@ test.describe('3-D view-preset toolbar', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    const canvas = ide.figureWindow.locator('canvas[data-numkit-3d]').first();
+    const canvas = ide.figureWindow.locator('canvas[data-nk-3d]').first();
     await expect(canvas).toBeVisible({ timeout: 5_000 });
     return canvas;
   }
@@ -35,7 +35,7 @@ test.describe('3-D view-preset toolbar', () => {
     await ide.figureWindow.locator('button[data-fw-view="top"]').click();
     await page.waitForTimeout(50);
     const pos = await canvas.evaluate((cv) => {
-      const ctx = cv.__numkit3dCtx?.current;
+      const ctx = cv.__nk3dCtx?.current;
       if (!ctx) return null;
       const p = ctx.camera.position;
       return { x: p.x, y: p.y, z: p.z };
@@ -53,7 +53,7 @@ test.describe('3-D view-preset toolbar', () => {
     await ide.figureWindow.locator('button[data-fw-view="front"]').click();
     await page.waitForTimeout(50);
     const pos = await canvas.evaluate((cv) => {
-      const ctx = cv.__numkit3dCtx?.current;
+      const ctx = cv.__nk3dCtx?.current;
       if (!ctx) return null;
       const p = ctx.camera.position;
       return { x: p.x, y: p.y, z: p.z };
@@ -73,7 +73,7 @@ test.describe('3-D view-preset toolbar', () => {
     await ide.figureWindow.locator('button[data-fw-view="iso"]').click();
     await page.waitForTimeout(30);
     const pos = await canvas.evaluate((cv) => {
-      const ctx = cv.__numkit3dCtx?.current;
+      const ctx = cv.__nk3dCtx?.current;
       if (!ctx) return null;
       const p = ctx.camera.position;
       return { x: p.x, y: p.y, z: p.z };

@@ -10,5 +10,5 @@
     "filternorm(bI, aI)",
     "filternorm(bI, aI, inf)"
   ],
-  "comment": "Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-4 -- trapezoidal-rule approximation grid differs slightly between numkit and MATLAB but agrees to ~5 sig digits."
+  "comment": "Sig: norm = filternorm(b, a [, pnorm]). FIR L2 (default), IIR L2, IIR L_inf via 8192-point freqz integration. Tolerance 1e-4 -- trapezoidal-rule approximation grid differs slightly between nk and MATLAB but agrees to ~5 sig digits."
 }

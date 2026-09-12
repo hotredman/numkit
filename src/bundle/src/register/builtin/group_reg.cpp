@@ -3,11 +3,11 @@
 // Registration adapters for group operations (findgroups, groupcounts,
 // groupsummary, grouptransform, groupfilter, splitapply).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <array>
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 // ── findgroups ───────────────────────────────────────────────────────
 void findgroups_reg(Span<const Value> args, size_t nargout,
@@ -26,7 +26,7 @@ void findgroups_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("findgroups: requires 1 argument",
-                     0, 0, "findgroups", "", "numkit:findgroups:nargin");
+                     0, 0, "findgroups", "", "nk:findgroups:nargin");
     FindgroupsResult r = findgroups(args[0], ctx.engine->resource());
     outs[0] = std::move(r.G);
     if (nargout >= 2) outs[1] = std::move(r.ID);
@@ -39,12 +39,12 @@ void splitapply_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("splitapply: requires at least 3 arguments "
                     "(@fn, x, ..., G)",
-                    0, 0, "splitapply", "", "numkit:splitapply:nargin");
+                    0, 0, "splitapply", "", "nk:splitapply:nargin");
 
     const Value &fn = args[0];
     if (!fn.isFuncHandle())
         throw Error("splitapply: first argument must be a function handle",
-                    0, 0, "splitapply", "", "numkit:splitapply:notFuncHandle");
+                    0, 0, "splitapply", "", "nk:splitapply:notFuncHandle");
 
     const Value &G = args[args.size() - 1];
     const std::size_t nIn = args.size() - 2;
@@ -54,7 +54,7 @@ void splitapply_reg(Span<const Value> args, size_t /*nargout*/,
         if (args[1 + k].numel() != n)
             throw Error("splitapply: all data arguments must have the "
                         "same number of elements as G",
-                        0, 0, "splitapply", "", "numkit:splitapply:shape");
+                        0, 0, "splitapply", "", "nk:splitapply:shape");
     }
 
     std::map<int, std::vector<std::size_t>> buckets;
@@ -100,7 +100,7 @@ void groupcounts_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("groupcounts: requires 1 argument",
-                    0, 0, "groupcounts", "", "numkit:groupcounts:nargin");
+                    0, 0, "groupcounts", "", "nk:groupcounts:nargin");
     GroupcountsResult r = groupcounts(args[0], ctx.engine->resource());
     outs[0] = std::move(r.C);
     if (nargout >= 2) outs[1] = std::move(r.GR);
@@ -113,12 +113,12 @@ void groupsummary_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("groupsummary: requires (A, groupvars, method)",
-                    0, 0, "groupsummary", "", "numkit:groupsummary:nargin");
+                    0, 0, "groupsummary", "", "nk:groupsummary:nargin");
 
     const Value &m = args[2];
     if (!m.isChar() && !m.isString())
         throw Error("groupsummary: method must be a string",
-                    0, 0, "groupsummary", "", "numkit:groupsummary:badMethod");
+                    0, 0, "groupsummary", "", "nk:groupsummary:badMethod");
     std::string method = m.toString();
 
     GroupsummaryResult r = groupsummary(args[0], args[1], method, ctx.engine->resource());
@@ -134,7 +134,7 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 3)
         throw Error("grouptransform: requires (A, groupvars, method)",
                     0, 0, "grouptransform", "",
-                    "numkit:grouptransform:nargin");
+                    "nk:grouptransform:nargin");
     auto *mr = ctx.engine->resource();
     const Value &A = args[0];
     const Value &G = args[1];
@@ -145,14 +145,14 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
     if (G.numel() != nRows)
         throw Error("grouptransform: groupvars must have length size(A,1)",
                     0, 0, "grouptransform", "",
-                    "numkit:grouptransform:shape");
+                    "nk:grouptransform:shape");
 
     const bool is_handle = methodV.isFuncHandle();
     if (!is_handle) {
         if (!methodV.isChar() && !methodV.isString())
             throw Error("grouptransform: method must be a string or function handle",
                         0, 0, "grouptransform", "",
-                        "numkit:grouptransform:method");
+                        "nk:grouptransform:method");
         std::string method = methodV.toString();
         outs[0] = grouptransform(A, G, method, mr);
     } else {
@@ -203,7 +203,7 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
                                 "return a scalar or a vector of the "
                                 "same length as the group",
                                 0, 0, "grouptransform", "",
-                                "numkit:grouptransform:handleSize");
+                                "nk:grouptransform:handleSize");
                 }
             }
         }
@@ -225,10 +225,10 @@ void groupfilter_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("groupfilter: requires (A, groupvars, @predicate)",
-                    0, 0, "groupfilter", "", "numkit:groupfilter:nargin");
+                    0, 0, "groupfilter", "", "nk:groupfilter:nargin");
     if (!args[2].isFuncHandle())
         throw Error("groupfilter: predicate must be a function handle",
-                    0, 0, "groupfilter", "", "numkit:groupfilter:method");
+                    0, 0, "groupfilter", "", "nk:groupfilter:method");
     auto *mr = ctx.engine->resource();
     const Value &A = args[0];
     const Value &G = args[1];
@@ -238,7 +238,7 @@ void groupfilter_reg(Span<const Value> args, size_t nargout,
     const std::size_t nCols = (A.dims().ndim() >= 2) ? A.dims().cols() : 1;
     if (G.numel() != nRows)
         throw Error("groupfilter: groupvars must have length size(A,1)",
-                    0, 0, "groupfilter", "", "numkit:groupfilter:shape");
+                    0, 0, "groupfilter", "", "nk:groupfilter:shape");
 
     FindgroupsResult fg = findgroups(G, mr);
     const std::size_t n = G.numel();
@@ -305,4 +305,4 @@ void groupfilter_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail

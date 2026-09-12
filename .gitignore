@@ -43,8 +43,8 @@ ide/dist/
 
 # WASM artefacts copied into the IDE public tree by build/dev scripts —
 # regenerated from build-browser/, never committed.
-ide/public/numkit_ide.js
-ide/public/numkit_ide.wasm
+ide/public/nk_ide.js
+ide/public/nk_ide.wasm
 
 # ── Electron desktop ──────────────────────────────────
 ide/desktop/dist/
@@ -99,8 +99,8 @@ deploy/
 benchmarks/simd/*.json
 
 # npm package build products (refresh via scripts/refresh-dist.js)
-packages/numkit/dist/
-packages/numkit/*.tgz
+packages/nk/dist/
+packages/nk/*.tgz
 
 # Corpus-gate run artifacts (examples/IO/*.m scripts write these on every run)
 examples/IO/*.mat
@@ -115,4 +115,4 @@ examples/IO/*.log
 /*.png
 /*.wav
 /*.mat
-packages/numkit/corpus_*.log
+packages/nk/corpus_*.log

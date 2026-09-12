@@ -1,21 +1,21 @@
 // toolboxes/signal/src/filter_implementation/conversions_extras.cpp
 // sos2tf / sos2zp / tf2zpk + tf↔ss + sos↔ss + zpk↔ss adapters.
 
-#include <numkit/signal/filter_implementation/conversions_extras.hpp>
+#include <nk/signal/filter_implementation/conversions_extras.hpp>
 
-#include <numkit/builtin/polyfun.hpp>      // tf2zp / zp2tf / roots
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/polyfun.hpp>      // tf2zp / zp2tf / roots
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
-#include <numkit/signal/filter_implementation/conversions.hpp>  // tf2sos
+#include <nk/signal/filter_implementation/conversions.hpp>  // tf2sos
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -57,7 +57,7 @@ void appendRoots(const double *coeffs, size_t n, std::vector<Complex> &out, std:
     auto p = Value::matrix(1, trimmed.size(), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < trimmed.size(); ++i)
         p.doubleDataMut()[i] = trimmed[i];
-    auto r = numkit::builtin::roots(p, mr);
+    auto r = nk::builtin::roots(p, mr);
     if (r.isComplex()) {
         const Complex *src = r.complexData();
         for (size_t i = 0; i < r.numel(); ++i) out.push_back(src[i]);
@@ -88,7 +88,7 @@ void requireSosShape(const Value &sos, const char *fn)
 {
     if (sos.dims().cols() != 6 || sos.dims().rows() == 0)
         throw Error(std::string(fn) + ": sos must be an L×6 matrix",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badShape");
+                     0, 0, fn, "", std::string("nk:") + fn + ":badShape");
 }
 
 } // namespace
@@ -137,7 +137,7 @@ sos2zp(const Value &sos, double g, std::pmr::memory_resource *mr)
 std::tuple<Value, Value, double>
 tf2zpk(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
-    auto [z, p, k] = numkit::builtin::tf2zp(b, a, mr);
+    auto [z, p, k] = nk::builtin::tf2zp(b, a, mr);
     return std::make_tuple(std::move(z), std::move(p),
                             (k.numel() == 0) ? 0.0 : k.toScalar());
 }
@@ -148,11 +148,11 @@ tf2ss(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     if (a.numel() == 0)
         throw Error("tf2ss: denominator a must be non-empty",
-                     0, 0, "tf2ss", "", "numkit:tf2ss:badArg");
+                     0, 0, "tf2ss", "", "nk:tf2ss:badArg");
     const double a0 = a.elemAsDouble(0);
     if (std::abs(a0) < 1e-15)
         throw Error("tf2ss: a(1) must be non-zero",
-                     0, 0, "tf2ss", "", "numkit:tf2ss:badArg");
+                     0, 0, "tf2ss", "", "nk:tf2ss:badArg");
 
     // Normalise so a(1) = 1.
     const size_t na = a.numel();
@@ -174,7 +174,7 @@ tf2ss(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     // Denominator order N. State dimension = N.
     if (na < 2)
         throw Error("tf2ss: order must be >= 1 (denominator length >= 2)",
-                     0, 0, "tf2ss", "", "numkit:tf2ss:badArg");
+                     0, 0, "tf2ss", "", "nk:tf2ss:badArg");
     const size_t N = na - 1;
 
     // Direct feed-through D = bh[0]   (since b is normalised + padded
@@ -230,14 +230,14 @@ ss2tf(const Value &A, const Value &B, const Value &C, double D,
 {
     if (A.dims().rows() != A.dims().cols())
         throw Error("ss2tf: A must be square",
-                     0, 0, "ss2tf", "", "numkit:ss2tf:badShape");
+                     0, 0, "ss2tf", "", "nk:ss2tf:badShape");
     const size_t N = A.dims().rows();
     if (B.dims().rows() != N || B.dims().cols() != 1)
         throw Error("ss2tf: B must be N×1",
-                     0, 0, "ss2tf", "", "numkit:ss2tf:badShape");
+                     0, 0, "ss2tf", "", "nk:ss2tf:badShape");
     if (C.dims().rows() != 1 || C.dims().cols() != N)
         throw Error("ss2tf: C must be 1×N",
-                     0, 0, "ss2tf", "", "numkit:ss2tf:badShape");
+                     0, 0, "ss2tf", "", "nk:ss2tf:badShape");
 
     const double Dscalar = D;
 
@@ -338,7 +338,7 @@ ss2zp(const Value &A, const Value &B, const Value &C, double D,
 std::tuple<Value, Value, Value, Value>
 zp2ss(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr)
 {
-    auto [b, a] = numkit::builtin::zp2tf(z, p, k, mr);
+    auto [b, a] = nk::builtin::zp2tf(z, p, k, mr);
     return tf2ss(b, a, mr);
 }
 
@@ -377,7 +377,7 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_res
     const std::size_t K = std::max(Knum, Kden);
     if (K == 0)
         throw Error("ctf2zp: NUM/DEN must be non-empty",
-                    0, 0, "ctf2zp", "", "numkit:ctf2zp:Empty");
+                    0, 0, "ctf2zp", "", "nk:ctf2zp:Empty");
 
     // SV defaults to 1 if not provided.
     std::vector<double> sv;
@@ -391,7 +391,7 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_res
         for (std::size_t i = 0; i <= K; ++i) sv[i] = SV.elemAsDouble(i);
     } else {
         throw Error("ctf2zp: SV must be scalar or K+1 vector",
-                    0, 0, "ctf2zp", "", "numkit:ctf2zp:invalidSVDims");
+                    0, 0, "ctf2zp", "", "nk:ctf2zp:invalidSVDims");
     }
 
     // Helper to extract row i of a matrix (or replicate if matrix is just
@@ -512,11 +512,11 @@ Value scaleFilterSections(const Value &CTFNum, const Value &SV,
     const bool scalarG = (nsv == 1);
     const bool vectorG = (nsv == K + 1);
     if (!scalarG && !vectorG) {
-        throw numkit::Error(
+        throw nk::Error(
             "Invalid number of scale values. Specify either a scalar "
             "or a vector of length equal to the number of sections + 1.",
             0, 0, "scaleFilterSections", "",
-            "numkit:scaleFilterSections:invalidNumberOfScaleValues");
+            "nk:scaleFilterSections:invalidNumberOfScaleValues");
     }
 
     // Result type: COMPLEX iff either input carries complex data.
@@ -570,4 +570,4 @@ Value scaleFilterSections(const Value &CTFNum, const Value &SV,
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

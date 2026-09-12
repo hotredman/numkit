@@ -14,13 +14,13 @@
 // SIMD doesn't help there. Parity vs the scalar reference is
 // verified in toolboxes/builtin/tests/simd_parity_test.cpp.
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/parallel_for.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/parallel_for.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 #include "sinpi_kernel.hpp"
 
 #include <cmath>
@@ -36,7 +36,7 @@
 #include <hwy/contrib/math/math-inl.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace nk::builtin {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -475,12 +475,12 @@ void CospiLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace nk::builtin
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 HWY_EXPORT(SinLoop);
 HWY_EXPORT(CosLoop);
@@ -591,7 +591,7 @@ Value unaryRealDouble(const Value &x, Value *hint, LoopDispatch loop, ScalarOp s
     double       *out = r.doubleDataMut();
     // Transcendentals are heavier per element than +/-/.* — pays off
     // earlier, hence the smaller threshold.
-    numkit::detail::parallel_for(x.numel(), numkit::detail::kTranscendentalThreshold,
+    nk::detail::parallel_for(x.numel(), nk::detail::kTranscendentalThreshold,
         [=](std::size_t s, std::size_t e) {
             loop(in + s, out + s, e - s);
         });
@@ -785,7 +785,7 @@ Value atan2(const Value &y, const Value &x, std::pmr::memory_resource *mr)
         const double *yp  = y.doubleData();
         const double *xp  = x.doubleData();
         double       *out = r.doubleDataMut();
-        numkit::detail::parallel_for(y.numel(), numkit::detail::kTranscendentalThreshold,
+        nk::detail::parallel_for(y.numel(), nk::detail::kTranscendentalThreshold,
             [=](std::size_t s, std::size_t e) {
                 HWY_DYNAMIC_DISPATCH(Atan2Loop)(yp + s, xp + s, out + s, e - s);
             });
@@ -869,7 +869,7 @@ Value atan2d(const Value &y, const Value &x, std::pmr::memory_resource *mr)
         const double *yp  = y.doubleData();
         const double *xp  = x.doubleData();
         double       *out = r.doubleDataMut();
-        numkit::detail::parallel_for(y.numel(), numkit::detail::kTranscendentalThreshold,
+        nk::detail::parallel_for(y.numel(), nk::detail::kTranscendentalThreshold,
             [=](std::size_t s, std::size_t e) {
                 HWY_DYNAMIC_DISPATCH(Atan2dLoop)(yp + s, xp + s, out + s, e - s);
             });
@@ -917,7 +917,7 @@ Value hypot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         const double *ap  = a.doubleData();
         const double *bp  = b.doubleData();
         double       *out = r.doubleDataMut();
-        numkit::detail::parallel_for(a.numel(), numkit::detail::kTranscendentalThreshold,
+        nk::detail::parallel_for(a.numel(), nk::detail::kTranscendentalThreshold,
             [=](std::size_t s, std::size_t e) {
                 HWY_DYNAMIC_DISPATCH(HypotLoop)(ap + s, bp + s, out + s, e - s);
             });
@@ -926,6 +926,6 @@ Value hypot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin
 
 #endif // HWY_ONCE

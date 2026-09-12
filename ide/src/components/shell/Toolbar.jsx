@@ -30,7 +30,7 @@ export default function Toolbar({
   return (
     <div className="toolbar">
       <div className="brand">
-        <span className="brand-mark" aria-label="numkit logo">
+        <span className="brand-mark" aria-label="nk logo">
           <span className="brand-bracket">[</span>
           <span className="brand-n">n</span>
           <span className="brand-k">k</span>
@@ -69,7 +69,7 @@ export default function Toolbar({
             className="tool-action tool-build-run"
             onClick={onBuildRun}
             disabled={!canRun || isBuildRunning || isRunning || !isDesktop}
-            title={!isDesktop ? "Build & Run is available in the desktop app (requires native C++ compiler and numkit_codegen)" : "Transpile → compile → run via numkit_codegen --run"}
+            title={!isDesktop ? "Build & Run is available in the desktop app (requires native C++ compiler and nk_codegen)" : "Transpile → compile → run via nk_codegen --run"}
           >
             {/* λ▶ icon: lambda (codegen) + play triangle */}
             <svg width="13" height="10" viewBox="0 0 13 10">

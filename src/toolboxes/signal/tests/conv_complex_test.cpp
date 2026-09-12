@@ -6,16 +6,16 @@
 // multiply-accumulate (full[n] = sum_k a[k]*b[n-k]), NOT a real/imag split.
 // 'full' / 'same' / 'valid' trims all carry through. MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class ConvComplexTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 

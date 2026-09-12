@@ -20,9 +20,9 @@ name works. Same family as `lang/run-abs-path-sibling-resolution.md`
 %   n = a + sum([varargin{:}]);
 %   end
 % dirA/main.m:
-disp(vh(2, 3, 4))       % numkit: 9   (works)
+disp(vh(2, 3, 4))       % nk: 9   (works)
 h = @vh;
-disp(h(2, 3, 4))        % numkit: Error: VM: undefined function in handle '@vh'
+disp(h(2, 3, 4))        % nk: Error: VM: undefined function in handle '@vh'
                          % MATLAB R2025b: 9 for BOTH
 ```
 

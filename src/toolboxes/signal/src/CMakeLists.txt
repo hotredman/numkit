@@ -59,8 +59,8 @@ set(SIGNALLIB_SOURCES
 )
 
 # The backend-split FFT kernel (radix-2/4 / Stockham / SoA, portable + SIMD
-# TUs) moved to ops/ (numkit_ops) — a reusable raw-buffer transform primitive.
+# TUs) moved to ops/ (nk_ops) — a reusable raw-buffer transform primitive.
 # transforms/fft.cpp (the Value-level fft/ifft) stays here and calls it via the
-# numkit::signal::detail re-export shim (backends/fft_kernels.hpp).
+# nk::signal::detail re-export shim (backends/fft_kernels.hpp).
 
 set(SIGNALLIB_SOURCES ${SIGNALLIB_SOURCES} PARENT_SCOPE)

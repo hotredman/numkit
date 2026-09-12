@@ -16,18 +16,18 @@
 // when the user passes no time argument; otherwise t is interpreted
 // as either tFinal (scalar) or the explicit grid (vector).
 
-#include <numkit/control/response/response.hpp>
-#include <numkit/control/lti/lti.hpp>
-#include <numkit/control/conversion/conversion.hpp>
-#include <numkit/control/props/props.hpp>
-#include <numkit/control/internal/numerics.hpp>
+#include <nk/control/response/response.hpp>
+#include <nk/control/lti/lti.hpp>
+#include <nk/control/conversion/conversion.hpp>
+#include <nk/control/props/props.hpp>
+#include <nk/control/internal/numerics.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The step/impulse/lsim
 // builtins (CallContext wrappers) live in response_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -35,7 +35,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -78,11 +78,11 @@ SS toSSiso(const Value &sys, std::pmr::memory_resource *mr) {
             Cv = std::move(ss.C); Dv = std::move(ss.D);
         } else {
             throw Error("control response: unknown LTI kind",
-                        0, 0, "response", "", "numkit:control:kind");
+                        0, 0, "response", "", "nk:control:kind");
         }
     } else {
         throw Error("control response: expected an LTI struct",
-                    0, 0, "response", "", "numkit:control:kind");
+                    0, 0, "response", "", "nk:control:kind");
     }
 
     SS s;
@@ -336,12 +336,12 @@ Value lsim(const Value &sys, const Value &uIn, const Value &tIn,
     SS s = toSSiso(sys, mr);
     if (tIn.numel() < 2)
         throw Error("lsim: t must have at least 2 samples",
-                    0, 0, "lsim", "", "numkit:lsim:t");
+                    0, 0, "lsim", "", "nk:lsim:t");
     Vec t(tIn.numel());
     for (size_t i = 0; i < tIn.numel(); ++i) t[i] = tIn.elemAsDouble(i);
     if (uIn.numel() != t.size())
         throw Error("lsim: u and t must be the same length",
-                    0, 0, "lsim", "", "numkit:lsim:size");
+                    0, 0, "lsim", "", "nk:lsim:size");
     Vec u(t.size());
     for (size_t i = 0; i < t.size(); ++i) u[i] = uIn.elemAsDouble(i);
     Vec x0(s.n, 0.0);
@@ -365,11 +365,11 @@ initial_response(const Value &sys, const Value &x0In, const Value &tArg,
         for (size_t i = 0; i < s.n; ++i) x0[i] = x0In.elemAsDouble(i);
     else if (x0In.numel() != 0)
         throw Error("initial: x0 length must equal the number of states",
-                    0, 0, "initial", "", "numkit:initial:x0");
+                    0, 0, "initial", "", "nk:initial:x0");
     Vec xTraj;
     Vec y = simulate(s, t, u, x0, xOut ? &xTraj : nullptr);
     if (xOut) *xOut = matFromTraj(xTraj, t.size(), s.n, mr);
     return {rowFromVec(y, mr), rowFromVec(t, mr)};
 }
 
-} // namespace numkit::control
+} // namespace nk::control

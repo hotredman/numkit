@@ -2,22 +2,22 @@
 //
 // gsvd — Generalized Singular Value Decomposition.
 
-#include <numkit/linalg/gsvd.hpp>
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/linalg/pseudo_subspace.hpp>
-#include <numkit/linalg/solvers.hpp>
+#include <nk/linalg/gsvd.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/linalg/pseudo_subspace.hpp>
+#include <nk/linalg/solvers.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -28,12 +28,12 @@ using Complex = std::complex<double>;
 Value gsvd_values(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
-        throw Error("gsvd: A and B must be 2D matrices", 0, 0, "gsvd", "", "numkit:gsvd:notMatrix");
+        throw Error("gsvd: A and B must be 2D matrices", 0, 0, "gsvd", "", "nk:gsvd:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t p = static_cast<std::size_t>(B.dims().dim(0));
     if (static_cast<std::size_t>(B.dims().dim(1)) != n)
-        throw Error("gsvd: A and B must have the same number of columns", 0, 0, "gsvd", "", "numkit:gsvd:badDims");
+        throw Error("gsvd: A and B must have the same number of columns", 0, 0, "gsvd", "", "nk:gsvd:badDims");
 
     if (m == 0 || n == 0 || p == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
@@ -113,12 +113,12 @@ std::tuple<Value, Value, Value, Value, Value> gsvd(const Value &A, const Value &
                                                    std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
-        throw Error("gsvd: A and B must be 2D matrices", 0, 0, "gsvd", "", "numkit:gsvd:notMatrix");
+        throw Error("gsvd: A and B must be 2D matrices", 0, 0, "gsvd", "", "nk:gsvd:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t p = static_cast<std::size_t>(B.dims().dim(0));
     if (static_cast<std::size_t>(B.dims().dim(1)) != n)
-        throw Error("gsvd: A and B must have the same number of columns", 0, 0, "gsvd", "", "numkit:gsvd:badDims");
+        throw Error("gsvd: A and B must have the same number of columns", 0, 0, "gsvd", "", "nk:gsvd:badDims");
 
     if (m == 0 || n == 0 || p == 0) {
         return {Value::matrix(m, m, ValueType::DOUBLE, mr),
@@ -310,4 +310,4 @@ std::tuple<Value, Value, Value, Value, Value> gsvd(const Value &A, const Value &
             detail::narrow_if_real(S, mr)};
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

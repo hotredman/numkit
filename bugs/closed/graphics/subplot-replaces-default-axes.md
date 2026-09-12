@@ -27,7 +27,7 @@ subplot(2,1,2);
 plot(1:5);
 ch = gca.Parent.Children;
 disp(numel(ch))
-% numkit:  3   (ghost default axes kept)
+% nk:  3   (ghost default axes kept)
 % MATLAB R2025b: 2   (default axes replaced by subplot(2,1,1))
 ```
 

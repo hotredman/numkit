@@ -3,16 +3,16 @@
 // CallContext register half of distributions/rayleigh.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/rayleigh.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/rayleigh.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/rayleigh_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,14 +24,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void raylpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("raylpdf: requires (x, b)", 0, 0, "raylpdf", "", "numkit:raylpdf:nargin");
+        throw Error("raylpdf: requires (x, b)", 0, 0, "raylpdf", "", "nk:raylpdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &b = args[1];
     if (b.isScalar())
@@ -45,7 +45,7 @@ void raylcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "numkit:raylcdf:nargin");
+        throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "nk:raylcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &b = a[1];
     Value v = b.isScalar() ? raylcdf(a[0], b.toScalar(), mr)
@@ -57,7 +57,7 @@ void raylcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void raylinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("raylinv: requires (p, b)", 0, 0, "raylinv", "", "numkit:raylinv:nargin");
+        throw Error("raylinv: requires (p, b)", 0, 0, "raylinv", "", "nk:raylinv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &b = args[1];
     if (b.isScalar())
@@ -69,7 +69,7 @@ void raylinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void raylrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("raylrnd: requires b[, sz...]", 0, 0, "raylrnd", "", "numkit:raylrnd:nargin");
+        throw Error("raylrnd: requires b[, sz...]", 0, 0, "raylrnd", "", "nk:raylrnd:nargin");
     const double b = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
@@ -84,4 +84,4 @@ void raylstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

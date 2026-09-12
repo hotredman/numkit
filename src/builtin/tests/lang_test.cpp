@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <numkit/builtin/lang.hpp>
-#include <numkit/bundle/standard_library.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/builtin/lang.hpp>
+#include <nk/bundle/standard_library.hpp>
+#include <nk/core/engine.hpp>
 
-using namespace numkit;
+using namespace nk;
 
 class LangTest : public ::testing::Test {
 protected:
@@ -62,12 +62,12 @@ TEST_F(LangTest, DirectCppLangAPI) {
     EXPECT_FALSE(builtin::isvarname(Value::scalar(123.0)).toBool());
 
     // Environment variables
-    builtin::setenv("NUMKIT_CPP_API_TEST", "active_42");
-    EXPECT_EQ(builtin::getenv("NUMKIT_CPP_API_TEST"), "active_42");
+    builtin::setenv("NK_CPP_API_TEST", "active_42");
+    EXPECT_EQ(builtin::getenv("NK_CPP_API_TEST"), "active_42");
 
-    Value envVal = builtin::getenv(Value::fromString("NUMKIT_CPP_API_TEST"));
+    Value envVal = builtin::getenv(Value::fromString("NK_CPP_API_TEST"));
     EXPECT_EQ(envVal.toString(), "active_42");
 
-    builtin::setenv("NUMKIT_CPP_API_TEST", "");
-    EXPECT_EQ(builtin::getenv("NUMKIT_CPP_API_TEST"), "");
+    builtin::setenv("NK_CPP_API_TEST", "");
+    EXPECT_EQ(builtin::getenv("NK_CPP_API_TEST"), "");
 }

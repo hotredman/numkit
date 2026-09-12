@@ -16,7 +16,7 @@
 ## Remaining (deferred sub-gap)
 `unique(A,'stable','last')`: MATLAB R2025b does NOT error (the original note
 below was wrong) — it orders the unique values by their LAST occurrence, e.g.
-`unique([3 1 2 1 3],'stable','last')` → `C=[2 1 3]`, `ia=[3 4 5]`. numkit
+`unique([3 1 2 1 3],'stable','last')` → `C=[2 1 3]`, `ia=[3 4 5]`. nk
 currently returns the `'stable'` (first-occurrence) order here. Rare combo;
 tracked by `DISABLED_UniqueStableLast` in `src/bundle/tests/known_bugs_test.cpp`.
 
@@ -28,7 +28,7 @@ ignored.
 ## Repro
 ```matlab
 [C, ia] = unique([3 1 2 1 3], 'last')
-% numkit: C = [1 2 3], ia = [2 3 1]   (first occurrence — WRONG)
+% nk: C = [1 2 3], ia = [2 3 1]   (first occurrence — WRONG)
 % MATLAB: C = [1 2 3], ia = [4 3 5]   (last occurrence of 1@4, 2@3, 3@5)
 ```
 The default ('first') is correct, and `'stable'` works.

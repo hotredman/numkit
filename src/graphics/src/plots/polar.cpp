@@ -1,10 +1,10 @@
-// numkit/graphics — polar.cpp
+// nk/graphics — polar.cpp
 //
 // graphics.polar.* builders (polarplot / polarscatter / polarhistogram / rlim / theta* / r*), carved out of plots.cpp. Core-free bodies (GraphicsContext); shared
 // JSON/parse helpers come from plot_internal.hpp.
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildPolarPlots(std::vector<PlotEntry> &table)
 {
@@ -414,4 +414,4 @@ void buildPolarPlots(std::vector<PlotEntry> &table)
         });
 }
 
-}  // namespace numkit
+}  // namespace nk

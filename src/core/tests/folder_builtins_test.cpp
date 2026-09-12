@@ -6,14 +6,14 @@
 // pathsep. All routed through the VFS (no direct std::filesystem in
 // the engine path).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/fs/vfs.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/fs/vfs.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 
@@ -27,7 +27,7 @@ protected:
     {
         const auto *info = ::testing::UnitTest::GetInstance()->current_test_info();
         workDir = std::filesystem::temp_directory_path()
-                  / (std::string{"numkit-folder-test-"} + info->name());
+                  / (std::string{"nk-folder-test-"} + info->name());
         std::error_code ec;
         std::filesystem::remove_all(workDir, ec);
         std::filesystem::create_directories(workDir);

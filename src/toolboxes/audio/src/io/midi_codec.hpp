@@ -7,11 +7,11 @@
 
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 #include <vector>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 struct MidiNote {
     uint16_t track = 0;
@@ -49,4 +49,4 @@ std::vector<std::uint8_t> writeMidiToBytes(const Value &notesMatrix,
                                            uint16_t ticksPerQuarterNote = 480,
                                            double tempoBpm = 120.0);
 
-} // namespace numkit::audio
+} // namespace nk::audio

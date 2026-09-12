@@ -17,7 +17,7 @@ Naming convention:
 | Windows (`scripts/windows/`) | Linux/macOS (`scripts/linux/`) | Description |
 |---|---|---|
 | `engine-build.cmd` | `engine-build.sh` | Build the engine. Flags: `--wasm` (WASM via Emscripten), `--debug`, `--portable` (no SIMD), default = release with Highway SIMD. |
-| `tests-run.cmd` | `tests-run.sh` | Incremental build + run gtest suite (`numkit_gtest`). Forwards arguments to gtest (e.g. `--gtest_filter=*Ordqz*`). Use `--build-only` to skip running. |
+| `tests-run.cmd` | `tests-run.sh` | Incremental build + run gtest suite (`nk_gtest`). Forwards arguments to gtest (e.g. `--gtest_filter=*Ordqz*`). Use `--build-only` to skip running. |
 | `rebuild-all.cmd` | `rebuild-all.sh` | From-scratch rebuild: wipes build dirs, rebuilds release engine, runs test suite, refreshes npm dist (`--wasm` adds web bundle). |
 | `coverage.ps1` | — | Ninja + clang-cl coverage build → `llvm-cov` report (enters VS Dev Shell first). |
 
@@ -38,9 +38,9 @@ Naming convention:
 |---|---|---|
 | `code-publish.cmd` | `code-publish.sh` | Push source code, main branch, and tags to GitHub public mirror. |
 | `web-publish.cmd` | `web-publish.sh` | Deploy built web static distribution to GitHub Pages (`--push` to push). |
-| `doxy-publish.cmd` | `doxy-publish.sh` | Generate and deploy Doxygen API docs to `numkit-doxy` Pages repo (`--push` to push). |
-| `bugs-publish.cmd` | `bugs-publish.sh` | Generate and deploy bugs catalog site to `numkit-bugs` Pages repo (`--push` to push). |
-| `npm-publish.cmd` | `npm-publish.sh` | Refresh WASM package and publish `packages/numkit` to npm (`--dry-run` to preview). |
+| `doxy-publish.cmd` | `doxy-publish.sh` | Generate and deploy Doxygen API docs to `nk-doxy` Pages repo (`--push` to push). |
+| `bugs-publish.cmd` | `bugs-publish.sh` | Generate and deploy bugs catalog site to `nk-bugs` Pages repo (`--push` to push). |
+| `npm-publish.cmd` | `npm-publish.sh` | Refresh WASM package and publish `packages/nk` to npm (`--dry-run` to preview). |
 | `all-publish.cmd` | `all-publish.sh` | One-shot publish: code, web, doxy, and bugs sites (`--push` to push). |
 
 ### Why `base: './'` (relative)

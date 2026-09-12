@@ -3,14 +3,14 @@
 // CallContext register half of dim/pca.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/dim/pca.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/dim/pca.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "dim/pca_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ void pca_reg(Span<const Value> args, size_t nargout,
              Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("pca: requires X", 0, 0, "pca", "", "numkit:pca:nargin");
+        throw Error("pca: requires X", 0, 0, "pca", "", "nk:pca:nargin");
     auto [coeff, score, latent, tsq, explained, mu] =
         pca(args[0], ctx.engine->resource());
     outs[0] = std::move(coeff);
@@ -46,7 +46,7 @@ void pcacov_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("pcacov: requires C", 0, 0, "pcacov", "",
-                    "numkit:pcacov:nargin");
+                    "nk:pcacov:nargin");
     auto [coeff, latent, explained] = pcacov(args[0], ctx.engine->resource());
     outs[0] = std::move(coeff);
     if (nargout > 1) outs[1] = std::move(latent);
@@ -58,7 +58,7 @@ void pcares_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("pcares: requires (X, ndim)", 0, 0, "pcares", "",
-                    "numkit:pcares:nargin");
+                    "nk:pcares:nargin");
     auto [res, recon] = pcares_full(args[0], (int)args[1].toScalar(), ctx.engine->resource());
     outs[0] = std::move(res);
     if (nargout > 1) outs[1] = std::move(recon);
@@ -66,4 +66,4 @@ void pcares_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

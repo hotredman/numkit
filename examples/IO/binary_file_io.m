@@ -1,6 +1,6 @@
 % Binary Stream I/O — fopen, fwrite, fseek, fread, fclose
 % Demonstrates raw low-level binary serialization and deserialization
-% using C-style file streams in NumKit.
+% using C-style file streams in NK.
 
 clear
 

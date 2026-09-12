@@ -3,15 +3,15 @@
 // CallContext register half of regress/lasso.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/regress/regress.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/regress/regress.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "regress/lasso_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -32,7 +32,7 @@ void lasso_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("lasso: requires (X, y, lambdas [, alpha])",
-                    0, 0, "lasso", "", "numkit:lasso:nargin");
+                    0, 0, "lasso", "", "nk:lasso:nargin");
     double alpha = 1.0;
     if (args.size() >= 4 && !args[3].isEmpty())
         alpha = args[3].toScalar();
@@ -47,10 +47,10 @@ void lassoglm_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("lassoglm: requires (X, y, distr, lambdas [, alpha])",
-                    0, 0, "lassoglm", "", "numkit:lassoglm:nargin");
+                    0, 0, "lassoglm", "", "nk:lassoglm:nargin");
     if (!args[2].isChar())
         throw Error("lassoglm: distr must be a string",
-                    0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
+                    0, 0, "lassoglm", "", "nk:lassoglm:badDistr");
     const std::string s = args[2].toString();
     GlmDistribution d;
     if (s == "normal")        d = GlmDistribution::Normal;
@@ -59,7 +59,7 @@ void lassoglm_reg(Span<const Value> args, size_t nargout,
     else
         throw Error("lassoglm: unsupported distribution '" + s
                     + "' (v1: normal, binomial, poisson)",
-                    0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
+                    0, 0, "lassoglm", "", "nk:lassoglm:badDistr");
     double alpha = 1.0;
     if (args.size() >= 5 && !args[4].isEmpty())
         alpha = args[4].toScalar();
@@ -71,4 +71,4 @@ void lassoglm_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

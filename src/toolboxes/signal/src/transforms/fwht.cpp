@@ -23,18 +23,18 @@
 //   - Walsh, "A Closed Set of Normal Orthogonal Functions",
 //     Amer. J. Math. 45 (1923) 5-24.
 
-#include <numkit/signal/transforms/fwht.hpp>
+#include <nk/signal/transforms/fwht.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <string>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -124,7 +124,7 @@ std::size_t resolveLen(std::size_t L, std::size_t n)
     if (n == 0) return nextPow2(L);
     if (!isPowerOfTwo(n))
         throw Error("fwht: transform length must be a power of 2",
-                     0, 0, "fwht", "", "numkit:fwht:badLength");
+                     0, 0, "fwht", "", "nk:fwht:badLength");
     return n;
 }
 
@@ -184,12 +184,12 @@ Value runWalshHadamard(const Value &x, std::size_t n,
 {
     if (ordering != "sequency" && ordering != "hadamard" && ordering != "dyadic")
         throw Error("fwht: ordering must be 'sequency', 'hadamard', or 'dyadic'",
-                     0, 0, "fwht", "", "numkit:fwht:badOrdering");
+                     0, 0, "fwht", "", "nk:fwht:badOrdering");
 
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("fwht: input must be a vector or matrix",
-                     0, 0, "fwht", "", "numkit:fwht:notMatrix");
+                     0, 0, "fwht", "", "nk:fwht:notMatrix");
     if (x.numel() == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -245,4 +245,4 @@ Value ifwht(const Value &y, std::size_t n, const std::string &ordering,
     return runWalshHadamard(y, n, ordering, /*forward=*/false, mr);
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

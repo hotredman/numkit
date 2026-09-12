@@ -4,16 +4,16 @@
 //
 // Reference: Shampine & Reichelt, "The MATLAB ODE Suite", 1997.
 
-#include <numkit/ode/options.hpp>
+#include <nk/ode/options.hpp>
 
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <string>
 #include <unordered_set>
 
-namespace numkit::ode {
+namespace nk::ode {
 
 namespace {
 
@@ -80,18 +80,18 @@ Value odeset(const Value *args, std::size_t nargs,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("odeset: expected a string option name at arg "
                       + std::to_string(i + 1),
-                        0, 0, "odeset", "", "numkit:odeset:badArg");
+                        0, 0, "odeset", "", "nk:odeset:badArg");
         const std::string name = canonical_name(args[i].toString());
         if (name.empty())
             throw Error("odeset: unknown option '" + args[i].toString() + "'",
-                        0, 0, "odeset", "", "numkit:odeset:badName");
+                        0, 0, "odeset", "", "nk:odeset:badName");
         out.field(name.c_str()) = args[i + 1];
         i += 2;
     }
     if (i < nargs)
         throw Error("odeset: trailing unmatched argument at position "
                   + std::to_string(i + 1),
-                    0, 0, "odeset", "", "numkit:odeset:unpaired");
+                    0, 0, "odeset", "", "nk:odeset:unpaired");
     return out;
 }
 
@@ -100,14 +100,14 @@ Value odeget(const Value &opts, const Value &name,
 {
     if (!opts.isStruct())
         throw Error("odeget: first argument must be a struct",
-                    0, 0, "odeget", "", "numkit:odeget:notStruct");
+                    0, 0, "odeget", "", "nk:odeget:notStruct");
     if (!name.isChar() && !name.isString())
         throw Error("odeget: name must be a string",
-                    0, 0, "odeget", "", "numkit:odeget:badName");
+                    0, 0, "odeget", "", "nk:odeget:badName");
     const std::string canon = canonical_name(name.toString());
     if (canon.empty())
         throw Error("odeget: unknown option '" + name.toString() + "'",
-                    0, 0, "odeget", "", "numkit:odeget:badName");
+                    0, 0, "odeget", "", "nk:odeget:badName");
     if (opts.hasField(canon.c_str())) {
         const Value &v = opts.field(canon.c_str());
         if (!v.isEmpty()) return v;
@@ -116,4 +116,4 @@ Value odeget(const Value &opts, const Value &name,
     return Value::Empty;
 }
 
-} // namespace numkit::ode
+} // namespace nk::ode

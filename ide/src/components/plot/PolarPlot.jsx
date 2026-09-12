@@ -168,7 +168,7 @@ export default function PolarPlot({
 
   // ── WebGL overlay (polar) — large line / scatter series draw on GL in
   // SCREEN space (polarToScreen → exactly the SVG's pixels), so it lands on the
-  // grid. Default-on (opt out 'numkit.plot.gl'=0). The interactive window draws
+  // grid. Default-on (opt out 'nk.plot.gl'=0). The interactive window draws
   // a live canvas; preview cards rasterize the SAME series to an SVG <image>
   // (previewRaster, one shared context) so they match the window. Small series
   // and bubble/compass/bar/rose stay on SVG. polarscatter is the big win.

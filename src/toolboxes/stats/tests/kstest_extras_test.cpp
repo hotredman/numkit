@@ -2,11 +2,11 @@
 // — Tail aliases
 // (unequal/larger/smaller) and Name-Value parsing (Alpha=, Tail=).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class KstestExtrasTest : public ::testing::Test
 {

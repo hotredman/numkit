@@ -1,9 +1,9 @@
 // toolboxes/comm/src/modulation/psk.cpp
 
-#include <numkit/comm/modulation/psk.hpp>
+#include <nk/comm/modulation/psk.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -70,7 +70,7 @@ Value pskmod(const Value &x, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pskmod: M must be ≥ 2", 0, 0, "pskmod", "",
-                    "numkit:pskmod:badM");
+                    "nk:pskmod:badM");
     Value out = alloc_complex_like(mr, x);
     const size_t N = x.numel();
     if (N == 0) return out;
@@ -91,7 +91,7 @@ Value pskdemod(const Value &y, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pskdemod: M must be ≥ 2", 0, 0, "pskdemod", "",
-                    "numkit:pskdemod:badM");
+                    "nk:pskdemod:badM");
     Value out = alloc_double_like(mr, y);
     const size_t N = y.numel();
     if (N == 0) return out;
@@ -117,7 +117,7 @@ Value dpskmod(const Value &x, int M, double phase_rot,
 {
     if (M < 2)
         throw Error("dpskmod: M must be ≥ 2", 0, 0, "dpskmod", "",
-                    "numkit:dpskmod:badM");
+                    "nk:dpskmod:badM");
     Value out = alloc_complex_like(mr, x);
     const size_t N = x.numel();
     if (N == 0) return out;
@@ -139,7 +139,7 @@ Value dpskdemod(const Value &y, int M, double phase_rot,
 {
     if (M < 2)
         throw Error("dpskdemod: M must be ≥ 2", 0, 0, "dpskdemod", "",
-                    "numkit:dpskdemod:badM");
+                    "nk:dpskdemod:badM");
     Value out = alloc_double_like(mr, y);
     const size_t N = y.numel();
     if (N == 0) return out;
@@ -160,4 +160,4 @@ Value dpskdemod(const Value &y, int M, double phase_rot,
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

@@ -8,16 +8,16 @@
 ## Symptom
 `freqs(b, a, n)` with a SCALAR third argument: MATLAB treats `n` as the
 number of auto-spaced frequency points (returns an `n`-element response);
-numkit treats the scalar as a single frequency value `w` (returns one
+nk treats the scalar as a single frequency value `w` (returns one
 point). The vector-`w` form matches MATLAB exactly.
 
 ## Repro
 ```matlab
 clear;
 h = freqs([1 0], [1 1 1], 2);
-% numkit: numel(h) = 1, |h| = 0.5547   (evaluated at w = 2)
+% nk: numel(h) = 1, |h| = 0.5547   (evaluated at w = 2)
 % MATLAB: numel(h) = 2  (2 auto-spaced frequency points: |h| = [0.0100 0.1005])
-freqs([1 0],[1 1 1],[1 2 3])   % vector w: numkit == MATLAB ([1 0.5547 0.3511])
+freqs([1 0],[1 1 1],[1 2 3])   % vector w: nk == MATLAB ([1 0.5547 0.3511])
 ```
 
 ## Root cause

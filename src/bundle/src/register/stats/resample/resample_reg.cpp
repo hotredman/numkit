@@ -3,18 +3,18 @@
 // CallContext register half of resample/resample.cpp (Phase 2b split): the
 // callback-driven adapters (bootstrp/bootci/crossval/datasample/jackknife/
 // randsample/combnk) + BootstrpCallbackBuiltin + registerBootstrpCallbackBuiltin.
-#include <numkit/core/engine.hpp>
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/vm.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/resample/resample.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/core/vm.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/resample/resample.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "resample/resample_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cstring>
@@ -24,7 +24,7 @@
 #include <random>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void randsample_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("randsample: requires (N, K[, replacement, weights])",
-                    0, 0, "randsample", "", "numkit:randsample:nargin");
+                    0, 0, "randsample", "", "nk:randsample:nargin");
 
     bool with_replacement = false;
     Value weights;
@@ -67,7 +67,7 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("datasample: requires (X, K[, dim, ...])",
-                    0, 0, "datasample", "", "numkit:datasample:nargin");
+                    0, 0, "datasample", "", "nk:datasample:nargin");
     const int K = (int)args[1].toScalar();
     // MATLAB datasample default dim:
     //   - For a row vector (1 x N), sample along columns (dim=2).
@@ -90,7 +90,7 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 // Helper: draw N indices in [0, N-1] with replacement, write into idx_out.
-static void drawBootstrapIndices(::numkit::ops::RngContext &rng, int N, int *idx_out)
+static void drawBootstrapIndices(::nk::ops::RngContext &rng, int N, int *idx_out)
 {
     auto &gen = rng;
     std::uniform_int_distribution<int> dist(0, N - 1);
@@ -127,9 +127,9 @@ static Value resampleRows(const Value &X, const int *idx, int N, std::pmr::memor
 // statistic as a pausable VM frame. Each sample is drawn lazily in makeArgs (so
 // the RNG draw order is interleaved with the callbacks, matching the synchronous
 // bootstrp_reg). Builtin handles / multi-output / bad args fall back to sync.
-struct BootstrpCallbackBuiltin : ::numkit::CallbackBuiltin
+struct BootstrpCallbackBuiltin : ::nk::CallbackBuiltin
 {
-    std::shared_ptr<::numkit::VmContinuation> tryStart(Span<const Value> args,
+    std::shared_ptr<::nk::VmContinuation> tryStart(Span<const Value> args,
                                                        std::size_t nargout, Value *dest,
                                                        Engine &eng) override
     {
@@ -145,7 +145,7 @@ struct BootstrpCallbackBuiltin : ::numkit::CallbackBuiltin
         const int N = static_cast<int>(X.dims().dim(0));
         if (N == 0)
             return nullptr; // sync path reports empty
-        auto cont = std::make_shared<::numkit::LoopContinuation>();
+        auto cont = std::make_shared<::nk::LoopContinuation>();
         cont->handle = args[1];
         cont->n = static_cast<std::size_t>(nboot);
         cont->dest = dest;
@@ -159,13 +159,13 @@ struct BootstrpCallbackBuiltin : ::numkit::CallbackBuiltin
             const std::size_t K = results.empty() ? 0 : results[0].numel();
             if (K == 0)
                 throw Error("bootstrp: bootfun returned empty", 0, 0, "bootstrp", "",
-                            "numkit:bootstrp:emptyStat");
+                            "nk:bootstrp:emptyStat");
             auto out = Value::matrix(nb, K, ValueType::DOUBLE, mr);
             double *od = out.doubleDataMut();
             for (std::size_t b = 0; b < nb; ++b) {
                 if (results[b].numel() != K)
                     throw Error("bootstrp: bootfun returned varying-size output", 0, 0, "bootstrp",
-                                "", "numkit:bootstrp:varyingStat");
+                                "", "nk:bootstrp:varyingStat");
                 for (std::size_t j = 0; j < K; ++j)
                     od[b + j * nb] = results[b].elemAsDouble(j);
             }
@@ -181,19 +181,19 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("bootstrp: requires (nboot, fn, X)", 0, 0, "bootstrp", "",
-                    "numkit:bootstrp:nargin");
+                    "nk:bootstrp:nargin");
     if (!args[1].isFuncHandle())
         throw Error("bootstrp: 2nd argument must be a function handle",
-                    0, 0, "bootstrp", "", "numkit:bootstrp:notFuncHandle");
+                    0, 0, "bootstrp", "", "nk:bootstrp:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
     if (nboot < 1)
         throw Error("bootstrp: nboot must be >= 1",
-                    0, 0, "bootstrp", "", "numkit:bootstrp:badN");
+                    0, 0, "bootstrp", "", "nk:bootstrp:badN");
     auto *mr = ctx.engine->resource();
     const Value &X = args[2];
     const int N = static_cast<int>(X.dims().dim(0));
     if (N == 0)
-        throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "numkit:bootstrp:empty");
+        throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "nk:bootstrp:empty");
 
     ScratchArena scratch(mr);
     ScratchVec<int> idx(static_cast<std::size_t>(N), &scratch);
@@ -207,7 +207,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t K = stat0.numel();
     if (K == 0)
         throw Error("bootstrp: bootfun returned empty", 0, 0, "bootstrp", "",
-                    "numkit:bootstrp:emptyStat");
+                    "nk:bootstrp:emptyStat");
 
     // Output is nboot × K (each row = one bootstrap statistic).
     auto out = Value::matrix(static_cast<std::size_t>(nboot), K,
@@ -227,7 +227,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
             args[1], Span<const Value>(callArgs, 1), ctx.env);
         if (stat.numel() != K)
             throw Error("bootstrp: bootfun returned varying-size output",
-                        0, 0, "bootstrp", "", "numkit:bootstrp:varyingStat");
+                        0, 0, "bootstrp", "", "nk:bootstrp:varyingStat");
         for (std::size_t j = 0; j < K; ++j)
             od[b + j * nboot] = stat.elemAsDouble(j);
     }
@@ -245,11 +245,11 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("crossval: requires (predfun, X, Y[, 'kfold', K])",
-                    0, 0, "crossval", "", "numkit:crossval:nargin");
+                    0, 0, "crossval", "", "nk:crossval:nargin");
     if (!args[0].isFuncHandle())
         throw Error("crossval: 1st argument must be a function handle "
                     "predfun(Xtrain, Ytrain, Xtest, Ytest)",
-                    0, 0, "crossval", "", "numkit:crossval:notFuncHandle");
+                    0, 0, "crossval", "", "nk:crossval:notFuncHandle");
 
     auto *mr = ctx.engine->resource();
     const Value &X = args[1];
@@ -258,23 +258,23 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     if (Y.dims().dim(0) != static_cast<int>(m))
         throw Error("crossval: X and Y must have the same number of rows",
-                    0, 0, "crossval", "", "numkit:crossval:dimMismatch");
+                    0, 0, "crossval", "", "nk:crossval:dimMismatch");
     if (m < 2)
         throw Error("crossval: need at least 2 observations",
-                    0, 0, "crossval", "", "numkit:crossval:tooSmall");
+                    0, 0, "crossval", "", "nk:crossval:tooSmall");
 
     int K = 10;
     for (std::size_t i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("crossval: option name must be a string",
-                        0, 0, "crossval", "", "numkit:crossval:badOption");
+                        0, 0, "crossval", "", "nk:crossval:badOption");
         const auto opt = args[i].toString();
         if (opt == "kfold" || opt == "KFold")
             K = static_cast<int>(args[i + 1].toScalar());
         else
             throw Error("crossval: unknown option '" + opt + "' (only "
                         "'kfold' supported in this revision)",
-                        0, 0, "crossval", "", "numkit:crossval:badOption");
+                        0, 0, "crossval", "", "nk:crossval:badOption");
     }
     if (K < 2 || K > static_cast<int>(m))
         K = static_cast<int>(std::min(m, std::size_t{10}));
@@ -320,7 +320,7 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
             args[0], Span<const Value>(callArgs, 4), ctx.env);
         if (res.numel() != 1)
             throw Error("crossval: predfun must return a scalar",
-                        0, 0, "crossval", "", "numkit:crossval:badPredfun");
+                        0, 0, "crossval", "", "nk:crossval:badPredfun");
         od[k] = res.toScalar();
     }
     outs[0] = std::move(out);
@@ -333,20 +333,20 @@ void bootci_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("bootci: requires (nboot, fn, X[, alpha])",
-                    0, 0, "bootci", "", "numkit:bootci:nargin");
+                    0, 0, "bootci", "", "nk:bootci:nargin");
     if (!args[1].isFuncHandle())
         throw Error("bootci: 2nd argument must be a function handle",
-                    0, 0, "bootci", "", "numkit:bootci:notFuncHandle");
+                    0, 0, "bootci", "", "nk:bootci:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
     if (nboot < 10)
         throw Error("bootci: nboot must be >= 10 for meaningful CI",
-                    0, 0, "bootci", "", "numkit:bootci:badN");
+                    0, 0, "bootci", "", "nk:bootci:badN");
     double alpha = 0.05;
     if (args.size() >= 4 && !args[3].isEmpty()) {
         alpha = args[3].toScalar();
         if (alpha <= 0.0 || alpha >= 1.0)
             throw Error("bootci: alpha must be in (0, 1)",
-                        0, 0, "bootci", "", "numkit:bootci:alpha");
+                        0, 0, "bootci", "", "nk:bootci:alpha");
     }
     auto *mr = ctx.engine->resource();
 
@@ -395,10 +395,10 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("jackknife: requires (fn, X)", 0, 0, "jackknife", "",
-                    "numkit:jackknife:nargin");
+                    "nk:jackknife:nargin");
     if (!args[0].isFuncHandle())
         throw Error("jackknife: 1st argument must be a function handle",
-                    0, 0, "jackknife", "", "numkit:jackknife:notFuncHandle");
+                    0, 0, "jackknife", "", "nk:jackknife:notFuncHandle");
     auto *mr = ctx.engine->resource();
     const Value &X = args[1];
     const auto &d = X.dims();
@@ -406,7 +406,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
     const int n = isVec ? static_cast<int>(X.numel()) : static_cast<int>(d.dim(0));
     if (n < 1)
         throw Error("jackknife: empty data", 0, 0, "jackknife", "",
-                    "numkit:jackknife:empty");
+                    "nk:jackknife:empty");
 
     // Observations are rows; treat a vector (either orientation) as a column so
     // resampleRows selects one element per observation (not one row of many).
@@ -429,7 +429,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t K = stat0.numel();
     if (K == 0)
         throw Error("jackknife: jackfun returned empty", 0, 0, "jackknife", "",
-                    "numkit:jackknife:emptyStat");
+                    "nk:jackknife:emptyStat");
 
     auto out = Value::matrix(static_cast<std::size_t>(n), K, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -443,7 +443,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
             args[0], Span<const Value>(callArgs, 1), ctx.env);
         if (stat.numel() != K)
             throw Error("jackknife: jackfun returned varying-size output",
-                        0, 0, "jackknife", "", "numkit:jackknife:varyingStat");
+                        0, 0, "jackknife", "", "nk:jackknife:varyingStat");
         for (std::size_t j = 0; j < K; ++j)
             od[static_cast<std::size_t>(s) + j * static_cast<std::size_t>(n)] =
                 stat.elemAsDouble(j);
@@ -456,7 +456,7 @@ void combnk_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("combnk: requires (v, K)", 0, 0, "combnk", "",
-                    "numkit:combnk:nargin");
+                    "nk:combnk:nargin");
     const int K = (int)args[1].toScalar();
     auto *mr = ctx.engine->resource();
     const Value &v = args[0];
@@ -477,4 +477,4 @@ void registerBootstrpCallbackBuiltin(Engine &engine)
                                    std::make_shared<detail::BootstrpCallbackBuiltin>());
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

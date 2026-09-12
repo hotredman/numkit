@@ -9,10 +9,10 @@
 // pin avglen and prefix-freeness; the literal bit patterns are not
 // asserted.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class HuffmandictTest : public ::testing::Test
 {

@@ -3,16 +3,16 @@
 // CallContext register half of math/arithmetic/misc.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
 #include "elfun/mod_simd.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,8 +24,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -35,7 +35,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
@@ -52,7 +52,7 @@ void mod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("mod: requires 2 arguments",
-                     0, 0, "mod", "", "numkit:mod:nargin");
+                     0, 0, "mod", "", "nk:mod:nargin");
     outs[0] = mod(args[0], args[1], ctx.engine->resource());
 }
 
@@ -60,7 +60,7 @@ void rem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("rem: requires 2 arguments",
-                     0, 0, "rem", "", "numkit:rem:nargin");
+                     0, 0, "rem", "", "nk:rem:nargin");
     outs[0] = rem(args[0], args[1], ctx.engine->resource());
 }
 
@@ -68,7 +68,7 @@ void hypot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("hypot: requires 2 arguments",
-                     0, 0, "hypot", "", "numkit:hypot:nargin");
+                     0, 0, "hypot", "", "nk:hypot:nargin");
     outs[0] = hypot(args[0], args[1], ctx.engine->resource());
 }
 
@@ -76,10 +76,10 @@ void nthroot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("nthroot: requires 2 arguments",
-                     0, 0, "nthroot", "", "numkit:nthroot:nargin");
+                     0, 0, "nthroot", "", "nk:nthroot:nargin");
     outs[0] = nthroot(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

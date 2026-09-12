@@ -17,7 +17,7 @@ repros; MATLAB-qualified runnable catalog) landed together — see
 ## Decisions (and why)
 
 - **Reader = scipy.io.loadmat** (Python-side, engine-neutral). Comparing
-  numkit's output with numkit's own `load` would be circular: a loader bug
+  nk's output with nk's own `load` would be circular: a loader bug
   would hide a compute bug.
 - **Class compared at bucket level** (real / complex / logical), NOT dtype
   level. Discovered while building: **MATLAB R2025b packs integral-valued
@@ -30,8 +30,8 @@ repros; MATLAB-qualified runnable catalog) landed together — see
   ±Inf equal to themselves. Workspace values carry full precision — no
   print rounding masks accumulated ULP drift, so the old 1e-6 stdout
   tolerance tightened to the documented threshold.
-- **Determinism probe** = matdiff of two numkit runs (was: stdout equality).
-- **Wrappers, not script edits**: numkit kinds run a generated
+- **Determinism probe** = matdiff of two nk runs (was: stdout equality).
+- **Wrappers, not script edits**: nk kinds run a generated
   `__nk_wrap_<kind>.m` (`run('<abs>'); save('<abs>')`) — the CLI executes
   exactly one file per invocation. MATLAB appends `; save(...)` to
   `-batch`. cwd stays the script's dir so sibling data files resolve.
@@ -52,7 +52,7 @@ repros; MATLAB-qualified runnable catalog) landed together — see
   localise: AHP eig-vector selection divergence (`w1 = e1` basis vector,
   wrong CR — open, awaiting the 8×8 repro) and the CLI
   run(abs)-sibling-resolution loss (open, CLI-bridge only — engine-level
-  gtest is green, guard lives in `packages/numkit/test/`).
+  gtest is green, guard lives in `packages/nk/test/`).
 
 ## Gotchas
 
@@ -62,7 +62,7 @@ repros; MATLAB-qualified runnable catalog) landed together — see
   (`hotredman/awesome-matlab-books`, cached at `corpus/catalog.json`).
 - Catalog `name` fields are free-form ('2nd edition'); derive clone dir
   names from the URL (`<owner>--<repo>`).
-- eig column ORDER differs across engines (numkit idx=3, MATLAB idx=1 on
+- eig column ORDER differs across engines (nk idx=3, MATLAB idx=1 on
   the same matrix — both legal). Real code must select via
   `[~,i] = max(diag(D))`, never positional `V(:,1)`; pinned green by
   `EigAHPConsistentPerronSelection`.

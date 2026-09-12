@@ -8,14 +8,14 @@
 
 ## Symptom
 `fminunc(fun, x0)` — unconstrained minimization of a smooth objective — was
-not registered. numkit shipped the derivative-free `fminsearch` (Nelder-Mead)
+not registered. nk shipped the derivative-free `fminsearch` (Nelder-Mead)
 and the 1-D `fminbnd`, but not the gradient-based multivariable minimizer.
 
 ## Repro
 ```matlab
 fminunc(@(x) (x-3)^2, 0)                                       % MATLAB: 3
 fminunc(@(x) 100*(x(2)-x(1)^2)^2 + (1-x(1))^2, [-1.2 1])       % MATLAB: [1 1]
-% numkit (each): Error — VM: undefined function 'fminunc'
+% nk (each): Error — VM: undefined function 'fminunc'
 ```
 
 ## Fix (2026-06-19)
@@ -33,7 +33,7 @@ fminsearch on smooth problems. The minimiser mirrors x0's orientation.
 Parity with MATLAB is on the **solution** (the minimiser). Verified vs MATLAB
 R2025b: parabola `(x−3)² → 3`, quadratic bowl `(x₁−1)²+2(x₂+2)²+3 → [1 −2]`
 (fval 3), Rosenbrock `→ [1 1]` (MATLAB's quasi-newton stops at
-`[0.99999 0.99998]`; numkit's central-FD BFGS converges tighter — both ≈[1 1],
+`[0.99999 0.99998]`; nk's central-FD BFGS converges tighter — both ≈[1 1],
 parity tol 1e-4). Parity `fminunc.json` → OK.
 
 The supplied-gradient form (`fun` returning `[f, grad]`) and `options` are not

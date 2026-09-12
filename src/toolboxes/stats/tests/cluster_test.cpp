@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/cluster_test.cpp
 // cluster.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ClusterTest : public ::testing::Test
 {
@@ -19,7 +19,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// MATLAB and numkit can assign different cluster label IDs for the same
+// MATLAB and nk can assign different cluster label IDs for the same
 // partition; we test partition equivalence via same-cluster boolean
 // queries instead of exact labels.
 

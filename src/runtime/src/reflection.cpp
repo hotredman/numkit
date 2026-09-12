@@ -2,19 +2,19 @@
 //
 // Language runtime introspection, reflection, and OOP metadata.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/object.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/object.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 namespace {
 
@@ -194,7 +194,7 @@ void registerReflectionRuntime(Engine &engine)
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.size() < 2)
                 throw Error("isprop: requires (obj, name)", 0, 0, "isprop", "",
-                            "numkit:isprop:nargin");
+                            "nk:isprop:nargin");
             const BuiltinClass *cls =
                 args[0].isObject() ? ctx.engine->findClass(args[0].objectClassName()) : nullptr;
             auto has = [&](const std::string &n) {
@@ -217,7 +217,7 @@ void registerReflectionRuntime(Engine &engine)
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.size() < 2)
                 throw Error("ismethod: requires (obj, name)", 0, 0, "ismethod", "",
-                            "numkit:ismethod:nargin");
+                            "nk:ismethod:nargin");
             std::string cn = args[0].isObject() ? args[0].objectClassName()
                                                 : args[0].toString();
             const BuiltinClass *cls = ctx.engine->findClass(cn);
@@ -240,7 +240,7 @@ void registerReflectionRuntime(Engine &engine)
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.empty())
                 throw Error("superclasses: requires (obj or 'ClassName')", 0, 0,
-                            "superclasses", "", "numkit:superclasses:nargin");
+                            "superclasses", "", "nk:superclasses:nargin");
             std::string cn = args[0].isObject() ? args[0].objectClassName()
                                                 : args[0].toString();
             const BuiltinClass *cls = ctx.engine->findClass(cn);
@@ -291,7 +291,7 @@ void registerReflectionRuntime(Engine &engine)
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.empty())
                 throw Error("metaclass: requires 1 argument", 0, 0, "metaclass", "",
-                            "numkit:metaclass:nargin");
+                            "nk:metaclass:nargin");
             auto *mr = ctx.engine->resource();
             std::string cn;
             if (args[0].isObject()) {
@@ -319,4 +319,4 @@ void registerReflectionRuntime(Engine &engine)
     engine.registerFunction("iscalendarduration",alwaysFalsePredicate);
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

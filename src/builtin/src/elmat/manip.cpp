@@ -5,15 +5,15 @@
 // movement (memcpy where possible) — no SIMD opportunity beyond what
 // the compiler auto-vectorises in the inner copy loops.
 
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/builtin/ops.hpp>
+#include <nk/builtin/elmat.hpp>
+#include <nk/builtin/ops.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/shape_ops.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/shape_ops.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -22,7 +22,7 @@
 
 #include "manip_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ────────────────────────────────────────────────────────────────────
 // repmat
@@ -92,7 +92,7 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
     if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error(std::string("repmat: ND repmat does not support type '")
                      + mtypeName(t) + "'",
-                     0, 0, "repmat", "", "numkit:repmat:typeND");
+                     0, 0, "repmat", "", "nk:repmat:typeND");
 
     const auto &inDims = x.dims();
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -100,7 +100,7 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
     int outNdim = std::max(inDims.ndim(), ntiles);
     if (outNdim > kMaxNd)
         throw Error("repmat: rank exceeds 32",
-                     0, 0, "repmat", "", "numkit:repmat:tooManyDims");
+                     0, 0, "repmat", "", "nk:repmat:tooManyDims");
     if (outNdim < 1) outNdim = 1;
 
     // OBJECT arrays store per-element state — build the tile→source index
@@ -157,13 +157,13 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
                 r = Value::stringArray3D(outD[0], outD[1], outD[2], mr);
             else
                 throw Error("repmat: ND > 3 not supported for string",
-                             0, 0, "repmat", "", "numkit:repmat:tooManyDimsStr");
+                             0, 0, "repmat", "", "nk:repmat:tooManyDimsStr");
         } else { // CELL
             if (outNdim <= 2)
                 r = Value::cell(outD[0], outNdim >= 2 ? outD[1] : 1, mr);
             else
                 throw Error("repmat: ND > 2 not supported for cell",
-                             0, 0, "repmat", "", "numkit:repmat:tooManyDimsCell");
+                             0, 0, "repmat", "", "nk:repmat:tooManyDimsCell");
         }
         if (x.numel() == 0) return r;
 
@@ -355,11 +355,11 @@ Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
             || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("rot90: ND fallback does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "rot90", "", "numkit:rot90:typeND");
+                         0, 0, "rot90", "", "nk:rot90:typeND");
         constexpr int kMaxNd = Dims::kMaxRank;
         if (nd > kMaxNd)
             throw Error("rot90: rank exceeds 32",
-                         0, 0, "rot90", "", "numkit:rot90:tooManyDims");
+                         0, 0, "rot90", "", "nk:rot90:tooManyDims");
         size_t outDims[kMaxNd];
         outDims[0] = (kMod == 1 || kMod == 3) ? C : R;
         outDims[1] = (kMod == 1 || kMod == 3) ? R : C;
@@ -505,18 +505,18 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
         || t == ValueType::STRING)
         throw Error(std::string("circshift: does not support type '")
                      + mtypeName(t) + "'",
-                     0, 0, "circshift", "", "numkit:circshift:typeND");
+                     0, 0, "circshift", "", "nk:circshift:typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("circshift: rank exceeds 32",
-                     0, 0, "circshift", "", "numkit:circshift:tooManyDims");
+                     0, 0, "circshift", "", "nk:circshift:tooManyDims");
 
     const bool isCell = (t == ValueType::CELL);
     if (isCell && nd > 2)
         throw Error("circshift: cell array rank > 2 not supported",
-                     0, 0, "circshift", "", "numkit:circshift:cellND");
+                     0, 0, "circshift", "", "nk:circshift:cellND");
 
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
@@ -659,7 +659,7 @@ Value tril(const Value &x, int k, std::pmr::memory_resource *mr)
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
         || t == ValueType::FUNC_HANDLE)
         throw Error("tril: inputs must be numeric, char, or logical",
-                     0, 0, "tril", "", "numkit:tril:badType");
+                     0, 0, "tril", "", "nk:tril:badType");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -685,7 +685,7 @@ Value triu(const Value &x, int k, std::pmr::memory_resource *mr)
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
         || t == ValueType::FUNC_HANDLE)
         throw Error("triu: inputs must be numeric, char, or logical",
-                     0, 0, "triu", "", "numkit:triu:badType");
+                     0, 0, "triu", "", "nk:triu:badType");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -740,10 +740,10 @@ Value repelem(const Value &x, size_t n, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
         throw Error("repelem: 1-arg form requires a vector input",
-                     0, 0, "repelem", "", "numkit:repelem:notVector");
+                     0, 0, "repelem", "", "nk:repelem:notVector");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "numkit:repelem:type");
+                     0, 0, "repelem", "", "nk:repelem:type");
 
     const size_t inN = x.numel();
     const size_t outN = inN * n;
@@ -768,10 +768,10 @@ Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("repelem: 3-arg form is 2-D only",
-                     0, 0, "repelem", "", "numkit:repelem:rank");
+                     0, 0, "repelem", "", "nk:repelem:rank");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "numkit:repelem:type");
+                     0, 0, "repelem", "", "nk:repelem:type");
 
     const size_t R = d.rows(), C = d.cols();
     const size_t outR = R * m, outC = C * n;
@@ -802,10 +802,10 @@ Value repelem(const Value &x, const Value &counts, std::pmr::memory_resource *mr
     const auto &d = x.dims();
     if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
         throw Error("repelem: vector-count form requires a vector input",
-                     0, 0, "repelem", "", "numkit:repelem:notVector");
+                     0, 0, "repelem", "", "nk:repelem:notVector");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "numkit:repelem:type");
+                     0, 0, "repelem", "", "nk:repelem:type");
 
     ScratchArena arena(mr);
     auto map = repelemMap(counts, x.numel(), arena);
@@ -832,10 +832,10 @@ Value repelem(const Value &x, const Value &rCounts, const Value &cCounts,
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("repelem: 3-arg form is 2-D only",
-                     0, 0, "repelem", "", "numkit:repelem:rank");
+                     0, 0, "repelem", "", "nk:repelem:rank");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "numkit:repelem:type");
+                     0, 0, "repelem", "", "nk:repelem:type");
 
     const size_t R = d.rows(), C = d.cols();
     ScratchArena arena(mr);
@@ -867,10 +867,10 @@ Value paddata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("paddata: vector input required",
-                     0, 0, "paddata", "", "numkit:paddata:notVector");
+                     0, 0, "paddata", "", "nk:paddata:notVector");
     if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("paddata: only DOUBLE inputs supported",
-                     0, 0, "paddata", "", "numkit:paddata:type");
+                     0, 0, "paddata", "", "nk:paddata:type");
     const size_t cur = v.numel();
     if (cur >= n) return v;
     const auto &d = v.dims();
@@ -887,10 +887,10 @@ Value trimdata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("trimdata: vector input required",
-                     0, 0, "trimdata", "", "numkit:trimdata:notVector");
+                     0, 0, "trimdata", "", "nk:trimdata:notVector");
     if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("trimdata: only DOUBLE inputs supported",
-                     0, 0, "trimdata", "", "numkit:trimdata:type");
+                     0, 0, "trimdata", "", "nk:trimdata:type");
     const size_t cur = v.numel();
     if (cur <= n) return v;
     const auto &d = v.dims();
@@ -975,7 +975,7 @@ Value bsxfun(const std::string &op, const Value &a, const Value &b, std::pmr::me
     if (op == "ge" || op == "@ge") return ge(a, b, mr);
     if (op == "and" || op == "@and") return logical_and(a, b, mr);
     if (op == "or" || op == "@or") return logical_or(a, b, mr);
-    throw Error("bsxfun: unsupported function '" + op + "'", 0, 0, "bsxfun", "", "numkit:bsxfun:unsupported");
+    throw Error("bsxfun: unsupported function '" + op + "'", 0, 0, "bsxfun", "", "nk:bsxfun:unsupported");
 }
 
 // ── sub2ind / ind2sub (see manip.hpp) ─────────────────────────────────
@@ -986,10 +986,10 @@ Value sub2ind(const Value &siz, Span<const Value> subs,
     const size_t nDims = siz.numel();
     if (nDims == 0)
         throw Error("sub2ind: siz must not be empty",
-                     0, 0, "sub2ind", "", "numkit:sub2ind:badSiz");
+                     0, 0, "sub2ind", "", "nk:sub2ind:badSiz");
     if (subs.empty())
         throw Error("sub2ind: requires at least 1 subscript",
-                     0, 0, "sub2ind", "", "numkit:sub2ind:nargin");
+                     0, 0, "sub2ind", "", "nk:sub2ind:nargin");
 
     ScratchArena scratch(mr);
     auto dims = ScratchVec<size_t>(nDims, &scratch);
@@ -999,7 +999,7 @@ Value sub2ind(const Value &siz, Span<const Value> subs,
     const size_t nSubs = subs.size();
     if (nSubs > nDims)
         throw Error("sub2ind: too many subscript arrays for given siz",
-                     0, 0, "sub2ind", "", "numkit:sub2ind:tooManySubs");
+                     0, 0, "sub2ind", "", "nk:sub2ind:tooManySubs");
 
     // All sub arrays must agree on shape; result inherits that shape.
     const Value &shapeRef = subs[0];
@@ -1007,7 +1007,7 @@ Value sub2ind(const Value &siz, Span<const Value> subs,
     for (size_t a = 0; a < nSubs; ++a)
         if (subs[a].numel() != outN)
             throw Error("sub2ind: subscript arrays must be the same size",
-                         0, 0, "sub2ind", "", "numkit:sub2ind:shape");
+                         0, 0, "sub2ind", "", "nk:sub2ind:shape");
 
     auto r = (shapeRef.isScalar())
                 ? Value::scalar(0.0, mr)
@@ -1039,7 +1039,7 @@ std::vector<Value> ind2sub(const Value &siz, const Value &ind, size_t nout,
     const size_t nDims = siz.numel();
     if (nDims == 0)
         throw Error("ind2sub: siz must not be empty",
-                     0, 0, "ind2sub", "", "numkit:ind2sub:badSiz");
+                     0, 0, "ind2sub", "", "nk:ind2sub:badSiz");
 
     ScratchArena scratch(mr);
     auto dims = ScratchVec<size_t>(nDims, &scratch);
@@ -1089,4 +1089,4 @@ std::vector<Value> ind2sub(const Value &siz, const Value &ind, size_t nout,
     return rs;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

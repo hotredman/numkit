@@ -4,13 +4,13 @@
 // Supports uncompressed Level 5 (-v6), compressed Level 5 (-v7 via in-tree zlib),
 // and Level 4 (-v4). Zero external libraries (matio and zlib eliminated).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/environment.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/fs/vfs.hpp>
-#include <numkit/ops/deflate.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/environment.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/fs/vfs.hpp>
+#include <nk/ops/deflate.hpp>
 
 #include <algorithm>
 #include <complex>
@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 namespace {
 
@@ -752,7 +752,7 @@ void saveMat(Engine &engine, Environment &env,
 
     // Level 5 Header (128 bytes)
     MatWriter mw;
-    std::string hdrText = "MATLAB 5.0 MAT-file, Platform: NumKit Autonomous Engine, Created by NumKit";
+    std::string hdrText = "MATLAB 5.0 MAT-file, Platform: NK Autonomous Engine, Created by NK";
     hdrText.resize(116, ' ');
     mw.writeBytes(hdrText.data(), 116);
     std::uint8_t zeroSubsystem[8] = {0};
@@ -851,4 +851,4 @@ void loadMat(Engine &engine, Environment &env,
     }
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

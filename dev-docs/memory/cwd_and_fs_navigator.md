@@ -1,7 +1,7 @@
 # Current Folder Bar, FS Mode Combo & File Navigator Architecture
 
 ## Context & Problem
-When running scripts in the IDE (especially examples or user projects doing file I/O such as `audiowrite`, `imwrite`, `save`, `csvwrite`), files were previously saved to relative paths that could desynchronize between the native REPL process (`numkit_repl.exe`) and the browser/Electron VFS. Furthermore, users lacked MATLAB-style visibility and control over the active working directory and filesystem mode (Local FS vs Virtual FS).
+When running scripts in the IDE (especially examples or user projects doing file I/O such as `audiowrite`, `imwrite`, `save`, `csvwrite`), files were previously saved to relative paths that could desynchronize between the native REPL process (`nk_repl.exe`) and the browser/Electron VFS. Furthermore, users lacked MATLAB-style visibility and control over the active working directory and filesystem mode (Local FS vs Virtual FS).
 
 ## Decisions & Implementation
 
@@ -21,25 +21,25 @@ When running scripts in the IDE (especially examples or user projects doing file
 3. **Examples Auto-Cloning per Filesystem Mode**:
    - When double-clicking an example script in the Examples browser:
      - **In Virtual FS Mode (`fsMode === 'virtual'`)**:
-       - Creates the folder in Virtual FS: `/numkit_ide/examples/<script_base_name>`.
-       - Copies only the opened script into `/numkit_ide/examples/<script_base_name>/`.
-       - Sets `virtualCwd` to `/numkit_ide/examples/<script_base_name>` (reflected in `CurrentFolderBar` and REPL virtual sync).
+       - Creates the folder in Virtual FS: `/nk_ide/examples/<script_base_name>`.
+       - Copies only the opened script into `/nk_ide/examples/<script_base_name>/`.
+       - Sets `virtualCwd` to `/nk_ide/examples/<script_base_name>` (reflected in `CurrentFolderBar` and REPL virtual sync).
      - **In Local FS Mode (`fsMode === 'local'`)**:
-       - Creates the folder in OS temporary directory: `<os_temp_dir>/numkit/examples/<script_base_name>` (e.g. `C:\Users\User\AppData\Local\Temp\numkit\examples\arithmetic`).
-       - Copies only the opened script into `<os_temp_dir>/numkit/examples/<script_base_name>`.
-       - Sets `localCwd` to `<os_temp_dir>/numkit/examples/<script_base_name>`.
+       - Creates the folder in OS temporary directory: `<os_temp_dir>/nk/examples/<script_base_name>` (e.g. `C:\Users\User\AppData\Local\Temp\nk\examples\arithmetic`).
+       - Copies only the opened script into `<os_temp_dir>/nk/examples/<script_base_name>`.
+       - Sets `localCwd` to `<os_temp_dir>/nk/examples/<script_base_name>`.
      - Opens the script in the editor tab.
-   - When running the script, `runCode` automatically aligns the active filesystem mode (`fsMode`) with the tab's source (`localFolder` vs `temporary`), switching mode and setting `targetCwd` in the matching filesystem (e.g. `/numkit_ide/examples/audio_io_roundtrip` for Virtual FS without corrupting it into `C:\numkit_ide\...`).
+   - When running the script, `runCode` automatically aligns the active filesystem mode (`fsMode`) with the tab's source (`localFolder` vs `temporary`), switching mode and setting `targetCwd` in the matching filesystem (e.g. `/nk_ide/examples/audio_io_roundtrip` for Virtual FS without corrupting it into `C:\nk_ide\...`).
 
 
 
 4. **Synchronized Electron Temporary Backend**:
    - In Electron desktop mode, `tempFS` routes directly to `app.getPath('userData')/temporary`.
-   - Native `numkit_repl.exe` and IDE VFS read and write to the exact same physical folder.
+   - Native `nk_repl.exe` and IDE VFS read and write to the exact same physical folder.
 
 5. **REPL CLI and IPC CWD Control**:
-   - `numkit_repl.exe` supports `--fs=<mode>`, `--cwd=<path>`, and pipe protocol commands `__SET_CWD__:<path>`, `__GET_CWD__`, `__SET_FS__:<fs>`.
-   - In Electron desktop mode, `replSession.run` and `replSession.setCwd` automatically resolve pure virtual paths (e.g. `/numkit_ide/examples/...`) to physical directories under `TEMP_ROOT` (`resolveReplCwd`), ensuring `numkit_repl.exe` executes `cd(...)` without errors while preserving pure virtual paths in the IDE UI.
+   - `nk_repl.exe` supports `--fs=<mode>`, `--cwd=<path>`, and pipe protocol commands `__SET_CWD__:<path>`, `__GET_CWD__`, `__SET_FS__:<fs>`.
+   - In Electron desktop mode, `replSession.run` and `replSession.setCwd` automatically resolve pure virtual paths (e.g. `/nk_ide/examples/...`) to physical directories under `TEMP_ROOT` (`resolveReplCwd`), ensuring `nk_repl.exe` executes `cd(...)` without errors while preserving pure virtual paths in the IDE UI.
    - IPC `window.nativeFS.runRepl(code, { cwd })` and `window.nativeFS.setCwd(path)` pass CWD parameters dynamically.
 
 
@@ -70,8 +70,8 @@ When running scripts in the IDE (especially examples or user projects doing file
       - `New tab`
       - `Rename`
       - `Copy file name`: Copies file basename (e.g. `group_aggregation.m`) to system clipboard.
-      - `Copy file path`: Copies full path (`C:\Users\...\group_aggregation.m` or `/numkit_ide/examples/...`) to clipboard.
-      - `Copy folder path`: Copies parent directory (`C:\Users\...\group_aggregation` or `/numkit_ide/examples`) to clipboard.
+      - `Copy file path`: Copies full path (`C:\Users\...\group_aggregation.m` or `/nk_ide/examples/...`) to clipboard.
+      - `Copy folder path`: Copies parent directory (`C:\Users\...\group_aggregation` or `/nk_ide/examples`) to clipboard.
       - `Show in explorer`: Automatically resolves directory, aligns active `fsMode` and `cwd`, and opens `FileNavigatorModal` positioned directly at that folder.
       - `Close`, `Close all`, `Close others`.
     - Context menu uses monochrome vector SVG icons matching the IDE theme.
@@ -131,7 +131,7 @@ When running scripts in the IDE (especially examples or user projects doing file
       - Rather than removing these elements from the DOM (which would break header visual parity and spacing), they remain rendered in a disabled state (`disabled={true}`, `opacity: 0.45`..`0.6`, `cursor: not-allowed`).
       - Informative tooltips are displayed:
         - Filesystem Selector: `"File System: Virtual (Local filesystem is available in desktop app)"`.
-        - Build & Run: `"Build & Run is available in the desktop app (requires native C++ compiler and numkit_codegen)"`.
+        - Build & Run: `"Build & Run is available in the desktop app (requires native C++ compiler and nk_codegen)"`.
       - `local.js`: Restricted `pickBackend()` to `window.nativeFS` (desktop only), ensuring web mode stays 100% on Virtual FS (`tempFS` / IndexedDB).
     - Test coverage: 550 tests passing across 41 test files.
 

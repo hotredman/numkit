@@ -5,12 +5,12 @@
 // package), so the spec is correctness=N/A and we rely on algebraic
 // identity vs the full expm() path for cross-validation.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class ExpmvTest : public ::testing::Test
 {

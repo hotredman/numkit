@@ -3,16 +3,16 @@
 // CallContext register half of distributions/gev.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/gev.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/gev.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/gev_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void gevpdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("gevpdf: requires (x, k, sigma, mu)",
-                    0, 0, "gevpdf", "", "numkit:gevpdf:nargin");
+                    0, 0, "gevpdf", "", "nk:gevpdf:nargin");
     outs[0] = gevpdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
@@ -44,7 +44,7 @@ void gevcdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("gevcdf: requires (x, k, sigma, mu[, 'upper'])",
-                    0, 0, "gevcdf", "", "numkit:gevcdf:nargin");
+                    0, 0, "gevcdf", "", "nk:gevcdf:nargin");
     Value v = gevcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -55,7 +55,7 @@ void gevinv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("gevinv: requires (p, k, sigma, mu)",
-                    0, 0, "gevinv", "", "numkit:gevinv:nargin");
+                    0, 0, "gevinv", "", "nk:gevinv:nargin");
     outs[0] = gevinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
@@ -64,7 +64,7 @@ void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("gevrnd: requires (k, sigma, mu[, m, n])",
-                    0, 0, "gevrnd", "", "numkit:gevrnd:nargin");
+                    0, 0, "gevrnd", "", "nk:gevrnd:nargin");
     const double k     = args[0].toScalar();
     const double sigma = args[1].toScalar();
     const double mu    = args[2].toScalar();
@@ -87,4 +87,4 @@ void gevstat_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

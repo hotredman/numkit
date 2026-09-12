@@ -4,19 +4,19 @@
 // Shares function-handle dispatch helpers with cell.cpp via the inline
 // header below.
 
-#include <numkit/runtime/struct.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/runtime/struct.hpp>
+#include <nk/core/engine.hpp>
 
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/core/vm.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/core/types.hpp>
+#include <nk/core/vm.hpp>
 
 #include "_handlefn_helpers.hpp"
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
-namespace hf = ::numkit::runtime::detail::handlefn;
+namespace hf = ::nk::runtime::detail::handlefn;
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -40,7 +40,7 @@ Value structure(Span<const Value> nameValuePairs, std::pmr::memory_resource *mr)
         const Value &name = nameValuePairs[i];
         if (!name.isChar() && !name.isString())
             throw Error("struct: field names must be char arrays", 0, 0, "struct", "",
-                         "numkit:struct:invalidFieldName");
+                         "nk:struct:invalidFieldName");
         const Value &v = nameValuePairs[i + 1];
         if (v.isCell()) {
             if (!isArray) {
@@ -49,7 +49,7 @@ Value structure(Span<const Value> nameValuePairs, std::pmr::memory_resource *mr)
                 isArray = true;
             } else if (arrRows != v.dims().rows() || arrCols != v.dims().cols()) {
                 throw Error("struct: cell-array values must all have the same shape",
-                             0, 0, "struct", "", "numkit:struct:cellShape");
+                             0, 0, "struct", "", "nk:struct:cellShape");
             }
         }
     }
@@ -83,7 +83,7 @@ Value fieldnames(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("fieldnames requires a struct", 0, 0, "fieldnames", "",
-                     "numkit:fieldnames:notStruct");
+                     "nk:fieldnames:notStruct");
     // BUG #15 fix: iterate insertion order (fieldNamesInOrder) instead
     // of std::map alphabetical iteration. fieldNamesInOrder() falls back
     // to map iteration for legacy/cloned structs missing fieldOrder.
@@ -112,7 +112,7 @@ Value rmfield(const Value &s, const Value &name, std::pmr::memory_resource *)
 {
     if (!s.isStruct())
         throw Error("rmfield requires a struct", 0, 0, "rmfield", "",
-                     "numkit:rmfield:notStruct");
+                     "nk:rmfield:notStruct");
     Value out = s;
     out.removeField(name.toString());  // BUG #15: also clears fieldOrder
     return out;
@@ -123,7 +123,7 @@ Value structfun(FnHandle fn, const Value &s, bool uniformOutput,
 {
     if (!s.isStruct())
         throw Error("structfun: second argument must be a scalar struct",
-                     0, 0, "structfun", "", "numkit:structfun:notStruct");
+                     0, 0, "structfun", "", "nk:structfun:notStruct");
 
     const auto &fields = s.structFields();
     const size_t n = fields.size();
@@ -149,7 +149,7 @@ Value structfun(FnHandle fn, const Value &s, bool uniformOutput,
             const Value &v = results[i];
             if (!v.isScalar())
                 throw Error("structfun: fn returned a non-scalar; pass 'UniformOutput', false",
-                             0, 0, "structfun", "", "numkit:structfun:notScalar");
+                             0, 0, "structfun", "", "nk:structfun:notScalar");
             if (outT == ValueType::LOGICAL)
                 out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
             else
@@ -173,22 +173,22 @@ Value getfield(const Value &s, const Value &name, std::pmr::memory_resource *)
 {
     if (!s.isStruct())
         throw Error("getfield requires a struct", 0, 0, "getfield", "",
-                     "numkit:getfield:notStruct");
+                     "nk:getfield:notStruct");
     const std::string n = name.toString();
     if (s.isStructArray()) {
         if (s.numel() == 0)
             throw Error("getfield: struct array is empty", 0, 0, "getfield", "",
-                         "numkit:getfield:emptyArray");
+                         "nk:getfield:emptyArray");
         const auto &elem0 = s.structArrayElem(0);
         auto it = elem0.find(n);
         if (it == elem0.end())
             throw Error("getfield: no such field '" + n + "'",
-                         0, 0, "getfield", "", "numkit:getfield:noField");
+                         0, 0, "getfield", "", "nk:getfield:noField");
         return it->second;
     }
     if (!s.hasField(n))
         throw Error("getfield: no such field '" + n + "'",
-                     0, 0, "getfield", "", "numkit:getfield:noField");
+                     0, 0, "getfield", "", "nk:getfield:noField");
     return s.field(n);
 }
 
@@ -201,7 +201,7 @@ Value setfield(const Value &s, const Value &name, const Value &value, std::pmr::
         out = Value::structure(mr);
     } else {
         throw Error("setfield: first argument must be a struct or []",
-                     0, 0, "setfield", "", "numkit:setfield:notStruct");
+                     0, 0, "setfield", "", "nk:setfield:notStruct");
     }
     if (out.isStructArray()) {
         out.setFieldAll(name.toString(), value);  // BUG #15
@@ -231,7 +231,7 @@ Value orderfields(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("orderfields requires a struct", 0, 0, "orderfields", "",
-                     "numkit:orderfields:notStruct");
+                     "nk:orderfields:notStruct");
     // BUG #15 follow-up: orderfields explicitly sorts alphabetically
     // (MATLAB documented behaviour). Now that fieldOrder defaults to
     // insertion order, build a copy with the order tracker re-sorted.
@@ -270,10 +270,10 @@ Value orderfields(const Value &s, std::pmr::memory_resource *mr)
 Value orderfieldsByNames(const Value &s, const Value &names,
                          std::pmr::memory_resource *mr)
 {
-    using numkit::ValueType;
+    using nk::ValueType;
     if (!s.isStruct())
         throw Error("orderfields requires a struct", 0, 0, "orderfields", "",
-                     "numkit:orderfields:notStruct");
+                     "nk:orderfields:notStruct");
     // Empty struct array: no element 0 to read field names from; nothing
     // to reorder. Mirror the 1-arg form's "return unchanged" guard.
     if (s.isStructArray() && s.numel() == 0)
@@ -287,7 +287,7 @@ Value orderfieldsByNames(const Value &s, const Value &names,
         order.push_back(names.toString());
     } else {
         throw Error("orderfields: second argument must be a cell array of names",
-                     0, 0, "orderfields", "", "numkit:orderfields:badPerm");
+                     0, 0, "orderfields", "", "nk:orderfields:badPerm");
     }
 
     // Existing field names (from element 0 / the single struct).
@@ -325,10 +325,10 @@ Value struct2cell(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
         throw Error("struct2cell requires a struct", 0, 0, "struct2cell", "",
-                     "numkit:struct2cell:notStruct");
+                     "nk:struct2cell:notStruct");
     if (s.isStructArray())
         throw Error("struct2cell: struct-array inputs not yet supported",
-                     0, 0, "struct2cell", "", "numkit:struct2cell:array");
+                     0, 0, "struct2cell", "", "nk:struct2cell:array");
     const auto &fields = s.structFields();
     auto c = Value::cell(fields.size(), 1, mr);
     size_t i = 0;
@@ -341,14 +341,14 @@ Value cell2struct(const Value &c, const Value &fields, std::pmr::memory_resource
 {
     if (!c.isCell())
         throw Error("cell2struct: first argument must be a cell array",
-                     0, 0, "cell2struct", "", "numkit:cell2struct:notCell");
+                     0, 0, "cell2struct", "", "nk:cell2struct:notCell");
     if (!fields.isCell() && !fields.isString())
         throw Error("cell2struct: fields must be a cell of strings",
-                     0, 0, "cell2struct", "", "numkit:cell2struct:fieldsType");
+                     0, 0, "cell2struct", "", "nk:cell2struct:fieldsType");
     const size_t nFields = fields.numel();
     if (c.numel() != nFields)
         throw Error("cell2struct: cell size must equal number of fields",
-                     0, 0, "cell2struct", "", "numkit:cell2struct:shape");
+                     0, 0, "cell2struct", "", "nk:cell2struct:shape");
     auto out = Value::structure(mr);
     for (size_t i = 0; i < nFields; ++i) {
         const std::string name = fields.cellAt(i).toString();
@@ -372,7 +372,7 @@ void fieldnames_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
 {
     if (args.empty())
         throw Error("fieldnames: requires 1 argument", 0, 0, "fieldnames", "",
-                     "numkit:fieldnames:nargin");
+                     "nk:fieldnames:nargin");
     outs[0] = fieldnames(args[0], ctx.engine->resource());
 }
 
@@ -380,7 +380,7 @@ void isfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("isfield requires 2 arguments", 0, 0, "isfield", "",
-                     "numkit:isfield:nargin");
+                     "nk:isfield:nargin");
     outs[0] = isfield(args[0], args[1], ctx.engine->resource());
 }
 
@@ -388,7 +388,7 @@ void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("rmfield requires 2 arguments", 0, 0, "rmfield", "",
-                     "numkit:rmfield:nargin");
+                     "nk:rmfield:nargin");
     outs[0] = rmfield(args[0], args[1], ctx.engine->resource());
 }
 
@@ -432,7 +432,7 @@ struct StructfunCallbackBuiltin : CallbackBuiltin
                     if (!v.isScalar())
                         throw Error("structfun: fn returned a non-scalar; pass 'UniformOutput', "
                                     "false",
-                                    0, 0, "structfun", "", "numkit:structfun:notScalar");
+                                    0, 0, "structfun", "", "nk:structfun:notScalar");
                     if (outT == ValueType::LOGICAL)
                         out.logicalDataMut()[k] = v.toBool() ? 1 : 0;
                     else
@@ -454,7 +454,7 @@ void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.size() < 2)
         throw Error("structfun: requires at least 2 arguments (fn, S)",
-                     0, 0, "structfun", "", "numkit:structfun:nargin");
+                     0, 0, "structfun", "", "nk:structfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "structfun");
 
     auto *mr = ctx.engine->resource();
@@ -463,7 +463,7 @@ void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 
     if (uniform && isBuiltin && hf::builtinReturnsString(f))
         throw Error("structfun: @class output must use UniformOutput=false",
-                     0, 0, "structfun", "", "numkit:structfun:nonUniform");
+                     0, 0, "structfun", "", "nk:structfun:nonUniform");
 
     if (isBuiltin) {
         auto cb = [f](Span<const Value> ar, Span<Value> ou,
@@ -487,7 +487,7 @@ void getfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("getfield requires (S, name)",
-                     0, 0, "getfield", "", "numkit:getfield:nargin");
+                     0, 0, "getfield", "", "nk:getfield:nargin");
     outs[0] = getfield(args[0], args[1], ctx.engine->resource());
 }
 
@@ -495,7 +495,7 @@ void setfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 3)
         throw Error("setfield requires (S, name, value)",
-                     0, 0, "setfield", "", "numkit:setfield:nargin");
+                     0, 0, "setfield", "", "nk:setfield:nargin");
     outs[0] = setfield(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -503,7 +503,7 @@ void orderfields_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
 {
     if (args.empty())
         throw Error("orderfields requires 1 argument",
-                     0, 0, "orderfields", "", "numkit:orderfields:nargin");
+                     0, 0, "orderfields", "", "nk:orderfields:nargin");
     // 1-arg → alphabetical sort; 2-arg → reorder to the given name list.
     if (args.size() >= 2)
         outs[0] = orderfieldsByNames(args[0], args[1], ctx.engine->resource());
@@ -515,7 +515,7 @@ void struct2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
 {
     if (args.empty())
         throw Error("struct2cell requires 1 argument",
-                     0, 0, "struct2cell", "", "numkit:struct2cell:nargin");
+                     0, 0, "struct2cell", "", "nk:struct2cell:nargin");
     outs[0] = struct2cell(args[0], ctx.engine->resource());
 }
 
@@ -523,7 +523,7 @@ void cell2struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
 {
     if (args.size() < 2)
         throw Error("cell2struct requires (C, fields)",
-                     0, 0, "cell2struct", "", "numkit:cell2struct:nargin");
+                     0, 0, "cell2struct", "", "nk:cell2struct:nargin");
     outs[0] = cell2struct(args[0], args[1], ctx.engine->resource());
 }
 
@@ -551,4 +551,4 @@ void registerStructuresRuntime(Engine &engine)
     registerStructfunCallbackBuiltin(engine);
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

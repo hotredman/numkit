@@ -1,11 +1,11 @@
 // toolboxes/audio/src/library.cpp
 
-#include <numkit/audio/library.hpp>
+#include <nk/audio/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::audio::detail {
+namespace nk::audio::detail {
 // scale/freq_scales.cpp
 void hz2mel_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mel2hz_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -49,9 +49,9 @@ void audioinfo_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void midiread_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void midiwrite_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void midiinfo_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-} // namespace numkit::audio::detail
+} // namespace nk::audio::detail
 
-namespace numkit {
+namespace nk {
 
 void AudioLibrary::install(Engine &engine)
 {
@@ -104,4 +104,4 @@ void AudioLibrary::install(Engine &engine)
     reg("io", "midiinfo",   &audio::detail::midiinfo_reg);
 }
 
-} // namespace numkit
+} // namespace nk

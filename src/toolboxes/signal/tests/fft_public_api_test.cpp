@@ -1,15 +1,15 @@
 // toolboxes/signal/tests/fft_public_api_test.cpp
 //
-// Direct-call tests for the public C++ API of numkit::signal::fft / ifft.
+// Direct-call tests for the public C++ API of nk::signal::fft / ifft.
 // These exercise the algorithm without going through Engine, Parser, VM, or
 // the registration adapter — so any breakage here is in the math, not the
 // MATLAB calling glue. The Engine-routed tests live alongside in
 // toolboxes/signal/tests/signal_core_test.cpp and remain in place.
 
 #include <memory_resource>
-#include <numkit/core/types.hpp>  // Error
-#include <numkit/value/value.hpp>
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/core/types.hpp>  // Error
+#include <nk/value/value.hpp>
+#include <nk/signal/transforms/fft.hpp>
 
 // Private kernel-dispatch headers, exposed to this test target via
 // toolboxes/signal/tests/CMakeLists adding toolboxes/signal as a private include
@@ -29,8 +29,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using numkit::ValueType;
-using numkit::Value;
+using nk::ValueType;
+using nk::Value;
 using Complex = std::complex<double>;
 
 namespace {
@@ -63,8 +63,8 @@ TEST(DspFftPublicApi, RoundTripRealVector)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
 
-    Value X = numkit::signal::fft(x, -1, 0, mr);
-    Value y = numkit::signal::ifft(X, -1, 0, mr);
+    Value X = nk::signal::fft(x, -1, 0, mr);
+    Value y = nk::signal::ifft(X, -1, 0, mr);
 
     ASSERT_EQ(y.numel(), x.numel());
     const double *xData = x.doubleData();
@@ -89,7 +89,7 @@ TEST(DspFftPublicApi, IfftSymmetricVector)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value X = makeComplexRow(mr, {{1, 0}, {2, 1}, {3, 0}, {4, -1}});
-    Value y = numkit::signal::ifftSymmetric(X, -1, 0, mr);
+    Value y = nk::signal::ifftSymmetric(X, -1, 0, mr);
     ASSERT_FALSE(y.isComplex());          // exactly real
     ASSERT_EQ(y.numel(), 4u);
     const double *yd = y.doubleData();
@@ -104,7 +104,7 @@ TEST(DspFftPublicApi, IfftSymmetricZeroPad)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value X = makeComplexRow(mr, {{1, 0}, {2, 1}, {3, 0}, {4, -1}});
-    Value y = numkit::signal::ifftSymmetric(X, /*n=*/6, /*dim=*/0, mr);
+    Value y = nk::signal::ifftSymmetric(X, /*n=*/6, /*dim=*/0, mr);
     ASSERT_FALSE(y.isComplex());
     ASSERT_EQ(y.numel(), 6u);
     const double *yd = y.doubleData();
@@ -120,7 +120,7 @@ TEST(DspFftPublicApi, IfftSymmetricMatrixPerColumn)
     Value M = Value::matrix(2, 2, ValueType::COMPLEX, mr);
     Complex *md = M.complexDataMut();
     md[0] = {1, 0}; md[1] = {3, 2}; md[2] = {2, 1}; md[3] = {4, -1};  // col-major
-    Value y = numkit::signal::ifftSymmetric(M, -1, /*dim=*/1, mr);
+    Value y = nk::signal::ifftSymmetric(M, -1, /*dim=*/1, mr);
     ASSERT_FALSE(y.isComplex());
     ASSERT_EQ(y.dims().rows(), 2u);
     ASSERT_EQ(y.dims().cols(), 2u);
@@ -144,7 +144,7 @@ TEST(DspFftPublicApi, Ifft2Symmetric)
     xd[0] = {1, 1};  xd[1] = {4, 0};
     xd[2] = {2, -3}; xd[3] = {5, 2};
     xd[4] = {5, 0};  xd[5] = {1, -1};
-    Value A = numkit::signal::ifft2Symmetric(X, mr);
+    Value A = nk::signal::ifft2Symmetric(X, mr);
     ASSERT_FALSE(A.isComplex());               // exactly real
     ASSERT_EQ(A.dims().rows(), 2u);
     ASSERT_EQ(A.dims().cols(), 3u);
@@ -158,7 +158,7 @@ TEST(DspFftPublicApi, Ifft2Symmetric)
     Value C = Value::matrix(4, 1, ValueType::COMPLEX, mr);
     Complex *cd = C.complexDataMut();
     cd[0] = {1, 2}; cd[1] = {3, -1}; cd[2] = {5, 0.5}; cd[3] = {0, 2};
-    Value B = numkit::signal::ifft2Symmetric(C, mr);
+    Value B = nk::signal::ifft2Symmetric(C, mr);
     ASSERT_FALSE(B.isComplex());
     ASSERT_EQ(B.numel(), 4u);
     const double *bd = B.doubleData();
@@ -174,7 +174,7 @@ TEST(DspFftPublicApi, DcBinOfConstant)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0});
 
-    Value X = numkit::signal::fft(x, -1, 0, mr);
+    Value X = nk::signal::fft(x, -1, 0, mr);
     ASSERT_TRUE(X.isComplex());
     const Complex *Xd = X.complexData();
     EXPECT_NEAR(Xd[0].real(), 8.0, 1e-10);  // DC = sum = N
@@ -193,7 +193,7 @@ TEST(DspFftPublicApi, ForwardSignsMatchMatlab)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
-    Value X = numkit::signal::fft(x, -1, 0, mr);
+    Value X = nk::signal::fft(x, -1, 0, mr);
     ASSERT_TRUE(X.isComplex());
     const Complex *Xd = X.complexData();
     EXPECT_NEAR(Xd[0].real(), 10.0, 1e-12);
@@ -218,7 +218,7 @@ TEST(DspFftPublicApi, IfftComplexImpulseSpectrumPosition)
     Xd[1] = Complex( 0.0,  1.0);
     Xd[2] = Complex(-1.0,  0.0);
     Xd[3] = Complex( 0.0, -1.0);
-    Value y = numkit::signal::ifft(X, -1, 0, mr);
+    Value y = nk::signal::ifft(X, -1, 0, mr);
     // ifft auto-downgrades to DOUBLE when every imag is < 1e-10; that's
     // the case here ([0,0,0,1] is real). Handle either layout.
     auto re = [&](size_t i) {
@@ -250,7 +250,7 @@ TEST(DspFftPublicApi, IfftPhaseRampLocatesImpulse)
                                   * static_cast<double>(d) / static_cast<double>(N);
         Hd[k] = Complex(std::cos(phase), std::sin(phase));
     }
-    Value h = numkit::signal::ifft(H, -1, 0, mr);
+    Value h = nk::signal::ifft(H, -1, 0, mr);
     // h is conjugate-symmetric so ifft auto-downgrades to real.
     ASSERT_FALSE(h.isComplex());
     const double *hd = h.doubleData();
@@ -276,7 +276,7 @@ TEST(DspFftPublicApi, CosinePeakBin)
     for (size_t i = 0; i < N; ++i)
         xd[i] = std::cos(2.0 * M_PI * k * i / static_cast<double>(N));
 
-    Value X = numkit::signal::fft(x, -1, 0, mr);
+    Value X = nk::signal::fft(x, -1, 0, mr);
     const Complex *Xd = X.complexData();
     // Peak of a real cosine at bin k should be N/2 in magnitude at both k and N-k
     EXPECT_NEAR(std::abs(Xd[k]), N / 2.0, 1e-9);
@@ -289,7 +289,7 @@ TEST(DspFftPublicApi, ZeroPadExtendsOutput)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
 
-    Value X = numkit::signal::fft(x, /*n=*/8, 0, mr);
+    Value X = nk::signal::fft(x, /*n=*/8, 0, mr);
     EXPECT_EQ(X.numel(), 8u);
 }
 
@@ -299,7 +299,7 @@ TEST(DspFftPublicApi, TruncateShortensOutput)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
 
-    Value X = numkit::signal::fft(x, /*n=*/4, 0, mr);
+    Value X = nk::signal::fft(x, /*n=*/4, 0, mr);
     EXPECT_EQ(X.numel(), 4u);
 }
 
@@ -310,12 +310,12 @@ TEST(DspFftPublicApi, InvalidDimThrows)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
 
-    EXPECT_THROW(numkit::signal::fft(x, /*n=*/-1, /*dim=*/4, mr),
-                 numkit::Error);
-    EXPECT_THROW(numkit::signal::fft(x, /*n=*/-1, /*dim=*/-1, mr),
-                 numkit::Error);
-    EXPECT_THROW(numkit::signal::ifft(x, /*n=*/-1, /*dim=*/99, mr),
-                 numkit::Error);
+    EXPECT_THROW(nk::signal::fft(x, /*n=*/-1, /*dim=*/4, mr),
+                 nk::Error);
+    EXPECT_THROW(nk::signal::fft(x, /*n=*/-1, /*dim=*/-1, mr),
+                 nk::Error);
+    EXPECT_THROW(nk::signal::ifft(x, /*n=*/-1, /*dim=*/99, mr),
+                 nk::Error);
 }
 
 // ── fft(x, [], dim) on a singleton axis is identity ────────────────────
@@ -325,7 +325,7 @@ TEST(DspFftPublicApi, Dim3OnVectorIsIdentity)
     Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
     // dim=3 on a 1x4 row vector: the page axis has length 1, so the
     // per-slice FFT is of length 1 (identity). Result shape matches input.
-    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/3, mr);
+    Value X = nk::signal::fft(x, /*n=*/-1, /*dim=*/3, mr);
     EXPECT_EQ(X.dims().rows(), 1u);
     EXPECT_EQ(X.dims().cols(), 4u);
     ASSERT_EQ(X.numel(), 4u);
@@ -343,7 +343,7 @@ TEST(DspFftPublicApi, Dim0AutoOnRowVector)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value x = makeRealRow(mr, {1.0, 1.0, 1.0, 1.0});
-    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/0, mr);
+    Value X = nk::signal::fft(x, /*n=*/-1, /*dim=*/0, mr);
     // Row vector: non-singleton is cols — FFT along the row → DC = 4.
     ASSERT_TRUE(X.isComplex());
     EXPECT_NEAR(X.complexData()[0].real(), 4.0, 1e-10);
@@ -360,7 +360,7 @@ TEST(DspFftPublicApi, Fft3DDim1PreservesShape)
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/1, mr);
+    Value X = nk::signal::fft(x, /*n=*/-1, /*dim=*/1, mr);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -391,7 +391,7 @@ TEST(DspFftPublicApi, Fft3DDim2PreservesShape)
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/2, mr);
+    Value X = nk::signal::fft(x, /*n=*/-1, /*dim=*/2, mr);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -420,7 +420,7 @@ TEST(DspFftPublicApi, Fft3DDim3PreservesShape)
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(x, /*n=*/-1, /*dim=*/3, mr);
+    Value X = nk::signal::fft(x, /*n=*/-1, /*dim=*/3, mr);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -465,7 +465,7 @@ TEST(DspFftPublicApi, NonPow2RealInputMatchesNaiveDFT)
             xd[n] = std::sin(2.0 * M_PI * 0.07 * n)
                   + 0.5 * std::cos(2.0 * M_PI * 0.13 * n);
 
-        Value X = numkit::signal::fft(x, -1, 0, mr);
+        Value X = nk::signal::fft(x, -1, 0, mr);
         ASSERT_TRUE(X.isComplex()) << "N=" << N;
         ASSERT_EQ(X.numel(), N) << "N=" << N;
         const Complex *Xd = X.complexData();
@@ -506,8 +506,8 @@ TEST(DspFftPublicApi, NonPow2RoundTrip)
             x.doubleDataMut()[n] = std::sin(0.13 * double(n))
                                  + 0.4 * std::cos(0.21 * double(n));
 
-        Value X = numkit::signal::fft(x, -1, 0, mr);
-        Value y = numkit::signal::ifft(X, -1, 0, mr);
+        Value X = nk::signal::fft(x, -1, 0, mr);
+        Value y = nk::signal::ifft(X, -1, 0, mr);
         ASSERT_EQ(y.numel(), N);
         const double *xd = x.doubleData();
         for (size_t n = 0; n < N; ++n) {
@@ -541,7 +541,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
         sumX2 += xd[i] * xd[i];
     }
 
-    Value X = numkit::signal::fft(x, -1, 0, mr);
+    Value X = nk::signal::fft(x, -1, 0, mr);
     ASSERT_TRUE(X.isComplex());
     ASSERT_EQ(X.numel(), N);
     const Complex *Xd = X.complexData();
@@ -556,7 +556,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
     EXPECT_NEAR(sumPow, double(N) * sumX2, 1e-3);
 
     // Round-trip restores input.
-    Value y = numkit::signal::ifft(X, -1, 0, mr);
+    Value y = nk::signal::ifft(X, -1, 0, mr);
     ASSERT_EQ(y.numel(), N);
     const double *yd = y.isComplex() ? nullptr : y.doubleData();
     if (y.isComplex()) {
@@ -585,7 +585,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
 // the tests that exercise those symbols compile only when SIMD is on.
 // On portable builds the symbols don't exist and would link-fail; the
 // public fft() API is still tested by the non-kernel tests above.
-#if defined(NUMKIT_WITH_SIMD)
+#if defined(NK_WITH_SIMD)
 
 // Fill a complex test vector deterministically. Use values with
 // non-trivial real+imag parts so any sign/order error in the
@@ -613,10 +613,10 @@ TEST(DspFftStockham, MatchesRadix2_SmallSizes)
         // SoA hardcodes its 4-point butterfly for forward direction,
         // so dir=+1 here would silently disagree with r2 only on
         // pow-of-4 sizes ≥ kRadix4SoaThreshold.
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
+        nk::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
-        numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
-        numkit::signal::detail::fftStockhamDispatch(test.data(), N, W.data());
+        nk::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
+        nk::signal::detail::fftStockhamDispatch(test.data(), N, W.data());
 
         for (size_t i = 0; i < N; ++i) {
             EXPECT_NEAR(ref[i].real(), test[i].real(), 1e-10)
@@ -640,10 +640,10 @@ TEST(DspFftStockham, MatchesRadix2_LargeSizes)
         // SoA hardcodes its 4-point butterfly for forward direction,
         // so dir=+1 here would silently disagree with r2 only on
         // pow-of-4 sizes ≥ kRadix4SoaThreshold.
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
+        nk::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
-        numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
-        numkit::signal::detail::fftStockhamDispatch(test.data(), N, W.data());
+        nk::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
+        nk::signal::detail::fftStockhamDispatch(test.data(), N, W.data());
 
         for (size_t i = 0; i < N; ++i) {
             ASSERT_NEAR(ref[i].real(), test[i].real(), 1e-7)
@@ -671,10 +671,10 @@ TEST(DspFftR2SoA, MatchesRadix2_AllSizes)
         // SoA hardcodes its 4-point butterfly for forward direction,
         // so dir=+1 here would silently disagree with r2 only on
         // pow-of-4 sizes ≥ kRadix4SoaThreshold.
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
+        nk::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
-        numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
-        numkit::signal::detail::fftRadix2SoaDispatch(test.data(), N, W.data());
+        nk::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
+        nk::signal::detail::fftRadix2SoaDispatch(test.data(), N, W.data());
 
         for (size_t i = 0; i < N; ++i) {
             ASSERT_NEAR(ref[i].real(), test[i].real(), 1e-7)
@@ -689,7 +689,7 @@ TEST(DspFftR2SoA, EdgeCase_N1)
 {
     std::vector<Complex> x = {Complex(7.0, -3.5)};
     std::vector<Complex> W;
-    numkit::signal::detail::fftRadix2SoaDispatch(x.data(), 1, W.data());
+    nk::signal::detail::fftRadix2SoaDispatch(x.data(), 1, W.data());
     EXPECT_DOUBLE_EQ(x[0].real(), 7.0);
     EXPECT_DOUBLE_EQ(x[0].imag(), -3.5);
 }
@@ -709,10 +709,10 @@ TEST(DspFftR4SoA, MatchesRadix2_PowerOfFourSizes)
         // SoA hardcodes its 4-point butterfly for forward direction,
         // so dir=+1 here would silently disagree with r2 only on
         // pow-of-4 sizes ≥ kRadix4SoaThreshold.
-        numkit::fillFftTwiddles(W.data(), N, /*dir=*/-1);
+        nk::fillFftTwiddles(W.data(), N, /*dir=*/-1);
 
-        numkit::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
-        numkit::signal::detail::fftRadix4Pow4SoaDispatch(test.data(), N, W.data());
+        nk::signal::detail::fftRadix2Impl(ref.data(), N, W.data());
+        nk::signal::detail::fftRadix4Pow4SoaDispatch(test.data(), N, W.data());
 
         for (size_t i = 0; i < N; ++i) {
             ASSERT_NEAR(ref[i].real(), test[i].real(), 1e-7)
@@ -728,12 +728,12 @@ TEST(DspFftStockham, EdgeCase_N1)
     // N=1 is identity — should leave the input unchanged.
     std::vector<Complex> x = {Complex(3.14, 2.71)};
     std::vector<Complex> W;  // empty, not used at N<=1
-    numkit::signal::detail::fftStockhamDispatch(x.data(), 1, W.data());
+    nk::signal::detail::fftStockhamDispatch(x.data(), 1, W.data());
     EXPECT_DOUBLE_EQ(x[0].real(), 3.14);
     EXPECT_DOUBLE_EQ(x[0].imag(), 2.71);
 }
 
-#endif // NUMKIT_WITH_SIMD
+#endif // NK_WITH_SIMD
 
 // ── Round-trip: x → fft → ifft ≈ x for 3-D input on each dim ──────────
 TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
@@ -745,8 +745,8 @@ TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
         x.doubleDataMut()[i] = std::sin(0.37 * double(i));
 
     for (int dim = 1; dim <= 3; ++dim) {
-        Value X = numkit::signal::fft(x, /*n=*/-1, dim, mr);
-        Value y = numkit::signal::ifft(X, /*n=*/-1, dim, mr);
+        Value X = nk::signal::fft(x, /*n=*/-1, dim, mr);
+        Value y = nk::signal::ifft(X, /*n=*/-1, dim, mr);
         ASSERT_EQ(y.numel(), R * C * P) << "dim=" << dim;
         ASSERT_TRUE(y.dims().is3D()) << "dim=" << dim;
         // ifft should downgrade to real (imag < 1e-10 everywhere).
@@ -764,14 +764,14 @@ TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
 TEST(SignalFftPublicApi, Fft2RoundTripIsIdentity)
 {
     auto *mr = std::pmr::get_default_resource();
-    auto x = numkit::Value::matrix(4, 4, numkit::ValueType::DOUBLE, mr);
+    auto x = nk::Value::matrix(4, 4, nk::ValueType::DOUBLE, mr);
     for (int i = 0; i < 16; ++i) x.doubleDataMut()[i] = i + 1;
-    numkit::Value Y = numkit::signal::fft2(x, -1, -1, mr);
-    EXPECT_EQ(Y.type(), numkit::ValueType::COMPLEX);
+    nk::Value Y = nk::signal::fft2(x, -1, -1, mr);
+    EXPECT_EQ(Y.type(), nk::ValueType::COMPLEX);
     EXPECT_EQ(Y.dims().rows(), 4u);
     EXPECT_EQ(Y.dims().cols(), 4u);
 
-    numkit::Value Z = numkit::signal::ifft2(Y, -1, -1, mr);
+    nk::Value Z = nk::signal::ifft2(Y, -1, -1, mr);
     for (int i = 0; i < 16; ++i) {
         const double got = Z.isComplex() ? Z.complexData()[i].real()
                                          : Z.doubleData()[i];
@@ -782,10 +782,10 @@ TEST(SignalFftPublicApi, Fft2RoundTripIsIdentity)
 TEST(SignalFftPublicApi, Fft2WithExplicitSizes)
 {
     auto *mr = std::pmr::get_default_resource();
-    auto x = numkit::Value::matrix(2, 3, numkit::ValueType::DOUBLE, mr);
+    auto x = nk::Value::matrix(2, 3, nk::ValueType::DOUBLE, mr);
     for (int i = 0; i < 6; ++i) x.doubleDataMut()[i] = i + 1;
     // Pad to 4×5 in frequency.
-    numkit::Value Y = numkit::signal::fft2(x, 4, 5, mr);
+    nk::Value Y = nk::signal::fft2(x, 4, 5, mr);
     EXPECT_EQ(Y.dims().rows(), 4u);
     EXPECT_EQ(Y.dims().cols(), 5u);
 }
@@ -793,13 +793,13 @@ TEST(SignalFftPublicApi, Fft2WithExplicitSizes)
 TEST(SignalFftPublicApi, InterpftLengthMatches)
 {
     auto *mr = std::pmr::get_default_resource();
-    auto x = numkit::Value::matrix(1, 8, numkit::ValueType::DOUBLE, mr);
+    auto x = nk::Value::matrix(1, 8, nk::ValueType::DOUBLE, mr);
     for (int i = 0; i < 8; ++i)
         x.doubleDataMut()[i] = std::sin(2.0 * M_PI * i / 8.0);
-    numkit::Value y = numkit::signal::interpft(x, 32, 0, mr);
+    nk::Value y = nk::signal::interpft(x, 32, 0, mr);
     EXPECT_EQ(y.numel(), 32u);
     // Identity case: n == length(x).
-    numkit::Value y2 = numkit::signal::interpft(x, 8, 0, mr);
+    nk::Value y2 = nk::signal::interpft(x, 8, 0, mr);
     EXPECT_EQ(y2.numel(), 8u);
 }
 
@@ -809,11 +809,11 @@ TEST(SignalFftPublicApi, InterpftPureSinusoidExact)
     // reconstruct the underlying continuous waveform on the dense grid.
     auto *mr = std::pmr::get_default_resource();
     const size_t M = 16, N = 64;
-    auto x = numkit::Value::matrix(1, M, numkit::ValueType::DOUBLE, mr);
+    auto x = nk::Value::matrix(1, M, nk::ValueType::DOUBLE, mr);
     for (size_t i = 0; i < M; ++i)
         x.doubleDataMut()[i] = std::cos(2.0 * M_PI * 2.0 * i / M);  // freq=2
 
-    numkit::Value y = numkit::signal::interpft(x, N, 0, mr);
+    nk::Value y = nk::signal::interpft(x, N, 0, mr);
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i) {
         const double ref = std::cos(2.0 * M_PI * 2.0 * i / N);
@@ -827,9 +827,9 @@ TEST(SignalFftPublicApi, InterpftPureSinusoidExact)
 class InterpftScriptTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 

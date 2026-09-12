@@ -1,6 +1,6 @@
 // ide/desktop/type-serialization.test.js
 //
-// Integration tests: JSON serialisation of every numkit Value type
+// Integration tests: JSON serialisation of every nk Value type
 // through the native --ide-session pipe protocol.
 //
 // Protocol mapping:
@@ -22,13 +22,13 @@ import { extractResponse } from './repl-protocol.js';
 const REPO_ROOT  = path.resolve(import.meta.dirname, '../..');
 function findBinary() {
   const candidates = [
-    path.join(REPO_ROOT, 'build/windows/release/apps/numkit/Release/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/windows/release/apps/numkit/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/linux/release/apps/numkit/numkit_repl'),
-    path.join(REPO_ROOT, 'build/desktop-fast/apps/numkit/Release/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/desktop-fast/apps/numkit/numkit_repl'),
-    path.join(REPO_ROOT, 'build/desktop/apps/numkit/Release/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/desktop/apps/numkit/numkit_repl'),
+    path.join(REPO_ROOT, 'build/windows/release/apps/nk/Release/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/windows/release/apps/nk/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/linux/release/apps/nk/nk_repl'),
+    path.join(REPO_ROOT, 'build/desktop-fast/apps/nk/Release/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/desktop-fast/apps/nk/nk_repl'),
+    path.join(REPO_ROOT, 'build/desktop/apps/nk/Release/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/desktop/apps/nk/nk_repl'),
   ];
   return candidates.find(p => fs.existsSync(p)) ?? null;
 }

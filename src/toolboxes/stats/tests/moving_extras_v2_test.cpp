@@ -4,11 +4,11 @@
 // movprod,movmad,movstd,movvar}.md). Hardcoded expected values
 // captured from MATLAB R2025b probe runs.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MovExtrasTest : public ::testing::Test
 {
@@ -102,13 +102,13 @@ TEST_F(MovExtrasTest, MatrixDimOmitnanDiscard)
 
 TEST_F(MovExtrasTest, KZeroErrors)
 {
-    EXPECT_THROW(eval("movmean(A2, 0);"), numkit::Error);
+    EXPECT_THROW(eval("movmean(A2, 0);"), nk::Error);
 }
 
 TEST_F(MovExtrasTest, SamplePointsRejected)
 {
     EXPECT_THROW(eval("movmean(A2, 2, 'SamplePoints', [0 1 2 3 4 5 7 8 9]');"),
-                 numkit::Error);
+                 nk::Error);
 }
 
 // ── per-function omitnan smoke ─────────────────────────────────────────

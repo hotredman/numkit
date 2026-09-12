@@ -15,10 +15,10 @@ the gradient along every dimension — `[px,py,pz] = gradient(A)` for a 3-D `A`
 ```matlab
 A = reshape(1:8, 2, 2, 2);
 gradient(A)
-% numkit: Error — gradient: only 1D vector and 2D matrix inputs are supported
+% nk: Error — gradient: only 1D vector and 2D matrix inputs are supported
 % MATLAB: 2x2x2, g(1,1,1) = 2     (x-gradient)
 [gx, gy, gz] = gradient(A)
-% numkit: Error — gradient: 2-output form requires a 2D matrix input
+% nk: Error — gradient: 2-output form requires a 2D matrix input
 % MATLAB: gz(1,1,1) = 4
 ```
 
@@ -45,7 +45,7 @@ interior, one-sided at the ends), honouring optional per-dim spacing args
   single output = the dim-2 (x) gradient. Spacing: a single arg broadcasts to
   every dim, otherwise `gradient(A,h1,h2,h3,...)` maps per output. Complex F is
   gradiented part-wise (real/imag) and recombined. Requesting more outputs than
-  dimensions throws `numkit:gradient:nargout`.
+  dimensions throws `nk:gradient:nargout`.
 - `gradient_reg` routes 3-D+ inputs through `gradientND`; vector and 2-D matrix
   paths are byte-for-byte unchanged. The single-output C++ `gradient()` also
   handles N-D now (the x gradient).

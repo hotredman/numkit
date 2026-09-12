@@ -35,7 +35,7 @@ describe('examples', () => {
       expect(await openExample({ type: 'file' })).toBe(null);
     });
 
-    it('extracts text script into Virtual FS /numkit_ide/examples/<scriptBaseName>', async () => {
+    it('extracts text script into Virtual FS /nk_ide/examples/<scriptBaseName>', async () => {
       const mockText = '% arithmetic example\na = 1 + 2;\n';
       global.fetch.mockResolvedValueOnce({
         ok: true,
@@ -57,15 +57,15 @@ describe('examples', () => {
 
       expect(result).toEqual({
         content: mockText,
-        vfsPath: '/numkit_ide/examples/arithmetic/arithmetic.m',
-        targetDir: '/numkit_ide/examples/arithmetic',
+        vfsPath: '/nk_ide/examples/arithmetic/arithmetic.m',
+        targetDir: '/nk_ide/examples/arithmetic',
         isBinary: false,
         fsMode: 'virtual',
         source: 'temporary',
       });
 
-      expect(mockVfs.mkdir).toHaveBeenCalledWith('/numkit_ide/examples/arithmetic');
-      expect(mockVfs.writeFile).toHaveBeenCalledWith('/numkit_ide/examples/arithmetic/arithmetic.m', mockText);
+      expect(mockVfs.mkdir).toHaveBeenCalledWith('/nk_ide/examples/arithmetic');
+      expect(mockVfs.writeFile).toHaveBeenCalledWith('/nk_ide/examples/arithmetic/arithmetic.m', mockText);
     });
 
     it('delegates to nativeFS.setupExample in Electron Local mode', async () => {
@@ -76,7 +76,7 @@ describe('examples', () => {
       });
 
       window.nativeFS = {
-        setupExample: vi.fn().mockResolvedValue('C:\\Users\\User\\AppData\\Local\\Temp\\numkit\\examples\\nested_loops'),
+        setupExample: vi.fn().mockResolvedValue('C:\\Users\\User\\AppData\\Local\\Temp\\nk\\examples\\nested_loops'),
       };
 
       const node = {
@@ -94,8 +94,8 @@ describe('examples', () => {
 
       expect(result).toEqual({
         content: mockText,
-        vfsPath: 'C:\\Users\\User\\AppData\\Local\\Temp\\numkit\\examples\\nested_loops\\nested_loops.m',
-        targetDir: 'C:\\Users\\User\\AppData\\Local\\Temp\\numkit\\examples\\nested_loops',
+        vfsPath: 'C:\\Users\\User\\AppData\\Local\\Temp\\nk\\examples\\nested_loops\\nested_loops.m',
+        targetDir: 'C:\\Users\\User\\AppData\\Local\\Temp\\nk\\examples\\nested_loops',
         isBinary: false,
         fsMode: 'local',
         source: 'localFolder',

@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/color/color.hpp>
+#include <nk/image/color/color.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ namespace detail {
     {                                                                               \
         if (args.empty())                                                           \
             throw Error(#name ": requires X", 0, 0, #name, "",                     \
-                        "numkit:" #name ":nargin");                                     \
+                        "nk:" #name ":nargin");                                     \
         outs[0] = name(args[0], ctx.engine->resource());                           \
     }
 
@@ -39,7 +39,7 @@ void imsplit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("imsplit: requires (I)", 0, 0, "imsplit", "",
-                    "numkit:imsplit:nargin");
+                    "nk:imsplit:nargin");
     std::vector<Value> planes;
     imsplit(args[0], planes, ctx.engine->resource());
     const size_t M = std::min((size_t)outs.size(),
@@ -75,7 +75,7 @@ void colorgradient_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("colorgradient: requires (C [, w] [, n])",
-                    0, 0, "colorgradient", "", "numkit:colorgradient:nargin");
+                    0, 0, "colorgradient", "", "nk:colorgradient:nargin");
     auto *mr = ctx.engine->resource();
     Value w;
     int n = 64;
@@ -98,14 +98,14 @@ void wavelength2rgb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("wavelength2rgb: requires (wavelength [, class [, gamma]])",
-                    0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:nargin");
+                    0, 0, "wavelength2rgb", "", "nk:wavelength2rgb:nargin");
     auto *mr = ctx.engine->resource();
     std::string cls = "double";
     double gamma = 0.8;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("wavelength2rgb: class must be a string",
-                        0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:cls");
+                        0, 0, "wavelength2rgb", "", "nk:wavelength2rgb:cls");
         cls = args[1].toString();
     }
     if (args.size() >= 3 && !args[2].isEmpty()) gamma = args[2].toScalar();
@@ -117,7 +117,7 @@ void colorangle_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("colorangle: requires (rgb1, rgb2)",
-                    0, 0, "colorangle", "", "numkit:colorangle:nargin");
+                    0, 0, "colorangle", "", "nk:colorangle:nargin");
     outs[0] = colorangle(args[0], args[1], ctx.engine->resource());
 }
 
@@ -126,7 +126,7 @@ void cmap2gray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("cmap2gray: requires (cmap)",
-                    0, 0, "cmap2gray", "", "numkit:cmap2gray:nargin");
+                    0, 0, "cmap2gray", "", "nk:cmap2gray:nargin");
     outs[0] = cmap2gray(args[0], ctx.engine->resource());
 }
 
@@ -138,11 +138,11 @@ void gray_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("gray: N must be a scalar integer",
-                        0, 0, "gray", "", "numkit:gray:n");
+                        0, 0, "gray", "", "nk:gray:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("gray: N must be a scalar integer",
-                        0, 0, "gray", "", "numkit:gray:n");
+                        0, 0, "gray", "", "nk:gray:n");
         n = static_cast<int>(d);
     }
     outs[0] = gray_cmap(n, ctx.engine->resource());
@@ -156,11 +156,11 @@ void hot_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("hot: N must be a scalar integer",
-                        0, 0, "hot", "", "numkit:hot:n");
+                        0, 0, "hot", "", "nk:hot:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("hot: N must be a scalar integer",
-                        0, 0, "hot", "", "numkit:hot:n");
+                        0, 0, "hot", "", "nk:hot:n");
         n = static_cast<int>(d);
     }
     outs[0] = hot_cmap(n, ctx.engine->resource());
@@ -174,11 +174,11 @@ void cool_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("cool: N must be a scalar integer",
-                        0, 0, "cool", "", "numkit:cool:n");
+                        0, 0, "cool", "", "nk:cool:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("cool: N must be a scalar integer",
-                        0, 0, "cool", "", "numkit:cool:n");
+                        0, 0, "cool", "", "nk:cool:n");
         n = static_cast<int>(d);
     }
     outs[0] = cool_cmap(n, ctx.engine->resource());
@@ -192,11 +192,11 @@ void spring_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("spring: N must be a scalar integer",
-                        0, 0, "spring", "", "numkit:spring:n");
+                        0, 0, "spring", "", "nk:spring:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("spring: N must be a scalar integer",
-                        0, 0, "spring", "", "numkit:spring:n");
+                        0, 0, "spring", "", "nk:spring:n");
         n = static_cast<int>(d);
     }
     outs[0] = spring_cmap(n, ctx.engine->resource());
@@ -210,11 +210,11 @@ void summer_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("summer: N must be a scalar integer",
-                        0, 0, "summer", "", "numkit:summer:n");
+                        0, 0, "summer", "", "nk:summer:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("summer: N must be a scalar integer",
-                        0, 0, "summer", "", "numkit:summer:n");
+                        0, 0, "summer", "", "nk:summer:n");
         n = static_cast<int>(d);
     }
     outs[0] = summer_cmap(n, ctx.engine->resource());
@@ -228,11 +228,11 @@ void autumn_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("autumn: N must be a scalar integer",
-                        0, 0, "autumn", "", "numkit:autumn:n");
+                        0, 0, "autumn", "", "nk:autumn:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("autumn: N must be a scalar integer",
-                        0, 0, "autumn", "", "numkit:autumn:n");
+                        0, 0, "autumn", "", "nk:autumn:n");
         n = static_cast<int>(d);
     }
     outs[0] = autumn_cmap(n, ctx.engine->resource());
@@ -246,11 +246,11 @@ void winter_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("winter: N must be a scalar integer",
-                        0, 0, "winter", "", "numkit:winter:n");
+                        0, 0, "winter", "", "nk:winter:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("winter: N must be a scalar integer",
-                        0, 0, "winter", "", "numkit:winter:n");
+                        0, 0, "winter", "", "nk:winter:n");
         n = static_cast<int>(d);
     }
     outs[0] = winter_cmap(n, ctx.engine->resource());
@@ -264,11 +264,11 @@ void copper_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("copper: N must be a scalar integer",
-                        0, 0, "copper", "", "numkit:copper:n");
+                        0, 0, "copper", "", "nk:copper:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("copper: N must be a scalar integer",
-                        0, 0, "copper", "", "numkit:copper:n");
+                        0, 0, "copper", "", "nk:copper:n");
         n = static_cast<int>(d);
     }
     outs[0] = copper_cmap(n, ctx.engine->resource());
@@ -282,11 +282,11 @@ void pink_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("pink: N must be a scalar integer",
-                        0, 0, "pink", "", "numkit:pink:n");
+                        0, 0, "pink", "", "nk:pink:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("pink: N must be a scalar integer",
-                        0, 0, "pink", "", "numkit:pink:n");
+                        0, 0, "pink", "", "nk:pink:n");
         n = static_cast<int>(d);
     }
     outs[0] = pink_cmap(n, ctx.engine->resource());
@@ -300,11 +300,11 @@ void hsv_cmap_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("hsv: N must be a scalar integer",
-                        0, 0, "hsv", "", "numkit:hsv:n");
+                        0, 0, "hsv", "", "nk:hsv:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("hsv: N must be a scalar integer",
-                        0, 0, "hsv", "", "numkit:hsv:n");
+                        0, 0, "hsv", "", "nk:hsv:n");
         n = static_cast<int>(d);
     }
     outs[0] = hsv_cmap(n, ctx.engine->resource());
@@ -318,11 +318,11 @@ void flag_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("flag: N must be a scalar integer",
-                        0, 0, "flag", "", "numkit:flag:n");
+                        0, 0, "flag", "", "nk:flag:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("flag: N must be a scalar integer",
-                        0, 0, "flag", "", "numkit:flag:n");
+                        0, 0, "flag", "", "nk:flag:n");
         n = static_cast<int>(d);
     }
     outs[0] = flag_cmap(n, ctx.engine->resource());
@@ -336,11 +336,11 @@ void prism_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("prism: N must be a scalar integer",
-                        0, 0, "prism", "", "numkit:prism:n");
+                        0, 0, "prism", "", "nk:prism:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("prism: N must be a scalar integer",
-                        0, 0, "prism", "", "numkit:prism:n");
+                        0, 0, "prism", "", "nk:prism:n");
         n = static_cast<int>(d);
     }
     outs[0] = prism_cmap(n, ctx.engine->resource());
@@ -354,11 +354,11 @@ void lines_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("lines: N must be a scalar integer",
-                        0, 0, "lines", "", "numkit:lines:n");
+                        0, 0, "lines", "", "nk:lines:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("lines: N must be a scalar integer",
-                        0, 0, "lines", "", "numkit:lines:n");
+                        0, 0, "lines", "", "nk:lines:n");
         n = static_cast<int>(d);
     }
     outs[0] = lines_cmap(n, ctx.engine->resource());
@@ -372,11 +372,11 @@ void bone_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("bone: N must be a scalar integer",
-                        0, 0, "bone", "", "numkit:bone:n");
+                        0, 0, "bone", "", "nk:bone:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("bone: N must be a scalar integer",
-                        0, 0, "bone", "", "numkit:bone:n");
+                        0, 0, "bone", "", "nk:bone:n");
         n = static_cast<int>(d);
     }
     outs[0] = bone_cmap(n, ctx.engine->resource());
@@ -390,11 +390,11 @@ void white_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("white: N must be a scalar integer",
-                        0, 0, "white", "", "numkit:white:n");
+                        0, 0, "white", "", "nk:white:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("white: N must be a scalar integer",
-                        0, 0, "white", "", "numkit:white:n");
+                        0, 0, "white", "", "nk:white:n");
         n = static_cast<int>(d);
     }
     outs[0] = white_cmap(n, ctx.engine->resource());
@@ -405,7 +405,7 @@ void rgb2lin_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rgb2lin: requires (A)", 0, 0, "rgb2lin", "",
-                    "numkit:rgb2lin:nargin");
+                    "nk:rgb2lin:nargin");
     outs[0] = rgb2lin(args[0], ctx.engine->resource());
 }
 
@@ -414,7 +414,7 @@ void lin2rgb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("lin2rgb: requires (A)", 0, 0, "lin2rgb", "",
-                    "numkit:lin2rgb:nargin");
+                    "nk:lin2rgb:nargin");
     outs[0] = lin2rgb(args[0], ctx.engine->resource());
 }
 
@@ -423,7 +423,7 @@ void xyz2double_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("xyz2double: requires (xyz)", 0, 0, "xyz2double", "",
-                    "numkit:xyz2double:nargin");
+                    "nk:xyz2double:nargin");
     outs[0] = xyz2double(args[0], ctx.engine->resource());
 }
 
@@ -432,7 +432,7 @@ void xyz2uint16_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("xyz2uint16: requires (xyz)", 0, 0, "xyz2uint16", "",
-                    "numkit:xyz2uint16:nargin");
+                    "nk:xyz2uint16:nargin");
     outs[0] = xyz2uint16(args[0], ctx.engine->resource());
 }
 
@@ -441,7 +441,7 @@ void brighten_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("brighten: requires (map, beta)", 0, 0, "brighten", "",
-                    "numkit:brighten:nargin");
+                    "nk:brighten:nargin");
     const double beta = args[1].toScalar();
     outs[0] = brighten(args[0], beta, ctx.engine->resource());
 }
@@ -451,13 +451,13 @@ void contrast_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("contrast: requires (X[, m])", 0, 0, "contrast", "",
-                    "numkit:contrast:nargin");
+                    "nk:contrast:nargin");
     int m = 64;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double d = args[1].toScalar();
         if (!std::isfinite(d) || d < 2.0)
             throw Error("contrast: M must be a finite scalar >= 2",
-                        0, 0, "contrast", "", "numkit:contrast:m");
+                        0, 0, "contrast", "", "nk:contrast:m");
         m = static_cast<int>(d);
     }
     outs[0] = contrast(args[0], m, ctx.engine->resource());
@@ -468,13 +468,13 @@ void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("deltaE: requires (I1, I2[, 'isInputLab', tf])",
-                    0, 0, "deltaE", "", "numkit:deltaE:nargin");
+                    0, 0, "deltaE", "", "nk:deltaE:nargin");
     bool isInputLab = false;
     // Parse name-value pair: 'isInputLab', value.
     for (size_t i = 2; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("deltaE: name-value pairs require string keys",
-                        0, 0, "deltaE", "", "numkit:deltaE:nv");
+                        0, 0, "deltaE", "", "nk:deltaE:nv");
         std::string key = args[i].toString();
         std::string lo;
         for (char c : key) lo.push_back(static_cast<char>(std::tolower(c)));
@@ -482,7 +482,7 @@ void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
             isInputLab = (args[i + 1].toScalar() != 0.0);
         else
             throw Error("deltaE: unknown name '" + key + "'",
-                        0, 0, "deltaE", "", "numkit:deltaE:nv");
+                        0, 0, "deltaE", "", "nk:deltaE:nv");
     }
     outs[0] = deltaE(args[0], args[1], isInputLab, ctx.engine->resource());
 }
@@ -494,11 +494,11 @@ void whitepoint_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 1 && !args[0].isEmpty()) {
         if (!args[0].isChar() && !args[0].isString())
             throw Error("whitepoint: illuminant must be a string",
-                        0, 0, "whitepoint", "", "numkit:whitepoint:type");
+                        0, 0, "whitepoint", "", "nk:whitepoint:type");
         illum = args[0].toString();
     }
     outs[0] = whitepoint(illum, ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::image
+} // namespace nk::image

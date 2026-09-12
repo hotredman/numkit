@@ -7,7 +7,7 @@
 // validation — dual-engine (VM + TreeWalker) with an injected input
 // provider (no pipes in tests).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <string>
@@ -15,9 +15,9 @@
 
 namespace {
 
-class InputTest : public ::testing::TestWithParam<numkit::Engine::Backend> {
+class InputTest : public ::testing::TestWithParam<nk::Engine::Backend> {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     std::vector<std::string> lines;
     std::string displayed;
 
@@ -33,7 +33,7 @@ public:
             return front;
         });
     }
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
@@ -119,7 +119,7 @@ TEST_P(InputTest, ErroneousExpressionPropagates)
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, InputTest,
-                         ::testing::Values(numkit::Engine::Backend::VM,
-                                           numkit::Engine::Backend::TreeWalker));
+                         ::testing::Values(nk::Engine::Backend::VM,
+                                           nk::Engine::Backend::TreeWalker));
 
 } // namespace

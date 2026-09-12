@@ -2,7 +2,7 @@ clear
 
 % bugs/signal/deconv-integer-input.md — deconv accepts integer/logical input.
 % MATLAB R2025b promotes to double; the quotient AND remainder are ALWAYS
-% double (never the integer class, like conv). Previously numkit threw
+% double (never the integer class, like conv). Previously nk threw
 % "Not a double array" on any integer or logical operand.
 
 q1 = deconv(int8([1 3 5 3]), int8([1 1]));
@@ -24,10 +24,10 @@ fprintf('[q,r]=deconv(int8): q(2)=%g, max|r|=%g, class_r=%s   expect 2 / 0 / dou
 [q5, r5] = deconv([1 1], [1 2 3]);
 fprintf('na>nb double: q=%g (scalar 0), r=[%g %g], class_q=%s   expect 0 / [1 1] / double\n', q5(1), r5(1), r5(2), class(q5));
 
-% numkit-lenient extension: na>nb with INTEGER input — MATLAB ERRORS here
-% ("Inputs must be floats"); numkit promotes and returns double instead.
+% nk-lenient extension: na>nb with INTEGER input — MATLAB ERRORS here
+% ("Inputs must be floats"); nk promotes and returns double instead.
 [q4, r4] = deconv(int8([1 1]), int8([1 2 3]));
-fprintf('na>nb int (numkit lenient; MATLAB errors): q=%g r=[%g %g] class=%s\n', q4(1), r4(1), r4(2), class(q4));
+fprintf('na>nb int (nk lenient; MATLAB errors): q=%g r=[%g %g] class=%s\n', q4(1), r4(1), r4(2), class(q4));
 
 % Regression: plain double/double unchanged.
 qd = deconv([2 7 7 2], [1 2]);

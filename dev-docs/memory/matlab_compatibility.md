@@ -1,7 +1,7 @@
 # MATLAB Compatibility Mode (Implicit Imports)
 
 ## Problem
-In standard `numkit`, functions like `mean`, `std`, and `plot` are housed in toolboxes (e.g. `compat`). Originally, scripts needed an explicit `import compat.*` statement to access these functions, deviating from standard MATLAB behavior where these functions are available in the global namespace by default. 
+In standard `nk`, functions like `mean`, `std`, and `plot` are housed in toolboxes (e.g. `compat`). Originally, scripts needed an explicit `import compat.*` statement to access these functions, deviating from standard MATLAB behavior where these functions are available in the global namespace by default. 
 
 When users wrote pure scripts without imports, or used `clear all` which cleared the workspace imports, standard library functions became unavailable.
 

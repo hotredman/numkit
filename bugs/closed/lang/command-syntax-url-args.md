@@ -21,11 +21,11 @@ Two divergent shapes, both wrong vs MATLAB:
 ```matlab
 clear;
 disp a//b:c
-% numkit: a//b
+% nk: a//b
 % MATLAB: a//b:c
 
 web -broswer http://www.ilovematlab.cn/f
-% numkit: Error: Unexpected token '/' at line 1 col 19
+% nk: Error: Unexpected token '/' at line 1 col 19
 % MATLAB: opens the URL (or errors about `web`, never about '/')
 ```
 

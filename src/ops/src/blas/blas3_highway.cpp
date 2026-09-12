@@ -1,5 +1,5 @@
-#include <numkit/ops/blas.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/blas.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +13,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -40,7 +40,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
                 }
             }
         }
-        ::numkit::ops::g_last_gemm_threads_used.store(1);
+        ::nk::ops::g_last_gemm_threads_used.store(1);
         return;
     }
 
@@ -170,7 +170,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
             }
         }
 
-        ::numkit::ops::g_last_gemm_threads_used.store(1);
+        ::nk::ops::g_last_gemm_threads_used.store(1);
         return;
     }
 
@@ -188,7 +188,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
     // Limit threads for small n to avoid redundant packing of A
     int max_threads = static_cast<int>(std::max<std::size_t>(1, n / 16));
 
-    numkit::detail::parallel_for(n, p_thresh, [&](std::size_t jc_start, std::size_t jc_end) {
+    nk::detail::parallel_for(n, p_thresh, [&](std::size_t jc_start, std::size_t jc_end) {
         active_threads.fetch_add(1, std::memory_order_relaxed);
         // Zero-allocation thread_local static packing buffers (persisted per thread)
         thread_local static std::vector<double> A_pack(mc_block * kc_block + 64, 0.0);
@@ -316,7 +316,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
         }
     }, max_threads);
 
-    ::numkit::ops::g_last_gemm_threads_used.store(active_threads.load());
+    ::nk::ops::g_last_gemm_threads_used.store(active_threads.load());
 }
 
 
@@ -524,7 +524,7 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     // Limit threads for small n to avoid redundant packing of A
     int max_threads = static_cast<int>(std::max<std::size_t>(1, n / 16));
 
-    numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
+    nk::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
         thread_local static std::vector<double> Ar_pack(mc_block * kc_block + 64, 0.0);
         thread_local static std::vector<double> Ai_pack(mc_block * kc_block + 64, 0.0);
         thread_local static std::vector<double> Br_pack(kc_block * nc_block + 64, 0.0);
@@ -945,11 +945,11 @@ bool LuPanelComplexKernel(std::complex<double> *A_cplx, std::size_t lda, std::in
 
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
-}  // namespace numkit::ops
+}  // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(GemmDoubleKernel);
 HWY_EXPORT(GemmComplexKernel);
@@ -1346,5 +1346,5 @@ void syrk(MatrixUplo uplo, MatrixTranspose trans,
     syrk_generic(uplo, trans, n, k, alpha, A, lda, beta, C, ldc);
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif

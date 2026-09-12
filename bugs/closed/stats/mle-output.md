@@ -6,14 +6,14 @@
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom
-`[phat, pci] = mle(data, ...)` throws "Too many output arguments". numkit
+`[phat, pci] = mle(data, ...)` throws "Too many output arguments". nk
 returns only the parameter estimates `phat`; the confidence-interval matrix
 `pci` is missing.
 
 ## Repro
 ```matlab
 [phat, pci] = mle([2 3 4 5 6 4 3])
-% numkit: Error — Too many output arguments
+% nk: Error — Too many output arguments
 % MATLAB: pci(1,1) = 2.613054  (95% CI lower bound of the mean estimate)
 ```
 

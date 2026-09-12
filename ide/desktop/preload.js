@@ -1,4 +1,4 @@
-// preload.js — Electron context-bridge for the Numkit IDE desktop app.
+// preload.js — Electron context-bridge for the NK IDE desktop app.
 //
 // Exposes window.nativeFS to the renderer: a path-based filesystem
 // API plus OS-level "reveal in explorer" actions. The renderer
@@ -53,7 +53,7 @@ contextBridge.exposeInMainWorld('nativeFS', {
     // ── External tools ──────────────────────────────────────────────
     // Open a native file-picker dialog and return the selected path,
     // or null if cancelled. Used by PreferencesModal to browse for
-    // the numkit / numkit_codegen / C++ compiler executables.
+    // the nk / nk_codegen / C++ compiler executables.
     pickFile: (opts) => ipcRenderer.invoke('fs:pickFile', opts),
 
     // Push the current tool paths from the renderer-side settings
@@ -67,7 +67,7 @@ contextBridge.exposeInMainWorld('nativeFS', {
     resolveSettings: () => ipcRenderer.invoke('settings:resolve'),
 
     // ── Persistent REPL session ──────────────────────────────────
-    // Execute code in the long-lived numkit_repl --ide-session process.
+    // Execute code in the long-lived nk_repl --ide-session process.
     // Returns { stdout, stderr, vars, exitCode, notFound?, sessionRestarted? }
     runRepl: (code, opts) => ipcRenderer.invoke('repl:run', code, opts),
 
@@ -81,7 +81,7 @@ contextBridge.exposeInMainWorld('nativeFS', {
     killRepl: () => ipcRenderer.invoke('repl:kill'),
 
     // Transpile + AOT-compile + run the given source code string via
-    // numkit_codegen --run.  Returns a promise that resolves to
+    // nk_codegen --run.  Returns a promise that resolves to
     //   { stdout: string, stderr: string, exitCode: number, notFound?: true }
     // The main process writes the code to a temp file, spawns the
     // configured codegen binary, collects stdout/stderr, cleans up,

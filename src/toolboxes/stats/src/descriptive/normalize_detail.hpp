@@ -3,14 +3,14 @@
 // out-params; def in normalize.cpp, external). Phase 2b compute/register split.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <memory_resource>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 Value zscoreCore(const Value &A, int flag, int dim,
                  std::pmr::memory_resource *mr,
                  Value *muOut = nullptr, Value *sigmaOut = nullptr);
 
-} // namespace numkit::stats
+} // namespace nk::stats

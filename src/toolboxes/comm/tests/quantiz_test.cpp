@@ -2,10 +2,10 @@
 //
 // Regression guard for quantiz() — scalar quantizer applier.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class QuantizTest : public ::testing::Test
 {

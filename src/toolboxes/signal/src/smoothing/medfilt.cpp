@@ -2,19 +2,19 @@
 //
 // medfilt1 — sliding-window median. Split from toolboxes/signal/src/.
 
-#include <numkit/signal/smoothing/medfilt.hpp>
+#include <nk/signal/smoothing/medfilt.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <string>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -93,7 +93,7 @@ Value medfilt1(const Value &x, size_t k, bool zeropad, std::pmr::memory_resource
 {
     if (k == 0)
         throw Error("medfilt1: window length must be >= 1",
-                     0, 0, "medfilt1", "", "numkit:medfilt1:badK");
+                     0, 0, "medfilt1", "", "nk:medfilt1:badK");
 
     const size_t total = x.numel();
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -119,4 +119,4 @@ Value medfilt1(const Value &x, size_t k, bool zeropad, std::pmr::memory_resource
     return r;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

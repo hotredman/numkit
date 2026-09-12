@@ -3,11 +3,11 @@
 // The TransferRegistry and the top-level registerStandardTransfers()
 // aggregator (calls each per-family registrar).
 
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/transfer.hpp>
 
 #include <utility>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 void TransferRegistry::add(std::string name, TransferFn fn)
 {
@@ -72,4 +72,4 @@ void registerStandardTransfers(TransferRegistry &reg)
     //         registerBespokeTransfers(reg);
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

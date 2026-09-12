@@ -9,9 +9,9 @@
 
 #pragma once
 
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -20,7 +20,7 @@
 #include <tuple>
 #include <utility>
 
-namespace numkit::stats::detail {
+namespace nk::stats::detail {
 
 // If the last positional arg is a string equal to 'upper' (any case),
 // strip it and set `upper = true`. Returns the effective trailing-arg
@@ -71,7 +71,7 @@ inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error(std::string(fnName) + ": requires 1 arg",
-                    0, 0, fnName, "", "numkit:nargin");
+                    0, 0, fnName, "", "nk:nargin");
     const Value &p = args[0];
     if (p.isScalar()) {
         auto [m, v] = stat_impl(p.toScalar());
@@ -105,7 +105,7 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error(std::string(fnName) + ": requires 2 args",
-                    0, 0, fnName, "", "numkit:nargin");
+                    0, 0, fnName, "", "nk:nargin");
     const Value &av = args[0];
     const Value &bv = args[1];
     const size_t na = av.numel();
@@ -118,7 +118,7 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
     }
     if (na > 1 && nb > 1 && na != nb)
         throw Error(std::string(fnName) + ": args must be same size or scalar",
-                    0, 0, fnName, "", "numkit:dim");
+                    0, 0, fnName, "", "nk:dim");
     const Value &ref = (na >= nb) ? av : bv;
     const auto &d = ref.dims();
     Value out_m = d.is3D()
@@ -148,7 +148,7 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error(std::string(fnName) + ": requires 3 args",
-                    0, 0, fnName, "", "numkit:nargin");
+                    0, 0, fnName, "", "nk:nargin");
     const Value &av = args[0];
     const Value &bv = args[1];
     const Value &cv = args[2];
@@ -163,7 +163,7 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
     auto sizeOK = [&](size_t n){ return n == 1 || n == nmax; };
     if (!sizeOK(na) || !sizeOK(nb) || !sizeOK(nc))
         throw Error(std::string(fnName) + ": args must be same size or scalar",
-                    0, 0, fnName, "", "numkit:dim");
+                    0, 0, fnName, "", "nk:dim");
     const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : cv);
     const auto &d = ref.dims();
     Value out_m = d.is3D()
@@ -233,7 +233,7 @@ inline std::size_t dist_match_numel(std::initializer_list<std::size_t> sizes,
     for (std::size_t s : sizes)
         if (s != 1 && s != N)
             throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
-                        0, 0, fnName, "", "numkit:dist:size");
+                        0, 0, fnName, "", "nk:dist:size");
     return N;
 }
 
@@ -250,7 +250,7 @@ inline Value broadcast_dist2(const Value &av, const Value &bv,
         return Value::scalar(kernel(av.toScalar(), bv.toScalar()), mr);
     if (na > 1 && nb > 1 && na != nb)
         throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
-                    0, 0, fnName, "", "numkit:dist:size");
+                    0, 0, fnName, "", "nk:dist:size");
     const Value &ref = (na >= nb) ? av : bv;
     const auto &d = ref.dims();
     Value out = d.is3D()
@@ -280,7 +280,7 @@ inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
     auto ok = [&](size_t k) { return k == 1 || k == nmax; };
     if (!ok(na) || !ok(nb) || !ok(nc))
         throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
-                    0, 0, fnName, "", "numkit:dist:size");
+                    0, 0, fnName, "", "nk:dist:size");
     const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : cv);
     const auto &d = ref.dims();
     Value out = d.is3D()
@@ -312,7 +312,7 @@ inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
     auto ok = [&](size_t k) { return k == 1 || k == nmax; };
     if (!ok(na) || !ok(nb) || !ok(nc) || !ok(nd))
         throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
-                    0, 0, fnName, "", "numkit:dist:size");
+                    0, 0, fnName, "", "nk:dist:size");
     const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : (nc == nmax ? cv : dv));
     const auto &d = ref.dims();
     Value out = d.is3D()
@@ -357,7 +357,7 @@ inline void parse_rng_size(Span<const Value> args, size_t start,
             cols = static_cast<size_t>(a0.elemAsDouble(1));
         } else {
             // 3+ dims: emit as flattened first×rest. MATLAB returns
-            // an N-D array; numkit's 2-D Value can only represent the
+            // an N-D array; nk's 2-D Value can only represent the
             // first dim × product of the rest.
             rows = static_cast<size_t>(a0.elemAsDouble(0));
             cols = 1;
@@ -375,4 +375,4 @@ inline void parse_rng_size(Span<const Value> args, size_t start,
     }
 }
 
-} // namespace numkit::stats::detail
+} // namespace nk::stats::detail

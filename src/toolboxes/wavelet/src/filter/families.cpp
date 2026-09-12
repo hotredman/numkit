@@ -24,21 +24,21 @@
 // "MATLAB Lo_D" and reverses it to obtain MATLAB Lo_R, matching the
 // rest of MATLAB's documented output.
 
-#include <numkit/wavelet/filter/families.hpp>
-#include <numkit/wavelet/filter/wfilters.hpp>
+#include <nk/wavelet/filter/families.hpp>
+#include <nk/wavelet/filter/wfilters.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The dbwavf /
 // coifwavf / symwavf / orthfilt builtins (CallContext wrappers) live in
 // filter/families_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -54,7 +54,7 @@ Value rowVec(std::pmr::memory_resource *mr, const std::vector<double> &v)
 
 // dbwavf / coifwavf / symwavf share the same body — emit Lo_R / sqrt(2).
 // 2026-05-08: with the wfilters Lo_D/Lo_R label fix, fb.Lo_R is now the
-// MATLAB Lo_R directly (was MATLAB Lo_D under numkit's old swapped
+// MATLAB Lo_R directly (was MATLAB Lo_D under nk's old swapped
 // labels). No reversal needed anymore.
 Value family_scaling(std::pmr::memory_resource *mr, const std::string &name)
 {
@@ -72,7 +72,7 @@ Value dbwavf(const std::string &name, std::pmr::memory_resource *mr)
 {
     if (name.rfind("db", 0) != 0 && name != "haar")
         throw Error("dbwavf: name must be 'haar' or 'dbN' (got '" + name + "')",
-                    0, 0, "dbwavf", "", "numkit:dbwavf:name");
+                    0, 0, "dbwavf", "", "nk:dbwavf:name");
     return family_scaling(mr, name);
 }
 
@@ -80,7 +80,7 @@ Value coifwavf(const std::string &name, std::pmr::memory_resource *mr)
 {
     if (name.rfind("coif", 0) != 0)
         throw Error("coifwavf: name must be 'coifK' (got '" + name + "')",
-                    0, 0, "coifwavf", "", "numkit:coifwavf:name");
+                    0, 0, "coifwavf", "", "nk:coifwavf:name");
     return family_scaling(mr, name);
 }
 
@@ -88,7 +88,7 @@ Value symwavf(const std::string &name, std::pmr::memory_resource *mr)
 {
     if (name.rfind("sym", 0) != 0)
         throw Error("symwavf: name must be 'symN' (got '" + name + "')",
-                    0, 0, "symwavf", "", "numkit:symwavf:name");
+                    0, 0, "symwavf", "", "nk:symwavf:name");
     return family_scaling(mr, name);
 }
 
@@ -97,7 +97,7 @@ OrthfiltResult orthfilt(const Value &W, std::pmr::memory_resource *mr)
     const size_t N = W.numel();
     if (N == 0)
         throw Error("orthfilt: scaling filter must be non-empty",
-                    0, 0, "orthfilt", "", "numkit:orthfilt:empty");
+                    0, 0, "orthfilt", "", "nk:orthfilt:empty");
 
     std::vector<double> Lo_R(N), Lo_D(N), Hi_R(N), Hi_D(N);
     for (size_t k = 0; k < N; ++k)
@@ -115,4 +115,4 @@ OrthfiltResult orthfilt(const Value &W, std::pmr::memory_resource *mr)
              rowVec(mr, Lo_R), rowVec(mr, Hi_R) };
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

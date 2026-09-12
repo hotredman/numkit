@@ -3,9 +3,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -24,7 +24,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -48,19 +48,19 @@ KnnOpts parse_knn_args(Span<const Value> args, const char *fn)
     while (i < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected name-value pair",
-                        0, 0, fn, "", "numkit:knn:nvpair");
+                        0, 0, fn, "", "nk:knn:nvpair");
         std::string name = args[i].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (i + 1 >= args.size())
             throw Error(std::string(fn) + ": '" + name + "' missing value",
-                        0, 0, fn, "", "numkit:knn:nvval");
+                        0, 0, fn, "", "nk:knn:nvval");
         const Value &v = args[i + 1];
         if (name == "k") {
             o.K = static_cast<int>(v.toScalar());
         } else if (name == "distance") {
             if (!v.isChar() && !v.isString())
                 throw Error(std::string(fn) + ": Distance must be a string",
-                            0, 0, fn, "", "numkit:knn:dist");
+                            0, 0, fn, "", "nk:knn:dist");
             o.metric = v.toString();
         } else if (name == "p" || name == "minkowskiexponent") {
             o.p = v.toScalar();
@@ -74,4 +74,4 @@ KnnOpts parse_knn_args(Span<const Value> args, const char *fn)
 
 } // anonymous
 
-} // namespace numkit::stats
+} // namespace nk::stats

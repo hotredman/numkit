@@ -3,17 +3,17 @@
 // CallContext register half of distributions/negbin.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/stats/distributions/negbin.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/stats/distributions/negbin.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/negbin_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,14 +25,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void nbinpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("nbinpdf: requires (k, r, p)", 0, 0, "nbinpdf", "", "numkit:nbinpdf:nargin");
+        throw Error("nbinpdf: requires (k, r, p)", 0, 0, "nbinpdf", "", "nk:nbinpdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &r = args[1];
     const Value &p = args[2];
@@ -47,7 +47,7 @@ void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 3)
-        throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "numkit:nbincdf:nargin");
+        throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "nk:nbincdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &r = a[1];
     const Value &p = a[2];
@@ -82,7 +82,7 @@ void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void nbininv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("nbininv: requires (q, r, p)", 0, 0, "nbininv", "", "numkit:nbininv:nargin");
+        throw Error("nbininv: requires (q, r, p)", 0, 0, "nbininv", "", "nk:nbininv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &r = args[1];
     const Value &p = args[2];
@@ -113,7 +113,7 @@ void nbininv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("nbinrnd: requires (r, p[, m, n])", 0, 0, "nbinrnd", "", "numkit:nbinrnd:nargin");
+        throw Error("nbinrnd: requires (r, p[, m, n])", 0, 0, "nbinrnd", "", "nk:nbinrnd:nargin");
     const double r = args[0].toScalar();
     const double p = args[1].toScalar();
     size_t rows = 1, cols = 1;
@@ -131,4 +131,4 @@ void nbinstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -29,14 +29,14 @@ complex value. Forms MATLAB accepts: `'1+2i'`, `'1-2i'`, `'2i'`, `'-3i'`,
 `'i'`, `'-i'`, `'1+2j'` (j accepted), `'3.5+1.5i'`, and with internal/edge
 spaces `' 2 + 3i '`.
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
-str2double('1+2i')     % numkit: NaN ;  MATLAB: 1+2i
-str2double('2i')       % numkit: NaN ;  MATLAB: 0+2i
-str2double('i')        % numkit: NaN ;  MATLAB: 0+1i
-str2double('1+2j')     % numkit: NaN ;  MATLAB: 1+2i  (j is accepted)
-str2double('3.5+1.5i') % numkit: NaN ;  MATLAB: 3.5+1.5i
-str2double(' 2 + 3i ') % numkit: NaN ;  MATLAB: 2+3i
+str2double('1+2i')     % nk: NaN ;  MATLAB: 1+2i
+str2double('2i')       % nk: NaN ;  MATLAB: 0+2i
+str2double('i')        % nk: NaN ;  MATLAB: 0+1i
+str2double('1+2j')     % nk: NaN ;  MATLAB: 1+2i  (j is accepted)
+str2double('3.5+1.5i') % nk: NaN ;  MATLAB: 3.5+1.5i
+str2double(' 2 + 3i ') % nk: NaN ;  MATLAB: 2+3i
 str2double('1.5')      % 1.5 on both (real path unaffected)
 ```
 

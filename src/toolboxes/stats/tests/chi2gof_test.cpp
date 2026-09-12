@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/chi2gof_test.cpp
 // chi2gof.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Chi2gofTest : public ::testing::Test
 {

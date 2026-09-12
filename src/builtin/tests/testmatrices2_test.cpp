@@ -3,10 +3,10 @@
 // Regression guard for the test-matrix demo group:
 //   pascal, hilb, invhilb, wilkinson, hadamard, rosser
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TestMatrices2Test : public ::testing::Test
 {

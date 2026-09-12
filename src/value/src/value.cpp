@@ -1,6 +1,6 @@
-#include <numkit/value/shape_ops.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/object.hpp> // ObjectState (deepCopy) for object arrays
+#include <nk/value/shape_ops.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/object.hpp> // ObjectState (deepCopy) for object arrays
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace numkit {
+namespace nk {
 
 
 
@@ -4283,4 +4283,4 @@ std::string Value::formatDisplay(const std::string &name) const
     return os.str();
 }
 
-} // namespace numkit
+} // namespace nk

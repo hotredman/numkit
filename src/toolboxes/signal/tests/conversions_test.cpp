@@ -3,12 +3,12 @@
 // Tests for D3 — filter form conversions:
 //   sos2tf / sos2zp / tf2zpk + tf↔ss + sos↔ss + zpk↔ss.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FilterConversionsTest : public ::testing::Test
 {
@@ -124,7 +124,7 @@ TEST_F(FilterConversionsTest, SosSsRoundtrip)
 // zp2sos with #zeros < #poles: MATLAB places the surplus zeros at the
 // ORIGIN, so a zero-less biquad section is [0 0 g] and the reconstructed
 // numerator is degree-deficient with a leading z^-2 delay.
-// (Regression: numkit used to leave them at infinity -> [g 0 0].)
+// (Regression: nk used to leave them at infinity -> [g 0 0].)
 TEST_F(FilterConversionsTest, Zp2sosSurplusZerosAtOrigin)
 {
     eval("S = zp2sos([0.5; -0.3], [0.2; 0.1; -0.4; 0.6], 2);");

@@ -14,7 +14,7 @@ In MATLAB, `butter` accepts a 2-element vector `[W1, W2]` to design a `2*N`-orde
 ```matlab
 clear;
 [b, a] = butter(2, [0.2, 0.5], 'bandpass');
-% numkit: Error: Cannot convert double to scalar (in call to 'butter')
+% nk: Error: Cannot convert double to scalar (in call to 'butter')
 % MATLAB: b = [0.097631 0 -0.195262 0 0.097631], a = [1 -0.942809 0.333333 -0.188562 0.037037]
 ```
 
@@ -24,7 +24,7 @@ In `src/bundle/src/register/signal/filter_design/filter_design_reg.cpp:41`:
 const int N = static_cast<int>(args[0].toScalar());
 const double Wn = args[1].toScalar(); // throws if args[1] is a 2-element vector
 ```
-The registration wrapper unconditionally expects `Wn` to be a 1x1 scalar, and `numkit::signal::butter` only implements scalar cutoff frequencies (low/high).
+The registration wrapper unconditionally expects `Wn` to be a 1x1 scalar, and `nk::signal::butter` only implements scalar cutoff frequencies (low/high).
 
 ## Suggested fix
 1. In `butter_reg`:

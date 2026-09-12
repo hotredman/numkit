@@ -3,17 +3,17 @@
 // CallContext register half of distributions/gamma_dist.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/stats/distributions/gamma_dist.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/stats/distributions/gamma_dist.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/gamma_dist_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,14 +25,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("gampdf: requires (x, a, b)", 0, 0, "gampdf", "", "numkit:gampdf:nargin");
+        throw Error("gampdf: requires (x, a, b)", 0, 0, "gampdf", "", "nk:gampdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &a = args[1];
     const Value &b = args[2];
@@ -47,7 +47,7 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
     if (a0.size() < 3)
-        throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "numkit:gamcdf:nargin");
+        throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "nk:gamcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &a = a0[1];
     const Value &b = a0[2];
@@ -62,7 +62,7 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
             if (!(bi > 0.0)) return std::numeric_limits<double>::quiet_NaN();
             return (xi <= 0.0) ? 0.0 : xi / bi;
         });
-        v = ::numkit::builtin::gammainc(xs, a, mr);
+        v = ::nk::builtin::gammainc(xs, a, mr);
     }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -71,7 +71,7 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("gaminv: requires (p, a, b)", 0, 0, "gaminv", "", "numkit:gaminv:nargin");
+        throw Error("gaminv: requires (p, a, b)", 0, 0, "gaminv", "", "nk:gaminv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = args[0];
     const Value &a = args[1];
@@ -89,7 +89,7 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         return;
     }
     const size_t N = dist_match_numel({np, na, nb}, "gaminv");
-    Value q = ::numkit::builtin::gammaincinv(p, a, mr);
+    Value q = ::nk::builtin::gammaincinv(p, a, mr);
     const size_t nq = q.numel();
     const Value &ref = (np == N) ? p : (na == N ? a : b);
     Value out = dist_empty_like(ref, mr);
@@ -110,7 +110,7 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("gamrnd: requires (a, b[, sz...])", 0, 0, "gamrnd", "", "numkit:gamrnd:nargin");
+        throw Error("gamrnd: requires (a, b[, sz...])", 0, 0, "gamrnd", "", "nk:gamrnd:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     size_t rows, cols;
@@ -158,4 +158,4 @@ void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

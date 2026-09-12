@@ -3,15 +3,15 @@
 // Unit tests for complex QR decomposition (unpivoted, pivoted, R-only) and rectangular least squares.
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/decompositions.hpp>
+#include <nk/linalg/decompositions.hpp>
 #include "../src/decompositions_detail.hpp"
-#include <numkit/linalg/solvers.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/solvers.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(ComplexQrTest, QrUnpivotedComplex3x2) {
     // A = [1+1i 2; 3 4-1i; 0 1+2i] (3x2)

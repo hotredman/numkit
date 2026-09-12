@@ -19,7 +19,7 @@ export { MatrixPanel };
 
 export function WorkspacePanel({ variables, onOpen }) {
   // Column visibility — shared key with the struct inspector's table.
-  const [cols, setCols] = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
+  const [cols, setCols] = useChooser('nk.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
   const byName = useMemo(() => {
     const m = new Map();
     for (const v of variables) m.set(v.name, v);
@@ -72,7 +72,7 @@ function exportData(variable, data, format) {
     const obj = { name, size: variable.size, type: variable.type, data };
     downloadBlob(`${name}.json`, new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
   } else if (format === 'mat') {
-    const text = `% Numkit save\n${name} = [\n${data.map((r) => '  ' + r.join(' ')).join(';\n')}\n];\n`;
+    const text = `% NK save\n${name} = [\n${data.map((r) => '  ' + r.join(' ')).join(';\n')}\n];\n`;
     downloadBlob(`${name}.n`, new Blob([text], { type: 'text/plain' }));
   } else if (format === 'npy') {
     const rows = data.length, cols = data[0]?.length || 0;
@@ -224,7 +224,7 @@ export function VariableEditor({ variable, onClose, engine }) {
 
   /* ─── slice cache (for InlinePlot in both modes) ─── */
   // Keyed by `${axis}:${idx}`. In tile-mode each miss triggers a single
-  // 10000×1 (or 1×10000) tile fetch — fast because numkit storage is
+  // 10000×1 (or 1×10000) tile fetch — fast because nk storage is
   // column-major, so a column slice is a single contiguous read.
   const sliceCache = useRef(new Map());
   const getSlice = useCallback((axis, idx) => {

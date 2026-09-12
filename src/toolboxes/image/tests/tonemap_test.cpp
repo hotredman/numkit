@@ -5,10 +5,10 @@
 // (accumulated floating-point drift through the
 // log2/mat2gray/rgb2lab/adapthisteq/imadjust/lab2rgb pipeline).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TonemapTest : public ::testing::Test
 {

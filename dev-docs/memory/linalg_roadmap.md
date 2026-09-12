@@ -37,10 +37,10 @@
   elsewhere and sets the conventions to follow:
   - per-op Highway TUs: `src/math/src/*/{abs,cumsum,mod,...}_highway.cpp`,
     `src/lang/src/types/casts_highway.cpp`;
-  - fused kernels: `src/ops/include/numkit/ops/fused/fused_kernels.hpp`;
+  - fused kernels: `src/ops/include/nk/ops/fused/fused_kernels.hpp`;
   - split-complex (SoA) SIMD pattern: `src/ops/src/fft/fft_r*_soa_simd.cpp`;
-  - threading: `src/ops/include/numkit/ops/parallel_for.hpp`
-    (`NUMKIT_WITH_THREADS`, threshold-gated);
+  - threading: `src/ops/include/nk/ops/parallel_for.hpp`
+    (`NK_WITH_THREADS`, threshold-gated);
   - SIMD parity harness: `src/bundle/tests/simd_parity_test.cpp`.
 
 ## 2. Non-negotiable conventions (from `bugs/README.md`)
@@ -54,7 +54,7 @@ Every land ships the **4 artifacts**:
 4. smoke script `src/toolboxes/linalg/tests/smoke/<fn>_smoke.m`.
 
 Perf policy: flag `perf` at ≥3× vs MATLAB (S2), ≥10× or worse big-O = S1,
-1.5–3× only if fixably caused (S3). numkit is single-threaded by default vs
+1.5–3× only if fixably caused (S3). nk is single-threaded by default vs
 MATLAB's MKL+threads — a 1.5–3× gap on parallelisable ops is inherent, not a
 bug. Measure ≥10³–10⁴ elements, median of many iterations.
 
@@ -98,7 +98,7 @@ convention (HWY dynamic dispatch, same as `src/math`):
   SIMD math on planes, write back on unpack. This is the proven pattern from
   `fft_r2_soa_simd.cpp` / `fft_r4_soa_simd.cpp`; complex mul = 4 real
   FMA-friendly plane ops.
-- Public header `src/ops/include/numkit/ops/blas.hpp`; scalar reference
+- Public header `src/ops/include/nk/ops/blas.hpp`; scalar reference
   implementations compiled unconditionally (fallback + test oracle).
 **Acceptance.** Parity harness in `src/bundle/tests/` (extend
 `simd_parity_test.cpp` style): SIMD vs scalar reference to 1-ulp-class
@@ -171,7 +171,7 @@ an independent land with the 4 artifacts. All steps depend on 0.1.
   REUSE the existing real bidiagonal QR core untouched; accumulate complex
   U, V by applying the stored complex reflectors + real rotations.
 - Unlocks: `rank`, `pinv`, `cond` (2-norm), and deletes the
-  `numkit:norm:complexSpectral` throw in `norms.cpp:80` (matrix 2-norm =
+  `nk:norm:complexSpectral` throw in `norms.cpp:80` (matrix 2-norm =
   σ_max) — update `norm-complex.md` deferred note.
 - **Flip the umbrella `complex-matrix-unsupported.md` to ✅ FIXED here**
   (all table rows covered) + promote every related `DISABLED_` known-bug
@@ -242,7 +242,7 @@ diagonalizable path. `funm([4 1;0 4],@exp)` → `[54.5982 54.5982;0 54.5982]`.
 
 ### 3.1 `eigs` / `svds`  [M each]
 Krylov–Schur (or implicitly restarted Arnoldi/Lanczos) on DENSE operators —
-numkit has no sparse type yet, so v1 scope = dense A (still valuable: k ≪ n).
+nk has no sparse type yet, so v1 scope = dense A (still valuable: k ≪ n).
 `eigs`: k largest/smallest-magnitude, `'lm'/'sm'/'lr'/'sr'` + sigma-shift
 (shift-invert via LU from 1.1). `svds`: Lanczos on the [0 A; Aᴴ 0] augmented
 form or on AᴴA with refinement. Document v1 option subset in the parity md.
@@ -283,8 +283,8 @@ per-column norm downdates (Drmač–Bujanović safeguard against cancellation).
 columns through the GEMM microkernel where nrhs > 1.
 
 ### 4.5 `parallel_for` on trailing updates  [S]
-Gate GEMM trailing updates through `numkit::ops::parallel_for`
-(`NUMKIT_WITH_THREADS`, threshold ~n≥256) — infra already thresholded, so
+Gate GEMM trailing updates through `nk::ops::parallel_for`
+(`NK_WITH_THREADS`, threshold ~n≥256) — infra already thresholded, so
 single-thread builds are untouched.
 
 ### 4.6 eig/svd hot paths  [M]

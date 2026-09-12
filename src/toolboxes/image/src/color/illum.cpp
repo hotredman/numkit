@@ -48,13 +48,13 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include <numkit/image/color/color.hpp>
-#include <numkit/image/type_convert/type_convert.hpp>
+#include <nk/image/color/color.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
 #include "illum_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -63,7 +63,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -80,7 +80,7 @@ void validate_image_and_mask(const Value &A, const Value &mask,
 {
     if (!A.dims().is3D() || A.dims().pages() != 3)
         throw Error(std::string(fn) + ": input must be H×W×3",
-                    0, 0, fn, "", "numkit:image:shape");
+                    0, 0, fn, "", "nk:image:shape");
     H = A.dims().rows();
     W = A.dims().cols();
     if (mask.isEmpty()) {
@@ -90,7 +90,7 @@ void validate_image_and_mask(const Value &A, const Value &mask,
     const auto &md = mask.dims();
     if (md.rows() != H || md.cols() != W || md.pages() > 1)
         throw Error(std::string(fn) + ": Mask must be H×W matching the image",
-                    0, 0, fn, "", "numkit:image:maskShape");
+                    0, 0, fn, "", "nk:image:maskShape");
     maskFlat.resize(H * W);
     for (std::size_t k = 0; k < H * W; ++k)
         maskFlat[k] = (mask.elemAsDouble(k) != 0.0) ? 1 : 0;
@@ -128,14 +128,14 @@ Value illumwhite(const Value &A, double P, const Value &mask,
 {
     if (P < 0.0 || P >= 100.0)
         throw Error("illumwhite: percentile must satisfy 0 <= P < 100",
-                    0, 0, "illumwhite", "", "numkit:illumwhite:percentile");
+                    0, 0, "illumwhite", "", "nk:illumwhite:percentile");
 
     std::size_t H = 0, W = 0;
     std::vector<unsigned char> maskFlat;
     validate_image_and_mask(A, mask, H, W, maskFlat, "illumwhite");
     if (H == 0 || W == 0)
         throw Error("illumwhite: image is empty",
-                    0, 0, "illumwhite", "", "numkit:illumwhite:empty");
+                    0, 0, "illumwhite", "", "nk:illumwhite:empty");
 
     double out[3] = {0.0, 0.0, 0.0};
     std::vector<double> plane;
@@ -143,7 +143,7 @@ Value illumwhite(const Value &A, double P, const Value &mask,
         collect_channel(A, H, W, c, maskFlat, plane);
         if (plane.empty())
             throw Error("illumwhite: no pixels selected by Mask",
-                        0, 0, "illumwhite", "", "numkit:illumwhite:emptyMask");
+                        0, 0, "illumwhite", "", "nk:illumwhite:emptyMask");
         std::sort(plane.begin(), plane.end());
         const std::size_t N = plane.size();
         // K = floor(N · P / 100). We want the largest value such that
@@ -176,23 +176,23 @@ Value illumgray_impl(const Value &A, const std::vector<double> &P,
         p_lo = P[0]; p_hi = P[1];
     } else if (!P.empty()) {
         throw Error("illumgray: percentile must be scalar or 2-vector",
-                    0, 0, "illumgray", "", "numkit:illumgray:percentile");
+                    0, 0, "illumgray", "", "nk:illumgray:percentile");
     }
     if (p_lo < 0.0 || p_lo >= 100.0 || p_hi < 0.0 || p_hi >= 100.0
         || p_lo + p_hi > 100.0)
         throw Error("illumgray: percentiles must satisfy 0 <= P < 100 and "
                     "p_lo + p_hi <= 100",
-                    0, 0, "illumgray", "", "numkit:illumgray:percentile");
+                    0, 0, "illumgray", "", "nk:illumgray:percentile");
     if (!(norm_exp > 0.0))
         throw Error("illumgray: Norm must be a positive scalar",
-                    0, 0, "illumgray", "", "numkit:illumgray:norm");
+                    0, 0, "illumgray", "", "nk:illumgray:norm");
 
     std::size_t H = 0, W = 0;
     std::vector<unsigned char> maskFlat;
     validate_image_and_mask(A, mask, H, W, maskFlat, "illumgray");
     if (H == 0 || W == 0)
         throw Error("illumgray: image is empty",
-                    0, 0, "illumgray", "", "numkit:illumgray:empty");
+                    0, 0, "illumgray", "", "nk:illumgray:empty");
 
     double out[3] = {0.0, 0.0, 0.0};
     std::vector<double> plane;
@@ -200,7 +200,7 @@ Value illumgray_impl(const Value &A, const std::vector<double> &P,
         collect_channel(A, H, W, c, maskFlat, plane);
         if (plane.empty())
             throw Error("illumgray: no pixels selected by Mask",
-                        0, 0, "illumgray", "", "numkit:illumgray:emptyMask");
+                        0, 0, "illumgray", "", "nk:illumgray:emptyMask");
         std::sort(plane.begin(), plane.end());
         const std::size_t N = plane.size();
         const std::size_t K_lo = static_cast<std::size_t>(
@@ -209,7 +209,7 @@ Value illumgray_impl(const Value &A, const std::vector<double> &P,
             std::floor(p_hi * 0.01 * static_cast<double>(N)));
         if (K_lo + K_hi >= N)
             throw Error("illumgray: percentiles trim all pixels",
-                        0, 0, "illumgray", "", "numkit:illumgray:emptyTrim");
+                        0, 0, "illumgray", "", "nk:illumgray:emptyTrim");
         // MATLAB picks min/max bin values from the histogram and then
         // masks `plane >= minVal-eps & plane <= maxVal+eps`. For
         // strictly-ascending unique values that is equivalent to
@@ -341,14 +341,14 @@ Value illumpca(const Value &A, double P, const Value &mask,
 {
     if (!(P > 0.0) || P > 50.0)
         throw Error("illumpca: percentage must satisfy 0 < P <= 50",
-                    0, 0, "illumpca", "", "numkit:illumpca:percentage");
+                    0, 0, "illumpca", "", "nk:illumpca:percentage");
 
     std::size_t H = 0, W = 0;
     std::vector<unsigned char> maskFlat;
     validate_image_and_mask(A, mask, H, W, maskFlat, "illumpca");
     if (H == 0 || W == 0)
         throw Error("illumpca: image is empty",
-                    0, 0, "illumpca", "", "numkit:illumpca:empty");
+                    0, 0, "illumpca", "", "nk:illumpca:empty");
 
     // Step 1: gather masked rows as Mx3 (column-major flat).
     std::vector<double> rows; // length = 3 * M
@@ -365,7 +365,7 @@ Value illumpca(const Value &A, double P, const Value &mask,
     const std::size_t M = rows.size() / 3;
     if (M == 0)
         throw Error("illumpca: no pixels selected by Mask",
-                    0, 0, "illumpca", "", "numkit:illumpca:emptyMask");
+                    0, 0, "illumpca", "", "nk:illumpca:emptyMask");
 
     // Step 2: mean colour.
     double A0[3] = {0.0, 0.0, 0.0};
@@ -380,7 +380,7 @@ Value illumpca(const Value &A, double P, const Value &mask,
     const double normA02 = A0[0] * A0[0] + A0[1] * A0[1] + A0[2] * A0[2];
     if (!std::isfinite(normA02))
         throw Error("illumpca: image contains Inf or NaN",
-                    0, 0, "illumpca", "", "numkit:illumpca:nonfinite");
+                    0, 0, "illumpca", "", "nk:illumpca:nonfinite");
 
     // Step 3: projection magnitude.
     std::vector<std::size_t> idx(M);
@@ -648,11 +648,11 @@ Value imcolordiff(const Value &I1, const Value &I2,
     const bool is_2000 = (std_lo == "ciede2000" || std_lo == "cie2000");
     if (!is_2000 && std_lo != "cie94")
         throw Error("imcolordiff: Standard must be 'CIE94' or 'CIEDE2000'",
-                    0, 0, "imcolordiff", "", "numkit:imcolordiff:standard");
+                    0, 0, "imcolordiff", "", "nk:imcolordiff:standard");
     if (!(kL > 0.0) || !(kC > 0.0) || !(kH > 0.0)
         || !(K1 > 0.0) || !(K2 > 0.0))
         throw Error("imcolordiff: kL, kC, kH, K1, K2 must all be positive",
-                    0, 0, "imcolordiff", "", "numkit:imcolordiff:weights");
+                    0, 0, "imcolordiff", "", "nk:imcolordiff:weights");
 
     const auto &d1 = I1.dims();
     const auto &d2 = I2.dims();
@@ -665,7 +665,7 @@ Value imcolordiff(const Value &I1, const Value &I2,
     if (!d1.is3D() && !d2.is3D()) {
         if (d1.cols() != 3 || d2.cols() != 3 || d1.rows() != d2.rows())
             throw Error("imcolordiff: c-by-3 inputs must have matching rows",
-                        0, 0, "imcolordiff", "", "numkit:imcolordiff:size");
+                        0, 0, "imcolordiff", "", "nk:imcolordiff:size");
         shape = COLORMAP;
         out_h = d1.rows();
         out_w = 1;
@@ -673,13 +673,13 @@ Value imcolordiff(const Value &I1, const Value &I2,
         if (d1.pages() != 3 || d2.pages() != 3
             || d1.rows() != d2.rows() || d1.cols() != d2.cols())
             throw Error("imcolordiff: H-by-W-by-3 inputs must match in size",
-                        0, 0, "imcolordiff", "", "numkit:imcolordiff:size");
+                        0, 0, "imcolordiff", "", "nk:imcolordiff:size");
         shape = IMAGE;
         out_h = d1.rows();
         out_w = d1.cols();
     } else {
         throw Error("imcolordiff: I1 and I2 must both be c-by-3 or H-by-W-by-3",
-                    0, 0, "imcolordiff", "", "numkit:imcolordiff:size");
+                    0, 0, "imcolordiff", "", "nk:imcolordiff:size");
     }
     (void)shape;
 
@@ -716,4 +716,4 @@ Value imcolordiff(const Value &I1, const Value &I2,
     return out;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

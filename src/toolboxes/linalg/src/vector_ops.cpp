@@ -3,20 +3,20 @@
 // cross / dot / kron — implementations and engine adapters.
 // Migrated from toolboxes/builtin/src/language/arrays/matrix.cpp.
 
-#include <numkit/linalg/vector_ops.hpp>
+#include <nk/linalg/vector_ops.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The cross/dot/kron
 // builtins (CallContext wrappers) live in vector_ops_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/value_type.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value_type.hpp>
 
 #include <cmath>
 #include <complex>
 #include <limits>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 // Narrow a DOUBLE workspace to an integer class with MATLAB's saturating
 // round-half-away-from-zero cast (mirrors core's castConcatToInteger). Used
@@ -56,7 +56,7 @@ static Value narrowKronToInteger(const Value &d, ValueType vt,
 // class iff both operands share the same integer class, or one operand is
 // integer and the other a real scalar double (the scalar is cast). Mixed
 // integer classes, integer + non-scalar double, and integer + logical all
-// ERROR in MATLAB; numkit stays lenient there and returns double.
+// ERROR in MATLAB; nk stays lenient there and returns double.
 static ValueType kronIntegerClass(const Value &a, const Value &b)
 {
     const bool aInt = isIntegerType(a.type());
@@ -90,7 +90,7 @@ static void intTypeRange(ValueType vt, double &lo, double &hi)
 // class iff both operands share the same integer class, or one operand is
 // integer and the other a real double (ANY shape — unlike kron, because each
 // element product is int-scalar × double-scalar, an allowed mix). Different
-// integer classes and integer + logical ERROR in MATLAB; numkit stays lenient
+// integer classes and integer + logical ERROR in MATLAB; nk stays lenient
 // there and computes in double.
 static ValueType crossIntegerClass(const Value &a, const Value &b)
 {
@@ -247,13 +247,13 @@ Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     const auto &db = b.dims();
     if (da.rows() != db.rows() || da.cols() != db.cols())
         throw Error("cross: A and B must have the same shape",
-                     0, 0, "cross", "", "numkit:cross:shapeMismatch");
+                     0, 0, "cross", "", "nk:cross:shapeMismatch");
     int crossDim;
     if (da.rows() == 3)      crossDim = 0; // each column is a 3-vec (dim 1)
     else if (da.cols() == 3) crossDim = 1; // each row is a 3-vec (dim 2)
     else
         throw Error("cross: A and B must have at least one dimension of length 3",
-                     0, 0, "cross", "", "numkit:cross:badSize");
+                     0, 0, "cross", "", "nk:cross:badSize");
     return crossCore(a, b, crossDim, mr);
 }
 
@@ -264,18 +264,18 @@ Value cross(const Value &a, const Value &b, int dim, std::pmr::memory_resource *
     const auto &db = b.dims();
     if (da.rows() != db.rows() || da.cols() != db.cols())
         throw Error("cross: A and B must have the same shape",
-                     0, 0, "cross", "", "numkit:cross:shapeMismatch");
+                     0, 0, "cross", "", "nk:cross:shapeMismatch");
     if (da.is3D() || db.is3D())
         throw Error("cross: the dim argument supports 2-D inputs only",
-                     0, 0, "cross", "", "numkit:cross:rank");
+                     0, 0, "cross", "", "nk:cross:rank");
     if (dim != 1 && dim != 2)
         throw Error("cross: dim must be 1 or 2",
-                     0, 0, "cross", "", "numkit:cross:badDim");
+                     0, 0, "cross", "", "nk:cross:badDim");
     // MATLAB: A and B must have length 3 along the operating dimension.
     const size_t lenAlongDim = (dim == 1) ? da.rows() : da.cols();
     if (lenAlongDim != 3)
         throw Error("cross: A and B must have length 3 in the operating dimension",
-                     0, 0, "cross", "", "numkit:cross:badSize");
+                     0, 0, "cross", "", "nk:cross:badSize");
     return crossCore(a, b, /*crossDim=*/dim - 1, mr);
 }
 
@@ -283,7 +283,7 @@ Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.numel() != b.numel())
         throw Error("dot: A and B must be the same size",
-                     0, 0, "dot", "", "numkit:dot:lengthMismatch");
+                     0, 0, "dot", "", "nk:dot:lengthMismatch");
     const auto &da = a.dims();
     const size_t H = da.rows(), W = da.cols();
     // Vectors (row or column) -> a single scalar.
@@ -344,14 +344,14 @@ Value dot(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr
         return dot(a, b, mr);   // default (vector → scalar, matrix → per-column)
     if (dim != 1 && dim != 2)
         throw Error("dot: dim must be 1 or 2",
-                     0, 0, "dot", "", "numkit:dot:badDim");
+                     0, 0, "dot", "", "nk:dot:badDim");
     if (a.numel() != b.numel() || a.dims().rows() != b.dims().rows()
         || a.dims().cols() != b.dims().cols())
         throw Error("dot: A and B must be the same size",
-                     0, 0, "dot", "", "numkit:dot:lengthMismatch");
+                     0, 0, "dot", "", "nk:dot:lengthMismatch");
     if (a.dims().is3D() || b.dims().is3D())
         throw Error("dot: the dim argument supports 2-D inputs only",
-                     0, 0, "dot", "", "numkit:dot:rank");
+                     0, 0, "dot", "", "nk:dot:rank");
 
     const size_t H = a.dims().rows(), W = a.dims().cols();
     // sum(conj(A).*B, dim): dim 1 → 1xW (down columns), dim 2 → Hx1 (across rows).
@@ -403,7 +403,7 @@ Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     if (a.dims().is3D() || a.dims().ndim() > 2
         || b.dims().is3D() || b.dims().ndim() > 2)
         throw Error("kron: inputs must be 2D",
-                     0, 0, "kron", "", "numkit:kron:rank");
+                     0, 0, "kron", "", "nk:kron:rank");
 
     const size_t rA = a.dims().rows(), cA = a.dims().cols();
     const size_t rB = b.dims().rows(), cB = b.dims().cols();
@@ -466,4 +466,4 @@ Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

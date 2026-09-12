@@ -21,7 +21,7 @@ describe('pathUtils', () => {
     });
 
     it('returns false for POSIX, relative, or empty paths', () => {
-      expect(isLocalDiskPath('/numkit_ide/examples')).toBe(false);
+      expect(isLocalDiskPath('/nk_ide/examples')).toBe(false);
       expect(isLocalDiskPath('/')).toBe(false);
       expect(isLocalDiskPath('examples/foo')).toBe(false);
       expect(isLocalDiskPath('')).toBe(false);
@@ -39,8 +39,8 @@ describe('pathUtils', () => {
     });
 
     it('strips accidental host Windows drive prefixes', () => {
-      expect(sanitizeVfsPath('C:/Users/User/AppData/Roaming/numkit_ide/temporary/examples/nested_loops')).toBe('/examples/nested_loops');
-      expect(sanitizeVfsPath('/C:/temporary/numkit_ide/examples/arithmetic')).toBe('/numkit_ide/examples/arithmetic');
+      expect(sanitizeVfsPath('C:/Users/User/AppData/Roaming/nk_ide/temporary/examples/nested_loops')).toBe('/examples/nested_loops');
+      expect(sanitizeVfsPath('/C:/temporary/nk_ide/examples/arithmetic')).toBe('/nk_ide/examples/arithmetic');
       expect(sanitizeVfsPath('C:\\something\\else')).toBe('/something/else');
     });
 
@@ -87,9 +87,9 @@ describe('pathUtils', () => {
 
   describe('getParentDir', () => {
     it('navigates up in Virtual FS mode', () => {
-      expect(getParentDir('/numkit_ide/examples/nested_loops', false)).toBe('/numkit_ide/examples');
-      expect(getParentDir('/numkit_ide/examples', false)).toBe('/numkit_ide');
-      expect(getParentDir('/numkit_ide', false)).toBe('/');
+      expect(getParentDir('/nk_ide/examples/nested_loops', false)).toBe('/nk_ide/examples');
+      expect(getParentDir('/nk_ide/examples', false)).toBe('/nk_ide');
+      expect(getParentDir('/nk_ide', false)).toBe('/');
       expect(getParentDir('/', false)).toBe('/');
     });
 
@@ -158,14 +158,14 @@ describe('pathUtils', () => {
     it('resolves paths for virtual temporary tab', () => {
       const tab = {
         name: 'arithmetic.m',
-        vfsPath: '/numkit_ide/examples/arithmetic/arithmetic.m',
+        vfsPath: '/nk_ide/examples/arithmetic/arithmetic.m',
         source: 'temporary',
       };
       const res = getTabPaths(tab, '');
       expect(res).toEqual({
         fileName: 'arithmetic.m',
-        filePath: '/numkit_ide/examples/arithmetic/arithmetic.m',
-        folderPath: '/numkit_ide/examples/arithmetic',
+        filePath: '/nk_ide/examples/arithmetic/arithmetic.m',
+        folderPath: '/nk_ide/examples/arithmetic',
         mode: 'virtual',
       });
     });
@@ -173,14 +173,14 @@ describe('pathUtils', () => {
     it('resolves audio roundtrip example in Virtual FS mode without host disk leaks', () => {
       const tab = {
         name: 'audio_io_roundtrip.m',
-        vfsPath: '/numkit_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m',
+        vfsPath: '/nk_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m',
         source: 'temporary',
       };
       const res = getTabPaths(tab, 'C:\\Users\\User\\Projects');
       expect(res).toEqual({
         fileName: 'audio_io_roundtrip.m',
-        filePath: '/numkit_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m',
-        folderPath: '/numkit_ide/examples/audio_io_roundtrip',
+        filePath: '/nk_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m',
+        folderPath: '/nk_ide/examples/audio_io_roundtrip',
         mode: 'virtual',
       });
     });

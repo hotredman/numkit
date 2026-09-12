@@ -8,11 +8,11 @@
 // Remaining sub-gap (DISABLED_UniqueStableLast in known_bugs_test.cpp): the
 // 'stable'+'last' ORDERING (MATLAB orders by last occurrence) is not matched.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class UniqueLastTest : public ::testing::Test
 {

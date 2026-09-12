@@ -3,10 +3,10 @@
 // Regression guard for isoutlier / rmoutliers / fillmissing /
 // rmmissing / standardizeMissing.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MissingDataTest : public ::testing::Test
 {
@@ -199,7 +199,7 @@ TEST_F(MissingDataTest, FillmissingBadMethodThrows)
 
 // fillmissing(..., 'EndValues', ev): the option governs only the endpoint
 // missing entries (before first / after last original good value); interior
-// runs are always filled by the method. numkit previously threw on the NV
+// runs are always filled by the method. nk previously threw on the NV
 // pair. vs MATLAB R2025b on a = [NaN NaN 3 5 NaN 9 NaN]. DEEP-PROBE 2026-05-31.
 TEST_F(MissingDataTest, FillmissingEndValues)
 {

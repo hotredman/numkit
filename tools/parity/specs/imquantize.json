@@ -9,5 +9,5 @@
     "r1", "r2", "r3",
     "eqi", "q11", "q22", "i23", "qv11", "qv22", "eiv"
   ],
-  "comment": "Sig: [quant, index] = imquantize(I, levels[, values]). index = the 1-based quantization bin (1..numel(levels)+1); quant = values(index) when 'values' is given, else quant == index. DEEP-PROBE c177: numkit returned only the quant index and ignored the 'values' arg, so the 2nd output threw 'Index exceeds array dimensions'. Now [Q,idx] returns both (eqi=1: Q==idx without values), and imquantize(I,[8 18],[10 20 30]) maps quant through values (qv11=10, qv22=30) while idx stays the bin index (eiv=1). covers:[imquantize]."
+  "comment": "Sig: [quant, index] = imquantize(I, levels[, values]). index = the 1-based quantization bin (1..numel(levels)+1); quant = values(index) when 'values' is given, else quant == index. DEEP-PROBE c177: nk returned only the quant index and ignored the 'values' arg, so the 2nd output threw 'Index exceeds array dimensions'. Now [Q,idx] returns both (eqi=1: Q==idx without values), and imquantize(I,[8 18],[10 20 30]) maps quant through values (qv11=10, qv22=30) while idx stays the bin index (eiv=1). covers:[imquantize]."
 }

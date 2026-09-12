@@ -1,11 +1,11 @@
 # Full Migration to Pure C++ Builtin: String Manipulation (`strfun`)
 
 ## Context
-As part of the layer separation refactoring (Layer L2 Compute vs Layer L3 Registration), string and character array manipulation, formatting, pattern matching, regex, and predicates (`strfun`) were migrated to pure, engine-free C++ in `src/builtin/` under `namespace numkit::builtin`.
+As part of the layer separation refactoring (Layer L2 Compute vs Layer L3 Registration), string and character array manipulation, formatting, pattern matching, regex, and predicates (`strfun`) were migrated to pure, engine-free C++ in `src/builtin/` under `namespace nk::builtin`.
 
 ## Architectural Decision & Changes
 1. **Public Engine-Free C++ Header**:
-   - `include/numkit/builtin/strfun.hpp` defines the public C++ API with comprehensive Doxygen documentation, parameter descriptions, formulas, exceptions, and `@see` links.
+   - `include/nk/builtin/strfun.hpp` defines the public C++ API with comprehensive Doxygen documentation, parameter descriptions, formulas, exceptions, and `@see` links.
    - Decoupled from `Engine`, `CallContext`, and the VM.
 
 2. **Compute Implementation (`src/builtin/src/strfun/`)**:
@@ -15,10 +15,10 @@ As part of the layer separation refactoring (Layer L2 Compute vs Layer L3 Regist
    - `regex.cpp`: `regexp`, `regexpi`, `regexprep`, `regexptranslate`.
 
 3. **Engine Registration (`src/bundle/src/register/builtin/`)**:
-   - `strfun_reg.cpp` registers all string builtins into `Engine` under `namespace numkit::bundle::builtin`.
+   - `strfun_reg.cpp` registers all string builtins into `Engine` under `namespace nk::bundle::builtin`.
    - Old monolithic `src/builtin/src/strfun.cpp` was deleted.
 
 ## Verification & Results
 - Built with `desktop-fast` preset (MSVC).
 - Layer validation: `python tools/check_layering.py` passed with 0 violations.
-- Test suite: `numkit_gtest.exe --gtest_filter=*Strfun*:*Builtin*` passed 694/694 tests (100% green).
+- Test suite: `nk_gtest.exe --gtest_filter=*Strfun*:*Builtin*` passed 694/694 tests (100% green).

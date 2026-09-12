@@ -11,5 +11,5 @@
     "double(size(wc,1))", "double(size(wc,2))", "wc(1)",
     "n2"
   ],
-  "comment": "Sig y=randsample(n,k) / y=randsample(pop,k[,replace,weights]). Population-vector form samples the vector's values along its length. Weights with all mass on one element are deterministic: randsample([10 20 30],4,true,[0 0 1]) = [30 30 30 30]; column population -> column output. numkit previously routed the population vector to datasample(dim=1) -> a row-vector population collapsed to N=1 and the weighted form ERRORED (weights length != sample-axis) -- fixed. Matches MATLAB R2025b."
+  "comment": "Sig y=randsample(n,k) / y=randsample(pop,k[,replace,weights]). Population-vector form samples the vector's values along its length. Weights with all mass on one element are deterministic: randsample([10 20 30],4,true,[0 0 1]) = [30 30 30 30]; column population -> column output. nk previously routed the population vector to datasample(dim=1) -> a row-vector population collapsed to N=1 and the weighted form ERRORED (weights length != sample-axis) -- fixed. Matches MATLAB R2025b."
 }

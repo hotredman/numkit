@@ -2,12 +2,12 @@
 //
 // Regression guard for multcompare + the extended anova1 stats struct.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class MultcompareTest : public ::testing::Test
 {

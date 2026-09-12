@@ -1,15 +1,15 @@
 // src/builtin/src/ops/binary_ops.cpp
 
-#include <numkit/builtin/ops.hpp>
+#include <nk/builtin/ops.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/la_solve.hpp>
-#include <numkit/ops/binary_ops.hpp>
-#include <numkit/ops/compare.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/la_solve.hpp>
+#include <nk/ops/binary_ops.hpp>
+#include <nk/ops/compare.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -21,7 +21,7 @@
 
 #include "binary_ops_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API — binary operators
@@ -79,7 +79,7 @@ Value plus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateAdd(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw Error("Unsupported types for +", 0, 0, "plus", "", "numkit:plus:unsupportedTypes");
+    throw Error("Unsupported types for +", 0, 0, "plus", "", "nk:plus:unsupportedTypes");
 }
 
 Value minus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -103,7 +103,7 @@ Value minus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateSub(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw Error("Unsupported types for -", 0, 0, "minus", "", "numkit:minus:unsupportedTypes");
+    throw Error("Unsupported types for -", 0, 0, "minus", "", "nk:minus:unsupportedTypes");
 }
 
 Value times(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -127,7 +127,7 @@ Value times(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateMul(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw Error("Unsupported types for .*", 0, 0, "times", "", "numkit:times:unsupportedTypes");
+    throw Error("Unsupported types for .*", 0, 0, "times", "", "nk:times:unsupportedTypes");
 }
 
 Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -139,7 +139,7 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 
     if ((a.dims().is3D() || b.dims().is3D()) && !a.isScalar() && !b.isScalar())
         throw Error("MTIMES is not supported for N-D arrays",
-                     0, 0, "mtimes", "", "numkit:mtimes:notSupportedND");
+                     0, 0, "mtimes", "", "nk:mtimes:notSupportedND");
 
     if (a.isComplex() || b.isComplex()) {
         auto [ca, cb] = promoteToComplex(a, b, p);
@@ -148,7 +148,7 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         size_t M = ca.dims().rows(), K = ca.dims().cols(), N = cb.dims().cols();
         if (K != cb.dims().rows())
             throw Error("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
-                         "numkit:innerdim");
+                         "nk:innerdim");
         auto r = Value::complexMatrix(M, N, p);
         for (size_t i = 0; i < M; ++i)
             for (size_t j = 0; j < N; ++j) {
@@ -170,13 +170,13 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         size_t M = a.dims().rows(), K = a.dims().cols(), N = b.dims().cols();
         if (K != b.dims().rows())
             throw Error("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
-                         "numkit:innerdim");
+                         "nk:innerdim");
         auto r = Value::matrix(M, N, ValueType::DOUBLE, p);
         ops::detail::matmulDoubleLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(),
                                  M, N, K);
         return r;
     }
-    throw Error("Unsupported types for *", 0, 0, "mtimes", "", "numkit:mtimes:unsupportedTypes");
+    throw Error("Unsupported types for *", 0, 0, "mtimes", "", "nk:mtimes:unsupportedTypes");
 }
 
 Value rdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -201,7 +201,7 @@ Value rdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         if (!r.isUnset()) return r;
     }
     throw Error("Unsupported types for ./", 0, 0, "rdivide", "",
-                 "numkit:rdivide:unsupportedTypes");
+                 "nk:rdivide:unsupportedTypes");
 }
 
 Value ldivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -227,7 +227,7 @@ Value mrdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     }
     if (a.isScalar() && !b.isScalar()) {
         throw Error("mrdivide: matrix dimensions must agree",
-                    0, 0, "mrdivide", "", "numkit:mrdivide:dim");
+                    0, 0, "mrdivide", "", "nk:mrdivide:dim");
     }
     Value Bt = ctranspose(b, p);
     Value At = ctranspose(a, p);
@@ -326,7 +326,7 @@ Value power(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         }
     }
     throw Error("Matrix power not implemented", 0, 0, "power", "",
-                 "numkit:power:notImplemented");
+                 "nk:power:notImplemented");
 }
 
 Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -369,7 +369,7 @@ Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr
         if (!r.isUnset()) return r;
     }
     throw Error("Unsupported types for .^", 0, 0, "elementPower", "",
-                 "numkit:elementPower:unsupportedTypes");
+                 "nk:elementPower:unsupportedTypes");
 }
 
 Value mpower(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -403,4 +403,4 @@ Value logical_xor(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return logicalBinary("xor", [](bool x, bool y) { return (x || y) && !(x && y); }, mr, a, b);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

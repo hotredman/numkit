@@ -3,23 +3,23 @@
 // CallContext register half of math/arithmetic/reductions.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elmat.hpp>       // reshape (for 'all')
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/elfun.hpp>       // abs adapter
-#include <numkit/builtin/elfun.hpp>      // exp / log adapters
-#include <numkit/builtin/elfun.hpp>   // sin / cos adapters
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elmat.hpp>       // reshape (for 'all')
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/elfun.hpp>       // abs adapter
+#include <nk/builtin/elfun.hpp>      // exp / log adapters
+#include <nk/builtin/elfun.hpp>   // sin / cos adapters
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "elfun/_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 #include "datafun/var_reduction.hpp"  // for sumScan + addInto
-#include <numkit/ops/reductions.hpp>
+#include <nk/ops/reductions.hpp>
 #include "datafun/reductions_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -31,9 +31,9 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c cross-area (reshape/poly_of_matrix)
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c cross-area (reshape/poly_of_matrix)
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -44,7 +44,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "numkit:" #name ":nargin");           \
+                         0, 0, #name, "", "nk:" #name ":nargin");           \
         outs[0] = fn(args[0], ctx.engine->resource());                         \
     }
 
@@ -61,7 +61,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "numkit:" #name ":nargin");           \
+                         0, 0, #name, "", "nk:" #name ":nargin");           \
         outs[0] = fn(args[0], &outs[0], ctx.engine->resource());               \
     }
 
@@ -87,7 +87,7 @@ NK_UNARY_ADAPTER_HINT(log,     log)
 //   sum(X, outtype)         — scalar reduce with explicit output type
 //   sum(X, dim, outtype)    — reduce along dim with explicit output type
 // outtype ∈ {'default', 'double', 'native'}:
-//   'default' — DOUBLE (current numkit behaviour for all input types)
+//   'default' — DOUBLE (current nk behaviour for all input types)
 //   'double'  — same as default
 //   'native'  — preserve input element class (integer types saturate;
 //               LOGICAL/CHAR/COMPLEX rejected — matches MATLAB).
@@ -111,7 +111,7 @@ OutTypeMode parseOutTypeMode(const Value &arg, const char *fn)
     if (s == "double")  return OutTypeMode::Double;
     if (s == "native")  return OutTypeMode::Native;
     throw Error(std::string(fn) + ": unknown output type '" + s + "'",
-                 0, 0, fn, "", std::string("numkit:") + fn + ":outtype");
+                 0, 0, fn, "", std::string("nk:") + fn + ":outtype");
 }
 
 ValueType resolveNativeOutType(ValueType inType, const char *fn)
@@ -125,7 +125,7 @@ ValueType resolveNativeOutType(ValueType inType, const char *fn)
     case ValueType::CHAR:
         // MATLAB: 'native' is only defined for numeric (non-logical) inputs.
         throw Error(std::string(fn) + ": 'native' is not defined for logical/char inputs",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":nativeType");
+                     0, 0, fn, "", std::string("nk:") + fn + ":nativeType");
     case ValueType::COMPLEX:
         // COMPLEX is handled before this call (dispatchReductionAdapter
         // routes it to the complex path), so reaching this branch is a
@@ -133,7 +133,7 @@ ValueType resolveNativeOutType(ValueType inType, const char *fn)
         return ValueType::COMPLEX;
     default:
         throw Error(std::string(fn) + ": unsupported input type for 'native'",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
+                     0, 0, fn, "", std::string("nk:") + fn + ":type");
     }
 }
 
@@ -202,10 +202,10 @@ inline Value allocReduceOutput(const Value &x, int redDim, ValueType outType, st
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = numkit::ops::outShapeForDimND(&scratch, x, redDim);
+        auto shape = nk::ops::outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), outType, mr);
     }
-    auto outShape = numkit::ops::outShapeForDim(x, redDim);
+    auto outShape = nk::ops::outShapeForDim(x, redDim);
     return createMatrix(outShape, outType, mr);
 }
 
@@ -224,7 +224,7 @@ Value reduceTypedAll(const Value &x, ValueType outType, std::pmr::memory_resourc
             acc = accumOp(acc, x.elemAsDouble(i));
         return makeNativeScalar<T>(finalize(acc, x.numel()), outType, mr);
     }
-    const int redDim = numkit::ops::firstNonSingletonDim(x);
+    const int redDim = nk::ops::firstNonSingletonDim(x);
     Value out = allocReduceOutput(x, redDim, outType, mr);
     typedReduceAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()),
                            init, accumOp, finalize);
@@ -239,7 +239,7 @@ Value reduceTypedAlongDim(const Value &x, int dim, ValueType outType, std::pmr::
         return Value::matrix(0, 0, outType, mr);
     }
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != numkit::ops::firstNonSingletonDim(x)) {
+        if (dim != nk::ops::firstNonSingletonDim(x)) {
             // Identity: copy x cast to T.
             const size_t n = x.numel();
             Value out;
@@ -328,10 +328,10 @@ inline Value allocComplexReduceOutput(const Value &x, int redDim, std::pmr::memo
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = numkit::ops::outShapeForDimND(&scratch, x, redDim);
+        auto shape = nk::ops::outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, mr);
     }
-    auto outShape = numkit::ops::outShapeForDim(x, redDim);
+    auto outShape = nk::ops::outShapeForDim(x, redDim);
     return createMatrix(outShape, ValueType::COMPLEX, mr);
 }
 
@@ -381,7 +381,7 @@ Value reduceComplexAll(const Value &x, std::pmr::memory_resource *mr,
             acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
         return Value::complexScalar(finalize(acc, x.numel()), mr);
     }
-    const int redDim = numkit::ops::firstNonSingletonDim(x);
+    const int redDim = nk::ops::firstNonSingletonDim(x);
     Value out = allocComplexReduceOutput(x, redDim, mr);
     complexReduceAlongDim(x, redDim, out.complexDataMut(), init, accumOp, finalize);
     return out;
@@ -395,7 +395,7 @@ Value reduceComplexAlongDim(const Value &x, int dim, std::pmr::memory_resource *
         return Value::matrix(0, 0, ValueType::COMPLEX, mr);
     const bool typeMatches = (x.type() == ValueType::COMPLEX);
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != numkit::ops::firstNonSingletonDim(x)) {
+        if (dim != nk::ops::firstNonSingletonDim(x)) {
             // Identity reduction.
             const size_t n = x.numel();
             if (!x.dims().isVector())
@@ -435,7 +435,7 @@ Value runComplexReduction(const Value &x, int dim, std::pmr::memory_resource *mr
               ? reduceComplexAlongDim(x, dim, mr, Op::cInit(), Op::cAccum, Op::cFinalize)
               : reduceComplexAll(x, mr, Op::cInit(), Op::cAccum, Op::cFinalize);
     // all-real reduction result narrows to real (MATLAB: isreal(sum(complex...))).
-    return numkit::narrowComplex(std::move(r), mr);
+    return nk::narrowComplex(std::move(r), mr);
 }
 
 template <typename Op>
@@ -466,7 +466,7 @@ Value runNativeReduction(const Value &x, int dim, ValueType outType, std::pmr::m
     case ValueType::UINT64: return run(uint64_t{});
     default:
         throw Error("internal: unsupported native output type",
-                     0, 0, "", "", "numkit:nativeReduce:type");
+                     0, 0, "", "", "nk:nativeReduce:type");
     }
 }
 
@@ -564,7 +564,7 @@ Value nanReduceAll(const Value &x, ValueType outType, std::pmr::memory_resource 
             nanAccumDouble<Op>(acc, count, x.elemAsDouble(i));
         return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, mr);
     }
-    const int redDim = numkit::ops::firstNonSingletonDim(x);
+    const int redDim = nk::ops::firstNonSingletonDim(x);
     Value out = allocReduceOutput(x, redDim, outType, mr);
     nanReduceAlongDim<T, Op>(x, redDim, static_cast<T *>(out.rawDataMut()));
     return out;
@@ -576,7 +576,7 @@ Value nanReduceAlongDimImpl(const Value &x, int dim, ValueType outType, std::pmr
     if (x.isEmpty() && x.dims().ndim() < 4)
         return Value::matrix(0, 0, outType, mr);
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != numkit::ops::firstNonSingletonDim(x)) {
+        if (dim != nk::ops::firstNonSingletonDim(x)) {
             // Identity: copy x as outType (cast where needed).
             const size_t n = x.numel();
             if (!x.dims().isVector())
@@ -628,7 +628,7 @@ Value runNanReduction(const Value &x, int dim, ValueType outType, std::pmr::memo
     case ValueType::UINT64: return run(uint64_t{});
     default:
         throw Error("internal: unsupported nan-aware output type",
-                     0, 0, "", "", "numkit:nanReduce:type");
+                     0, 0, "", "", "nk:nanReduce:type");
     }
 }
 
@@ -668,7 +668,7 @@ Value runComplexNanReduction(const Value &x, int dim, std::pmr::memory_resource 
     if (isAll || x.isScalar() || x.dims().isVector()) {
         return Value::complexScalar(reduceRange(0, 1, x.numel()), mr);
     }
-    const int d = (dim > 0) ? dim : numkit::ops::firstNonSingletonDim(x);
+    const int d = (dim > 0) ? dim : nk::ops::firstNonSingletonDim(x);
     Value out = allocComplexReduceOutput(x, d, mr);
     Complex *dst = out.complexDataMut();
 
@@ -715,27 +715,27 @@ ReductionFlags parseReductionFlags(Span<const Value> args, const char *fn)
             case StringFlag::All:
                 if (haveDim)
                     throw Error(std::string(fn) + ": dim specified twice",
-                                 0, 0, fn, "", std::string("numkit:") + fn + ":dupDim");
+                                 0, 0, fn, "", std::string("nk:") + fn + ":dupDim");
                 r.isAll = true; haveDim = true; break;
             case StringFlag::OutType:
                 if (haveOutType)
                     throw Error(std::string(fn) + ": output type specified twice",
-                                 0, 0, fn, "", std::string("numkit:") + fn + ":outtypeDup");
+                                 0, 0, fn, "", std::string("nk:") + fn + ":outtypeDup");
                 r.outMode = parseOutTypeMode(a, fn); haveOutType = true; break;
             case StringFlag::NanFlag:
                 if (haveNanFlag)
                     throw Error(std::string(fn) + ": nan flag specified twice",
-                                 0, 0, fn, "", std::string("numkit:") + fn + ":nanFlagDup");
+                                 0, 0, fn, "", std::string("nk:") + fn + ":nanFlagDup");
                 r.omitNan = (lowercaseStr(a) == "omitnan");
                 haveNanFlag = true; break;
             default:
                 throw Error(std::string(fn) + ": unknown flag '" + lowercaseStr(a) + "'",
-                             0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+                             0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
             }
         } else {
             if (haveDim)
                 throw Error(std::string(fn) + ": dim specified twice",
-                             0, 0, fn, "", std::string("numkit:") + fn + ":dupDim");
+                             0, 0, fn, "", std::string("nk:") + fn + ":dupDim");
             r.dim = static_cast<int>(a.toScalar());
             haveDim = true;
         }
@@ -805,7 +805,7 @@ Value dispatchReductionAdapter(Span<const Value> args, const char *fn,
     {                                                                             \
         if (args.empty())                                                         \
             throw Error(#name ": requires at least 1 argument",                  \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                  \
+                         0, 0, #name, "", "nk:" #name ":nargin");                  \
         outs[0] = dispatchReductionAdapter(args, #name,                           \
             [&](const Value &x, int dim, bool isAll) {                           \
                 if (isAll)                                                        \
@@ -881,7 +881,7 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.empty())
         throw Error("max: requires at least 1 argument",
-                     0, 0, "max", "", "numkit:max:nargin");
+                     0, 0, "max", "", "nk:max:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
     auto *mr = ctx.engine->resource();
@@ -923,7 +923,7 @@ void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.empty())
         throw Error("min: requires at least 1 argument",
-                     0, 0, "min", "", "numkit:min:nargin");
+                     0, 0, "min", "", "nk:min:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
     auto *mr = ctx.engine->resource();
@@ -958,7 +958,7 @@ void linspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("linspace: requires at least 2 arguments",
-                     0, 0, "linspace", "", "numkit:linspace:nargin");
+                     0, 0, "linspace", "", "nk:linspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 100u;
@@ -969,7 +969,7 @@ void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("logspace: requires at least 2 arguments",
-                     0, 0, "logspace", "", "numkit:logspace:nargin");
+                     0, 0, "logspace", "", "nk:logspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 50u;
@@ -983,4 +983,4 @@ void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

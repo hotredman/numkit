@@ -7,21 +7,21 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/swt/swt.hpp>
+#include <nk/wavelet/swt/swt.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <string>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected string argument",
-                    0, 0, "", "", "numkit:wavelet:type");
+                    0, 0, "", "", "nk:wavelet:type");
     return v.toString();
 }
 
@@ -30,7 +30,7 @@ void swt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("swt: requires (x, n, wname)",
-                    0, 0, "swt", "", "numkit:swt:nargin");
+                    0, 0, "swt", "", "nk:swt:nargin");
     outs[0] = swt(args[0], static_cast<int>(args[1].toScalar()), argString(args[2]), ctx.engine->resource());
 }
 
@@ -39,7 +39,7 @@ void iswt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("iswt: requires (swc, wname)",
-                    0, 0, "iswt", "", "numkit:iswt:nargin");
+                    0, 0, "iswt", "", "nk:iswt:nargin");
     outs[0] = iswt(args[0], argString(args[1]), ctx.engine->resource());
 }
 
@@ -54,7 +54,7 @@ void modwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // Default wname = 'sym4'; default lev = floor(log2(N)).
     if (args.empty())
         throw Error("modwt: requires (x[, wname[, lev]])",
-                    0, 0, "modwt", "", "numkit:modwt:nargin");
+                    0, 0, "modwt", "", "nk:modwt:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const size_t N = x.numel();
@@ -82,9 +82,9 @@ void imodwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imodwt: requires (swc, wname)",
-                    0, 0, "imodwt", "", "numkit:imodwt:nargin");
+                    0, 0, "imodwt", "", "nk:imodwt:nargin");
     outs[0] = imodwt(args[0], argString(args[1]), ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

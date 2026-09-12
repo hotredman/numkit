@@ -8,24 +8,24 @@
 //   cdf('Normal', x, mu, sigma)  ==  normcdf(x, mu, sigma)
 //   icdf(...)  -> <fam>inv ,  random(...) -> <fam>rnd .
 // bugs/stats/distribution-dispatchers.
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <string>
 #include <unordered_map>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 namespace {
 
-// MATLAB distribution name (lower-cased) → numkit family prefix. Covers every
+// MATLAB distribution name (lower-cased) → nk family prefix. Covers every
 // family that ships <prefix>{cdf,pdf,inv,rnd}; canonical names + common aliases.
 const std::unordered_map<std::string, std::string> &distPrefixMap()
 {
@@ -66,7 +66,7 @@ void dispatchDist(const char *fnName, const char *suffix,
     const std::string fn = fnName;
     if (args.empty() || !args[0].isChar())
         throw Error(fn + ": first argument must be a distribution name",
-                    0, 0, fnName, "", "numkit:" + fn + ":name");
+                    0, 0, fnName, "", "nk:" + fn + ":name");
 
     std::string name = args[0].toString();
     std::transform(name.begin(), name.end(), name.begin(),
@@ -76,7 +76,7 @@ void dispatchDist(const char *fnName, const char *suffix,
     auto it = m.find(name);
     if (it == m.end())
         throw Error(fn + ": unsupported distribution '" + args[0].toString() + "'",
-                    0, 0, fnName, "", "numkit:" + fn + ":dist");
+                    0, 0, fnName, "", "nk:" + fn + ":dist");
 
     // The bare-name resolver finds the function (e.g. "normcdf" →
     // stats.distributions.normcdf) without the removed compat.* prefix.
@@ -84,7 +84,7 @@ void dispatchDist(const char *fnName, const char *suffix,
     const ExternalFunc *target_fn = ctx.engine->findExternal(target, ctx.env);
     if (!target_fn)
         throw Error(fn + ": '" + it->second + suffix + "' is not available",
-                    0, 0, fnName, "", "numkit:" + fn + ":missing");
+                    0, 0, fnName, "", "nk:" + fn + ":missing");
 
     (*target_fn)(args.subspan(1), nargout, outs, ctx);
 }
@@ -105,4 +105,4 @@ void random_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

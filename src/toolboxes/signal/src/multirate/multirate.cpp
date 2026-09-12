@@ -1,13 +1,13 @@
 // toolboxes/signal/src/multirate/multirate.cpp
 
-#include <numkit/signal/multirate/multirate.hpp>
-#include <numkit/signal/multirate/extras.hpp>          // upfirdn
-#include <numkit/signal/filter_design/filter_design.hpp> // firls
-#include <numkit/signal/windows/windows.hpp>           // kaiser
+#include <nk/signal/multirate/multirate.hpp>
+#include <nk/signal/multirate/extras.hpp>          // upfirdn
+#include <nk/signal/filter_design/filter_design.hpp> // firls
+#include <nk/signal/windows/windows.hpp>           // kaiser
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
@@ -19,7 +19,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -128,7 +128,7 @@ Value resample(const Value &x, size_t p, size_t q, std::pmr::memory_resource *mr
 {
     if (p == 0 || q == 0)
         throw Error("resample: P and Q must be positive integers",
-                    0, 0, "resample", "", "numkit:resample:pq");
+                    0, 0, "resample", "", "nk:resample:pq");
 
     // Reduce P/Q by their GCD first (as MATLAB does).
     const size_t g = std::gcd(p, q);
@@ -194,4 +194,4 @@ Value resample(const Value &x, size_t p, size_t q, std::pmr::memory_resource *mr
     return r;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

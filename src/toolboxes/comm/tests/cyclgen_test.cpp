@@ -3,11 +3,11 @@
 // Regression guard for cyclgen (Error Correction Codes). Reference
 // matrices from the MATLAB R2025b probe (cyclgen(7,[1 0 1 1])).
 
-#include <numkit/comm/coding/blockcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/blockcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CyclgenTest : public ::testing::Test
 {

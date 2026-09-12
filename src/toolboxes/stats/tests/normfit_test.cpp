@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/normfit_test.cpp
 // normfit.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class NormfitTest : public ::testing::Test
 {

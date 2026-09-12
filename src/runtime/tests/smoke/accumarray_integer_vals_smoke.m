@@ -2,7 +2,7 @@ clear
 
 % bugs/builtin/accumarray-integer-vals.md — accumarray accepts integer/logical
 % vals. MATLAB R2025b output class follows the reducer: sum/prod/mean -> double,
-% but max/min PRESERVE the integer class. Previously numkit threw
+% but max/min PRESERVE the integer class. Previously nk threw
 % "accumarray: vals must be DOUBLE".
 
 s = accumarray([1;2;1], int8([10;20;30]));

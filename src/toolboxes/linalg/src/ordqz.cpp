@@ -2,12 +2,12 @@
 //
 // ordqz — Reorder Generalized Schur decomposition Q * AA * Z = AA, Q * BB * Z = BB.
 
-#include <numkit/linalg/ordqz.hpp>
+#include <nk/linalg/ordqz.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 #include <tuple>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -120,17 +120,17 @@ std::tuple<Value, Value, Value, Value> ordqz(const Value &AA, const Value &BB,
                                               std::pmr::memory_resource *mr)
 {
     if (AA.dims().ndim() != 2 || BB.dims().ndim() != 2 || Q.dims().ndim() != 2 || Z.dims().ndim() != 2)
-        throw Error("ordqz: inputs must be 2D matrices", 0, 0, "ordqz", "", "numkit:ordqz:notMatrix");
+        throw Error("ordqz: inputs must be 2D matrices", 0, 0, "ordqz", "", "nk:ordqz:notMatrix");
 
     const std::size_t n = static_cast<std::size_t>(AA.dims().dim(0));
     if (n != static_cast<std::size_t>(AA.dims().dim(1)) ||
         static_cast<std::size_t>(BB.dims().dim(0)) != n || static_cast<std::size_t>(BB.dims().dim(1)) != n ||
         static_cast<std::size_t>(Q.dims().dim(0)) != n || static_cast<std::size_t>(Q.dims().dim(1)) != n ||
         static_cast<std::size_t>(Z.dims().dim(0)) != n || static_cast<std::size_t>(Z.dims().dim(1)) != n)
-        throw Error("ordqz: AA, BB, Q, Z must be n x n square matrices", 0, 0, "ordqz", "", "numkit:ordqz:badDims");
+        throw Error("ordqz: AA, BB, Q, Z must be n x n square matrices", 0, 0, "ordqz", "", "nk:ordqz:badDims");
 
     if (select.numel() != n)
-        throw Error("ordqz: select must have length n", 0, 0, "ordqz", "", "numkit:ordqz:badSelect");
+        throw Error("ordqz: select must have length n", 0, 0, "ordqz", "", "nk:ordqz:badSelect");
 
     if (n == 0) {
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -217,11 +217,11 @@ std::tuple<Value, Value, Value, Value> ordqz(const Value &AA, const Value &BB,
         } else if (domain == "uop") {
             sd[i] = (std::abs(lambda) > 1.0) ? 1 : 0;
         } else {
-            throw Error("ordqz: unknown domain '" + domain + "'", 0, 0, "ordqz", "", "numkit:ordqz:badDomain");
+            throw Error("ordqz: unknown domain '" + domain + "'", 0, 0, "ordqz", "", "nk:ordqz:badDomain");
         }
     }
 
     return ordqz(AA, BB, Q, Z, select, mr);
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

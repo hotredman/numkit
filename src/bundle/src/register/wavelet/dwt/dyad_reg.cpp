@@ -8,15 +8,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/dwt/dyad.hpp>
+#include <nk/wavelet/dwt/dyad.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <string>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -33,7 +33,7 @@ void parseDyadArgs(Span<const Value> args, int defaultOdd, int &odd, char &type)
             const char c = static_cast<char>(std::tolower(static_cast<unsigned char>(s[0])));
             if (c != 'c' && c != 'r' && c != 'm')
                 throw Error("dyad: type must be 'c', 'r', or 'm'",
-                             0, 0, "dyad", "", "numkit:dyad:type");
+                             0, 0, "dyad", "", "nk:dyad:type");
             type = c;
         } else {
             odd = (static_cast<int>(args[i].toScalar()) != 0) ? 1 : 0;
@@ -57,7 +57,7 @@ void dyaddown_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("dyaddown: requires an input vector",
-                    0, 0, "dyaddown", "", "numkit:dyaddown:nargin");
+                    0, 0, "dyaddown", "", "nk:dyaddown:nargin");
     int odd; char type;
     parseDyadArgs(args, /*defaultOdd=*/0, odd, type);
     outs[0] = dyaddown(args[0], odd, type, ctx.engine->resource());
@@ -76,7 +76,7 @@ void dyadup_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("dyadup: requires an input vector",
-                    0, 0, "dyadup", "", "numkit:dyadup:nargin");
+                    0, 0, "dyadup", "", "nk:dyadup:nargin");
     int odd; char type;
     parseDyadArgs(args, /*defaultOdd=*/1, odd, type);
     outs[0] = dyadup(args[0], odd, type, ctx.engine->resource());
@@ -97,12 +97,12 @@ void wmaxlev_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("wmaxlev: requires (N, wname)",
-                    0, 0, "wmaxlev", "", "numkit:wmaxlev:nargin");
+                    0, 0, "wmaxlev", "", "nk:wmaxlev:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("wmaxlev: wname must be a character vector",
-                    0, 0, "wmaxlev", "", "numkit:wmaxlev:type");
+                    0, 0, "wmaxlev", "", "nk:wmaxlev:type");
     outs[0] = wmaxlev(args[0], args[1].toString(), ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

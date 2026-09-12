@@ -3,21 +3,21 @@
 // CallContext register half of descriptive/descriptive.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
-#include <numkit/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
-#include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
+#include <nk/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
+#include <nk/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "descriptive/descriptive_detail.hpp"
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 #include "datafun/var_reduction.hpp"
-#include <numkit/ops/reductions.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ops/reductions.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -50,7 +50,7 @@ double weightedVarFlat(const double *x, const double *w, size_t n,
         if (omitNan && std::isnan(xi)) continue;
         if (wi < 0.0)
             throw Error("var/std: weights must be non-negative",
-                        0, 0, "var/std", "", "numkit:varstd:negWeight");
+                        0, 0, "var/std", "", "nk:varstd:negWeight");
         sw  += wi;
         sxw += wi * xi;
     }
@@ -126,7 +126,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (normFlag != 0 && normFlag != 1)
                 throw Error(std::string(fn) + ": w must be 0 or 1, or a "
                             "weight vector",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":w");
+                            0, 0, fn, "", std::string("nk:") + fn + ":w");
         } else {
             isWeightVec = true;
             wVec = &args[1];
@@ -143,7 +143,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") flattenAll = true;
             else throw Error(std::string(fn) + ": unknown dim flag '" + s + "'",
-                              0, 0, fn, "", std::string("numkit:") + fn + ":dim");
+                              0, 0, fn, "", std::string("nk:") + fn + ":dim");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -157,7 +157,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
+                                0, 0, fn, "", std::string("nk:") + fn + ":vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -165,7 +165,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (!allCovered)
                 throw Error(std::string(fn) + ": partial vecdim reduction is "
                             "not yet supported (only full-flatten vecdim)",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
+                            0, 0, fn, "", std::string("nk:") + fn + ":vecdim");
             flattenAll = true;
         }
     }
@@ -181,7 +181,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (xv.size() != wv.size())
                 throw Error(std::string(fn) + ": weight vector length must "
                             "match number of elements",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":wlen");
+                            0, 0, fn, "", std::string("nk:") + fn + ":wlen");
             const double v = weightedVarFlat(xv.data(), wv.data(),
                                              xv.size(), sqrtIt, omitNan);
             return Value::scalar(v, mr);
@@ -193,11 +193,11 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         if (x.dims().ndim() > 2)
             throw Error(std::string(fn) + ": weight vector along a dimension "
                         "is supported for 2-D inputs only (N-D deferred)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":wND");
+                        0, 0, fn, "", std::string("nk:") + fn + ":wND");
         const int d = (dim == 0) ? firstNonSingletonDim(x) : dim;
         if (d != 1 && d != 2)
             throw Error(std::string(fn) + ": dim out of range",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":dim");
+                        0, 0, fn, "", std::string("nk:") + fn + ":dim");
         const size_t r = static_cast<size_t>(x.dims().dim(0));
         const size_t c = static_cast<size_t>(x.dims().dim(1));
         auto wv = flatten(*wVec);
@@ -205,7 +205,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         if (wv.size() != need)
             throw Error(std::string(fn) + ": weight vector length must match "
                         "the length of the operating dimension",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":wlen");
+                        0, 0, fn, "", std::string("nk:") + fn + ":wlen");
         if (d == 1) {
             auto out = Value::matrix(1, c, ValueType::DOUBLE, mr);
             double *od = out.doubleDataMut();
@@ -240,8 +240,8 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             return varianceComplex(x, normFlag, dim, mr, sqrtIt, true);
         }
         Value r = sqrtIt
-                    ? ::numkit::stats::nanstdev(x, normFlag, dim, mr)
-                    : ::numkit::stats::nanvar  (x, normFlag, dim, mr);
+                    ? ::nk::stats::nanstdev(x, normFlag, dim, mr)
+                    : ::nk::stats::nanvar  (x, normFlag, dim, mr);
         if (x.type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), mr);
         return r;
@@ -254,7 +254,7 @@ void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("var: requires at least 1 argument",
-                     0, 0, "var", "", "numkit:var:nargin");
+                     0, 0, "var", "", "nk:var:nargin");
     outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->resource());
 }
 
@@ -263,7 +263,7 @@ void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("std: requires at least 1 argument",
-                     0, 0, "std", "", "numkit:std:nargin");
+                     0, 0, "std", "", "nk:std:nargin");
     outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->resource());
 }
 
@@ -272,7 +272,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("median: requires at least 1 argument",
-                     0, 0, "median", "", "numkit:median:nargin");
+                     0, 0, "median", "", "nk:median:nargin");
     // MATLAB narrows an all-zero-imaginary complex median back to a real double.
     // The scalar / dim / 'all' / omitnan branches each assign outs[0] and return
     // separately, so a scope guard narrows whichever one fires (no-op unless the
@@ -283,7 +283,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         ~NarrowGuard()
         {
             if (v->isComplex())
-                *v = numkit::narrowComplex(std::move(*v), mr);
+                *v = nk::narrowComplex(std::move(*v), mr);
         }
     } narrowGuard{&outs[0], ctx.engine->resource()};
     bool omitNan = false;
@@ -298,7 +298,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") isAll = true;
             else throw Error("median: unknown flag '" + s + "'",
-                              0, 0, "median", "", "numkit:median:badFlag");
+                              0, 0, "median", "", "nk:median:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -310,14 +310,14 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 int d = static_cast<int>(a.elemAsDouble(i));
                 if (d < 1 || d > rank)
                     throw Error("median: vecdim entries out of range",
-                                0, 0, "median", "", "numkit:median:vecdim");
+                                0, 0, "median", "", "nk:median:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
             for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
             if (!allCovered)
                 throw Error("median: partial vecdim reduction not supported",
-                            0, 0, "median", "", "numkit:median:vecdim");
+                            0, 0, "median", "", "nk:median:vecdim");
             isAll = true;
         }
     }
@@ -356,7 +356,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        Value r = ::numkit::stats::nanmedian(args[0], dim, ctx.engine->resource());
+        Value r = ::nk::stats::nanmedian(args[0], dim, ctx.engine->resource());
         if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
@@ -401,16 +401,16 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
+                                0, 0, fn, "", std::string("nk:") + fn + ":vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
             for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
             if (!allCovered)
                 throw Error(std::string(fn) + ": partial vecdim reduction is "
-                            "not yet supported in numkit (only full-flatten "
+                            "not yet supported in nk (only full-flatten "
                             "vecdim like [1 2] or 'all')",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
+                            0, 0, fn, "", std::string("nk:") + fn + ":vecdim");
             q.flatten = true;
         }
         ++i;
@@ -428,20 +428,20 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected Name-Value pair",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
+                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c) { return std::tolower(c); });
         if (name == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(std::string(fn) + ": Method must be a string",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
+                            0, 0, fn, "", std::string("nk:") + fn + ":method");
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return std::tolower(c); });
             // MATLAB's documented values are 'exact' (default) and
             // 'approximate'. 'exact' is the linear-interpolation order-
-            // statistic method, which is numkit's Midpoint. The
+            // statistic method, which is nk's Midpoint. The
             // midpoint/inclusive/exclusive names are kept for compatibility.
             if      (m == "exact")       q.method = QMethod::Midpoint;
             else if (m == "midpoint")    q.method = QMethod::Midpoint;
@@ -451,10 +451,10 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             else
                 throw Error(std::string(fn) + ": Method must be 'exact' or "
                             "'approximate'",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
+                            0, 0, fn, "", std::string("nk:") + fn + ":method");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
+                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
         }
         i += 2;
     }
@@ -466,7 +466,7 @@ void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("quantile: requires (X, p[, dim] [, Method=method])",
-                     0, 0, "quantile", "", "numkit:quantile:nargin");
+                     0, 0, "quantile", "", "nk:quantile:nargin");
     auto q = parseQArgs(args, 2, args[0], "quantile");
     outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 1.0, "quantile", ctx.engine->resource());
 }
@@ -476,7 +476,7 @@ void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("prctile: requires (X, p[, dim] [, Method=method])",
-                     0, 0, "prctile", "", "numkit:prctile:nargin");
+                     0, 0, "prctile", "", "nk:prctile:nargin");
     auto q = parseQArgs(args, 2, args[0], "prctile");
     outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 0.01, "prctile", ctx.engine->resource());
 }
@@ -491,7 +491,7 @@ Value computeModeCell(const Value &x, int dim, bool flatten,
     if (x.type() != ValueType::DOUBLE || x.dims().is3D() || x.dims().ndim() > 2)
         throw Error("mode: the 3rd output C is currently supported only for a "
                     "real double vector or 2-D matrix input",
-                    0, 0, "mode", "", "numkit:mode:cellNd");
+                    0, 0, "mode", "", "nk:mode:cellNd");
     auto tiedCol = [&](const double *s, size_t stride, size_t n) -> Value {
         std::vector<double> v;
         v.reserve(n);
@@ -542,7 +542,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("mode: requires at least 1 argument",
-                     0, 0, "mode", "", "numkit:mode:nargin");
+                     0, 0, "mode", "", "nk:mode:nargin");
     int dim = 0;
     bool flatten = false;
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -553,7 +553,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                            [](unsigned char c){ return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("mode: unknown flag '" + s + "'",
-                             0, 0, "mode", "", "numkit:mode:badFlag");
+                             0, 0, "mode", "", "nk:mode:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -565,14 +565,14 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 int d = static_cast<int>(a.elemAsDouble(i));
                 if (d < 1 || d > rank)
                     throw Error("mode: vecdim entries out of range",
-                                0, 0, "mode", "", "numkit:mode:vecdim");
+                                0, 0, "mode", "", "nk:mode:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
             for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
             if (!allCovered)
                 throw Error("mode: partial vecdim reduction not yet supported",
-                            0, 0, "mode", "", "numkit:mode:vecdim");
+                            0, 0, "mode", "", "nk:mode:vecdim");
             flatten = true;
         }
     }
@@ -604,7 +604,7 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("cov: requires at least 1 argument",
-                     0, 0, "cov", "", "numkit:cov:nargin");
+                     0, 0, "cov", "", "nk:cov:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
 
     // A trailing NaN-policy string ('includenan'|'omitrows'|'partialrows')
@@ -670,7 +670,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("corrcoef: requires at least 1 argument",
-                     0, 0, "corrcoef", "", "numkit:corrcoef:nargin");
+                     0, 0, "corrcoef", "", "nk:corrcoef:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
 
     const bool twoArg =
@@ -711,7 +711,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (nargout >= 2)
             throw Error("corrcoef: [R, P] with 'Rows','pairwise' is not yet "
                         "supported (per-pair degrees of freedom)",
-                        0, 0, "corrcoef", "", "numkit:corrcoef:PairwisePValue");
+                        0, 0, "corrcoef", "", "nk:corrcoef:PairwisePValue");
         outs[0] = isVec ? corrcoefScalarOne(mr) : corrcoefPairwise(M, mr);
         return;
     }
@@ -739,4 +739,4 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

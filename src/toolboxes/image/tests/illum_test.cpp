@@ -6,12 +6,12 @@
 // representable; we asserted MATLAB outputs via direct probing and
 // the inspected MATLAB toolbox source.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class IllumTest : public ::testing::Test
 {

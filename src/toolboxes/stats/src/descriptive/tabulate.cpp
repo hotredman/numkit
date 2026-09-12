@@ -20,16 +20,16 @@
 //
 // Empty input -> 0-by-1 matrix (matches MATLAB).
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 Value tabulate(const Value &x, std::pmr::memory_resource *mr)
 {
@@ -104,4 +104,4 @@ Value tabulate(const Value &x, std::pmr::memory_resource *mr)
     return T;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

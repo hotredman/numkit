@@ -1,5 +1,5 @@
 @echo off
-rem Push the local main branch to the public GitHub mirror (hotredman/numkit).
+rem Push the local main branch to the public GitHub mirror (hotredman/nk).
 rem Usage: scripts\windows\code-publish.cmd [--force]
 setlocal
 cd /d "%~dp0..\.."

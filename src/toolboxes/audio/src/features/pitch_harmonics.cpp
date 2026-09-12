@@ -24,18 +24,18 @@
 //     sign change of R[k] + Smith's parabolic peak interpolation. Tiny
 //     ~2e-4 mean diff vs MATLAB on pure tones is FP-ordering noise.
 
-#include <numkit/audio/features/pitch_harmonics.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/signal/spectral_analysis/signal_modeling.hpp>  // lpc
-#include <numkit/signal/digital_filtering/filter.hpp>           // filter
-#include <numkit/signal/windows/windows.hpp>                    // hann, blackman
+#include <nk/audio/features/pitch_harmonics.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/signal/spectral_analysis/signal_modeling.hpp>  // lpc
+#include <nk/signal/digital_filtering/filter.hpp>           // filter
+#include <nk/signal/windows/windows.hpp>                    // hann, blackman
 
 // Compute-only TU: Value substrate + Error, no engine. The pitch /
 // harmonicRatio builtins (CallContext wrappers) live in
 // features/pitch_harmonics_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -46,7 +46,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::audio {
+namespace nk::audio {
 
 namespace {
 
@@ -241,7 +241,7 @@ Value pitchPEF(const Value &x, double fs, double minF, double maxF,
     constexpr int    kK     = 10;             // number of comb teeth K
     const double     kDelta = std::log(1.0058); // log-grid step Δ (0.58 %)
 
-    // ── 1. Framing (numkit default pitch framing — one f0 per frame). ──
+    // ── 1. Framing (nk default pitch framing — one f0 per frame). ──
     const size_t N = x.numel();
     const FrameSpec fs_spec = frameSpec(N, fs, 0.052, 0.042);
     const size_t winLen   = fs_spec.winLen;
@@ -876,4 +876,4 @@ Value harmonicRatio(const Value &x, double fs, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::audio
+} // namespace nk::audio

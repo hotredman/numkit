@@ -3,17 +3,17 @@
 // CallContext register half of language/arrays/manip.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/shape_ops.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elmat.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/shape_ops.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
 #include "elmat/manip_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,8 +25,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -35,7 +35,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("repmat: requires at least 2 arguments",
-                     0, 0, "repmat", "", "numkit:repmat:nargin");
+                     0, 0, "repmat", "", "nk:repmat:nargin");
     auto *mr = ctx.engine->resource();
 
     // Forms:
@@ -51,7 +51,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         const size_t k = v.numel();
         if (k == 0) {
             throw Error("repmat: tile vector must not be empty",
-                         0, 0, "repmat", "", "numkit:repmat:badTileVec");
+                         0, 0, "repmat", "", "nk:repmat:badTileVec");
         }
         if (k == 1) {
             const size_t s = static_cast<size_t>(v.toScalar());
@@ -76,9 +76,9 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         const size_t m = tiles[0];
         const size_t n = tiles.size() >= 2 ? tiles[1] : 1;
         const size_t p = tiles.size() >= 3 ? tiles[2] : 1;
-        outs[0] = numkit::narrowComplex(repmat(args[0], m, n, p, mr), ctx.engine->resource());
+        outs[0] = nk::narrowComplex(repmat(args[0], m, n, p, mr), ctx.engine->resource());
     } else {
-        outs[0] = numkit::narrowComplex(repmatND(args[0], Span<const size_t>(tiles.data(), tiles.size()), mr), ctx.engine->resource());
+        outs[0] = nk::narrowComplex(repmatND(args[0], Span<const size_t>(tiles.data(), tiles.size()), mr), ctx.engine->resource());
     }
 }
 
@@ -88,8 +88,8 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires 1 argument",                        \
-                         0, 0, #name, "", "numkit:" #name ":nargin");               \
-        outs[0] = numkit::narrowComplex(name(args[0], ctx.engine->resource()), ctx.engine->resource());                      \
+                         0, 0, #name, "", "nk:" #name ":nargin");               \
+        outs[0] = nk::narrowComplex(name(args[0], ctx.engine->resource()), ctx.engine->resource());                      \
     }
 
 NK_FLIP_REG(fliplr)
@@ -102,11 +102,11 @@ void rot90_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("rot90: requires at least 1 argument",
-                     0, 0, "rot90", "", "numkit:rot90:nargin");
+                     0, 0, "rot90", "", "nk:rot90:nargin");
     int k = (args.size() >= 2 && !args[1].isEmpty())
                 ? static_cast<int>(args[1].toScalar())
                 : 1;
-    outs[0] = numkit::narrowComplex(rot90(args[0], k, ctx.engine->resource()), ctx.engine->resource());
+    outs[0] = nk::narrowComplex(rot90(args[0], k, ctx.engine->resource()), ctx.engine->resource());
 }
 
 void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -114,13 +114,13 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("circshift: requires (X, k) or (X, shiftVec)",
-                     0, 0, "circshift", "", "numkit:circshift:nargin");
+                     0, 0, "circshift", "", "nk:circshift:nargin");
     const Value &k = args[1];
     auto *mr = ctx.engine->resource();
     const size_t nk = k.numel();
     if (nk == 0)
         throw Error("circshift: shift vector must not be empty",
-                     0, 0, "circshift", "", "numkit:circshift:badShift");
+                     0, 0, "circshift", "", "nk:circshift:badShift");
 
     if (nk == 1) {
         const int64_t kk = static_cast<int64_t>(k.toScalar());
@@ -130,20 +130,20 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             const int dim = static_cast<int>(args[2].toScalar());
             if (dim < 1)
                 throw Error("circshift: dim must be a positive integer",
-                             0, 0, "circshift", "", "numkit:circshift:badDim");
+                             0, 0, "circshift", "", "nk:circshift:badDim");
             ScratchArena scratch(mr);
             auto shifts = ScratchVec<int64_t>(static_cast<size_t>(dim), &scratch);
             for (int i = 0; i < dim; ++i) shifts[i] = 0;
             shifts[dim - 1] = kk;
-            outs[0] = numkit::narrowComplex(circshiftND(args[0],
+            outs[0] = nk::narrowComplex(circshiftND(args[0],
                                   Span<const int64_t>(shifts.data(), dim), mr), ctx.engine->resource());
             return;
         }
-        outs[0] = numkit::narrowComplex(circshift(args[0], kk, mr), ctx.engine->resource());
+        outs[0] = nk::narrowComplex(circshift(args[0], kk, mr), ctx.engine->resource());
         return;
     }
     if (nk == 2 && args[0].dims().ndim() <= 3) {
-        outs[0] = numkit::narrowComplex(circshift(args[0], static_cast<int64_t>(k.doubleData()[0]), static_cast<int64_t>(k.doubleData()[1]), mr), ctx.engine->resource());
+        outs[0] = nk::narrowComplex(circshift(args[0], static_cast<int64_t>(k.doubleData()[0]), static_cast<int64_t>(k.doubleData()[1]), mr), ctx.engine->resource());
         return;
     }
     // ND path: shift vector ≥ 3 entries OR input rank ≥ 4.
@@ -151,7 +151,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto shifts = ScratchVec<int64_t>(nk, &scratch);
     for (size_t i = 0; i < nk; ++i)
         shifts[i] = static_cast<int64_t>(k.doubleData()[i]);
-    outs[0] = numkit::narrowComplex(circshiftND(args[0], Span<const int64_t>(shifts.data(), nk), mr), ctx.engine->resource());
+    outs[0] = nk::narrowComplex(circshiftND(args[0], Span<const int64_t>(shifts.data(), nk), mr), ctx.engine->resource());
 }
 
 #define NK_TRI_REG(name)                                                       \
@@ -160,11 +160,11 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "numkit:" #name ":nargin");               \
+                         0, 0, #name, "", "nk:" #name ":nargin");               \
         int k = (args.size() >= 2 && !args[1].isEmpty())                       \
                     ? static_cast<int>(args[1].toScalar())                     \
                     : 0;                                                        \
-        outs[0] = numkit::narrowComplex(name(args[0], k, ctx.engine->resource()), ctx.engine->resource());                   \
+        outs[0] = nk::narrowComplex(name(args[0], k, ctx.engine->resource()), ctx.engine->resource());                   \
     }
 
 NK_TRI_REG(tril)
@@ -177,11 +177,11 @@ void flip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("flip: requires at least 1 argument",
-                     0, 0, "flip", "", "numkit:flip:nargin");
+                     0, 0, "flip", "", "nk:flip:nargin");
     int dim = (args.size() >= 2 && !args[1].isEmpty())
                   ? static_cast<int>(args[1].toScalar())
                   : 0;
-    outs[0] = numkit::narrowComplex(flip(args[0], dim, ctx.engine->resource()), ctx.engine->resource());
+    outs[0] = nk::narrowComplex(flip(args[0], dim, ctx.engine->resource()), ctx.engine->resource());
 }
 
 void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -189,16 +189,16 @@ void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("repelem: requires at least 2 arguments",
-                     0, 0, "repelem", "", "numkit:repelem:nargin");
+                     0, 0, "repelem", "", "nk:repelem:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         // counts may be a scalar or a per-element vector — the Value
         // overload dispatches internally.
-        outs[0] = numkit::narrowComplex(repelem(args[0], args[1], mr), ctx.engine->resource());
+        outs[0] = nk::narrowComplex(repelem(args[0], args[1], mr), ctx.engine->resource());
         return;
     }
     // r / c may each be a scalar or a per-row / per-column vector.
-    outs[0] = numkit::narrowComplex(repelem(args[0], args[1], args[2], mr), ctx.engine->resource());
+    outs[0] = nk::narrowComplex(repelem(args[0], args[1], args[2], mr), ctx.engine->resource());
 }
 
 // sub2ind(siz, i1, i2, ...) → linear index. Column-major, 1-based.
@@ -207,7 +207,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("sub2ind: requires siz and at least 1 subscript",
-                     0, 0, "sub2ind", "", "numkit:sub2ind:nargin");
+                     0, 0, "sub2ind", "", "nk:sub2ind:nargin");
     outs[0] = sub2ind(args[0], args.subspan(1), ctx.engine->resource());
 }
 
@@ -218,9 +218,9 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#FN " requires (v, n)",                                  \
-                         0, 0, #FN, "", "numkit:" #FN ":nargin");                     \
+                         0, 0, #FN, "", "nk:" #FN ":nargin");                     \
         const size_t n = static_cast<size_t>(args[1].toScalar());                \
-        outs[0] = numkit::narrowComplex(FN(args[0], n, ctx.engine->resource()), ctx.engine->resource());                       \
+        outs[0] = nk::narrowComplex(FN(args[0], n, ctx.engine->resource()), ctx.engine->resource());                       \
     }
 
 NK_RESIZE_REG(paddata)
@@ -237,7 +237,7 @@ void ind2sub_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ind2sub: requires siz and ind",
-                     0, 0, "ind2sub", "", "numkit:ind2sub:nargin");
+                     0, 0, "ind2sub", "", "nk:ind2sub:nargin");
     std::vector<Value> rs = ind2sub(args[0], args[1],
                                     std::max<size_t>(nargout, 1),
                                     ctx.engine->resource());
@@ -247,4 +247,4 @@ void ind2sub_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

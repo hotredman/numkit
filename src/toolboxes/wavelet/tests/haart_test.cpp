@@ -2,11 +2,11 @@
 //
 // Backfill gtest for toolboxes/wavelet/src/dwt/haart.cpp::haart.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class HaartTest : public ::testing::Test
 {
@@ -66,5 +66,5 @@ TEST_F(HaartTest, RowInputColumnOutput)
 
 TEST_F(HaartTest, OddLengthErrors)
 {
-    EXPECT_THROW(eval("haart([1 2 3 4 5]);"), numkit::Error);
+    EXPECT_THROW(eval("haart([1 2 3 4 5]);"), nk::Error);
 }

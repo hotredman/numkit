@@ -6,11 +6,11 @@
 // + interior probes (matching the corresponding parity-spec fingerprints).
 // All values verified bit-identical to MATLAB to tol=1e-12.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class InvTrigBatchTest : public ::testing::Test
 {

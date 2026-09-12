@@ -1,12 +1,12 @@
 // toolboxes/stats/tests/bounds_mode_test.cpp
 // — 'all' / vecdim dispatch.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class BoundsModeTest : public ::testing::Test
 {

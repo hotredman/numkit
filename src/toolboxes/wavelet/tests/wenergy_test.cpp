@@ -5,11 +5,11 @@
 // R2025b. Ed is ordered finest-first (level 1 … level N), the reverse of
 // the C-vector packing.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WenergyTest : public ::testing::Test
 {

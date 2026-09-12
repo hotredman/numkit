@@ -21,11 +21,11 @@
 //     back to Dynamic — sound, because sqrt of a possibly-negative real
 //     is complex in MATLAB and must not be mistyped as real.
 
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/transfer.hpp>
 
 #include <cmath>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 namespace {
 
@@ -266,7 +266,7 @@ InferredType realOnlyMathUnaryTransfer(const std::vector<ArgInfo> &args)
 }
 
 // deg2rad / rad2deg — a real SCALAR scaling by a constant (x * pi/180, x * 180/pi).
-// There is no std:: function (the emitter inlines numkit's exact constant) and no clean
+// There is no std:: function (the emitter inlines nk's exact constant) and no clean
 // elementwise path (not in unaryMathStd), so this is typed for a real SCALAR only; an
 // array / complex / non-real arg -> Dynamic -> bridged (unchanged from before).
 InferredType realScalarMathUnaryTransfer(const std::vector<ArgInfo> &args)
@@ -313,7 +313,7 @@ InferredType realPartTransfer(const std::vector<ArgInfo> &args)
 
 // fft / ifft — a complex transform; the 1-arg form preserves shape (fft of a
 // 1xN vector is a 1xN COMPLEX vector). The emitter has no native form, so the
-// call BRIDGES to numkit::fft; this transfer only fixes the result type +
+// call BRIDGES to nk::fft; this transfer only fixes the result type +
 // shape (Contract 1). A real (or zero-imag) ifft result is fine — the complex
 // unbox handles a narrowed-to-real result (imag 0). The (x, N) form and the
 // matrix-along-dim forms are deferred (-> Dynamic, the sound fallback).
@@ -362,7 +362,7 @@ void registerElementwiseTransfers(TransferRegistry &reg)
     for (const char *n : {"fft", "ifft"})                // complex transform (1-arg, bridged)
         reg.add(n, fftTransfer);
     // real-only elementwise math (no std complex overload). gammaln = std::lgamma
-    // (real-total: poles at non-positive integers -> +Inf, matching numkit).
+    // (real-total: poles at non-positive integers -> +Inf, matching nk).
     for (const char *n : {"asinh", "erf", "erfc", "expm1", "gammaln"})
         reg.add(n, realOnlyMathUnaryTransfer);
     // sign(x): real signum -> -1 / 0 / 1 (sign(0)=0, sign(NaN)=NaN). The emitter inlines
@@ -374,12 +374,12 @@ void registerElementwiseTransfers(TransferRegistry &reg)
     // it stays the typed-real-scalar BRIDGE exemplar (scalar -> bridge_scalar; array -> bridged
     // array). Real operand only; gamma of complex is a different continuation -> Dynamic.
     reg.add("gamma", realOnlyMathUnaryTransfer);
-    // real scalar scalings (no std fn; the emitter inlines numkit's exact constant)
+    // real scalar scalings (no std fn; the emitter inlines nk's exact constant)
     for (const char *n : {"deg2rad", "rad2deg"})
         reg.add(n, realScalarMathUnaryTransfer);
     // real-only binary math (scalar; no std complex overload). rem(a,b) is real-total
     // (real,real -> real) and the emitter lowers it to std::fmod -- bit-identical to
-    // numkit's scalar rem (misc.cpp). (mod is intentionally NOT native: it is the
+    // nk's scalar rem (misc.cpp). (mod is intentionally NOT native: it is the
     // Dynamic-tier exemplar across the codegen test suite, and scalar mod stays
     // correctly bridged; making it native would churn those tier tests for marginal
     // gain. array/complex rem -> Dynamic -> bridged, like atan2/hypot.)
@@ -387,4 +387,4 @@ void registerElementwiseTransfers(TransferRegistry &reg)
         reg.add(n, realBinaryMathTransfer);
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

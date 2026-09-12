@@ -3,14 +3,14 @@
 // FsContext — VirtualFS registry, script-origin stack, cwd, and path resolver.
 // STL-only (fs/ is L0 under the layering guard); throws std::runtime_error
 // for unknown/unavailable filesystems. The Engine rethrows those as
-// numkit::Error to preserve the MATLAB-visible error type.
-#include <numkit/fs/fs_context.hpp>
+// nk::Error to preserve the MATLAB-visible error type.
+#include <nk/fs/fs_context.hpp>
 
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
 
-namespace numkit {
+namespace nk {
 
 // ── Registry ──────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ FsContext::ResolvedPath FsContext::resolvePath(const std::string &userPath) cons
         return {fs, rest};
     }
 
-    // 2. NUMKIT_FS env var selects the backend.
+    // 2. NK_FS env var selects the backend.
     std::string fsName = envGet(envVarName("FS").c_str());
     if (fsName == "auto")
         fsName.clear();
@@ -143,10 +143,10 @@ FsContext::ResolvedPath FsContext::resolvePath(const std::string &userPath) cons
 
     // Normalize path: if relative, prepend the cwd. Precedence:
     //   1. cwd_ when set (`cd`/`setCwd` write here — canonical).
-    //   2. NUMKIT_CWD env var (host-runtime override; only consulted
+    //   2. NK_CWD env var (host-runtime override; only consulted
     //      when the engine hasn't been told a cwd of its own).
     // No "two sources diverge" risk: cwd_ wins whenever it's non-empty.
-    // The env fallback exists so hosts can `setenv NUMKIT_CWD` after
+    // The env fallback exists so hosts can `setenv NK_CWD` after
     // engine construction without needing to call setCwd explicitly.
     std::string path = userPath;
     if (!isAbsolutePath(path)) {
@@ -287,4 +287,4 @@ std::vector<int> FsContext::openFileIds() const
     return ids;
 }
 
-} // namespace numkit
+} // namespace nk

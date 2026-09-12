@@ -4,10 +4,10 @@
 // deconvolution. Reference values from MATLAB R2025b, bit-equal at
 // the deterministic (no-noise) test case.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DeconvregTest : public ::testing::Test
 {

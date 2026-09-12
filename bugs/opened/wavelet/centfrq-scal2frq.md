@@ -15,7 +15,7 @@ mapping helpers a CWT (see wavelet/cwt.md) and scalogram plotting need.
 clear;
 centfrq('db4')         % MATLAB: 0.714285714285714  (= 5/7)
 scal2frq(4, 'db4', 1)  % MATLAB: 0.178571428571429  (= centfrq/(a·Δ) = 0.7143/4)
-% numkit (each): Error — VM: undefined function 'centfrq'/'scal2frq'
+% nk (each): Error — VM: undefined function 'centfrq'/'scal2frq'
 ```
 
 ## Root cause
@@ -35,9 +35,9 @@ just `centfrq(wname) / (a·Δ)`.
 A naive reconstruction (FFT-peak of the wavelet function) does **not** match
 MATLAB on any wavelet: orthogonal wavelets need the wavelet function `psi`
 built by the **two-scale cascade** from the reconstruction filters
-(`wfilters`/`dbwavf` are shipped, but numkit has **no `wavefun`/cascade**
+(`wfilters`/`dbwavf` are shipped, but nk has **no `wavefun`/cascade**
 yet); a hand cascade gave a near-Nyquist peak (wrong) — the upsample +
-normalization details matter. The analytic cases were also off (numkit's
+normalization details matter. The analytic cases were also off (nk's
 `morlet`→0.75 / `mexihat`→0.20 vs MATLAB 0.8125 / 0.25), so MATLAB's
 specific grid/discretization is load-bearing. Reference values are clean
 rationals (db4 5/7, db2 2/3, coif2 8/11; support = 2N−1) = `peak_bin /

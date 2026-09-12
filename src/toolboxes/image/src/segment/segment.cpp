@@ -4,12 +4,12 @@
 // Each entry is O(N) on the input. Composes with the cycle-22
 // bwlabel / regionprops infrastructure.
 
-#include <numkit/image/segment/segment.hpp>
-#include <numkit/image/filter/filter.hpp>
-#include <numkit/image/geom/geom.hpp>
+#include <nk/image/segment/segment.hpp>
+#include <nk/image/filter/filter.hpp>
+#include <nk/image/geom/geom.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -22,7 +22,7 @@
 #include <vector>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -33,7 +33,7 @@ void requireSameShape(const Value &A, const Value &B, const char *fn) {
         A.dims().rows() != B.dims().rows() ||
         A.dims().cols() != B.dims().cols())
         throw Error(std::string(fn) + ": inputs must have the same shape",
-                    0, 0, fn, "", "numkit:image:segment:shape");
+                    0, 0, fn, "", "nk:image:segment:shape");
 }
 
 } // anonymous
@@ -184,7 +184,7 @@ Value grayconnected(const Value &I, int row, int col, double tol, std::pmr::memo
     const int c0 = col - 1;
     if (r0 < 0 || r0 >= H || c0 < 0 || c0 >= W)
         throw Error("grayconnected: seed out of bounds",
-                    0, 0, "grayconnected", "", "numkit:grayconnected:seed");
+                    0, 0, "grayconnected", "", "nk:grayconnected:seed");
 
     // Auto-pick tolerance if caller passed a negative sentinel.
     if (tol < 0.0) {
@@ -255,11 +255,11 @@ Value graydiffweight(const Value &I, double ref_gray_val,
 {
     if (!(rolloff_factor > 0.0))
         throw Error("graydiffweight: RolloffFactor must be positive",
-                    0, 0, "graydiffweight", "", "numkit:graydiffweight:rolloff");
+                    0, 0, "graydiffweight", "", "nk:graydiffweight:rolloff");
     if (!(cutoff >= 0.0))
         throw Error("graydiffweight: GrayDifferenceCutoff must be "
                     "non-negative",
-                    0, 0, "graydiffweight", "", "numkit:graydiffweight:cutoff");
+                    0, 0, "graydiffweight", "", "nk:graydiffweight:cutoff");
 
     const ValueType outT = (I.type() == ValueType::SINGLE)
                           ? ValueType::SINGLE : ValueType::DOUBLE;
@@ -331,18 +331,18 @@ Value gradientweight(const Value &I, double sigma_x, double sigma_y,
     if (!(sigma_x > 0.0) || !std::isfinite(sigma_x)
      || !(sigma_y > 0.0) || !std::isfinite(sigma_y))
         throw Error("gradientweight: sigma must be positive and finite",
-                    0, 0, "gradientweight", "", "numkit:gradientweight:sigma");
+                    0, 0, "gradientweight", "", "nk:gradientweight:sigma");
     if (!(rolloff_factor > 0.0) || !std::isfinite(rolloff_factor))
         throw Error("gradientweight: RolloffFactor must be positive "
                     "and finite",
-                    0, 0, "gradientweight", "", "numkit:gradientweight:rolloff");
+                    0, 0, "gradientweight", "", "nk:gradientweight:rolloff");
     if (!(weight_cutoff >= 1e-3 && weight_cutoff <= 1.0))
         throw Error("gradientweight: WeightCutoff must be in [1e-3, 1]",
-                    0, 0, "gradientweight", "", "numkit:gradientweight:cutoff");
+                    0, 0, "gradientweight", "", "nk:gradientweight:cutoff");
     if (I.dims().is3D())
         throw Error("gradientweight: 3-D inputs not supported "
                     "(slice and call per page)",
-                    0, 0, "gradientweight", "", "numkit:gradientweight:dim");
+                    0, 0, "gradientweight", "", "nk:gradientweight:dim");
 
     const ValueType outT = (I.type() == ValueType::SINGLE)
                           ? ValueType::SINGLE : ValueType::DOUBLE;
@@ -493,18 +493,18 @@ Value regionfill(const Value &I, const Value &mask,
 {
     if (I.dims().is3D())
         throw Error("regionfill: I must be 2-D",
-                    0, 0, "regionfill", "", "numkit:regionfill:mustBe2D");
+                    0, 0, "regionfill", "", "nk:regionfill:mustBe2D");
     const std::size_t H = I.dims().rows();
     const std::size_t W = I.dims().cols();
     if (H < 3 || W < 3)
         throw Error("regionfill: I must be at least 3x3",
                     0, 0, "regionfill", "",
-                    "numkit:regionfill:mustBeLargerThan2by2");
+                    "nk:regionfill:mustBeLargerThan2by2");
     if (mask.dims().rows() != H || mask.dims().cols() != W
      || mask.dims().is3D())
         throw Error("regionfill: MASK must be 2-D and the same size as I",
                     0, 0, "regionfill", "",
-                    "numkit:regionfill:mustBeSameSizeAsI");
+                    "nk:regionfill:mustBeSameSizeAsI");
     const std::size_t N = H * W;
 
     // Convert mask to plain uint8 array (0/1) in column-major (matches
@@ -519,7 +519,7 @@ Value regionfill(const Value &I, const Value &mask,
             if (std::isnan(v))
                 throw Error("regionfill: MASK cannot contain NaN",
                             0, 0, "regionfill", "",
-                            "numkit:regionfill:maskNaN");
+                            "nk:regionfill:maskNaN");
             M[i] = (v != 0.0) ? 1 : 0;
         }
     }
@@ -740,7 +740,7 @@ Value poly2mask(const Value &X, const Value &Y,
     if (nx != ny)
         throw Error("poly2mask: X and Y must have the same length",
                     0, 0, "poly2mask", "",
-                    "numkit:poly2mask:vectorSizeMismatch");
+                    "nk:poly2mask:vectorSizeMismatch");
 
     Value BW = Value::matrix(M, N, ValueType::LOGICAL, mr);
     if (nx == 0 || M == 0 || N == 0) return BW;  // empty → all-false
@@ -802,7 +802,7 @@ Value roipoly(double xdata_lo, double xdata_hi,
 {
     if (xi.numel() != yi.numel())
         throw Error("roipoly: xi and yi must have the same length",
-                    0, 0, "roipoly", "", "numkit:roipoly:xiyiMustBeSameLength");
+                    0, 0, "roipoly", "", "nk:roipoly:xiyiMustBeSameLength");
 
     // Auto-close polygon.
     const std::size_t n0 = xi.numel();
@@ -859,14 +859,14 @@ Value graydist(const Value &I, const Value &seeds,
 {
     if (I.dims().is3D())
         throw Error("graydist: I must be 2-D",
-                    0, 0, "graydist", "", "numkit:graydist:dim");
+                    0, 0, "graydist", "", "nk:graydist:dim");
     const bool is_cb = (method == "cityblock");
     const bool is_chess = (method == "chessboard");
     const bool is_qe = (method == "quasi-euclidean");
     if (!is_cb && !is_chess && !is_qe)
         throw Error("graydist: METHOD must be 'cityblock', "
                     "'chessboard', or 'quasi-euclidean'",
-                    0, 0, "graydist", "", "numkit:graydist:method");
+                    0, 0, "graydist", "", "nk:graydist:method");
 
     const std::size_t H = I.dims().rows();
     const std::size_t W = I.dims().cols();
@@ -905,11 +905,11 @@ Value graydist(const Value &I, const Value &seeds,
         const double sv = seeds.elemAsDouble(k);
         if (!(sv >= 1) || sv != std::floor(sv))
             throw Error("graydist: seed indices must be positive integers",
-                        0, 0, "graydist", "", "numkit:graydist:seed");
+                        0, 0, "graydist", "", "nk:graydist:seed");
         const std::size_t idx = static_cast<std::size_t>(sv) - 1;
         if (idx >= N)
             throw Error("graydist: seed index out of bounds",
-                        0, 0, "graydist", "", "numkit:graydist:seedOOB");
+                        0, 0, "graydist", "", "nk:graydist:seedOOB");
         dist[idx] = 0.0;
         pq.emplace(0.0, idx);
     }
@@ -994,7 +994,7 @@ Value bwdistgeodesic(const Value &BW, const Value &seeds,
     if (BW.dims().is3D())
         throw Error("bwdistgeodesic: BW must be 2-D",
                     0, 0, "bwdistgeodesic", "",
-                    "numkit:bwdistgeodesic:dim");
+                    "nk:bwdistgeodesic:dim");
     const bool is_cb = (method == "cityblock");
     const bool is_chess = (method == "chessboard");
     const bool is_qe = (method == "quasi-euclidean");
@@ -1002,7 +1002,7 @@ Value bwdistgeodesic(const Value &BW, const Value &seeds,
         throw Error("bwdistgeodesic: METHOD must be 'cityblock', "
                     "'chessboard', or 'quasi-euclidean'",
                     0, 0, "bwdistgeodesic", "",
-                    "numkit:bwdistgeodesic:method");
+                    "nk:bwdistgeodesic:method");
 
     const std::size_t H = BW.dims().rows();
     const std::size_t W = BW.dims().cols();
@@ -1043,16 +1043,16 @@ Value bwdistgeodesic(const Value &BW, const Value &seeds,
             throw Error("bwdistgeodesic: seed indices must be positive "
                         "integers",
                         0, 0, "bwdistgeodesic", "",
-                        "numkit:bwdistgeodesic:seed");
+                        "nk:bwdistgeodesic:seed");
         const std::size_t idx = static_cast<std::size_t>(sv) - 1;
         if (idx >= N)
             throw Error("bwdistgeodesic: seed index out of bounds",
                         0, 0, "bwdistgeodesic", "",
-                        "numkit:bwdistgeodesic:seedOOB");
+                        "nk:bwdistgeodesic:seedOOB");
         if (!mask[idx])
             throw Error("bwdistgeodesic: seed must lie on a true pixel",
                         0, 0, "bwdistgeodesic", "",
-                        "numkit:bwdistgeodesic:seedFalse");
+                        "nk:bwdistgeodesic:seedFalse");
         dist[idx] = 0.0;
         pq.emplace(0.0, idx);
     }
@@ -1118,12 +1118,12 @@ Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::m
 {
     if (color.numel() != 3)
         throw Error("imoverlay: color must be a 1×3 RGB triple",
-                    0, 0, "imoverlay", "", "numkit:imoverlay:color");
+                    0, 0, "imoverlay", "", "nk:imoverlay:color");
     const size_t H = I.dims().rows();
     const size_t W = I.dims().cols();
     if (BW.dims().rows() != H || BW.dims().cols() != W)
         throw Error("imoverlay: BW must match the H × W of I",
-                    0, 0, "imoverlay", "", "numkit:imoverlay:shape");
+                    0, 0, "imoverlay", "", "nk:imoverlay:shape");
 
     // Detect input layout: H × W (grayscale) or H × W × 3 (RGB).
     bool isRGB;
@@ -1131,7 +1131,7 @@ Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::m
     else if (I.numel() == H * W * 3) isRGB = true;
     else
         throw Error("imoverlay: I must be H × W or H × W × 3",
-                    0, 0, "imoverlay", "", "numkit:imoverlay:shape");
+                    0, 0, "imoverlay", "", "nk:imoverlay:shape");
 
     // Read color. Auto-detect float (0..1) vs byte (0..255) by max
     // value: if all three channels ≤ 1.0 we assume 0..1, else 0..255.
@@ -1270,10 +1270,10 @@ Value reducepoly(const Value &P, double tolerance, std::pmr::memory_resource *mr
     const auto &d = P.dims();
     if (d.ndim() > 2 || (d.cols() != 2 && P.numel() != 0))
         throw Error("reducepoly: P must be an n-by-2 matrix",
-                    0, 0, "reducepoly", "", "numkit:reducepoly:shape");
+                    0, 0, "reducepoly", "", "nk:reducepoly:shape");
     if (tolerance < 0.0 || tolerance > 1.0)
         throw Error("reducepoly: tolerance must be in [0, 1]",
-                    0, 0, "reducepoly", "", "numkit:reducepoly:tol");
+                    0, 0, "reducepoly", "", "nk:reducepoly:tol");
 
     const int n = static_cast<int>(d.rows());
     const ValueType cls = P.type();
@@ -1319,4 +1319,4 @@ Value reducepoly(const Value &P, double tolerance, std::pmr::memory_resource *mr
     return out;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

@@ -1,6 +1,6 @@
 clear
 
-% ifft2(X, 'symmetric') (DEEP-PROBE 2026-05-31). Previously numkit threw
+% ifft2(X, 'symmetric') (DEEP-PROBE 2026-05-31). Previously nk threw
 % "Cannot convert char to scalar" (the flag was parsed as a size arg). MATLAB
 % treats X as conjugate-symmetric so the 2-D inverse is EXACTLY REAL. This
 % decomposes into the 1-D ifft 'symmetric' over each dim of length > 1 — note

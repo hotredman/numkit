@@ -3,16 +3,16 @@
 // freqz / phasez / grpdelay (frequency-domain analysis of an existing
 // filter) live in filter_analysis/frequency_response.cpp.
 
-#include <numkit/signal/filter_design/filter_design.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/builtin/polyfun.hpp>  // tf2zp (ZPK 3-output)
+#include <nk/signal/filter_design/filter_design.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/builtin/polyfun.hpp>  // tf2zp (ZPK 3-output)
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include "../dsp_helpers.hpp"           // Complex typedef
-#include <numkit/ops/poly_helpers.hpp>             // polyExpandFromRoots
+#include <nk/ops/poly_helpers.hpp>             // polyExpandFromRoots
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -23,7 +23,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -50,7 +50,7 @@ ScratchVec<Complex> butterworthPoles(int N, std::pmr::memory_resource *mr)
     return poles;
 }
 
-using numkit::ops::polyExpandFromRoots;
+using nk::ops::polyExpandFromRoots;
 
 // Bilinear-transform helper: take an arbitrary set of analog poles and
 // zeros (already pre-warped + frequency-transformed) and produce the
@@ -105,10 +105,10 @@ butter(int N, double Wn, const std::string &type, std::pmr::memory_resource *mr)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw Error("butter: Wn must be between 0 and 1",
-                     0, 0, "butter", "", "numkit:butter:badWn");
+                     0, 0, "butter", "", "nk:butter:badWn");
     if (type != "low" && type != "high")
         throw Error("butter: type must be 'low' or 'high'",
-                     0, 0, "butter", "", "numkit:butter:badType");
+                     0, 0, "butter", "", "nk:butter:badType");
 
     // Pre-warp the digital cutoff to the analog domain.
     const double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
@@ -220,7 +220,7 @@ Value firls(int N, const Value &Farg, const Value &Aarg,
 {
     if (N < 2 || (N % 2) != 0)
         throw Error("firls: filter order must be even (Type-I) and >= 2",
-                    0, 0, "firls", "", "numkit:firls:badOrder");
+                    0, 0, "firls", "", "nk:firls:badOrder");
 
     ScratchArena scratch(mr);
     auto Fv = valueToDoubleRow(Farg, scratch);
@@ -232,18 +232,18 @@ Value firls(int N, const Value &Farg, const Value &Aarg,
 
     if (Fn == 0 || Fn != An)
         throw Error("firls: F and A must have the same non-empty length",
-                    0, 0, "firls", "", "numkit:firls:badLen");
+                    0, 0, "firls", "", "nk:firls:badLen");
     if ((Fn % 2) != 0)
         throw Error("firls: F must have even length (band-edge pairs)",
-                    0, 0, "firls", "", "numkit:firls:badLen");
+                    0, 0, "firls", "", "nk:firls:badLen");
     for (std::size_t i = 0; i < Fn; ++i)
         if (F[i] < 0.0 || F[i] > 1.0)
             throw Error("firls: F values must be in [0, 1]",
-                        0, 0, "firls", "", "numkit:firls:badF");
+                        0, 0, "firls", "", "nk:firls:badF");
     for (std::size_t i = 1; i < Fn; ++i)
         if (F[i] < F[i - 1])
             throw Error("firls: F must be non-decreasing",
-                        0, 0, "firls", "", "numkit:firls:badF");
+                        0, 0, "firls", "", "nk:firls:badF");
 
     const std::size_t M = static_cast<std::size_t>(N / 2);
     const std::size_t M1 = M + 1;
@@ -287,7 +287,7 @@ Value firls(int N, const Value &Farg, const Value &Aarg,
     ScratchVec<double> c(M1, 0.0, &scratch);
     if (!solveSPD(Q.data(), M1, bvec.data(), c.data(), &scratch))
         throw Error("firls: Q matrix is not positive-definite",
-                    0, 0, "firls", "", "numkit:firls:singular");
+                    0, 0, "firls", "", "nk:firls:singular");
 
     // Reconstruct symmetric impulse response of length N+1.
     // c[0] is the center coefficient h[M]; c[k] for k>=1 is 2·h[M-k].
@@ -306,10 +306,10 @@ Value fir1(int N, double Wn, const std::string &type, std::pmr::memory_resource 
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw Error("fir1: Wn must be between 0 and 1",
-                     0, 0, "fir1", "", "numkit:fir1:badWn");
+                     0, 0, "fir1", "", "nk:fir1:badWn");
     if (type != "low" && type != "high")
         throw Error("fir1: type must be 'low' or 'high'",
-                     0, 0, "fir1", "", "numkit:fir1:badType");
+                     0, 0, "fir1", "", "nk:fir1:badType");
 
     const size_t filtLen = N + 1;
     const double wc = M_PI * Wn;
@@ -357,7 +357,7 @@ cell2sos(const Value &C, std::pmr::memory_resource *mr)
 {
     if (!C.isCell())
         throw Error("cell2sos: input must be a cell array",
-                    0, 0, "cell2sos", "", "numkit:cell2sos:NotCell");
+                    0, 0, "cell2sos", "", "nk:cell2sos:NotCell");
     const std::size_t L = C.numel();
     if (L == 0) {
         Value empty = Value::matrix(0, 6, ValueType::DOUBLE, mr);
@@ -395,12 +395,12 @@ cell2sos(const Value &C, std::pmr::memory_resource *mr)
         const Value &pair = C.cellAt(startIdx + i);
         if (!pair.isCell() || pair.numel() != 2)
             throw Error("cell2sos: each cell must be {B, A} pair",
-                        0, 0, "cell2sos", "", "numkit:cell2sos:BadPair");
+                        0, 0, "cell2sos", "", "nk:cell2sos:BadPair");
         const Value &bv = pair.cellAt(0);
         const Value &av = pair.cellAt(1);
         if (bv.numel() > 3 || av.numel() > 3)
             throw Error("cell2sos: each B/A must have at most 3 elements",
-                        0, 0, "cell2sos", "", "numkit:cell2sos:OrderTooHigh");
+                        0, 0, "cell2sos", "", "nk:cell2sos:OrderTooHigh");
         for (std::size_t k = 0; k < bv.numel(); ++k)
             Sd[i + k * outRows] = bv.elemAsDouble(k);
         for (std::size_t k = 0; k < av.numel(); ++k)
@@ -455,8 +455,8 @@ Value fir2(int n, const Value &f, const Value &m,
 
     // ── 1. Validate n ──────────────────────────────────────────────────
     if (n <= 0)
-        throw numkit::Error("n must be a positive integer.", 0, 0, "fir2", "",
-                            "numkit:fir2:BadN");
+        throw nk::Error("n must be a positive integer.", 0, 0, "fir2", "",
+                            "nk:fir2:BadN");
 
     // ── 2. Read and validate f, m ──────────────────────────────────────
     ScratchVec<double> fv(0, &arena), mv(0, &arena);
@@ -464,26 +464,26 @@ Value fir2(int n, const Value &f, const Value &m,
     readVec(m, mv);
 
     if (fv.size() != mv.size())
-        throw numkit::Error("The frequency and magnitude vectors must be the "
+        throw nk::Error("The frequency and magnitude vectors must be the "
                             "same length.",
-                            0, 0, "fir2", "", "numkit:fir2:MismatchedDimensions");
+                            0, 0, "fir2", "", "nk:fir2:MismatchedDimensions");
     if (fv.size() < 2)
-        throw numkit::Error("The frequency vector must have at least 2 "
+        throw nk::Error("The frequency vector must have at least 2 "
                             "elements.",
-                            0, 0, "fir2", "", "numkit:fir2:BadFLen");
+                            0, 0, "fir2", "", "nk:fir2:BadFLen");
 
     const size_t nf = fv.size();
 
     // f must start at 0 and end at 1.
     if (fv[0] != 0.0 || fv[nf - 1] != 1.0)
-        throw numkit::Error("The first frequency must be 0 and the last 1.",
-                            0, 0, "fir2", "", "numkit:fir2:InvalidRange");
+        throw nk::Error("The first frequency must be 0 and the last 1.",
+                            0, 0, "fir2", "", "nk:fir2:InvalidRange");
 
     // f must be non-decreasing.
     for (size_t i = 1; i < nf; ++i) {
         if (fv[i] < fv[i - 1])
-            throw numkit::Error("Frequencies must be non-decreasing.", 0, 0,
-                                "fir2", "", "numkit:fir2:InvalidFreqVec");
+            throw nk::Error("Frequencies must be non-decreasing.", 0, 0,
+                                "fir2", "", "nk:fir2:InvalidFreqVec");
     }
 
     // ── 3. Odd-order correction (spec §2.1) ────────────────────────────
@@ -501,9 +501,9 @@ Value fir2(int n, const Value &f, const Value &m,
     if (!nptDefaulted) {
         // A user-supplied npt must satisfy 2*npt >= nn.
         if (2 * npt < nn)
-            throw numkit::Error("The number of grid points must be greater "
+            throw nk::Error("The number of grid points must be greater "
                                 "than or equal to ceil(nn/2).",
-                                0, 0, "fir2", "", "numkit:fir2:InvalidNpt");
+                                0, 0, "fir2", "", "nk:fir2:InvalidNpt");
     } else {
         // Defaulted: grow the request if the filter is longer than 2*512.
         if (2 * npt < nn)
@@ -527,8 +527,8 @@ Value fir2(int n, const Value &f, const Value &m,
     // Helper: range-checked 1-based store into H.
     auto putH = [&](int j1, double val) {
         if (j1 < 1 || j1 > npt1)
-            throw numkit::Error("Internal grid index out of range.", 0, 0,
-                                "fir2", "", "numkit:fir2:SignalErr");
+            throw nk::Error("Internal grid index out of range.", 0, 0,
+                                "fir2", "", "nk:fir2:SignalErr");
         H[j1 - 1] = Complex(val, 0.0);
     };
 
@@ -548,8 +548,8 @@ Value fir2(int n, const Value &f, const Value &m,
         }
 
         if (nb < 1 || ne > npt1)
-            throw numkit::Error("Internal grid index out of range.", 0, 0,
-                                "fir2", "", "numkit:fir2:SignalErr");
+            throw nk::Error("Internal grid index out of range.", 0, 0,
+                                "fir2", "", "nk:fir2:SignalErr");
 
         for (int j = nb; j <= ne; ++j) {
             double inc;
@@ -594,9 +594,9 @@ Value fir2(int n, const Value &f, const Value &m,
     ScratchVec<double> win(0, &arena);
     if (!opts.window.isEmpty()) {
         if (static_cast<int>(opts.window.numel()) != nn)
-            throw numkit::Error("The window length must equal the filter "
+            throw nk::Error("The window length must equal the filter "
                                 "length.",
-                                0, 0, "fir2", "", "numkit:fir2:BadWindow");
+                                0, 0, "fir2", "", "nk:fir2:BadWindow");
         readVec(opts.window, win);
     } else {
         win.resize(static_cast<size_t>(nn));
@@ -675,7 +675,7 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
 {
     if (N < 3)
         throw Error("Filter order must be 3 or more",
-                    0, 0, "firpm", "", "numkit:firpm:badOrder");
+                    0, 0, "firpm", "", "nk:firpm:badOrder");
 
     ScratchArena arena(mr);
     auto Fv = valueToDoubleRow(Farg, arena);
@@ -690,19 +690,19 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
 
     if (Fn == 0 || Fn != An || (Fn % 2) != 0)
         throw Error("firpm: F and A must be non-empty equal-length even-length",
-                    0, 0, "firpm", "", "numkit:firpm:badLen");
+                    0, 0, "firpm", "", "nk:firpm:badLen");
     const std::size_t numBands = Fn / 2;
     if (W != nullptr && Wn != numBands)
         throw Error("firpm: W must have one weight per band",
-                    0, 0, "firpm", "", "numkit:firpm:badW");
+                    0, 0, "firpm", "", "nk:firpm:badW");
     for (std::size_t i = 0; i < Fn; ++i)
         if (F[i] < 0.0 || F[i] > 1.0)
             throw Error("firpm: F values must be in [0, 1]",
-                        0, 0, "firpm", "", "numkit:firpm:badF");
+                        0, 0, "firpm", "", "nk:firpm:badF");
     for (std::size_t i = 1; i < Fn; ++i)
         if (F[i] < F[i - 1])
             throw Error("firpm: F must be non-decreasing",
-                        0, 0, "firpm", "", "numkit:firpm:badF");
+                        0, 0, "firpm", "", "nk:firpm:badF");
 
     // Identify the linear-phase FIR type:
     //   Type I  (even N, symmetric)       H(ω) = Σ a[k]·cos(kω)
@@ -729,7 +729,7 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
     const bool antiSym     = isHilbert || isDiff;
     if (!ftype.empty() && !isHilbert && !isDiff)
         throw Error("firpm: ftype must be 'hilbert' or 'differentiator'",
-                    0, 0, "firpm", "", "numkit:firpm:badFtype");
+                    0, 0, "firpm", "", "nk:firpm:badFtype");
     enum { TYPE_I = 1, TYPE_II = 2, TYPE_III = 3, TYPE_IV = 4 } ;
     int filterType;
     if (!antiSym) filterType = (N % 2 == 0) ? TYPE_I  : TYPE_II;
@@ -751,7 +751,7 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
         totalWidth += F[2 * k + 1] - F[2 * k];
     if (totalWidth <= 0.0)
         throw Error("firpm: all bands have zero width",
-                    0, 0, "firpm", "", "numkit:firpm:badF");
+                    0, 0, "firpm", "", "nk:firpm:badF");
 
     const std::size_t gridTarget =
         static_cast<std::size_t>(lgrid) * (L + 2);
@@ -767,7 +767,7 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
         const double wt = (W ? W[k] : 1.0);
         if (wt <= 0.0)
             throw Error("firpm: weights must be positive",
-                        0, 0, "firpm", "", "numkit:firpm:badW");
+                        0, 0, "firpm", "", "nk:firpm:badW");
         std::size_t nb = static_cast<std::size_t>(
             std::ceil(double(gridTarget) * bw / totalWidth));
         if (nb < 4) nb = 4;
@@ -825,7 +825,7 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
     }
     if (grid.size() < nExtr + 1)
         throw Error("firpm: dense grid too small for filter order",
-                    0, 0, "firpm", "", "numkit:firpm:internal");
+                    0, 0, "firpm", "", "nk:firpm:internal");
 
     // Initial extremals — distribute proportionally to band widths so
     // every band gets at least 2 candidates (its edges) and wider bands
@@ -1180,4 +1180,4 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
 }
 
 
-} // namespace numkit::signal
+} // namespace nk::signal

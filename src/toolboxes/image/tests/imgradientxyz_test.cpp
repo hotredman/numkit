@@ -5,10 +5,10 @@
 // from MATLAB R2025b (Sobel uses the [1,3,3,1]-weighted 3x3x3 kernel,
 // not naive [1,2,1] extension).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImgradientxyzTest : public ::testing::Test
 {

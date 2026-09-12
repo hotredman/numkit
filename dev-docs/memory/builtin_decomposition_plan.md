@@ -1,7 +1,7 @@
 # Architecture Plan: Decomposing `builtin_library.cpp` into `src/builtin/`
 
 ## Context & Objectives
-The standard library built-ins in Numkit are currently registered primarily through a 4390-line monolithic file [`src/bundle/src/builtin_library.cpp`](file:///c:/Users/User/Projects/megahard/numkit/src/bundle/src/builtin_library.cpp) and scattered adapters in `src/bundle/src/register/`.
+The standard library built-ins in NK are currently registered primarily through a 4390-line monolithic file [`src/bundle/src/builtin_library.cpp`](file:///c:/Users/User/Projects/megahard/nk/src/bundle/src/builtin_library.cpp) and scattered adapters in `src/bundle/src/register/`.
 
 To achieve full modularity and exact parity with MATLAB's standard library organization (`elmat`, `elfun`, `matfun`, `datafun`, `specfun`, `polyfun`, `strfun`, `timefun`, `datatypes`, `iofun`, `general`, `ops`, `lang`), we are decomposing this monolith into a dedicated, flat `src/builtin/` directory.
 
@@ -13,7 +13,7 @@ To achieve full modularity and exact parity with MATLAB's standard library organ
 src/builtin/
 ├── CMakeLists.txt                    # Registers all builtin sources, headers, and tests
 │
-├── include/numkit/builtin/
+├── include/nk/builtin/
 │   ├── builtin.hpp                   # Master installer: BuiltinLibrary::install(Engine &)
 │   ├── elmat.hpp                     # void register_elmat(Engine &engine);
 │   ├── elfun.hpp                     # void register_elfun(Engine &engine);
@@ -46,7 +46,7 @@ src/builtin/
 │   └── lang.cpp                      # nargin, nargout, inputname, eval, evalin, feval, builtin, error, warning...
 │
 └── tests/
-    ├── CMakeLists.txt                # Adds test TUs via target_sources(numkit_gtest PRIVATE ...)
+    ├── CMakeLists.txt                # Adds test TUs via target_sources(nk_gtest PRIVATE ...)
     ├── elmat_test.cpp
     ├── elfun_test.cpp
     ├── matfun_test.cpp
@@ -89,28 +89,28 @@ src/builtin/
 ## Step-by-Step Execution Roadmap for the Next Agent
 
 1. **Create `src/builtin/CMakeLists.txt`**:
-   * Collect `NUMKIT_BUILTIN_SOURCES`, `NUMKIT_BUILTIN_HEADERS`, and `NUMKIT_BUILTIN_INCLUDE_DIRS`.
+   * Collect `NK_BUILTIN_SOURCES`, `NK_BUILTIN_HEADERS`, and `NK_BUILTIN_INCLUDE_DIRS`.
    * Export to `PARENT_SCOPE`.
    * Include `tests/CMakeLists.txt`.
 
 2. **Wire `src/builtin/` into Root `CMakeLists.txt`**:
    * Add `add_subdirectory(src/builtin)`.
-   * Add `NUMKIT_BUILTIN_INCLUDE_DIRS` to layer validation check.
-   * Add `numkit_builtin_obj` to `NUMKIT_LAYER_OBJECTS`.
+   * Add `NK_BUILTIN_INCLUDE_DIRS` to layer validation check.
+   * Add `nk_builtin_obj` to `NK_LAYER_OBJECTS`.
 
 3. **Migrate Each Module One by One**:
    * For each category:
-     * Create `src/builtin/include/numkit/builtin/<category>.hpp` declaring `void register_<category>(Engine &engine);`.
+     * Create `src/builtin/include/nk/builtin/<category>.hpp` declaring `void register_<category>(Engine &engine);`.
      * Create `src/builtin/src/<category>.cpp` moving the implementations from `builtin_library.cpp`.
      * Create `src/builtin/tests/<category>_test.cpp` with unit tests checking functions and MATLAB parity.
-     * Run `cmake --build --preset=desktop-fast --target numkit_gtest && build\desktop-fast\tests\gtest\Release\numkit_gtest.exe --gtest_filter=<Category>Test.*`.
+     * Run `cmake --build --preset=desktop-fast --target nk_gtest && build\desktop-fast\tests\gtest\Release\nk_gtest.exe --gtest_filter=<Category>Test.*`.
 
 4. **Replace Monolithic `builtin_library.cpp` with `src/builtin/src/builtin.cpp`**:
    * Implement `BuiltinLibrary::install(Engine &engine)` to simply invoke `register_<category>(engine)` for all 13 categories.
 
 5. **Verify Full Build and Run All Tests**:
-   * Full gtest suite: `numkit_gtest.exe`.
-   * Interpreter smoke test: `numkit_repl.exe --compat examples/Basics/help_system_demo.m`.
+   * Full gtest suite: `nk_gtest.exe`.
+   * Interpreter smoke test: `nk_repl.exe --compat examples/Basics/help_system_demo.m`.
    * Build web and desktop: `scripts\desktop-build.bat --no-package && scripts\web-build.bat && scripts\publish-pages.bat --skip-build --push`.
 
 ---
@@ -125,7 +125,7 @@ src/builtin/
 ## Implementation & Migration Record (Completed)
 
 ### Summary of Changes
-- Created `src/builtin/` tree with headers in `include/numkit/builtin/`, source files in `src/`, and test suites in `tests/`.
+- Created `src/builtin/` tree with headers in `include/nk/builtin/`, source files in `src/`, and test suites in `tests/`.
 - Decomposed monolithic registration into 13 cleanly structured modules + 1 facade (`builtin.cpp`):
   1. `elmat` (elementary matrices, manipulation, creation)
   2. `elfun` (elementary math, trig, exp, log, complex, rounding)

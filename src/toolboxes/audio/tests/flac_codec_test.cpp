@@ -4,8 +4,8 @@
 #include <cmath>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::audio;
+using namespace nk;
+using namespace nk::audio;
 
 namespace {
 

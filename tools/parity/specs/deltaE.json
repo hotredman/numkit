@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: D = deltaE(I1, I2). KNOWN GAP: numkit's deltaE output dimensions differ from MATLAB. Only structural numel pinned. Documented as separate \u0422\u0417."
+  "comment": "Sig: D = deltaE(I1, I2). KNOWN GAP: nk's deltaE output dimensions differ from MATLAB. Only structural numel pinned. Documented as separate \u0422\u0417."
 }

@@ -4,11 +4,11 @@
 //   inpolygon — point-in-polygon test (ray-casting)
 //   convhull  — convex hull of a 2-D point cloud (Andrew's monotone chain)
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -20,7 +20,7 @@
 #include <sstream>
 #include <vector>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 
 // ── polyarea (public C++ API) ────────────────────────────────────────
@@ -30,7 +30,7 @@ Value polyarea(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const std::size_t n = x.numel();
     if (y.numel() != n)
         throw Error("polyarea: x and y must have the same numel",
-                     0, 0, "polyarea", "", "numkit:polyarea:shape");
+                     0, 0, "polyarea", "", "nk:polyarea:shape");
     if (n < 3)
         return Value::scalar(0.0, mr);
     double s = 0;
@@ -49,10 +49,10 @@ Value inpolygon(const Value &xq, const Value &yq, const Value &xv,
 {
     if (xq.numel() != yq.numel())
         throw Error("inpolygon: xq and yq must have the same numel",
-                     0, 0, "inpolygon", "", "numkit:inpolygon:queryShape");
+                     0, 0, "inpolygon", "", "nk:inpolygon:queryShape");
     if (xv.numel() != yv.numel())
         throw Error("inpolygon: xv and yv must have the same numel",
-                     0, 0, "inpolygon", "", "numkit:inpolygon:polyShape");
+                     0, 0, "inpolygon", "", "nk:inpolygon:polyShape");
     const std::size_t nQ = xq.numel();
     const std::size_t nV = xv.numel();
     auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
@@ -95,7 +95,7 @@ Value convhull(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const std::size_t n = x.numel();
     if (y.numel() != n)
         throw Error("convhull: x and y must have the same numel",
-                     0, 0, "convhull", "", "numkit:convhull:shape");
+                     0, 0, "convhull", "", "nk:convhull:shape");
     if (n < 3) {
         // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
         auto out = Value::matrix(n + 1, 1, ValueType::DOUBLE, mr);
@@ -152,7 +152,7 @@ Value boundary(const Value &x, const Value &y, double shrink,
     const std::size_t n = x.numel();
     if (y.numel() != n)
         throw Error("boundary: x and y must have the same numel",
-                     0, 0, "boundary", "", "numkit:boundary:shape");
+                     0, 0, "boundary", "", "nk:boundary:shape");
     if (!std::isfinite(shrink)) shrink = 0.0;
     if (shrink < 0) shrink = 0;
     if (shrink > 1) shrink = 1;
@@ -267,7 +267,7 @@ Value delaunay(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const std::size_t n = x.numel();
     if (y.numel() != n)
         throw Error("delaunay: x and y must have the same numel",
-                     0, 0, "delaunay", "", "numkit:delaunay:shape");
+                     0, 0, "delaunay", "", "nk:delaunay:shape");
     if (n < 3)
         return Value::matrix(0, 3, ValueType::DOUBLE, mr);
 
@@ -344,10 +344,10 @@ Value griddata(const Value &x, const Value &y, const Value &v,
     const std::size_t n = x.numel();
     if (y.numel() != n || v.numel() != n)
         throw Error("griddata: x, y, v must have the same numel",
-                     0, 0, "griddata", "", "numkit:griddata:shape");
+                     0, 0, "griddata", "", "nk:griddata:shape");
     if (xq.numel() != yq.numel())
         throw Error("griddata: xq and yq must have the same numel",
-                     0, 0, "griddata", "", "numkit:griddata:queryShape");
+                     0, 0, "griddata", "", "nk:griddata:queryShape");
     auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
                              ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -431,7 +431,7 @@ Value griddata(const Value &x, const Value &y, const Value &v,
                std::pmr::memory_resource *mr)
 {
     if (method != "linear")
-        throw Error("griddata: method must be 'linear'", 0, 0, "griddata", "", "numkit:griddata:badMethod");
+        throw Error("griddata: method must be 'linear'", 0, 0, "griddata", "", "nk:griddata:badMethod");
     return griddata(x, y, v, xq, yq, mr);
 }
 
@@ -488,7 +488,7 @@ Value histcounts2(const Value &x, const Value &y, const Value &xedgesV,
 
 // ── griddatan ────────────────────────────────────────────────────────
 //
-// See header (toolboxes/builtin/include/numkit/builtin/math/geom/geom.hpp)
+// See header (toolboxes/builtin/include/nk/builtin/math/geom/geom.hpp)
 // for the public C++ API + Doxygen. This source unit hosts the
 // implementation plus its adapter.
 
@@ -502,12 +502,12 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
     const std::size_t n = Xv.dims().cols();
     if (vv.numel() != m)
         throw Error("griddatan: length(v) must equal rows(X)",
-                     0, 0, "griddatan", "", "numkit:griddatan:shape");
+                     0, 0, "griddatan", "", "nk:griddatan:shape");
     const std::size_t k    = xi.dims().rows();
     const std::size_t nQry = xi.dims().cols();
     if (nQry != n)
         throw Error("griddatan: cols(xi) must equal cols(X)",
-                     0, 0, "griddatan", "", "numkit:griddatan:queryDim");
+                     0, 0, "griddatan", "", "nk:griddatan:queryDim");
     auto out = Value::matrix(k, 1, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
@@ -543,7 +543,7 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
                         "'nearest' for higher dimensions; N-D Delaunay "
                         "is a v1 KNOWN GAP)",
                          0, 0, "griddatan", "",
-                         "numkit:griddatan:linearNDUnsupported");
+                         "nk:griddatan:linearNDUnsupported");
         // Delegate to griddata-style barycentric. Repack: X(:,1) = x,
         // X(:,2) = y, then reuse the brute-force logic by constructing
         // a temporary call.
@@ -616,7 +616,7 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
 
     throw Error("griddatan: unknown method '" + method
                 + "' (supported: 'linear', 'nearest')",
-                 0, 0, "griddatan", "", "numkit:griddatan:badMethod");
+                 0, 0, "griddatan", "", "nk:griddatan:badMethod");
 }
 
 Value griddatan(const Value &Xv, const Value &vv, const Value &xi, std::pmr::memory_resource *mr)
@@ -627,7 +627,7 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi, std::pmr::mem
 
 // ── matchpairs — linear assignment / bipartite matching ─────────────
 //
-// See header (toolboxes/builtin/include/numkit/builtin/math/geom/geom.hpp)
+// See header (toolboxes/builtin/include/nk/builtin/math/geom/geom.hpp)
 // for the public C++ API + Doxygen.
 //
 // Algorithm: classical O(N²·M) Jonker-Volgenant Hungarian on the
@@ -654,12 +654,12 @@ MatchpairsResult matchpairs(const Value &C, double cU,
 {
     if (C.type() == ValueType::COMPLEX)
         throw Error("matchpairs: complex Cost not supported",
-                     0, 0, "matchpairs", "", "numkit:matchpairs:complex");
+                     0, 0, "matchpairs", "", "nk:matchpairs:complex");
     bool maximise = false;
     if (mode == "max") maximise = true;
     else if (!mode.empty() && mode != "min")
         throw Error("matchpairs: mode must be 'min' or 'max'",
-                     0, 0, "matchpairs", "", "numkit:matchpairs:badMode");
+                     0, 0, "matchpairs", "", "nk:matchpairs:badMode");
 
     const std::size_t rows = C.dims().rows();
     const std::size_t cols = C.dims().cols();
@@ -791,4 +791,4 @@ MatchpairsResult matchpairs(const Value &C, double cU,
 }
 
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

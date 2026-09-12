@@ -3,17 +3,17 @@
 // CallContext register half of distributions/beta.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/stats/distributions/beta.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/stats/distributions/beta.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/beta_detail.hpp"
 #include "distributions/dist_helpers.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,14 +25,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("betapdf: requires (x, a, b)", 0, 0, "betapdf", "", "numkit:betapdf:nargin");
+        throw Error("betapdf: requires (x, a, b)", 0, 0, "betapdf", "", "nk:betapdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &a = args[1];
     const Value &b = args[2];
@@ -47,7 +47,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
     if (a0.size() < 3)
-        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "numkit:betacdf:nargin");
+        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "nk:betacdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &a = a0[1];
     const Value &b = a0[2];
@@ -68,7 +68,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                 if (xi >= 1.0) return 1.0;
                 return xi;
             }, mr);
-            v = ::numkit::builtin::betainc(xc, a, b, mr);
+            v = ::nk::builtin::betainc(xc, a, b, mr);
         }
     }
     if (upper) applyUpperInPlace(v);
@@ -78,7 +78,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("betainv: requires (p, a, b)", 0, 0, "betainv", "", "numkit:betainv:nargin");
+        throw Error("betainv: requires (p, a, b)", 0, 0, "betainv", "", "nk:betainv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = args[0];
     const Value &a = args[1];
@@ -95,13 +95,13 @@ void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         return;
     }
     dist_match_numel({np, na, nb}, "betainv");
-    outs[0] = ::numkit::builtin::betaincinv(p, a, b, mr);
+    outs[0] = ::nk::builtin::betaincinv(p, a, b, mr);
 }
 
 void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("betarnd: requires (a, b[, sz...])", 0, 0, "betarnd", "", "numkit:betarnd:nargin");
+        throw Error("betarnd: requires (a, b[, sz...])", 0, 0, "betarnd", "", "nk:betarnd:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     size_t rows, cols;
@@ -117,4 +117,4 @@ void betastat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

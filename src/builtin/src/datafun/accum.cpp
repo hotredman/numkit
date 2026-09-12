@@ -2,11 +2,11 @@
 //
 // accumarray — group-by reduction algorithm.
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/value_type.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/value_type.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,7 +16,7 @@
 #include <memory_resource>
 #include <string>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -25,15 +25,15 @@ size_t toSubIndex(double v, size_t maxAllowed, const char *fn)
 {
     if (!std::isfinite(v) || v < 1.0)
         throw Error(std::string(fn) + ": subscripts must be positive integers",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":subRange");
+                     0, 0, fn, "", std::string("nk:") + fn + ":subRange");
     const double rounded = std::round(v);
     if (std::abs(v - rounded) > 1e-9)
         throw Error(std::string(fn) + ": subscripts must be integer-valued",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":subInt");
+                     0, 0, fn, "", std::string("nk:") + fn + ":subInt");
     const size_t idx = static_cast<size_t>(rounded);
     if (maxAllowed > 0 && idx > maxAllowed)
         throw Error(std::string(fn) + ": subscript exceeds output dimension",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":subOOB");
+                     0, 0, fn, "", std::string("nk:") + fn + ":subOOB");
     return idx;
 }
 
@@ -77,7 +77,7 @@ ScratchVec<size_t> resolveOutShape(const Value &subs, const size_t *userShape,
     if (nUserShape > 0) {
         if (nUserShape < D)
             throw Error(std::string(fn) + ": sz length must be at least size(subs, 2)",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":sizeRank");
+                         0, 0, fn, "", std::string("nk:") + fn + ":sizeRank");
         ScratchVec<size_t> out(userShape, userShape + nUserShape, mr);
         return out;
     }
@@ -139,15 +139,15 @@ Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outSha
 
     if (subs.type() != ValueType::DOUBLE)
         throw Error("accumarray: subs must be DOUBLE",
-                     0, 0, fn, "", "numkit:accumarray:subType");
+                     0, 0, fn, "", "nk:accumarray:subType");
     if (vals.type() != ValueType::DOUBLE)
         throw Error("accumarray: vals must be DOUBLE",
-                     0, 0, fn, "", "numkit:accumarray:valType");
+                     0, 0, fn, "", "nk:accumarray:valType");
 
     const auto &sd = subs.dims();
     if (sd.ndim() > 2)
         throw Error("accumarray: subs must be a 2D matrix",
-                     0, 0, fn, "", "numkit:accumarray:subND");
+                     0, 0, fn, "", "nk:accumarray:subND");
 
     const size_t N = sd.rows();
     const size_t D = (sd.ndim() <= 1 || sd.cols() == 0) ? 1 : sd.cols();
@@ -155,7 +155,7 @@ Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outSha
     const bool valIsScalar = vals.isScalar();
     if (!valIsScalar && vals.numel() != N)
         throw Error("accumarray: vals must be a scalar or a length-N vector",
-                     0, 0, fn, "", "numkit:accumarray:valSize");
+                     0, 0, fn, "", "nk:accumarray:valSize");
 
     ScratchArena scratch(mr);
     auto shape = resolveOutShape(subs, outShape.data(), outShape.size(), fn, &scratch);
@@ -202,4 +202,4 @@ Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outSha
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

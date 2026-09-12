@@ -14,7 +14,7 @@ antialiasing/polyphase filtering (and edge/delay compensation) is wrong.
 ## Repro
 ```matlab
 resample([1 2 3 4 5 6], 3, 2)
-% numkit: [0.00448 0.01466 -0.07709 0.11110 0.80764 1.51393 2.17249 2.82780 3.49960]
+% nk: [0.00448 0.01466 -0.07709 0.11110 0.80764 1.51393 2.17249 2.82780 3.49960]
 %         (sum 10.87 — ramps up from ~0, lags the signal)
 % MATLAB: [1.00061 1.80791 2.16807 3.00182 3.94099 3.96567 5.00303 6.56811 4.24029]
 %         (sum 31.70 — tracks the 1..6 ramp at the new rate)

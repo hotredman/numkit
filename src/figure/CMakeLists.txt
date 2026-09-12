@@ -5,9 +5,9 @@
 # graphics service can depend on figure state WITHOUT the Engine. Uses only
 # ops (decimate) + STL; never core. The Engine owns one FigureManager and wires
 # its OutputFunc to the engine output sink.
-list(APPEND NUMKIT_FIGURE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-list(APPEND NUMKIT_FIGURE_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/figure/figure_manager.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/figure/figure_render.hpp)
-set(NUMKIT_FIGURE_INCLUDE_DIRS ${NUMKIT_FIGURE_INCLUDE_DIRS} PARENT_SCOPE)
-set(NUMKIT_FIGURE_HEADERS      ${NUMKIT_FIGURE_HEADERS}      PARENT_SCOPE)
+list(APPEND NK_FIGURE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+list(APPEND NK_FIGURE_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/figure/figure_manager.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/figure/figure_render.hpp)
+set(NK_FIGURE_INCLUDE_DIRS ${NK_FIGURE_INCLUDE_DIRS} PARENT_SCOPE)
+set(NK_FIGURE_HEADERS      ${NK_FIGURE_HEADERS}      PARENT_SCOPE)

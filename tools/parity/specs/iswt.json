@@ -8,5 +8,5 @@
   "fingerprint": [
     "numel(xrec)", "err"
   ],
-  "comment": "Sig: x = iswt(swc, wname). Inverse stationary wavelet transform. Even though swt/iswt internal coefficient values use a different filter convention than MATLAB, the round-trip iswt(swt(x)) DOES recover x — that's the structurally important invariant for any inverse transform. Both MATLAB and numkit reconstruct the original signal to machine precision."
+  "comment": "Sig: x = iswt(swc, wname). Inverse stationary wavelet transform. Even though swt/iswt internal coefficient values use a different filter convention than MATLAB, the round-trip iswt(swt(x)) DOES recover x — that's the structurally important invariant for any inverse transform. Both MATLAB and nk reconstruct the original signal to machine precision."
 }

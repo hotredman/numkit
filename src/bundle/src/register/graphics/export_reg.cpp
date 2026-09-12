@@ -11,19 +11,19 @@
 // formats (.pdf/.eps/.fig/.emf) throw a clear "not supported" — filed
 // in bugs/opened/graphics/figure-export-gaps.md, never silent.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/figure/figure_manager.hpp>
-#include <numkit/figure/figure_render.hpp>
-#include <numkit/graphics/graphics_handle.hpp>
-#include <numkit/image/io/io.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/figure/figure_manager.hpp>
+#include <nk/figure/figure_render.hpp>
+#include <nk/graphics/graphics_handle.hpp>
+#include <nk/image/io/io.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <string>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 namespace {
 
@@ -280,4 +280,4 @@ void registerFigureExport(Engine &engine)
     }
 }
 
-} // namespace numkit
+} // namespace nk

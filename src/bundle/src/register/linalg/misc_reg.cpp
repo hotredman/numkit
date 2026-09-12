@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/misc.hpp>
+#include <nk/linalg/misc.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void rref_reg(Span<const Value> args, size_t nargout,
@@ -20,7 +20,7 @@ void rref_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("rref: requires (A [, tol])",
-                    0, 0, "rref", "", "numkit:rref:nargin");
+                    0, 0, "rref", "", "nk:rref:nargin");
     bool have_tol = (args.size() >= 2);
     double tol = have_tol ? args[1].toScalar() : 0.0;
     auto [R, jb] = rref(args[0], have_tol, tol, ctx.engine->resource());
@@ -33,11 +33,11 @@ void planerot_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("planerot: requires ([x; y])",
-                    0, 0, "planerot", "", "numkit:planerot:nargin");
+                    0, 0, "planerot", "", "nk:planerot:nargin");
     auto [G, y] = planerot(args[0], ctx.engine->resource());
     outs[0] = G;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = y;
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

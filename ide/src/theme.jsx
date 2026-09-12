@@ -1,5 +1,5 @@
 /**
- * theme.js — Single source of truth for Numkit IDE theming.
+ * theme.js — Single source of truth for NK IDE theming.
  *
  * Usage in components:
  *   import { useTheme, FONT, FONT_UI } from '../theme';
@@ -89,7 +89,7 @@ const themes = { dark, light };
 // ── React Context ──
 const ThemeContext = createContext(dark);
 
-const THEME_KEY = 'numkit-ide-theme';
+const THEME_KEY = 'nk-ide-theme';
 
 export function ThemeProvider({ children }) {
   const [themeName, setThemeName] = useState(() => {

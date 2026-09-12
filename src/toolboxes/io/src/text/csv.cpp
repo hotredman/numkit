@@ -6,11 +6,11 @@
 // entries (csvread/csvwrite + the detail reg adapters) add VFS path resolution +
 // read/write via the Engine.
 
-#include <numkit/io/text/csv.hpp>
+#include <nk/io/text/csv.hpp>
 
-#include <numkit/value/error.hpp>
-#include <numkit/fs/fs_context.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/fs/fs_context.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cstdio>
@@ -19,7 +19,7 @@
 #include <sstream>
 #include <string>
 
-namespace numkit::io {
+namespace nk::io {
 
 // ════════════════════════════════════════════════════════════════════════
 // Private CSV helpers
@@ -279,4 +279,4 @@ void csvwrite(FsContext &fs, Span<const Value> args)
 }
 
 
-} // namespace numkit::io
+} // namespace nk::io

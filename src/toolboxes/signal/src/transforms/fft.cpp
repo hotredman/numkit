@@ -7,10 +7,10 @@
 // functions with an explicit memory_resource parameter vs an engine-registered
 // lambda that reached into CallContext).
 
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/signal/transforms/fft.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "../dsp_helpers.hpp"
 #include "backends/fft_kernels.hpp"
@@ -18,7 +18,7 @@
 // Highway intrinsics for the SIMD twist loop in the rfft path. Only
 // the unit-stride dst case uses SIMD; non-unit stride and the scalar
 // tail keep the plain C++ formulation.
-#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_WITH_SIMD)
+#if !defined(__EMSCRIPTEN__) && defined(NK_WITH_SIMD)
   #include <hwy/highway.h>
 #endif
 
@@ -29,7 +29,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -88,7 +88,7 @@ inline TwiddleCache &twiddleCache()
 // here because the inverse path goes through conjugate-trick
 // (conj → forward FFT → conj/N) in runComplex below. A pre-2026-05-10
 // regression had this filled with +1 (mathematically inverse), which
-// made every numkit fft return the conjugate of MATLAB's — invisible
+// made every nk fft return the conjugate of MATLAB's — invisible
 // for real-input parity tests that check magnitudes / real parts, but
 // visible for complex inputs as a spatial mirror around DC.
 const Complex *getCachedTwiddleFwd(std::size_t fftLen)
@@ -243,7 +243,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     if (axisLen <= 1 && outAxisLen > 1)
         throw Error("fft: extending dimension beyond ndims is not supported "
                      "when the axis length is 1",
-                     0, 0, "fft", "", "numkit:fft:extendDim");
+                     0, 0, "fft", "", "nk:fft:extendDim");
 
     // fftLen IS the user-visible length: we compute a true N-point DFT.
     // The pow2 path uses Cooley-Tukey radix-2 directly; non-pow2 routes
@@ -299,7 +299,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     // native. Sized fftLen / 2 because rfft does a half-size complex
     // FFT internally. On WASM we don't take this path; the buffers
     // stay at zero size with no allocation cost.
-#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_WITH_SIMD)
+#if !defined(__EMSCRIPTEN__) && defined(NK_WITH_SIMD)
     thread_local std::vector<double> tlsRfftRe;
     thread_local std::vector<double> tlsRfftIm;
 #endif
@@ -349,7 +349,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     //   call AoS FFT, twist from AoS. SoA paths regress on this ISA
     //   because LoadInterleaved2 is cheap on 128-bit lanes — see
     //   fft_simd.cpp threshold comments.
-#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_WITH_SIMD)
+#if !defined(__EMSCRIPTEN__) && defined(NK_WITH_SIMD)
     const std::size_t halfLen = fftLen / 2;
     if (rfftEligible) {
         if (tlsRfftRe.size() < halfLen) tlsRfftRe.resize(halfLen);
@@ -696,7 +696,7 @@ Value fft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("fft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "fft", "", "numkit:fft:invalidDim");
+                     0, 0, "fft", "", "nk:fft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(x);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
@@ -707,7 +707,7 @@ Value ifft(const Value &X, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("ifft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "ifft", "", "numkit:ifft:invalidDim");
+                     0, 0, "ifft", "", "nk:ifft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(X);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
@@ -727,11 +727,11 @@ Value ifftSymmetric(const Value &X, int n, int dim, std::pmr::memory_resource *m
     const auto &d = X.dims();
     if (d.ndim() > 2)
         throw Error("ifft: the 'symmetric' option supports vectors and matrices only",
-                     0, 0, "ifft", "", "numkit:ifft:symmetricNdims");
+                     0, 0, "ifft", "", "nk:ifft:symmetricNdims");
     int useDim = (dim == 0) ? resolveDefaultDim(X) : dim;
     if (useDim != 1 && useDim != 2)
         throw Error("ifft: the 'symmetric' option supports dim 1 or 2",
-                     0, 0, "ifft", "", "numkit:ifft:symmetricDim");
+                     0, 0, "ifft", "", "nk:ifft:symmetricDim");
 
     const std::size_t R = d.rows(), C = d.cols();
     const std::size_t origLen = (useDim == 1) ? R : C;
@@ -787,7 +787,7 @@ Value ifft2Symmetric(const Value &X, std::pmr::memory_resource *mr)
     const auto &d = X.dims();
     if (d.ndim() > 2)
         throw Error("ifft2: the 'symmetric' option supports 2-D inputs only",
-                     0, 0, "ifft2", "", "numkit:ifft2:symmetricNdims");
+                     0, 0, "ifft2", "", "nk:ifft2:symmetricNdims");
     const std::size_t R = d.rows(), C = d.cols();
     Value y = X;
     if (C > 1) y = ifftSymmetric(y, -1, 2, mr);   // each row conj-symmetric
@@ -846,7 +846,7 @@ Value fftnImpl(const Value &X, Span<const std::size_t> sz,
     const int ndim = effectiveNdim(X);
     if (sz.size() > static_cast<std::size_t>(ndim))
         throw Error("fftn: size vector length exceeds ndims(X)",
-                     0, 0, "fftn", "", "numkit:fftn:badSize");
+                     0, 0, "fftn", "", "nk:fftn:badSize");
     Value Y = X;
     for (int d = 1; d <= ndim; ++d) {
         int n = -1;
@@ -994,7 +994,7 @@ Value czt(const Value &x, int m, Complex w, Complex a, std::pmr::memory_resource
 
     if (d.is3D())
         throw Error("czt: 3-D input not supported",
-                     0, 0, "czt", "", "numkit:czt:unsupportedNd");
+                     0, 0, "czt", "", "nk:czt:unsupportedNd");
 
     // Matrix: czt each column independently.
     Value out = Value::complexMatrix(static_cast<std::size_t>(m), C, mr);
@@ -1020,10 +1020,10 @@ Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("interpft: output length n must be positive",
-                     0, 0, "interpft", "", "numkit:interpft:badN");
+                     0, 0, "interpft", "", "nk:interpft:badN");
     if (dim < 0 || dim > 3)
         throw Error("interpft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "interpft", "", "numkit:interpft:badDim");
+                     0, 0, "interpft", "", "nk:interpft:badDim");
 
     // Resolve auto-dim same way `fft` does.
     int useDim = dim;
@@ -1057,7 +1057,7 @@ Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     // signal — but fft's "zero-pad in time domain" is NOT the same.
     // Instead: do it manually via dim-agnostic copy.
     //
-    // Easiest dim-agnostic way: do it for dim=1 and dim=2 only (numkit
+    // Easiest dim-agnostic way: do it for dim=1 and dim=2 only (nk
     // common case), use Value indexing directly. For 3-D / dim=3 we
     // route via permutation.
     const size_t nOut = static_cast<size_t>(n);
@@ -1143,7 +1143,7 @@ Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     }
 
     throw Error("interpft: dim 3 / N-D inputs not yet supported",
-                 0, 0, "interpft", "", "numkit:interpft:dimUnsupported");
+                 0, 0, "interpft", "", "nk:interpft:dimUnsupported");
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

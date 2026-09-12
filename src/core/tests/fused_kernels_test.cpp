@@ -4,7 +4,7 @@
 // correctness vs a scalar reference (incl. NaN/Inf, output aliasing, tail), and
 // a manual perf probe gating whether fusion is worth the VM integration.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
 
 #include <gtest/gtest.h>
 
@@ -14,7 +14,7 @@
 #include <limits>
 #include <vector>
 
-using numkit::ops::fusedAffineClamp;
+using nk::ops::fusedAffineClamp;
 
 namespace {
 double refAffineClamp(double x, double s, double t, double lo, double hi) {

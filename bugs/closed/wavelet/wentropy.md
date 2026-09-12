@@ -18,11 +18,11 @@ registered.
 ```matlab
 wentropy([1 2 3 4], 'shannon')
 % MATLAB: -69.6816181963   (-Σ s²·log(s²) over nonzero s)
-% numkit: Error — VM: undefined function 'wentropy'
+% nk: Error — VM: undefined function 'wentropy'
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::wavelet::wentropy` (`denoise.cpp`, next to
+Implemented `nk::wavelet::wentropy` (`denoise.cpp`, next to
 `wthresh`/`wdenoise`). `E = wentropy(X, T[, P])` is the additive entropy
 "cost" over the elements of `X`:
 - `'shannon'`: `−Σ sᵢ²·log(sᵢ²)` (a `sᵢ=0` term contributes 0).
@@ -44,7 +44,7 @@ live); smoke `wentropy_smoke.m`.
 
 ## References
 - `src/toolboxes/wavelet/src/denoise/denoise.cpp` (`wentropy`),
-  `.../include/numkit/wavelet/denoise/denoise.hpp`,
+  `.../include/nk/wavelet/denoise/denoise.hpp`,
   `src/bundle/src/register/wavelet/denoise/denoise_reg.cpp` (`wentropy_reg`).
 - `tools/parity/specs/wentropy.json`.
 - related: wavelet/ddencmp.md (the default-parameter half, still open)

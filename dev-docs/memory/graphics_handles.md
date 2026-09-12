@@ -4,14 +4,14 @@
 
 MATLAB graphics is handle-object based: `h = plot(...)` returns an object
 with `class(h)`, `h.LineWidth`, `set/get`, identity `==`, and `delete`.
-numkit's plot family returned nothing; the first accessor attempt
+nk's plot family returned nothing; the first accessor attempt
 (portion 28) crashed EVERY engine construction with
 `duplicate function registration: delete` because two TUs registered the
 core name `delete` (graphics' handle-delete vs general_reg's file-delete).
 
 ## Solution — four cooperating layers
 
-1. **Payload (`src/graphics/include/numkit/graphics/graphics_handle.hpp`)**
+1. **Payload (`src/graphics/include/nk/graphics/graphics_handle.hpp`)**
    — `GraphicsHandlePayload : NativePayload` carrying just the registry
    id + `graphicsHandleIdOf(Value)`. Lives in the GRAPHICS layer
    (value-layer only, no Engine) so three consumers share it without
@@ -110,7 +110,7 @@ has no Number; legend is `matlab.graphics.illustration.Legend` (NOT
 chart.legend.Legend); Text FontSize default is 11 (NOT 10). Probe, don't
 recall. Also: MATLAB FORBIDS dot-indexing a call result without parens
 (`get(gca,'T').String` is a parse error; legal form `gcf().Parent`) —
-numkit deliberately keeps evaluating the bare `gcf.Parent` form
+nk deliberately keeps evaluating the bare `gcf.Parent` form
 (permissive superset, TW heritage; documented in the parity spec
 comment).
 
@@ -219,7 +219,7 @@ Bugs found en route (all fixed same-portion except the last):
   entry-1. Strip brackets first.
 - DatasetInfo comment lied: rgbBytes are RGBA QUADS (4 bytes/px,
   alpha synthesized), not RGB triplets — stride 4 in the renderer.
-- numkit's 254-level imagesc quantization can round a value to the
+- nk's 254-level imagesc quantization can round a value to the
   ADJACENT palette entry (half-integer cases, e.g. v=128 gray): pixel
   guards use ±3/channel, parity tol=1.
 - OPEN bugs/opened/runtime/dir-nargout-in-argument.md: a call in
@@ -286,7 +286,7 @@ dependent density, now matched in BOTH the export renderer and the IDE
 DEFY memory: HorizontalAlignment LEFT (not center), VerticalAlignment
 middle, FontSize 10 which does NOT follow axes FontSize. TEXT COLOURS
 ARE MATLAB-EXACT ('r' = (255,0,0)) — do NOT reuse the soft series
-palette (that is a deliberate numkit line aesthetic only).
+palette (that is a deliberate nk line aesthetic only).
 
 Engine bugs fixed en route: (1) positional colorbar('southoutside')
 was silently DROPPED — the parser only handled 'Location',<v> pairs
@@ -326,10 +326,10 @@ the figure background, which flipped white→(18,18,18) when the OS
 theme turned dark (groot defaults stay light; only the export canvas
 is dark). The DETERMINISTIC RECIPE for exact-colour parity: pin
 FaceColor/EdgeColor AND FaceAlpha=1 — renders identical under any
-theme (77525 pure (0,114,189) pixels verified on dark). numkit now
+theme (77525 pure (0,114,189) pixels verified on dark). nk now
 implements MATLAB-parity alpha semantics itself: default bars
 pre-blend 0.6·face+0.4·white over the (white) canvas, FaceAlpha NV
-honoured. Standing policy: numkit ALWAYS renders the documented light
+honoured. Standing policy: nk ALWAYS renders the documented light
 defaults (the books contract) — user themes are not chased. If MATLAB
 pixel references suddenly "MISMATCH" in the future, CHECK THEME +
 ALPHA FIRST: alpha-composited defaults shift with the background,

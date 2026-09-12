@@ -10,7 +10,7 @@ Users occasionally encountered a scenario where the text cursor disappeared and 
    - **Impact**: In Chromium/Blink, `user-select: none` on `<body>` suppresses text selection and stops clicks from placing the text caret into `<input>` and `<textarea>` elements.
    - **Fix**: Added `pointerup`, `pointercancel`, `mouseup`, and `blur` global listeners on `window` plus unconditional cleanup inside `useEffect` on unmount.
 
-2. **Caret Color Transparency in `<textarea>` (`SyntaxEditor.jsx`, `numkit-ide.css`)**:
+2. **Caret Color Transparency in `<textarea>` (`SyntaxEditor.jsx`, `nk-ide.css`)**:
    - **Mechanism**: The custom syntax editor renders a transparent `<textarea>` over a `<pre>` highlight layer. The textarea relied on `caretColor: C.accent`. If `C.accent` was not resolved or defaulted to `currentColor` (which is `transparent`), the text caret became completely invisible.
    - **Fix**: Enforced `caret-color: var(--accent, #7c6ff0)` directly in CSS (`.nk-editor-textarea`) with `cursor: text !important`, and added a fallback `C?.accent || 'var(--accent, #7c6ff0)'` in JSX inline styles. Added surface click delegation on `editorAreaRef` so clicking anywhere on the editor canvas automatically focuses the textarea.
 

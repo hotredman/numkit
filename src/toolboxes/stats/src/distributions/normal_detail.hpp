@@ -9,8 +9,8 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -50,7 +50,7 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 }
 
 // MATLAB's erfinv uses the Beasley-Springer-Moro initial + 1 Newton
-// step. For our purposes the existing numkit::builtin::erfinv is sufficient
+// step. For our purposes the existing nk::builtin::erfinv is sufficient
 // (already tested at ULP-10 in the parity bench).
 
 double erfinvScalar(double y)
@@ -104,4 +104,4 @@ inline double norminvK(double p, double mu, double sigma)
 
 } // anonymous
 
-} // namespace numkit::stats
+} // namespace nk::stats

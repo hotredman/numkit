@@ -1,20 +1,20 @@
 # Autonomous Zero-Dependency MAT-File Codec & Third-Party Elimination
 
 ## Context and Motivation
-Prior to this task, NumKit relied on two third-party dependencies:
+Prior to this task, NK relied on two third-party dependencies:
 1. `matio` (v1.5.30) via CMake `FetchContent` for MATLAB binary `.mat` file serialization/deserialization.
 2. `zlib` (v1.3.1) via CMake `FetchContent` for Deflate decompression in TIFF and compression in Level 7 `.mat` files.
 
 This introduced multiple issues:
 - FetchContent network download overhead and build-system bloat during clean builds / offline builds.
-- C-library impedance mismatch with NumKit's C++17 `Value`, `Dims`, `VirtualFS`, and `std::pmr::memory_resource`.
-- Memory leak hazards and temporary file staging (`makeTempMatPath()`) because `matio` required POSIX file paths on disk rather than working in-memory with NumKit's `VirtualFS` (`CallbackFS`, `MemoryFS`).
+- C-library impedance mismatch with NK's C++17 `Value`, `Dims`, `VirtualFS`, and `std::pmr::memory_resource`.
+- Memory leak hazards and temporary file staging (`makeTempMatPath()`) because `matio` required POSIX file paths on disk rather than working in-memory with NK's `VirtualFS` (`CallbackFS`, `MemoryFS`).
 - Portability / cross-compilation risks on WebAssembly / Emscripten.
 
 ## Solution & Architecture
 We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, high-performance, in-tree C++17 MAT-file codec:
 
-1. **Shared In-Tree Deflate/Inflate Subsystem (`src/ops/include/numkit/ops/deflate.hpp`, `src/ops/src/compression/deflate.cpp`):**
+1. **Shared In-Tree Deflate/Inflate Subsystem (`src/ops/include/nk/ops/deflate.hpp`, `src/ops/src/compression/deflate.cpp`):**
    - Implements RFC 1951 Deflate/Inflate engine and RFC 1950 Zlib container format (`zlibCompress`, `zlibDecompress`).
    - Implements hardware-efficient CRC-32 and Adler-32 checksums.
    - Shared between Image I/O (PNG, TIFF Deflate/ZIP), Audio I/O (FLAC container Deflate blocks), and MAT-file compression (`-v7`).
@@ -23,7 +23,7 @@ We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, 
    - **MAT Level 5 (`-v6` uncompressed, `-v7` zlib compressed):**
      - Full 128-byte header parsing/generation with Little-Endian `"IM"` magic.
      - Small Data Element Format (SDEF) & standard 8-byte aligned tags.
-     - Full `miMATRIX` encoding & decoding for all NumKit types:
+     - Full `miMATRIX` encoding & decoding for all NK types:
        - Real & complex matrices (`DOUBLE`, `SINGLE`, `INT8`..`INT64`, `UINT8`..`UINT64`).
        - `LOGICAL` matrices (with `0x02` logical flag).
        - `CHAR` arrays (1D string row vectors, 2D char matrices, and ND char tensors encoded as UTF-16).
@@ -31,7 +31,7 @@ We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, 
        - `STRUCT` & struct arrays (field name table, nested field matrices, insertion order tracking).
        - `OBJECT` & object arrays (`mxOBJECT_CLASS` with class name tag, property tables, and instance property matrices).
        - Function handles (stored as 0×0 DOUBLE placeholders matching MATLAB v5 convention).
-     - Compressed `-v7` stream encoding & decoding via in-tree `numkit::ops::zlibCompress` / `zlibDecompress` wrapped in `miCOMPRESSED` tags.
+     - Compressed `-v7` stream encoding & decoding via in-tree `nk::ops::zlibCompress` / `zlibDecompress` wrapped in `miCOMPRESSED` tags.
    - **MAT Level 4 (`-v4`):**
      - 20-byte matrix header (`MOPT`, `mrows`, `ncols`, `imagf`, `namlen`), ASCII name, column-major real/imag payloads.
      - Full validation of header parameters to reject garbage/corrupted files cleanly.
@@ -39,10 +39,10 @@ We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, 
      - Directly reads `resolved.fs->readFile(resolved.path)` and writes `resolved.fs->writeFile(resolved.path, bytes)`.
      - Zero temporary file creation; 100% compatible with NativeFS, MemoryFS, and CallbackFS.
 
-3. **Build System Streamlining (`CMakeLists.txt`, `cmake/NumkitOptions.cmake`, `src/runtime/CMakeLists.txt`):**
+3. **Build System Streamlining (`CMakeLists.txt`, `cmake/NKOptions.cmake`, `src/runtime/CMakeLists.txt`):**
    - Completely removed `matio` and `zlib_pkg` `FetchContent` blocks.
-   - Removed `NUMKIT_WITH_MATIO` and `NUMKIT_WITH_ZLIB` conditional defines.
-   - The entire NumKit runtime and all toolboxes (Image, Audio, Workspace I/O) now have **zero external C/C++ third-party library dependencies** (only Google Highway for optional SIMD and Google Test for unit test binaries).
+   - Removed `NK_WITH_MATIO` and `NK_WITH_ZLIB` conditional defines.
+   - The entire NK runtime and all toolboxes (Image, Audio, Workspace I/O) now have **zero external C/C++ third-party library dependencies** (only Google Highway for optional SIMD and Google Test for unit test binaries).
 
 ## Verification & Test Coverage
 - **100% Pass Rate across all 34 `SaveLoadMatTest` cases:**
@@ -51,7 +51,7 @@ We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, 
 
 ## Gotchas & Bugfixes (Post-Implementation)
 1. **Logical Scalar Tag Representation in `save` (`saveload_mat.cpp`, `value.cpp`):**
-   - In NumKit `Value`, scalar logical booleans (`true` / `false`) use sentinel tag pointers (`logicalTrueTag()` / `logicalFalseTag()`) without heap allocations.
+   - In NK `Value`, scalar logical booleans (`true` / `false`) use sentinel tag pointers (`logicalTrueTag()` / `logicalFalseTag()`) without heap allocations.
    - `Value::rawData()` previously returned `nullptr` for tags, causing an access violation in `std::memcpy` inside `MatWriter::writeTag` when saving structs with logical scalar fields (e.g. `config.enabled = true`).
    - Fixed by returning static `uint8_t` pointers in `Value::rawData()` and `Value::rawBytes()` for logical tags, using `v.logicalData()` in `encodeMat5Matrix`, and adding null safety guards in `writeTag`.
 2. **VM Register File Integrity in `CALL_METHOD` (`vm.cpp`, `vm.hpp`):**

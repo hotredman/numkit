@@ -4,10 +4,10 @@
 // and getter for the ODE solver family. Pinned against MATLAB R2025b
 // (tools/parity/specs/odeset.json, odeget.json).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class OdeOptionsTest : public ::testing::Test
 {

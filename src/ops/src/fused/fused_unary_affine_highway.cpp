@@ -8,8 +8,8 @@
 // bit-for-bit no matter where the array is split. The affine is Mul-then-Add
 // (two roundings, NOT FMA) to match the affine fallback.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -20,7 +20,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -71,7 +71,7 @@ void UnaryAffineImpl(const double *x, double p0, double p1, bool divide,
             break;
         case UnaryAffineFn::Round:
             // MATLAB round = half-away-from-zero: Trunc(v + CopySign(0.5, v)),
-            // mirroring numkit's RoundLoop (NOT hn::Round = round-to-even).
+            // mirroring nk's RoundLoop (NOT hn::Round = round-to-even).
             unaryInnerLoop(x, p0, p1, divide, out, n,
                            [](auto v) {
                                const hn::DFromV<decltype(v)> d;
@@ -83,11 +83,11 @@ void UnaryAffineImpl(const double *x, double p0, double p1, bool divide,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(UnaryAffineImpl);
 
@@ -109,5 +109,5 @@ void fusedUnaryShiftDiv(const double *x, double sub, double div,
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

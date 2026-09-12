@@ -31,15 +31,15 @@
 //   - Hunt, R. W. G. (2005). The Reproduction of Colour, 6th ed.
 //
 // Inlines all color-space gamma + primaries (no extension to
-// numkit's existing sRGB-only rgb2xyz).
+// nk's existing sRGB-only rgb2xyz).
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 
-#include <numkit/image/color/color.hpp>
-#include <numkit/image/type_convert/type_convert.hpp>
+#include <nk/image/color/color.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -49,7 +49,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 namespace {
 
 // ── Color-space tags ─────────────────────────────────────────────
@@ -66,7 +66,7 @@ CS parse_color_space(const std::string &s)
     if (lo == "linear-rgb")      return CS::LinearRGB;
     throw Error("chromadapt: ColorSpace must be 'srgb', "
                 "'adobe-rgb-1998', 'prophoto-rgb', or 'linear-rgb'",
-                0, 0, "chromadapt", "", "numkit:chromadapt:colorSpace");
+                0, 0, "chromadapt", "", "nk:chromadapt:colorSpace");
 }
 
 // ── Gamma encode / decode helpers ────────────────────────────────
@@ -380,21 +380,21 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     const auto &dA = A.dims();
     if (!dA.is3D() || dA.pages() != 3)
         throw Error("chromadapt: A must be H × W × 3 RGB",
-                    0, 0, "chromadapt", "", "numkit:chromadapt:shape");
+                    0, 0, "chromadapt", "", "nk:chromadapt:shape");
     const std::size_t H = dA.rows();
     const std::size_t W = dA.cols();
     if (H == 0 || W == 0)
         throw Error("chromadapt: A must be nonempty",
-                    0, 0, "chromadapt", "", "numkit:chromadapt:empty");
+                    0, 0, "chromadapt", "", "nk:chromadapt:empty");
     if (illuminant_in.numel() != 3)
         throw Error("chromadapt: illuminant must be a 3-element vector",
-                    0, 0, "chromadapt", "", "numkit:chromadapt:illShape");
+                    0, 0, "chromadapt", "", "nk:chromadapt:illShape");
 
     const ValueType origClass = A.type();
     if (origClass != ValueType::UINT8 && origClass != ValueType::UINT16
         && origClass != ValueType::SINGLE && origClass != ValueType::DOUBLE)
         throw Error("chromadapt: A must be uint8 / uint16 / single / double",
-                    0, 0, "chromadapt", "", "numkit:chromadapt:class");
+                    0, 0, "chromadapt", "", "nk:chromadapt:class");
 
     // Resolve method.
     std::string m;
@@ -403,7 +403,7 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     if (m != "bradford" && m != "vonkries" && m != "simple")
         throw Error("chromadapt: Method must be 'bradford', 'vonkries', "
                     "or 'simple'",
-                    0, 0, "chromadapt", "", "numkit:chromadapt:method");
+                    0, 0, "chromadapt", "", "nk:chromadapt:method");
 
     const CS cs = parse_color_space(color_space);
 
@@ -419,7 +419,7 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     }
     if (ill_rgb01[0] == 0.0 && ill_rgb01[1] == 0.0 && ill_rgb01[2] == 0.0)
         throw Error("chromadapt: illuminant cannot be [0 0 0]",
-                    0, 0, "chromadapt", "", "numkit:chromadapt:illBlack");
+                    0, 0, "chromadapt", "", "nk:chromadapt:illBlack");
 
     // Compute illuminant XYZ (D65).
     double ill_xyz[3];
@@ -475,4 +475,4 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     return rgb_to_value(out_rgb, origClass, mr);
 }
 
-} // namespace numkit::image
+} // namespace nk::image

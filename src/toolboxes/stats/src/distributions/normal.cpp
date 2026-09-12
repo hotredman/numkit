@@ -7,11 +7,11 @@
 //   rnd:  μ + σ · randn
 //   stat: [mean=μ, var=σ²]
 
-#include <numkit/stats/distributions/normal.hpp>
+#include <nk/stats/distributions/normal.hpp>
 
-#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"            // stripUpperFlag / applyUpperInPlace
 
@@ -25,7 +25,7 @@
 
 #include "normal_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value normpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
@@ -45,7 +45,7 @@ Value norminv(const Value &p, double mu, double sigma, std::pmr::memory_resource
     return elementwise(p, [=](double pi) { return norminvK(pi, mu, sigma); }, mr);
 }
 
-Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value normrnd(::nk::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     if (sigma < 0.0) sigma = 0.0;
     auto &gen = rng;
@@ -67,4 +67,4 @@ std::tuple<double, double> normstat(double mu, double sigma)
     return std::make_tuple(mu, sigma * sigma);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

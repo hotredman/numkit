@@ -8,16 +8,16 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/shape/shape.hpp>
+#include <nk/wavelet/shape/shape.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <string>
 #include <tuple>
 #include <utility>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 static void shape_grid_reg(const char *fn,
@@ -27,13 +27,13 @@ static void shape_grid_reg(const char *fn,
 {
     if (args.size() < 3)
         throw Error(std::string(fn) + ": requires (LB, UB, N)",
-                    0, 0, fn, "", "numkit:wav:nargin");
+                    0, 0, fn, "", "nk:wav:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const double Nd = args[2].toScalar();
     if (!(Nd >= 0.0))
         throw Error(std::string(fn) + ": N must be non-negative",
-                    0, 0, fn, "", "numkit:wav:N");
+                    0, 0, fn, "", "nk:wav:N");
     const size_t N = static_cast<size_t>(Nd);
     auto [psi, x] = impl(lb, ub, N, ctx.engine->resource());
     outs[0] = std::move(psi);
@@ -57,7 +57,7 @@ void meyeraux_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("meyeraux: requires x",
-                    0, 0, "meyeraux", "", "numkit:meyeraux:nargin");
+                    0, 0, "meyeraux", "", "nk:meyeraux:nargin");
     outs[0] = meyeraux(args[0], ctx.engine->resource());
 }
 
@@ -66,7 +66,7 @@ void shanwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 5)
         throw Error("shanwavf: requires (LB, UB, N, fb, fc)",
-                    0, 0, "shanwavf", "", "numkit:shanwavf:nargin");
+                    0, 0, "shanwavf", "", "nk:shanwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -82,7 +82,7 @@ void cmorwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("cmorwavf: requires (LB, UB, N[, fb, fc])",
-                    0, 0, "cmorwavf", "", "numkit:cmorwavf:nargin");
+                    0, 0, "cmorwavf", "", "nk:cmorwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -99,7 +99,7 @@ void fbspwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 6)
         throw Error("fbspwavf: requires (LB, UB, N, m, fb, fc)",
-                    0, 0, "fbspwavf", "", "numkit:fbspwavf:nargin");
+                    0, 0, "fbspwavf", "", "nk:fbspwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -112,4 +112,4 @@ void fbspwavf_reg(Span<const Value> args, size_t nargout,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

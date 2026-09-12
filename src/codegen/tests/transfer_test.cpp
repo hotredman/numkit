@@ -5,12 +5,12 @@
 // fallback. The differential test (transfer_diff_test.cpp) separately
 // checks these predictions against the real runtime.
 
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/transfer.hpp>
 
 #include <gtest/gtest.h>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 namespace {
 TransferRegistry makeRegistry()

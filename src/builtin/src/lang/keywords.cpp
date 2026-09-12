@@ -1,10 +1,10 @@
 // src/builtin/src/lang/keywords.cpp
 //
-// Reserved keywords and identifier predicates for numkit::builtin.
+// Reserved keywords and identifier predicates for nk::builtin.
 
-#include <numkit/builtin/lang.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/builtin/lang.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 const std::vector<std::string> &keywords()
 {
@@ -69,4 +69,4 @@ Value isvarname(Span<const Value> args, std::pmr::memory_resource *mr)
     return isvarname(args[0], mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

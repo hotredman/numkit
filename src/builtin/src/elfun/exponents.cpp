@@ -1,17 +1,17 @@
 // src/builtin/src/elfun/exponents.cpp
 //
-// Scalar exponentials, power scaling, and roots for numkit::builtin.
+// Scalar exponentials, power scaling, and roots for nk::builtin.
 
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <complex>
 #include "_unary_hint.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 Value exp(const Value &x, std::pmr::memory_resource *mr) { return exp(x, nullptr, mr); }
 Value log(const Value &x, std::pmr::memory_resource *mr) { return log(x, nullptr, mr); }
@@ -75,4 +75,4 @@ Value realpow(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     return elementwiseDouble(x, y, checkPair, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

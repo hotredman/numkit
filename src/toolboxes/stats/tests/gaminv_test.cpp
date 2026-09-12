@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/gaminv_test.cpp
 // gaminv.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GaminvTest : public ::testing::Test
 {

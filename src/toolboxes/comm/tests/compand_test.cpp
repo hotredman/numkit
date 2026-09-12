@@ -3,10 +3,10 @@
 // Regression guard for compand() — μ-law / A-law compressor /
 // expander. Bit-equality with MATLAB R2025b expected.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CompandTest : public ::testing::Test
 {

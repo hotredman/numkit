@@ -35,70 +35,70 @@ message(STATUS "Doxygen found: ${DOXYGEN_EXECUTABLE} (${DOXYGEN_VERSION})")
 if(DOXYGEN_DOT_FOUND)
     message(STATUS "Graphviz dot found: ${DOXYGEN_DOT_EXECUTABLE} — "
                    "class / include diagrams enabled")
-    set(_NUMKIT_DOC_HAVE_DOT "YES")
+    set(_NK_DOC_HAVE_DOT "YES")
 else()
     message(STATUS "Graphviz dot NOT found — text-only graphs in docs")
-    set(_NUMKIT_DOC_HAVE_DOT "NO")
+    set(_NK_DOC_HAVE_DOT "NO")
 endif()
 
 # Source-tree Doxyfile drives the build; we patch HAVE_DOT and the
 # OUTPUT_DIRECTORY at configure time so each build preset gets its own
 # docs/ tree inside build/<preset>/.
-set(_NUMKIT_DOXYFILE_IN  "${CMAKE_SOURCE_DIR}/Doxyfile")
-set(_NUMKIT_DOXYFILE_OUT "${CMAKE_BINARY_DIR}/Doxyfile.configured")
-set(_NUMKIT_DOC_OUTPUT   "${CMAKE_BINARY_DIR}/docs")
+set(_NK_DOXYFILE_IN  "${CMAKE_SOURCE_DIR}/Doxyfile")
+set(_NK_DOXYFILE_OUT "${CMAKE_BINARY_DIR}/Doxyfile.configured")
+set(_NK_DOC_OUTPUT   "${CMAKE_BINARY_DIR}/docs")
 
 # Read the template, override the two fields we care about per-build.
-file(READ "${_NUMKIT_DOXYFILE_IN}" _NUMKIT_DOXYFILE_CONTENT)
+file(READ "${_NK_DOXYFILE_IN}" _NK_DOXYFILE_CONTENT)
 
 string(REGEX REPLACE
     "OUTPUT_DIRECTORY[ ]*=[ ]*[^\n]*"
-    "OUTPUT_DIRECTORY       = ${_NUMKIT_DOC_OUTPUT}"
-    _NUMKIT_DOXYFILE_CONTENT "${_NUMKIT_DOXYFILE_CONTENT}")
+    "OUTPUT_DIRECTORY       = ${_NK_DOC_OUTPUT}"
+    _NK_DOXYFILE_CONTENT "${_NK_DOXYFILE_CONTENT}")
 
 string(REGEX REPLACE
     "HAVE_DOT[ ]*=[ ]*[^\n]*"
-    "HAVE_DOT               = ${_NUMKIT_DOC_HAVE_DOT}"
-    _NUMKIT_DOXYFILE_CONTENT "${_NUMKIT_DOXYFILE_CONTENT}")
+    "HAVE_DOT               = ${_NK_DOC_HAVE_DOT}"
+    _NK_DOXYFILE_CONTENT "${_NK_DOXYFILE_CONTENT}")
 
 # WARN_LOGFILE is relative-to-cwd by default; pin it to the same docs
 # tree so warnings stay alongside the generated HTML / PDF.
 string(REGEX REPLACE
     "WARN_LOGFILE[ ]*=[ ]*[^\n]*"
-    "WARN_LOGFILE           = ${_NUMKIT_DOC_OUTPUT}/doxygen-warnings.log"
-    _NUMKIT_DOXYFILE_CONTENT "${_NUMKIT_DOXYFILE_CONTENT}")
+    "WARN_LOGFILE           = ${_NK_DOC_OUTPUT}/doxygen-warnings.log"
+    _NK_DOXYFILE_CONTENT "${_NK_DOXYFILE_CONTENT}")
 
-file(WRITE "${_NUMKIT_DOXYFILE_OUT}" "${_NUMKIT_DOXYFILE_CONTENT}")
+file(WRITE "${_NK_DOXYFILE_OUT}" "${_NK_DOXYFILE_CONTENT}")
 
 # Plain HTML target — fast, no LaTeX dependency.
 add_custom_target(docs
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${_NUMKIT_DOC_OUTPUT}"
-    COMMAND ${DOXYGEN_EXECUTABLE} "${_NUMKIT_DOXYFILE_OUT}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${_NK_DOC_OUTPUT}"
+    COMMAND ${DOXYGEN_EXECUTABLE} "${_NK_DOXYFILE_OUT}"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Generating HTML API documentation → ${_NUMKIT_DOC_OUTPUT}/html/index.html"
+    COMMENT "Generating HTML API documentation → ${_NK_DOC_OUTPUT}/html/index.html"
     VERBATIM
 )
 
 # PDF target — depends on docs (HTML pass also emits latex/) and runs
 # `make` (or equivalent) inside the LaTeX output dir.
-find_program(_NUMKIT_PDFLATEX pdflatex)
-if(_NUMKIT_PDFLATEX)
-    message(STATUS "pdflatex found: ${_NUMKIT_PDFLATEX} — `docs-pdf` target available")
+find_program(_NK_PDFLATEX pdflatex)
+if(_NK_PDFLATEX)
+    message(STATUS "pdflatex found: ${_NK_PDFLATEX} — `docs-pdf` target available")
 
     # The pdflatex command frequently exits non-zero on harmless
     # warnings even when refman.pdf is produced successfully — wrap
     # each invocation in a CMake script so we can ignore the exit
     # code and surface a clean error only if the PDF doesn't exist.
-    set(_NUMKIT_PDFBUILD_SCRIPT "${CMAKE_BINARY_DIR}/_numkit_build_pdf.cmake")
-    file(WRITE "${_NUMKIT_PDFBUILD_SCRIPT}" "
+    set(_NK_PDFBUILD_SCRIPT "${CMAKE_BINARY_DIR}/_nk_build_pdf.cmake")
+    file(WRITE "${_NK_PDFBUILD_SCRIPT}" "
         # Two pdflatex passes for cross-reference stability.
-        set(LATEX_DIR \"${_NUMKIT_DOC_OUTPUT}/latex\")
+        set(LATEX_DIR \"${_NK_DOC_OUTPUT}/latex\")
         if(NOT EXISTS \"\${LATEX_DIR}/refman.tex\")
             message(FATAL_ERROR \"refman.tex not found — run `docs` first.\")
         endif()
         foreach(_pass 1 2)
             execute_process(
-                COMMAND \"${_NUMKIT_PDFLATEX}\" -interaction=batchmode refman.tex
+                COMMAND \"${_NK_PDFLATEX}\" -interaction=batchmode refman.tex
                 WORKING_DIRECTORY \"\${LATEX_DIR}\"
                 RESULT_VARIABLE _rc
                 OUTPUT_QUIET
@@ -114,8 +114,8 @@ if(_NUMKIT_PDFLATEX)
 
     add_custom_target(docs-pdf
         DEPENDS docs
-        COMMAND ${CMAKE_COMMAND} -P "${_NUMKIT_PDFBUILD_SCRIPT}"
-        COMMENT "Building PDF reference → ${_NUMKIT_DOC_OUTPUT}/latex/refman.pdf"
+        COMMAND ${CMAKE_COMMAND} -P "${_NK_PDFBUILD_SCRIPT}"
+        COMMENT "Building PDF reference → ${_NK_DOC_OUTPUT}/latex/refman.pdf"
         VERBATIM
     )
 else()
@@ -125,7 +125,7 @@ endif()
 
 # Convenience: wipe the docs output (without rebuilding the rest).
 add_custom_target(docs-clean
-    COMMAND ${CMAKE_COMMAND} -E rm -rf "${_NUMKIT_DOC_OUTPUT}"
-    COMMENT "Removing ${_NUMKIT_DOC_OUTPUT}"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${_NK_DOC_OUTPUT}"
+    COMMENT "Removing ${_NK_DOC_OUTPUT}"
     VERBATIM
 )

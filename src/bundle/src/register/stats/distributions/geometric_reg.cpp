@@ -3,16 +3,16 @@
 // CallContext register half of distributions/geometric.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/geometric.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/geometric.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/geometric_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,14 +24,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void geopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("geopdf: requires (k, p)", 0, 0, "geopdf", "", "numkit:geopdf:nargin");
+        throw Error("geopdf: requires (k, p)", 0, 0, "geopdf", "", "nk:geopdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = args[1];
     if (p.isScalar())
@@ -45,7 +45,7 @@ void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "numkit:geocdf:nargin");
+        throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "nk:geocdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = a[1];
     Value v = p.isScalar() ? geocdf(a[0], p.toScalar(), mr)
@@ -57,7 +57,7 @@ void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void geoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("geoinv: requires (q, p)", 0, 0, "geoinv", "", "numkit:geoinv:nargin");
+        throw Error("geoinv: requires (q, p)", 0, 0, "geoinv", "", "nk:geoinv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = args[1];
     if (p.isScalar())
@@ -69,7 +69,7 @@ void geoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("geornd: requires p[, m, n]", 0, 0, "geornd", "", "numkit:geornd:nargin");
+        throw Error("geornd: requires p[, m, n]", 0, 0, "geornd", "", "nk:geornd:nargin");
     const double p = args[0].toScalar();
     size_t rows = 1, cols = 1;
     if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());
@@ -86,4 +86,4 @@ void geostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

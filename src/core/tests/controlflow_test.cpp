@@ -209,9 +209,9 @@ TEST_P(ControlFlowTest, TryCatchIdentifier)
 
 TEST_P(ControlFlowTest, TryCatchDefaultIdentifier)
 {
-    // error without explicit ID → "numkit:error"
+    // error without explicit ID → "nk:error"
     eval("try; error('oops'); catch e; id = e.identifier; end");
-    EXPECT_EQ(getVarPtr("id")->toString(), "numkit:error");
+    EXPECT_EQ(getVarPtr("id")->toString(), "nk:error");
 }
 
 TEST_P(ControlFlowTest, TryCatchSprintf)
@@ -416,7 +416,7 @@ TEST_P(ControlFlowTest, AssertFailIdentifier)
 TEST_P(ControlFlowTest, AssertDefaultIdentifier)
 {
     eval("try; assert(false); catch e; id = e.identifier; end");
-    EXPECT_EQ(getVarPtr("id")->toString(), "numkit:assert");
+    EXPECT_EQ(getVarPtr("id")->toString(), "nk:assert");
 }
 
 TEST_P(ControlFlowTest, TryCatchReturnInFunction)

@@ -54,7 +54,7 @@ describe('Sidebar render smoke', () => {
     // No IndexedDB in node env, so tempFS.listTree rejects. Sidebar's
     // loadTree catches it and logs — assert it degrades gracefully and
     // still renders, while keeping the expected error out of the output.
-    localStorage.setItem('numkit.ide.sidebar.source', JSON.stringify('temporary'));
+    localStorage.setItem('nk.ide.sidebar.source', JSON.stringify('temporary'));
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { container } = await mountSidebar();

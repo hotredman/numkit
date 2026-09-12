@@ -13,13 +13,13 @@
 // Sign convention and numerical parity are checked against MATLAB
 // R2025b in the parity harness.
 
-#include <numkit/wavelet/filter/wfilters.hpp>
+#include <nk/wavelet/filter/wfilters.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The wfilters
 // builtin (CallContext wrapper) lives in filter/wfilters_reg.cpp.
 // wavelet_filters() is the filter-bank lookup other compute TUs call.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -70,7 +70,7 @@ const double LO_R_db4[] = {
      0.23037781330885523
 };
 
-// db5..db10 — standard Daubechies-N coefficients, stored in numkit's
+// db5..db10 — standard Daubechies-N coefficients, stored in nk's
 // reversed Lo_R convention (= flip of the dbN scaling filter × sqrt(2));
 // family_scaling reverses again before emitting the dbwavf form.
 
@@ -202,7 +202,7 @@ const double LO_R_sym4[] = {
      0.032223100604042702
 };
 
-// sym3 / sym5..sym10 — standard Symlet-N coefficients, in numkit's
+// sym3 / sym5..sym10 — standard Symlet-N coefficients, in nk's
 // reversed Lo_R convention (= flip of the symN scaling filter × sqrt(2)).
 
 const double LO_R_sym3[] = {
@@ -332,7 +332,7 @@ const double LO_R_coif1[] = {
     -0.072732619512853897
 };
 
-// coif2..coif5 — standard Coiflet-N coefficients, in numkit's reversed
+// coif2..coif5 — standard Coiflet-N coefficients, in nk's reversed
 // Lo_R convention (= flip of the coifN scaling filter × sqrt(2)).
 
 const double LO_R_coif2[] = {
@@ -490,13 +490,13 @@ FilterBank wavelet_filters(const std::string &name) {
         throw Error("wfilters: unsupported wavelet name '" + name +
                     "' (try haar, db1..db10, sym2..sym10, coif1..coif5, "
                     "bior1.1..bior6.8, rbio1.1..rbio6.8)",
-                    0, 0, "wfilters", "", "numkit:wfilters:name");
+                    0, 0, "wfilters", "", "nk:wfilters:name");
     }
     const int N = s->len;
 
     // 2026-05-08 wavelet/wfilters fix: previously the stored
     // constant `s->Lo_R[]` (which holds the MATLAB-Lo_D-ordered
-    // coefficients) was being assigned to `fb.Lo_R`, leaving numkit's
+    // coefficients) was being assigned to `fb.Lo_R`, leaving nk's
     // Lo_D / Lo_R labels SWAPPED relative to MATLAB R2025b. This was
     // the root cause of the dwt/wavedec value mismatch. Now we treat
     // the stored constant as Lo_D and derive Lo_R / Hi_R / Hi_D in
@@ -550,9 +550,9 @@ WFiltersResult wfilters(const std::string &name, const std::string &kind,
     } else {
         throw Error("wfilters: unknown kind '" + kind +
                     "' (expected 'd', 'r', 'l' or 'h')",
-                    0, 0, "wfilters", "", "numkit:wfilters:kind");
+                    0, 0, "wfilters", "", "nk:wfilters:kind");
     }
     return r;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

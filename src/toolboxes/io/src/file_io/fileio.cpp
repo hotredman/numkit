@@ -5,13 +5,13 @@
 // (6c.8.4b / 6c.8.5) because they need the shared precision / size
 // helpers.
 
-#include <numkit/io/file_io/fileio.hpp>
+#include <nk/io/file_io/fileio.hpp>
 
-#include <numkit/fs/fs_context.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/fs/fs_context.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
-#include <numkit/ops/io_helpers.hpp>
+#include <nk/ops/io_helpers.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -19,8 +19,8 @@
 #include <memory_resource>
 #include <string>
 
-namespace numkit::io {
-using namespace ::numkit::ops;
+namespace nk::io {
+using namespace ::nk::ops;
 
 // ════════════════════════════════════════════════════════════════════════
 // Shared small helper
@@ -257,9 +257,9 @@ void fread(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> ou
     if (!f || !f->forRead)
         throw Error("fread: invalid file identifier");
 
-    numkit::ops::SizeSpec sz{numkit::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    nk::ops::SizeSpec sz{nk::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 2)
-        sz = numkit::ops::parseReadSize(args[1], "fread");
+        sz = nk::ops::parseReadSize(args[1], "fread");
 
     std::string precStr = "uint8";
     if (args.size() >= 3) {
@@ -267,7 +267,7 @@ void fread(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> ou
             throw Error("fread: precision must be a char array");
         precStr = args[2].toString();
     }
-    auto precOpt = numkit::ops::parsePrecision(precStr);
+    auto precOpt = nk::ops::parsePrecision(precStr);
     if (!precOpt)
         throw Error("fread: unsupported precision '" + precStr + "'");
     int kind = precOpt->first;
@@ -277,7 +277,7 @@ void fread(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> ou
     if (args.size() >= 4) {
         if (!args[3].isChar())
             throw Error("fread: machine format must be a char array");
-        be = numkit::ops::parseEndian(args[3].toString(), "fread");
+        be = nk::ops::parseEndian(args[3].toString(), "fread");
     }
 
     size_t available = f->buffer.size() - f->cursor;
@@ -292,7 +292,7 @@ void fread(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> ou
         // Local copy lets us byte-swap safely without mutating f->buffer.
         char tmp[8];
         std::memcpy(tmp, f->buffer.data() + f->cursor + i * bsize, bsize);
-        if (be && bsize > 1) numkit::ops::byteSwap(tmp, bsize);
+        if (be && bsize > 1) nk::ops::byteSwap(tmp, bsize);
 
         double v = 0.0;
         if (kind == 0) {
@@ -316,7 +316,7 @@ void fread(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> ou
         values[i] = v;
     }
     f->cursor += n * bsize;
-    outs[0] = numkit::ops::shapeFreadOutput(values.data(), values.size(), sz, mr);
+    outs[0] = nk::ops::shapeFreadOutput(values.data(), values.size(), sz, mr);
     if (nargout > 1)
         outs[1] = Value::scalar(static_cast<double>(n), mr);
 }
@@ -336,7 +336,7 @@ void fwrite(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std
             throw Error("fwrite: precision must be a char array");
         precStr = args[2].toString();
     }
-    auto precOpt = numkit::ops::parsePrecision(precStr);
+    auto precOpt = nk::ops::parsePrecision(precStr);
     if (!precOpt)
         throw Error("fwrite: unsupported precision '" + precStr + "'");
     int kind = precOpt->first;
@@ -346,7 +346,7 @@ void fwrite(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std
     if (args.size() >= 4) {
         if (!args[3].isChar())
             throw Error("fwrite: machine format must be a char array");
-        be = numkit::ops::parseEndian(args[3].toString(), "fwrite");
+        be = nk::ops::parseEndian(args[3].toString(), "fwrite");
     }
 
     const Value &A = args[1];
@@ -379,7 +379,7 @@ void fwrite(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std
             else            {                                  std::memcpy(dst, &v, 8); }
         }
         if (be && bsize > 1)
-            numkit::ops::byteSwap(dst, bsize);
+            nk::ops::byteSwap(dst, bsize);
         dst += bsize;
     }
 
@@ -394,4 +394,4 @@ void fwrite(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std
 }
 
 
-} // namespace numkit::io
+} // namespace nk::io

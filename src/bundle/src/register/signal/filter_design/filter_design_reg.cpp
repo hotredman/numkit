@@ -4,18 +4,18 @@
 // The detail{{}} *_reg fns were interleaved with compute in the original
 // TU; collected here verbatim (reg-side arg parsers nested in their anon
 // namespaces ride along). See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/signal/filter_design/filter_design.hpp>
-#include <numkit/signal/filter_implementation/conversions_extras.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/signal/filter_design/filter_design.hpp>
+#include <nk/signal/filter_implementation/conversions_extras.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -36,7 +36,7 @@ void fir1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("fir1: requires at least 2 arguments",
-                     0, 0, "fir1", "", "numkit:fir1:nargin");
+                     0, 0, "fir1", "", "nk:fir1:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const double Wn = args[1].toScalar();
     std::string type = "low";
@@ -50,7 +50,7 @@ void firls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 3)
         throw Error("firls: requires 3 arguments (N, F, A)",
-                    0, 0, "firls", "", "numkit:firls:nargin");
+                    0, 0, "firls", "", "nk:firls:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     outs[0] = firls(N, args[1], args[2], ctx.engine->resource());
 }
@@ -59,7 +59,7 @@ void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("fir2: requires (N, F, A)",
-                    0, 0, "fir2", "", "numkit:fir2:nargin");
+                    0, 0, "fir2", "", "nk:fir2:nargin");
     const int N = static_cast<int>(args[0].toScalar());
 
     // Optional trailing arguments fir2(N,F,A[,npt][,lap][,window]):
@@ -76,7 +76,7 @@ void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                 opts.lap = static_cast<int>(a.toScalar());
             else
                 throw Error("fir2: too many scalar arguments",
-                            0, 0, "fir2", "", "numkit:fir2:nargin");
+                            0, 0, "fir2", "", "nk:fir2:nargin");
             ++scalarsSeen;
         } else {
             opts.window = a;
@@ -94,7 +94,7 @@ void cell2sos_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("cell2sos: requires (C)",
-                    0, 0, "cell2sos", "", "numkit:cell2sos:nargin");
+                    0, 0, "cell2sos", "", "nk:cell2sos:nargin");
     auto [S, g] = cell2sos(args[0], ctx.engine->resource());
     outs[0] = std::move(S);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(g);
@@ -109,7 +109,7 @@ void firpm_reg(Span<const Value> args, std::size_t nargout, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("firpm: requires (N, F, A[, W])",
-                    0, 0, "firpm", "", "numkit:firpm:nargin");
+                    0, 0, "firpm", "", "nk:firpm:nargin");
     const int N = static_cast<int>(args[0].toScalar());
 
     // Trailing args: weights vector (numeric) or ftype string. MATLAB
@@ -119,7 +119,7 @@ void firpm_reg(Span<const Value> args, std::size_t nargout, Span<Value> outs,
     for (std::size_t i = 3; i < args.size(); ++i) {
         if (args[i].isCell())
             throw Error("firpm: cell-form lgrid argument deferred",
-                        0, 0, "firpm", "", "numkit:firpm:unsupportedLgrid");
+                        0, 0, "firpm", "", "nk:firpm:unsupportedLgrid");
         if (args[i].isChar())
             ftype = args[i].toString();
         else
@@ -135,4 +135,4 @@ void firpm_reg(Span<const Value> args, std::size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

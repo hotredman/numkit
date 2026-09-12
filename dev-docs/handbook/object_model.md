@@ -1,4 +1,4 @@
-# Object model design (numkit core)
+# Object model design (nk core)
 
 Status: **P1–P7 implemented** (type + registry + value/handle clone,
 properties, constructors, methods, subsref/subsasgn indexing,

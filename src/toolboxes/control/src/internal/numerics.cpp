@@ -2,12 +2,12 @@
 //
 // Shared numerical kernels — see internal/numerics.hpp.
 
-#include <numkit/control/internal/numerics.hpp>
+#include <nk/control/internal/numerics.hpp>
 
 #include <algorithm>
 #include <cmath>
 
-namespace numkit::control::internal {
+namespace nk::control::internal {
 
 bool solveInPlace(Mat &A, Mat &B, std::size_t n, std::size_t nrhs)
 {
@@ -164,4 +164,4 @@ Vec charPoly(const Mat &A, std::size_t n)
     return coeff;
 }
 
-} // namespace numkit::control::internal
+} // namespace nk::control::internal

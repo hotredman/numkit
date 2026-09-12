@@ -4,14 +4,14 @@
 // R2025b — `sin(2π·0.05·n)` over 512 samples with a hann(64, 'periodic')
 // analysis window, 50% overlap, FFTLength 64.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class StftTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void   SetUp() override {
                 engine.eval("x = sin(2*pi*0.05*(0:511));");
         engine.eval("w = 0.5*(1 - cos(2*pi*(0:63)/64));");  // hann(64,'periodic')

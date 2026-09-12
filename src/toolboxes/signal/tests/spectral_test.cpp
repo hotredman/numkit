@@ -1,7 +1,7 @@
 // tests/spectral_test.cpp
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class SpectralTest : public ::testing::Test
 {
@@ -202,7 +202,7 @@ TEST_F(SpectralTest, LevinsonValidPsd)
 }
 
 // Non-PSD autocorrelation (|k(2)|>1): MATLAB runs the full recursion
-// through negative residual energy; numkit used to early-exit at e<=0,
+// through negative residual energy; nk used to early-exit at e<=0,
 // zeroing the tail of a/k and returning e=0. Regression guard.
 TEST_F(SpectralTest, LevinsonNonPsdRunsFullRecursion)
 {
@@ -214,7 +214,7 @@ TEST_F(SpectralTest, LevinsonNonPsdRunsFullRecursion)
     EXPECT_NEAR(evalScalar("k(3)"), -2.214285714286, 1e-10);
 }
 
-// poly2rc second output R0 = efinal / prod(1 - k.^2). numkit used to
+// poly2rc second output R0 = efinal / prod(1 - k.^2). nk used to
 // return only k (no R0). vs MATLAB R2025b.
 TEST_F(SpectralTest, Poly2rcReturnsR0)
 {
@@ -226,7 +226,7 @@ TEST_F(SpectralTest, Poly2rcReturnsR0)
 }
 
 // rc2poly second output efinal = r0 * prod(1 - k.^2) (inverse of poly2rc's
-// R0). numkit used to return only a (no efinal). vs MATLAB R2025b.
+// R0). nk used to return only a (no efinal). vs MATLAB R2025b.
 TEST_F(SpectralTest, Rc2polyReturnsEfinal)
 {
     eval("a = rc2poly([-0.5 0.4 0.2]);");

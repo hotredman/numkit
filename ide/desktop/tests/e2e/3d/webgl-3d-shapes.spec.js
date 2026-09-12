@@ -12,7 +12,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
       + 'bar3(Z);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -38,7 +38,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
       + 'waterfall(Z);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -51,7 +51,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
       + 'fill3([0 1 0.5], [0 0 1], [0 0 1]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -93,7 +93,7 @@ test.describe('WebGL 3-D — bar3 / waterfall / fill3', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    await expect(ide.figureWindow.locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureWindow.locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
   });
 });

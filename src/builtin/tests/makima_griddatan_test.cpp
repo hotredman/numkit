@@ -4,12 +4,12 @@
 //   - makima      — modified Akima cubic Hermite interpolation
 //   - griddatan   — N-D scattered-data interpolation
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MakimaGriddatanTest : public ::testing::Test
 {

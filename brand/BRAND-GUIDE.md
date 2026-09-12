@@ -1,4 +1,4 @@
-# numkit — brand guide
+# nk — brand guide
 
 Финальное руководство по фирменному стилю проекта.
 
@@ -6,17 +6,17 @@
 
 ## Концепция
 
-**numkit** — считай и исследуй, где угодно.
+**nk** — считай и исследуй, где угодно.
 
 Домены:
-- **numkit.dev** — основной
-- **numkit.io** — дублёр, 301-редирект → `.dev`
+- **nk.dev** — основной
+- **nk.io** — дублёр, 301-редирект → `.dev`
 
 ### Знак
 
 `[nₖ]` — три прочтения в одном символе:
 
-1. **Имя проекта** — `n` и `k` это первая и последняя буквы `numkit`
+1. **Имя проекта** — `n` и `k` это первая и последняя буквы `nk`
 2. **Математическая нотация** — `nₖ` это элемент последовательности по индексу
 3. **Синтаксис массива** — `[ … ]` это квадратные скобки как оператор массива
 
@@ -106,7 +106,7 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 Ключевой принцип: **знак визуально доминирует над wordmark**.
 
-- Высота скобок `[ ]` ≈ `высота букв numkit × 1.2`
+- Высота скобок `[ ]` ≈ `высота букв nk × 1.2`
 - Горизонтальный отступ между знаком и wordmark ≈ `высота знака × 0.08`
 - Знак и wordmark стоят на одной базовой линии
 - Субскрипт `k` опускается на `0.22 × главный размер`
@@ -119,8 +119,8 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 | Файл | Размер | Применение |
 |---|---|---|
-| `numkit-logo-light.svg` | 416×160 | Светлый фон. Основной логотип для сайта, README, документации. |
-| `numkit-logo-dark.svg` | 416×160 | Тёмный фон. |
+| `nk-logo-light.svg` | 416×160 | Светлый фон. Основной логотип для сайта, README, документации. |
+| `nk-logo-dark.svg` | 416×160 | Тёмный фон. |
 | `png/logo-light.png` | 520×200 | Растр @1x. |
 | `png/logo-light-2x.png` | 1040×400 | Retina @2x. |
 | `png/logo-dark.png` | 520×200 | Растр @1x, тёмный. |
@@ -130,15 +130,15 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 | Файл | Размер | Применение |
 |---|---|---|
-| `numkit-mark-light.svg` | 160×160 | Аватар GitHub, соцсети, квадратные контексты. |
-| `numkit-mark-dark.svg` | 160×160 | То же, тёмный. |
+| `nk-mark-light.svg` | 160×160 | Аватар GitHub, соцсети, квадратные контексты. |
+| `nk-mark-dark.svg` | 160×160 | То же, тёмный. |
 
 ### Favicon
 
 | Файл | Размер | Применение |
 |---|---|---|
-| `numkit-favicon.svg` | 128×128 | Основной, без субскрипта `k` (на малых размерах не читается). |
-| `numkit-favicon-dark.svg` | 128×128 | Для браузеров с выбором по теме. |
+| `nk-favicon.svg` | 128×128 | Основной, без субскрипта `k` (на малых размерах не читается). |
+| `nk-favicon-dark.svg` | 128×128 | Для браузеров с выбором по теме. |
 | `png/favicon-256.png` | 256×256 | Apple touch icon. |
 | `png/favicon-64.png` | 64×64 | Крупный. |
 | `png/favicon-32.png` | 32×32 | Стандартный. |
@@ -149,7 +149,7 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 | Файл | Размер | Применение |
 |---|---|---|
-| `numkit-app-icon.svg` | 512×512 | Знак на индиго-фоне со скруглением 22%. |
+| `nk-app-icon.svg` | 512×512 | Знак на индиго-фоне со скруглением 22%. |
 | `png/app-icon-1024.png` | 1024×1024 | iOS App Store. |
 | `png/app-icon-512.png` | 512×512 | Android, PWA. |
 | `png/app-icon-192.png` | 192×192 | PWA manifest. |
@@ -162,10 +162,10 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 | Файл | Размер | Применение |
 |---|---|---|
-| `numkit-social-en.svg` | 1200×630 | Open Graph, Twitter — английский таглайн. |
-| `numkit-social-ru.svg` | 1200×630 | Open Graph, Twitter — русский таглайн. |
-| `numkit-social-github.svg` | 1280×640 | GitHub social preview (репозиторий). |
-| `numkit-twitter-header.svg` | 1500×500 | Twitter/X профильный баннер. |
+| `nk-social-en.svg` | 1200×630 | Open Graph, Twitter — английский таглайн. |
+| `nk-social-ru.svg` | 1200×630 | Open Graph, Twitter — русский таглайн. |
+| `nk-social-github.svg` | 1280×640 | GitHub social preview (репозиторий). |
+| `nk-twitter-header.svg` | 1500×500 | Twitter/X профильный баннер. |
 | `png/social-en.png` | 1200×630 | Растр для meta-тегов. |
 | `png/social-ru.png` | 1200×630 | Русский растр. |
 | `png/social-github.png` | 1280×640 | GitHub settings → Social preview. |
@@ -177,7 +177,7 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 | Версия | Минимум | Комментарий |
 |---|---|---|
-| Полный логотип `[nₖ] numkit` | 200px | Ниже — wordmark сливается. |
+| Полный логотип `[nₖ] nk` | 200px | Ниже — wordmark сливается. |
 | Только знак `[nₖ]` | 32px | Ниже — субскрипт `k` не читается. |
 | Favicon `[n]` | 16px | Упрощённая версия без субскрипта. |
 
@@ -210,7 +210,7 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 - ❌ Убирать субскрипт `k` из основного знака (можно только в фавиконе)
 - ❌ Наклонять
 - ❌ Использовать wordmark без знака в официальных контекстах (в теле документации
-  можно просто писать `numkit` текстом)
+  можно просто писать `nk` текстом)
 - ❌ Помещать на загруженные фотографические фоны
 
 ---
@@ -232,8 +232,8 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 ```json
 {
-  "name": "numkit",
-  "short_name": "numkit",
+  "name": "nk",
+  "short_name": "nk",
   "description": "compute and explore, anywhere",
   "start_url": "/",
   "display": "standalone",
@@ -249,16 +249,16 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 ### Open Graph / Twitter Card
 
 ```html
-<meta property="og:title" content="numkit">
+<meta property="og:title" content="nk">
 <meta property="og:description" content="compute and explore, anywhere">
-<meta property="og:image" content="https://numkit.dev/social-en.png">
-<meta property="og:url" content="https://numkit.dev">
+<meta property="og:image" content="https://nk.dev/social-en.png">
+<meta property="og:url" content="https://nk.dev">
 <meta property="og:type" content="website">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="numkit">
+<meta name="twitter:title" content="nk">
 <meta name="twitter:description" content="compute and explore, anywhere">
-<meta name="twitter:image" content="https://numkit.dev/social-en.png">
+<meta name="twitter:image" content="https://nk.dev/social-en.png">
 ```
 
 ### GitHub README
@@ -266,8 +266,8 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 ```markdown
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./assets/numkit-logo-dark.svg">
-    <img src="./assets/numkit-logo-light.svg" alt="numkit" width="400">
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/nk-logo-dark.svg">
+    <img src="./assets/nk-logo-light.svg" alt="nk" width="400">
   </picture>
 </p>
 ```
@@ -283,10 +283,10 @@ font-family: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sa
 
 ```bash
 # rsvg-convert (лучшее качество на мелких размерах)
-rsvg-convert -w 512 numkit-app-icon.svg -o app-icon-512.png
+rsvg-convert -w 512 nk-app-icon.svg -o app-icon-512.png
 
 # или ImageMagick
-convert -background none -density 300 numkit-favicon.svg \
+convert -background none -density 300 nk-favicon.svg \
   -resize 256x256 favicon-256.png
 ```
 
@@ -300,7 +300,7 @@ convert favicon-16.png favicon-32.png favicon-64.png favicon-256.png favicon.ico
 
 ## Домены и DNS
 
-### numkit.dev — основной
+### nk.dev — основной
 
 ```
 A    @      <IP>
@@ -308,16 +308,16 @@ AAAA @      <IPv6>
 A    www    <IP>
 ```
 
-### numkit.io — редирект
+### nk.io — редирект
 
 Настрой 301-редирект на уровне хостинга:
 
 ```
-numkit.io/*      → https://numkit.dev/$1  (301 permanent)
-www.numkit.io/*  → https://numkit.dev/$1  (301 permanent)
+nk.io/*      → https://nk.dev/$1  (301 permanent)
+www.nk.io/*  → https://nk.dev/$1  (301 permanent)
 ```
 
-На Cloudflare: Rules → Page Rules → `numkit.io/*` → Forwarding URL 301 → `https://numkit.dev/$1`.
+На Cloudflare: Rules → Page Rules → `nk.io/*` → Forwarding URL 301 → `https://nk.dev/$1`.
 
 ---
 

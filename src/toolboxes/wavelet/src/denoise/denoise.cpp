@@ -5,15 +5,15 @@
 // existing wavedec / waverec / detcoef plumbing — no extra DSP
 // machinery here, just thresholding and a robust σ estimate.
 
-#include <numkit/wavelet/denoise/denoise.hpp>
-#include <numkit/wavelet/dwt/multilevel.hpp>
-#include <numkit/wavelet/dwt/dwt.hpp>     // ddencmp: 1-level dwt noise estimate
+#include <nk/wavelet/denoise/denoise.hpp>
+#include <nk/wavelet/dwt/multilevel.hpp>
+#include <nk/wavelet/dwt/dwt.hpp>     // ddencmp: 1-level dwt noise estimate
 
 // Compute-only TU: Value substrate + Error, no engine. The wthresh /
 // wnoisest / wdenoise builtins (CallContext wrappers) live in
 // denoise/denoise_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -55,7 +55,7 @@ Value wthresh(const Value &X, const std::string &sorh, double T, std::pmr::memor
     const bool soft = (sorh == "s" || sorh == "S");
     if (!hard && !soft)
         throw Error("wthresh: sorh must be 'h' or 's'",
-                    0, 0, "wthresh", "", "numkit:wthresh:sorh");
+                    0, 0, "wthresh", "", "nk:wthresh:sorh");
 
     for (size_t i = 0; i < N; ++i) {
         const double x = X.elemAsDouble(i);
@@ -173,12 +173,12 @@ Value wentropy(const Value &X, const std::string &type, double param,
     } else if (t == "norm") {
         if (param < 1.0)
             throw Error("wentropy: 'norm' exponent P must be >= 1",
-                        0, 0, "wentropy", "", "numkit:wentropy:norm");
+                        0, 0, "wentropy", "", "nk:wentropy:norm");
         for (double v : x) e += std::pow(std::fabs(v), param);
     } else {
         throw Error("wentropy: unknown type '" + type +
                         "' (shannon / log energy / threshold / sure / norm)",
-                    0, 0, "wentropy", "", "numkit:wentropy:type");
+                    0, 0, "wentropy", "", "nk:wentropy:type");
     }
     return Value::scalar(e, mr);
 }
@@ -197,10 +197,10 @@ DdencmpResult ddencmp(const std::string &opt, const std::string &type,
     if (t == "wp")
         throw Error("ddencmp: wavelet-packet ('wp') defaults are not yet "
                     "supported (use 'wv')",
-                    0, 0, "ddencmp", "", "numkit:ddencmp:wp");
+                    0, 0, "ddencmp", "", "nk:ddencmp:wp");
     if (t != "wv")
         throw Error("ddencmp: type must be 'wv' (wavelet) or 'wp'",
-                    0, 0, "ddencmp", "", "numkit:ddencmp:type");
+                    0, 0, "ddencmp", "", "nk:ddencmp:type");
 
     // Noise level from the finest-detail coefficients of a 1-level db1 DWT.
     auto [cA, cD] = dwt(x, "db1", mr);
@@ -218,10 +218,10 @@ DdencmpResult ddencmp(const std::string &opt, const std::string &type,
         r.sorh = Value::fromString("h", mr);
     } else {
         throw Error("ddencmp: option must be 'den' (denoise) or 'cmp' (compress)",
-                    0, 0, "ddencmp", "", "numkit:ddencmp:opt");
+                    0, 0, "ddencmp", "", "nk:ddencmp:opt");
     }
     r.keepapp = Value::scalar(1.0, mr);
     return r;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

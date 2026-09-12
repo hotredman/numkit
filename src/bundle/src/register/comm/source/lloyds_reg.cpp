@@ -7,16 +7,16 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/source/lloyds.hpp>
+#include <nk/comm/source/lloyds.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <tuple>
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void lloyds_reg(Span<const Value> args, size_t nargout,
@@ -24,7 +24,7 @@ void lloyds_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("lloyds: requires (training_set, ini_codebook [, tol])",
-                    0, 0, "lloyds", "", "numkit:lloyds:nargin");
+                    0, 0, "lloyds", "", "nk:lloyds:nargin");
     auto *mr = ctx.engine->resource();
     double tol = 1e-7;
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -39,4 +39,4 @@ void lloyds_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

@@ -7,17 +7,17 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/control/lti/lti.hpp>
-#include <numkit/control/conversion/conversion.hpp>   // minreal
+#include <nk/control/lti/lti.hpp>
+#include <nk/control/conversion/conversion.hpp>   // minreal
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <string>
 #include <utility>
 
-namespace numkit::control {
+namespace nk::control {
 namespace detail {
 
 static double argTs(Span<const Value> args, size_t pos) {
@@ -30,7 +30,7 @@ void tf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("tf: requires (num, den [, Ts])",
-                    0, 0, "tf", "", "numkit:tf:nargin");
+                    0, 0, "tf", "", "nk:tf:nargin");
     outs[0] = tf(args[0], args[1], argTs(args, 2), ctx.engine->resource());
 }
 
@@ -39,7 +39,7 @@ void zpk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("zpk: requires (z, p, k [, Ts])",
-                    0, 0, "zpk", "", "numkit:zpk:nargin");
+                    0, 0, "zpk", "", "nk:zpk:nargin");
     outs[0] = zpk(args[0], args[1], args[2].toScalar(), argTs(args, 3),
                   ctx.engine->resource());
 }
@@ -49,7 +49,7 @@ void ss_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 4)
         throw Error("ss: requires (A, B, C, D [, Ts])",
-                    0, 0, "ss", "", "numkit:ss:nargin");
+                    0, 0, "ss", "", "nk:ss:nargin");
     outs[0] = ss(args[0], args[1], args[2], args[3], argTs(args, 4), ctx.engine->resource());
 }
 
@@ -58,7 +58,7 @@ void filt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("filt: requires (num, den [, Ts])",
-                    0, 0, "filt", "", "numkit:filt:nargin");
+                    0, 0, "filt", "", "nk:filt:nargin");
     // MATLAB default Ts for filt is -1 (unspecified discrete).
     const double Ts = (args.size() >= 3 && !args[2].isEmpty())
                       ? args[2].toScalar() : -1.0;
@@ -70,7 +70,7 @@ void frd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("frd: requires (response, frequency [, Ts])",
-                    0, 0, "frd", "", "numkit:frd:nargin");
+                    0, 0, "frd", "", "nk:frd:nargin");
     outs[0] = frd(args[0], args[1], argTs(args, 2), ctx.engine->resource());
 }
 
@@ -87,7 +87,7 @@ void tfdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("tfdata: requires (sys [, 'v'])",
-                    0, 0, "tfdata", "", "numkit:tfdata:nargin");
+                    0, 0, "tfdata", "", "nk:tfdata:nargin");
     auto [num, den] = tfdata(args[0], wantVector(args, 1), ctx.engine->resource());
     outs[0] = std::move(num);
     if (nargout > 1) outs[1] = std::move(den);
@@ -98,7 +98,7 @@ void zpkdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("zpkdata: requires (sys [, 'v'])",
-                    0, 0, "zpkdata", "", "numkit:zpkdata:nargin");
+                    0, 0, "zpkdata", "", "nk:zpkdata:nargin");
     auto [z, p, k] = zpkdata(args[0], wantVector(args, 1), ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
@@ -110,7 +110,7 @@ void ssdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ssdata: requires (sys)",
-                    0, 0, "ssdata", "", "numkit:ssdata:nargin");
+                    0, 0, "ssdata", "", "nk:ssdata:nargin");
     auto [A, B, C, D] = ssdata(args[0], ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
@@ -123,7 +123,7 @@ void ss2ss_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ss2ss: requires (sys, T)",
-                    0, 0, "ss2ss", "", "numkit:ss2ss:nargin");
+                    0, 0, "ss2ss", "", "nk:ss2ss:nargin");
     outs[0] = ss2ss(args[0], args[1], ctx.engine->resource());
 }
 
@@ -132,7 +132,7 @@ void minreal_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("minreal: requires (sys [, tol])",
-                    0, 0, "minreal", "", "numkit:minreal:nargin");
+                    0, 0, "minreal", "", "nk:minreal:nargin");
     const double tol = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 0.0;
     outs[0] = minreal(args[0], tol, ctx.engine->resource());
 }
@@ -142,7 +142,7 @@ void frdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("frdata: requires (sys [, 'v'])",
-                    0, 0, "frdata", "", "numkit:frdata:nargin");
+                    0, 0, "frdata", "", "nk:frdata:nargin");
     // 'v' flag accepted for MATLAB compatibility; frdata always returns
     // column vectors regardless (we don't model SISO 1×1×N tensors).
     (void)wantVector(args, 1);
@@ -152,4 +152,4 @@ void frdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 }
 
 } // namespace detail
-} // namespace numkit::control
+} // namespace nk::control

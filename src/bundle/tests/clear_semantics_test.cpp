@@ -19,16 +19,16 @@
 
 #include <cmath>
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 namespace {
 
-class ClearSemanticsTest : public ::testing::TestWithParam<numkit::Engine::Backend> {
+class ClearSemanticsTest : public ::testing::TestWithParam<nk::Engine::Backend> {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override { engine.setBackend(GetParam()); }
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
@@ -79,7 +79,7 @@ TEST_P(ClearSemanticsTest, ClearAllKeepsInlineClassdef)
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, ClearSemanticsTest,
-                         ::testing::Values(numkit::Engine::Backend::VM,
-                                           numkit::Engine::Backend::TreeWalker));
+                         ::testing::Values(nk::Engine::Backend::VM,
+                                           nk::Engine::Backend::TreeWalker));
 
 } // namespace

@@ -1,11 +1,11 @@
 // src/builtin/src/datafun/sets.cpp
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/rows_helpers.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/rows_helpers.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -23,7 +23,7 @@
 
 #include "discrete_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 
 // ── unique ─────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr, bool stable)
                 uniqRows.push_back(r);
             }
         }
-        return numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
+        return nk::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
     }
 
     std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
@@ -262,7 +262,7 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr, bool stable)
               });
     uniqRows.insert(uniqRows.end(), nanRows.begin(), nanRows.end());
 
-    return numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
+    return nk::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
 }
 
 std::tuple<Value, Value, Value>
@@ -313,7 +313,7 @@ uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable
             ia[i] = static_cast<double>(uniqRows[i] + 1);
 
         return std::make_tuple(
-            numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
+            nk::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
             std::move(iaCol), std::move(icRow));
     }
 
@@ -362,7 +362,7 @@ uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable
     for (size_t i = 0; i < uniqRows.size(); ++i)
         ia[i] = static_cast<double>(uniqRows[i] + 1);
 
-    return std::make_tuple(numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
+    return std::make_tuple(nk::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
                            std::move(iaCol), std::move(icRow));
 }
 
@@ -419,7 +419,7 @@ ismemberComplex(const Value &a, const Value &b, bool wantLoc, std::pmr::memory_r
     return {std::move(tf), std::move(loc)};
 }
 
-// Complex set operations (C output only, matching numkit's real setops which
+// Complex set operations (C output only, matching nk's real setops which
 // produce just C — ia/ib are not implemented for real either). Equality is
 // EXACT (re&im); ordering is |z| then angle ('sorted', default); 'stable'
 // keeps first-occurrence order (A then, for union, B). A NaN component is
@@ -1200,7 +1200,7 @@ Value uniquetol(const Value &x, double tol, std::pmr::memory_resource *mr)
     // tol*DS of the cluster's representative (i.e. the previously
     // emitted unique value, since input is sorted ascending).
     //
-    // Per-pair relative scaling (the previous numkit behaviour) gave
+    // Per-pair relative scaling (the previous nk behaviour) gave
     // wildly different cluster counts on dense inputs because the
     // scale shifted with each comparison.
     const size_t n = x.numel();
@@ -1240,4 +1240,4 @@ Value uniquetol(const Value &x, double tol, std::pmr::memory_resource *mr)
     return rowFromVec(out.data(), out.size(), mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -4,10 +4,10 @@
 // Bit-equal with MATLAB R2025b when an explicit seed is supplied
 // (uses the MatlabMT19937 RNG = MATLAB's mt19937ar).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RandsrcTest : public ::testing::Test
 {

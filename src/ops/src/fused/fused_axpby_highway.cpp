@@ -5,8 +5,8 @@
 // of the per-op path's two products + a temporary. Mul, Mul, Add (each rounds;
 // NOT FMA) so the result is bit-identical to the per-op `a.*x + b.*y`.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <cstddef>
 
@@ -16,7 +16,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -38,11 +38,11 @@ void AxpbyImpl(const double *x, double a, const double *y, double b,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(AxpbyImpl);
 
@@ -54,5 +54,5 @@ void fusedAxpby(const double *x, double a, const double *y, double b,
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

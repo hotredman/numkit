@@ -2,15 +2,15 @@
 //
 // Descriptive stats extras (B2): bounds, iqr, maxk, mink, rmse.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/stats/distributions/students_t.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/stats/distributions/students_t.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -20,7 +20,7 @@
 
 #include "descriptive_extras_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 // ── bounds ────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ Value rmse(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("rmse: F and A must have compatible sizes",
-                     0, 0, "rmse", "", "numkit:rmse:sizeMismatch");
+                     0, 0, "rmse", "", "nk:rmse:sizeMismatch");
     // Build the squared-difference array, then reduce.
     const size_t n = std::max(f.numel(), a.numel());
     auto diff = (f.numel() >= a.numel())
@@ -113,7 +113,7 @@ Value mape(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("mape: F and A must have compatible sizes",
-                     0, 0, "mape", "", "numkit:mape:sizeMismatch");
+                     0, 0, "mape", "", "nk:mape:sizeMismatch");
     const size_t n = std::max(f.numel(), a.numel());
     auto pct = (f.numel() >= a.numel())
                   ? createLike(f, ValueType::DOUBLE, mr)
@@ -156,13 +156,13 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::m
 {
     if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
         throw Error("partialcorr: X, Y, Z must be 2D matrices",
-                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
+                    0, 0, "partialcorr", "", "nk:partialcorr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t mY = static_cast<std::size_t>(Y.dims().dim(0));
     const std::size_t mZ = static_cast<std::size_t>(Z.dims().dim(0));
     if (mY != m || mZ != m)
         throw Error("partialcorr: X, Y, Z must have the same number of rows",
-                    0, 0, "partialcorr", "", "numkit:partialcorr:dimMismatch");
+                    0, 0, "partialcorr", "", "nk:partialcorr:dimMismatch");
     const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
     const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
     const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));
@@ -305,7 +305,7 @@ Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr)
 {
     if (X.dims().ndim() != 2)
         throw Error("partialcorr: X must be a 2D matrix",
-                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
+                    0, 0, "partialcorr", "", "nk:partialcorr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
 
@@ -393,7 +393,7 @@ Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
                             ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
     if (static_cast<std::size_t>(Y.dims().dim(0)) != n)
         throw Error("corr: X and Y must have the same number of rows",
-                    0, 0, "corr", "", "numkit:corr:rows");
+                    0, 0, "corr", "", "nk:corr:rows");
     const std::size_t q = (Y.dims().ndim() >= 2)
                             ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
 
@@ -616,7 +616,7 @@ Value filloutliers_of(const Value &x,
                         "'center', 'clip', 'previous', 'next', "
                         "'nearest', or 'linear'",
                         0, 0, "filloutliers", "",
-                        "numkit:filloutliers:fillmethod");
+                        "nk:filloutliers:fillmethod");
     } else {
         fill_is_constant = true;
         constVal = fillArg.toScalar();
@@ -662,7 +662,7 @@ Value rmoutliers_of(const Value &x, std::pmr::memory_resource *mr)
 // fillmissing(x, method[, constant_value]) — replace NaN with method.
 // MATLAB-canonical methods: 'constant' (needs value), 'previous',
 // 'next', 'nearest', 'linear'. Internal 'mean'/'median' kept as a
-// numkit convenience (undocumented; use mean(x,'omitnan') +
+// nk convenience (undocumented; use mean(x,'omitnan') +
 // 'constant' for portability). Per-column processing matches
 // MATLAB's default (each column filled independently). For vectors
 // (rows or cols) the per-column scan reduces to a flat scan.
@@ -680,7 +680,7 @@ Value fillmissing_of(const Value &x, const std::string &method, double constVal,
     std::copy(xd, xd + n, od);
 
     // mean / median use the whole column, not the column slice — kept
-    // as the (undocumented) numkit convenience.
+    // as the (undocumented) nk convenience.
     if (method == "mean" || method == "median") {
         ScratchArena scratch(mr);
         ScratchVec<double> good(&scratch);
@@ -723,7 +723,7 @@ Value fillmissing_of(const Value &x, const std::string &method, double constVal,
                 "this revision (MATLAB also supports 'spline', "
                 "'pchip', 'makima', 'movmean', 'movmedian', 'knn' -- "
                 "those are deferred)",
-                0, 0, "fillmissing", "", "numkit:fillmissing:method");
+                0, 0, "fillmissing", "", "nk:fillmissing:method");
 }
 
 // rmmissing(x) — drop NaN entries.
@@ -892,7 +892,7 @@ Value trimmean_of(const Value &x, double pct, int dim, bool useFloor,
 {
     if (pct < 0.0 || pct >= 100.0)
         throw Error("trimmean: percent must be in [0, 100)",
-                    0, 0, "trimmean", "", "numkit:trimmean:badPct");
+                    0, 0, "trimmean", "", "nk:trimmean:badPct");
     const int d = resolveDim(x, dim, "trimmean");
     const double p = pct;
     return applyAlongDim(x, d,
@@ -1099,7 +1099,7 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::stri
         }
     } else {
         throw Error("ksdensity: unknown Function '" + mode + "'",
-                    0, 0, "ksdensity", "", "numkit:ksdensity:badfn");
+                    0, 0, "ksdensity", "", "nk:ksdensity:badfn");
     }
 
     Value xiV = Value::matrix(1, M, ValueType::DOUBLE, mr);
@@ -1130,7 +1130,7 @@ prepareCurveData(const Value &x, const Value &y, const Value &w, std::pmr::memor
     if (Nx != Ny || (hasW && Nw != Nx))
         throw Error("prepareCurveData: x, y" +
                     std::string(hasW ? ", w" : "") + " must be same length",
-                    0, 0, "prepareCurveData", "", "numkit:prepCD:size");
+                    0, 0, "prepareCurveData", "", "nk:prepCD:size");
 
     std::vector<double> xv(Nx), yv(Nx), wv(hasW ? Nx : 0);
     std::vector<uint8_t> keep(Nx, 1);
@@ -1181,7 +1181,7 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::mem
                         out[r + c * rows] = v.elemAsDouble(r);
             } else {
                 throw Error("prepareSurfaceData: x, y, z size mismatch",
-                            0, 0, "prepareSurfaceData", "", "numkit:prepSD:size");
+                            0, 0, "prepareSurfaceData", "", "nk:prepSD:size");
             }
         }
         return out;
@@ -1277,7 +1277,7 @@ Value filloutliers(const Value &A, const Value &fillMethod,
         throw Error("filloutliers: findMethod must be 'median', 'mean', or "
                     "'quartiles' for the C++ API ('percentiles' and "
                     "grubbs/gesd/movmedian/movmean are script-only / deferred)",
-                    0, 0, "filloutliers", "", "numkit:filloutliers:findmethod");
+                    0, 0, "filloutliers", "", "nk:filloutliers:findmethod");
     // Per-method default threshold when thresholdFactor is NaN (matches the
     // adapter): median/mean default 3; quartiles internal 3.0 (= MATLAB k=1.5).
     // A user-supplied factor for quartiles is the IQR multiplier k; the
@@ -1302,12 +1302,12 @@ ecdfhist(const Value &f, const Value &x, int m, std::pmr::memory_resource *mr)
 {
     if (m < 1)
         throw Error("ecdfhist: number of bins must be >= 1",
-                    0, 0, "ecdfhist", "", "numkit:ecdfhist:nbins");
+                    0, 0, "ecdfhist", "", "nk:ecdfhist:nbins");
     const size_t Lf = f.numel();
     const size_t Lx = x.numel();
     if (Lf != Lx)
         throw Error("ecdfhist: f and x must have the same length",
-                    0, 0, "ecdfhist", "", "numkit:ecdfhist:size");
+                    0, 0, "ecdfhist", "", "nk:ecdfhist:size");
     if (Lf < 2) {
         Value n_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
         Value c_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
@@ -1376,7 +1376,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &functio
     const bool has_freq = (freq && freq->numel() == n);
     if (freq && freq->numel() != 0 && freq->numel() != n)
         throw Error("ecdf: Frequency length must match data length",
-                    0, 0, "ecdf", "", "numkit:ecdf:freqsize");
+                    0, 0, "ecdf", "", "nk:ecdf:freqsize");
 
     // Collect (value, weight) pairs, dropping NaNs. Sort by value.
     std::vector<std::pair<double, double>> vw;
@@ -1453,7 +1453,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &functio
         }
     } else {
         throw Error("ecdf: unknown Function mode '" + mode + "'",
-                    0, 0, "ecdf", "", "numkit:ecdf:badmode");
+                    0, 0, "ecdf", "", "nk:ecdf:badmode");
     }
 
     R.f = Value::matrix(L, 1, ValueType::DOUBLE, mr);
@@ -1512,4 +1512,4 @@ ecdf(const Value &y, std::pmr::memory_resource *mr)
     return {std::move(R.f), std::move(R.x)};
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

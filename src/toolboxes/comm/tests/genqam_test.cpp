@@ -3,10 +3,10 @@
 // Regression guard for genqammod / genqamdemod (generic
 // constellation modulation/demodulation).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GenqamTest : public ::testing::Test
 {

@@ -4,11 +4,11 @@
 // integer operands (saturating, MATLAB R2025b). Offline regression guard
 // with hardcoded expected values. One TEST_F per documented branch.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class KronIntegerClassTest : public ::testing::Test
 {

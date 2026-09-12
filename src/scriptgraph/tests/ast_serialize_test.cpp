@@ -6,13 +6,13 @@
 // embed a JSON parser — the tests assert the wire shape only,
 // which is what the frontend consumes.
 
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
-#include <numkit/scriptgraph/ast_serialize.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
+#include <nk/scriptgraph/ast_serialize.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 

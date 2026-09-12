@@ -15,7 +15,7 @@
     "vru",
     "cru"
   ],
-  "comment": "Sig: r = rem(...). INTEGER input keeps the class: rem(int8(-7),int8(3))=-1 int8 (rem uses truncation toward zero, so the sign follows the dividend), rem(uint8(200),uint8(7))=4 uint8. numkit previously returned double / threw on integer arrays; fixed 2026-05-30. Spec-extension batch 2026-05-09 + integer-class.",
+  "comment": "Sig: r = rem(...). INTEGER input keeps the class: rem(int8(-7),int8(3))=-1 int8 (rem uses truncation toward zero, so the sign follows the dividend), rem(uint8(200),uint8(7))=4 uint8. nk previously returned double / threw on integer arrays; fixed 2026-05-30. Spec-extension batch 2026-05-09 + integer-class.",
   "bench_setup": "xb = mod((1:N)*7919,2000)*0.01 - 10;",
   "bench_expr": "rb=rem(xb,3);"
 }

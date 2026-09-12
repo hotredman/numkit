@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/ztest_extras_test.cpp
 // — Name-Value Alpha/Tail parsing.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ZtestExtrasTest : public ::testing::Test
 {
@@ -34,7 +34,7 @@ TEST_F(ZtestExtrasTest, TailNVRecognised)
 
 TEST_F(ZtestExtrasTest, DimRejected)
 {
-    EXPECT_THROW(eval("ztest(x, 3, 1, 'Dim', 1);"), numkit::Error);
+    EXPECT_THROW(eval("ztest(x, 3, 1, 'Dim', 1);"), nk::Error);
 }
 
 TEST_F(ZtestExtrasTest, BasicValuesUnchanged)

@@ -6,14 +6,14 @@
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom
-`[V,D,W] = eig(A)` throws "Too many output arguments". numkit returns only
+`[V,D,W] = eig(A)` throws "Too many output arguments". nk returns only
 `[V,D]` (right eigenvectors + eigenvalues); the left eigenvectors `W`
 (satisfying `W'*A = D*W'`) are missing.
 
 ## Repro
 ```matlab
 [V,D,W] = eig([2 1; 1 3]);
-% numkit: Error — Too many output arguments
+% nk: Error — Too many output arguments
 % MATLAB: W'*A - D*W' ≈ 0  (left eigenvectors, normalized to unit length)
 [V,D,W] = eig([4 -2; 1 1]);
 % MATLAB: D = diag([3 2]),  W(1,1) = 0.707107
@@ -43,10 +43,10 @@ and the per-column normalization vs MATLAB.
   exactly (2×2 `[4 -2;1 1]` → 2.755854; 3×3 `[2 0 0;1 3 0;0 1 4]` → 4.080880);
   `W'*V` is diagonal (left/right eigenvectors of different eigenvalues are
   orthogonal).
-- **Sign/order note:** numkit's `eig` eigenvalue ORDER differs from MATLAB for
+- **Sign/order note:** nk's `eig` eigenvalue ORDER differs from MATLAB for
   *non-symmetric* matrices, and the per-column SIGN of eigenvectors follows
-  numkit's own convention. Both are *pre-existing* (`[V,D]` already differs).
-  `W` is consistent with numkit's own `D` (the relation holds), so validation
+  nk's own convention. Both are *pre-existing* (`[V,D]` already differs).
+  `W` is consistent with nk's own `D` (the relation holds), so validation
   is sign/order-agnostic — same playbook as bugs/linalg/qr-pivoting.md.
 - Live guard: `src/toolboxes/linalg/tests/eig_left_vectors_test.cpp` (6 TEST_F) + flipped
   `LinalgKnownBug.EigLeftVectors` live. Parity: `tools/parity/specs/eig.json`

@@ -2,9 +2,9 @@
 //
 // Registration hub for the Standard Builtin Library on an Engine instance.
 
-#include <numkit/bundle/builtin_library.hpp>
+#include <nk/bundle/builtin_library.hpp>
 
-namespace numkit::bundle::builtin {
+namespace nk::bundle::builtin {
 
 void register_ops(Engine &engine);
 void register_elfun(Engine &engine);
@@ -20,9 +20,9 @@ void register_iofun(Engine &engine);
 void register_general(Engine &engine);
 void register_lang(Engine &engine);
 
-} // namespace numkit::bundle::builtin
+} // namespace nk::bundle::builtin
 
-namespace numkit {
+namespace nk {
 
 void BuiltinLibrary::install(Engine &engine) {
     bundle::builtin::register_ops(engine);
@@ -44,4 +44,4 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &) {
     // Handled modularly via register_general, register_datatypes, register_timefun, etc.
 }
 
-} // namespace numkit
+} // namespace nk

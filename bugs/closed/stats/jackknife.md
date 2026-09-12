@@ -25,7 +25,7 @@ The primary (and only) documented call form throws:
 ```matlab
 jackknife(@mean, [1 2 3 4 5])
 % Error: jackknife: function-handle invocation not yet supported
-%        (numkit:jackknife:nyi)
+%        (nk:jackknife:nyi)
 ```
 
 So `jackknife` cannot be used at all — there is no working branch.

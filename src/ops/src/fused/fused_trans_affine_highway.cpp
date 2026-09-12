@@ -3,15 +3,15 @@
 // SIMD kernel for fusedTransAffine: out[i] = f(scale*x[i] + offset), f ∈
 // {exp, expm1}. These transcendentals' Highway form (hwy/contrib/math, SLEEF-
 // derived) differs from libm by a few ULP, so — unlike sqrt/floor/ceil — the
-// kernel must MIRROR numkit's exp/expm1 loop to stay bit-identical to the
+// kernel must MIRROR nk's exp/expm1 loop to stay bit-identical to the
 // per-op f(a.*x ± b): the same hn:: on the SIMD body, the same std:: on the
 // per-chunk scalar tail, and (in fusedTransAffine below) the same
 // kTranscendentalThreshold so parallel_for produces the same chunk boundaries.
 // The affine is Mul-then-Add (two roundings, NOT FMA) to match the affine
 // fallback. exp/expm1 of any real is real → no complex-promotion domain.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -24,12 +24,12 @@
 #include <hwy/contrib/math/math-inl.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
 
-// tan has no Highway primitive; numkit's TanLoop uses SLEEF's xtan kernel with a
+// tan has no Highway primitive; nk's TanLoop uses SLEEF's xtan kernel with a
 // per-block |x| >= 1e6 scalar fallback. To stay bit-identical to the per-op
 // tan(a.*x ± b) the fused kernel must mirror that on the inner. TanVec is copied
 // verbatim from math/trig/trig_highway.cpp (SLEEF sleefsimddp.c, BSL-1.0) — ops/
@@ -228,11 +228,11 @@ void TransAffineImpl(const double *x, double p0, double p1, bool divide,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(TransAffineImpl);
 
@@ -240,7 +240,7 @@ void fusedTransAffine(const double *x, double scale, double offset,
                       TransAffineFn fn, double *out, std::size_t n) {
     if (n == 0) return;
     // kTranscendentalThreshold (not the arithmetic 1<<16) so the chunk
-    // boundaries match numkit's exp/expm1 parallel_for — the per-chunk
+    // boundaries match nk's exp/expm1 parallel_for — the per-chunk
     // hn::/std:: split must land on the same elements for bit-exactness.
     detail::parallel_for(n, detail::kTranscendentalThreshold,
                          [&](std::size_t s, std::size_t e) {
@@ -259,5 +259,5 @@ void fusedTransShiftDiv(const double *x, double sub, double div,
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

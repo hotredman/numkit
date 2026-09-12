@@ -3,17 +3,17 @@
 // CallContext register half of distributions/chi2.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/builtin/specfun.hpp> // gammainc, gammaincinv
-#include <numkit/stats/distributions/chi2.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <nk/builtin/specfun.hpp> // gammainc, gammaincinv
+#include <nk/stats/distributions/chi2.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/chi2_detail.hpp"
 #include "distributions/dist_helpers.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,14 +25,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void chi2pdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("chi2pdf: requires (x, k)", 0, 0, "chi2pdf", "", "numkit:chi2pdf:nargin");
+        throw Error("chi2pdf: requires (x, k)", 0, 0, "chi2pdf", "", "nk:chi2pdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &k = args[1];
     // Scalar k: hoisted fast path (unchanged). Vector k: broadcast.
@@ -47,7 +47,7 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "numkit:chi2cdf:nargin");
+        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "nk:chi2cdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &k = a[1];
     Value v;
@@ -58,7 +58,7 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         // and gammaincScalar gives NaN where k/2<=0 (matches k<=0 → NaN).
         Value xs = elementwise(a[0], [](double xi) { return std::max(0.0, 0.5 * xi); }, mr);
         Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
-        v = ::numkit::builtin::gammainc(xs, half_k, mr);
+        v = ::nk::builtin::gammainc(xs, half_k, mr);
     }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -67,7 +67,7 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("chi2inv: requires (p, k)", 0, 0, "chi2inv", "", "numkit:chi2inv:nargin");
+        throw Error("chi2inv: requires (p, k)", 0, 0, "chi2inv", "", "nk:chi2inv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = args[0];
     const Value &k = args[1];
@@ -83,7 +83,7 @@ void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     }
     const size_t N = dist_match_numel({np, nk}, "chi2inv");
     Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
-    Value q = ::numkit::builtin::gammaincinv(p, half_k, mr);
+    Value q = ::nk::builtin::gammaincinv(p, half_k, mr);
     const size_t nq = q.numel();
     const Value &ref = (nk == N) ? k : p;
     Value out = dist_empty_like(ref, mr);
@@ -102,7 +102,7 @@ void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("chi2rnd: requires k[, sz...]", 0, 0, "chi2rnd", "", "numkit:chi2rnd:nargin");
+        throw Error("chi2rnd: requires k[, sz...]", 0, 0, "chi2rnd", "", "nk:chi2rnd:nargin");
     const double k = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
@@ -117,4 +117,4 @@ void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

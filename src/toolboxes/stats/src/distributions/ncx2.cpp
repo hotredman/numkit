@@ -1,12 +1,12 @@
 // toolboxes/stats/src/distributions/ncx2.cpp
 
-#include <numkit/stats/distributions/ncx2.hpp>
+#include <nk/stats/distributions/ncx2.hpp>
 
-#include <numkit/builtin/specfun.hpp>   // besseli, gammainc
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>   // besseli, gammainc
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -17,7 +17,7 @@
 
 #include "ncx2_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value ncx2pdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr)
@@ -80,7 +80,7 @@ Value ncx2inv(const Value &p, double k, double lambda, std::pmr::memory_resource
     }, mr);
 }
 
-Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value ncx2rnd(::nk::ops::RngContext &rng, double k, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -109,4 +109,4 @@ std::tuple<double, double> ncx2stat(double k, double lambda)
     return std::make_tuple(k + lambda, 2.0 * (k + 2.0 * lambda));
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

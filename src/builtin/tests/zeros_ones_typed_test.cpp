@@ -8,10 +8,10 @@
 // All MATLAB type names supported: double, single, logical,
 // {int,uint}{8,16,32,64}.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ZerosOnesTypedTest : public ::testing::Test
 {

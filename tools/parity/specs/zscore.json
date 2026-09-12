@@ -14,5 +14,5 @@
     "zr(1,1)",
     "zr(2,3)"
   ],
-  "comment": "MATLAB zscore — centre + scale to unit std. DEFAULT flag 0 uses the SAMPLE std (N-1): z0(1)=-1.40312152 (previously numkit wrongly used N -> -1.5). flag 1 uses population std (N). dim arg: zscore(M,0,2) operates along rows. Pins actual normalised values across flag 0/1 and dim 1/2. Bit-equal MATLAB R2025b (tol=1e-9). The old spec only checked abs(mean(z))<1e-9, which is true for BOTH normalisations and hid the bug."
+  "comment": "MATLAB zscore — centre + scale to unit std. DEFAULT flag 0 uses the SAMPLE std (N-1): z0(1)=-1.40312152 (previously nk wrongly used N -> -1.5). flag 1 uses population std (N). dim arg: zscore(M,0,2) operates along rows. Pins actual normalised values across flag 0/1 and dim 1/2. Bit-equal MATLAB R2025b (tol=1e-9). The old spec only checked abs(mean(z))<1e-9, which is true for BOTH normalisations and hid the bug."
 }

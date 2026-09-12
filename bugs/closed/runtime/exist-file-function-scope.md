@@ -26,7 +26,7 @@ function q()
 end
 q();
 fprintf('top exist=%g\n', exist([tempdir 'probe_exist.txt'], 'file'));
-% numkit:   fn exist=0, fn dir=1, top exist=2
+% nk:   fn exist=0, fn dir=1, top exist=2
 % MATLAB R2025b: fn exist=2, fn dir=1, top exist=2
 ```
 

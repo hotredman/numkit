@@ -10,7 +10,7 @@
   "mat_diff": [
    "only-in-matlab: RESTOREDEFAULTPATH_EXECUTED"
   ],
-  "numkit_out": "Hello, World.\n",
+  "nk_out": "Hello, World.\n",
   "matlab_out": "Hello, World.\r\n"
  }
 ]

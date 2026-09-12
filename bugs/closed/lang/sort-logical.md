@@ -41,7 +41,7 @@ logical class, with a double index for the 2nd output.
 ## Repro
 ```matlab
 sort(logical([0 1 0 1]))
-% numkit: ERROR "Not a double array (in call to 'sort')"
+% nk: ERROR "Not a double array (in call to 'sort')"
 % MATLAB: [0 0 1 1]   (class logical)
 
 [S, I] = sort(logical([0 1 0 1]))

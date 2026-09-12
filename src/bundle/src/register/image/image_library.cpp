@@ -4,12 +4,12 @@
 // Namespace: image.<sub>.<name>; every function is also aliased into
 // `compat.<name>` so MATLAB-style scripts can call them flat.
 
-#include <numkit/image/library.hpp>
+#include <nk/image/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::image::detail {
+namespace nk::image::detail {
 // arithmetic/arithmetic.cpp
 void imadd_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imsubtract_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -294,9 +294,9 @@ void imrotate3_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imtranslate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void impyramid_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void axes2pix_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-} // namespace numkit::image::detail
+} // namespace nk::image::detail
 
-namespace numkit {
+namespace nk {
 
 // Defined in filter/filter.cpp + morph/morph.cpp — register the VM-continuation
 // drivers for nlfilter / makelut (state-machine callbacks).
@@ -600,4 +600,4 @@ void ImageLibrary::install(Engine &engine)
     reg("segment", "bwdistgeodesic",&image::detail::bwdistgeodesic_reg);
 }
 
-} // namespace numkit
+} // namespace nk

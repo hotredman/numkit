@@ -1,8 +1,8 @@
 // src/vm.cpp
 #include <cstdio>
-#include <numkit/core/vm.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/vm.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -14,18 +14,18 @@
 #include <unordered_set>
 
 // Forward-declarations from toolboxes/builtin/src/backends/binary_ops_loops.hpp.
-// Linked from the same numkit library; lets the VM bypass the public
+// Linked from the same nk library; lets the VM bypass the public
 // builtin::plus()/etc. wrappers (which always allocate a fresh result
 // Value) when it can write straight into a uniquely-owned destination
 // buffer of the right shape.
-namespace numkit::ops::detail {
+namespace nk::ops::detail {
 void plusLoop   (const double *a, const double *b, double *out, std::size_t n);
 void minusLoop  (const double *a, const double *b, double *out, std::size_t n);
 void timesLoop  (const double *a, const double *b, double *out, std::size_t n);
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n);
-} // namespace numkit::ops::detail
+} // namespace nk::ops::detail
 
-namespace numkit {
+namespace nk {
 
 // Output-reuse fast path for `dst = lhs op rhs` where both inputs and
 // the destination are real heap doubles of the same shape and dst has
@@ -2964,7 +2964,7 @@ enter_frame:
     } catch (const DebugStopException &) {
         throw; // pass through — not a user error
     } catch (Error &mle) {
-        std::string id = mle.identifier().empty() ? "numkit:error" : mle.identifier();
+        std::string id = mle.identifier().empty() ? "nk:error" : mle.identifier();
         if (dispatchTryCatch(mle.what(), id.c_str()))
             goto enter_frame;
         // Enrich with current instruction's source location if missing
@@ -2988,7 +2988,7 @@ enter_frame:
         }
         throw;
     } catch (const std::exception &ex) {
-        if (dispatchTryCatch(ex.what(), "numkit:error"))
+        if (dispatchTryCatch(ex.what(), "nk:error"))
             goto enter_frame;
         if (stopOnError_ && debugCtl()) {
             frame.ip = ip;
@@ -4242,7 +4242,7 @@ void VM::execIndirectIndexSpan(const Value &mv, uint8_t dstReg, const Value *AB,
                     size_t es = elementSize(t);
                     std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
                 }
-                R[dstReg] = numkit::narrowComplex(std::move(res), engine_.mr_);  // z(:) all-real -> real
+                R[dstReg] = nk::narrowComplex(std::move(res), engine_.mr_);  // z(:) all-real -> real
             }
         } else if (mv.isScalar() && ix.isDoubleScalar()) {
             checkedIndex(ix.scalarVal(), 1);
@@ -4424,4 +4424,4 @@ void VM::execWhos(const Instruction &I, Value *R, const BytecodeChunk &chunk)
     }
 }
 
-} // namespace numkit
+} // namespace nk

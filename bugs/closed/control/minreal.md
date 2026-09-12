@@ -15,11 +15,11 @@ realization — is not registered.
 sysr = minreal(tf([1 1], [1 2 1]));   % (s+1)/(s+1)^2  ->  1/(s+1)
 [n,d] = tfdata(sysr, 'v');
 % MATLAB: n = [0 1], d = [1 1]
-% numkit: Error — VM: undefined function 'minreal'
+% nk: Error — VM: undefined function 'minreal'
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::control::minreal` (`conversion.cpp`):
+Implemented `nk::control::minreal` (`conversion.cpp`):
 
 - **tf**: `roots(num)` / `roots(den)`, then greedily cancel each pole
   against the nearest surviving zero within relative tolerance `tol`
@@ -46,7 +46,7 @@ mimo-throws), `known_bugs_test.cpp` (`Minreal`, promoted live); smoke
 
 ## References
 - `src/toolboxes/control/src/conversion/conversion.cpp` (`minreal`,
-  `cancelTf`, `polyFromRoots`), `.../include/numkit/control/conversion/conversion.hpp`,
+  `cancelTf`, `polyFromRoots`), `.../include/nk/control/conversion/conversion.hpp`,
   `src/bundle/src/register/control/lti/lti_reg.cpp` (`minreal_reg`).
 - `tools/parity/specs/minreal.json`.
 - shipped + reused: `tf`/`ss`/`tfdata`/`roots`/`tf2ss`/`ss2tf`

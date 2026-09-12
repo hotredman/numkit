@@ -10,13 +10,13 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
 
 #include <cstddef>
 #include <memory_resource>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // risetime / falltime worker. Emits up to 5 outputs into `outs`:
 //   [R, LT, UT, LL, UL] — duration, lower(10%) crossing time, upper(90%)
@@ -25,4 +25,4 @@ void pulseRiseFall(Span<const Value> args, std::size_t nargout, Span<Value> outs
                    bool rising, const char *fnname,
                    std::pmr::memory_resource *mr);
 
-} // namespace numkit::signal
+} // namespace nk::signal

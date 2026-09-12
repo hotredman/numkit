@@ -1,4 +1,4 @@
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sample_corr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dist_dispatch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/friedman_test.cpp
@@ -182,6 +182,6 @@ target_sources(numkit_gtest PRIVATE
 )
 
 # Relocated from tests/builtin (layer split 2026-06-17).
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/stats_test.cpp
 )

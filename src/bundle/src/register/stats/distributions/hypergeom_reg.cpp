@@ -3,16 +3,16 @@
 // CallContext register half of distributions/hypergeom.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/hypergeom.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/hypergeom.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/hypergeom_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -36,7 +36,7 @@ inline bool hyge_params_scalar(Span<const Value> a, size_t i) {
 void hygepdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
-        throw Error("hygepdf: requires (k, M, K, N)", 0, 0, "hygepdf", "", "numkit:hygepdf:nargin");
+        throw Error("hygepdf: requires (k, M, K, N)", 0, 0, "hygepdf", "", "nk:hygepdf:nargin");
     auto *mr = ctx.engine->resource();
     if (hyge_params_scalar(args, 1))
         outs[0] = hygepdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), mr);
@@ -49,7 +49,7 @@ void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 4)
-        throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "numkit:hygecdf:nargin");
+        throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "nk:hygecdf:nargin");
     auto *mr = ctx.engine->resource();
     Value v = hyge_params_scalar(a, 1)
                   ? hygecdf(a[0], a[1].toScalar(), a[2].toScalar(), a[3].toScalar(), mr)
@@ -61,7 +61,7 @@ void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void hygeinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
-        throw Error("hygeinv: requires (q, M, K, N)", 0, 0, "hygeinv", "", "numkit:hygeinv:nargin");
+        throw Error("hygeinv: requires (q, M, K, N)", 0, 0, "hygeinv", "", "nk:hygeinv:nargin");
     auto *mr = ctx.engine->resource();
     if (hyge_params_scalar(args, 1))
         outs[0] = hygeinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), mr);
@@ -72,7 +72,7 @@ void hygeinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("hygernd: requires (M, K, N[, m, n])", 0, 0, "hygernd", "", "numkit:hygernd:nargin");
+        throw Error("hygernd: requires (M, K, N[, m, n])", 0, 0, "hygernd", "", "nk:hygernd:nargin");
     const double M = args[0].toScalar();
     const double K = args[1].toScalar();
     const double N = args[2].toScalar();
@@ -93,4 +93,4 @@ void hygestat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -7,15 +7,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/source/huffman.hpp>
+#include <nk/comm/source/huffman.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void huffmandict_reg(Span<const Value> args, size_t nargout,
@@ -23,7 +23,7 @@ void huffmandict_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("huffmandict: requires (symbols, probs)",
-                    0, 0, "huffmandict", "", "numkit:huffmandict:nargin");
+                    0, 0, "huffmandict", "", "nk:huffmandict:nargin");
     auto *mr = ctx.engine->resource();
     auto [dict, avglen] = huffmandict(args[0], args[1], mr);
     outs[0] = std::move(dict);
@@ -36,7 +36,7 @@ void huffmanenco_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("huffmanenco: requires (sig, dict)",
-                    0, 0, "huffmanenco", "", "numkit:huffmanenco:nargin");
+                    0, 0, "huffmanenco", "", "nk:huffmanenco:nargin");
     outs[0] = huffmanenco(args[0], args[1], ctx.engine->resource());
 }
 
@@ -45,10 +45,10 @@ void huffmandeco_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("huffmandeco: requires (bits, dict)",
-                    0, 0, "huffmandeco", "", "numkit:huffmandeco:nargin");
+                    0, 0, "huffmandeco", "", "nk:huffmandeco:nargin");
     outs[0] = huffmandeco(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

@@ -36,7 +36,7 @@ across engines — only its final state can.
 ```matlab
 clear;
 % Same instance, same seed head — both engines:
-disp(rand(3,1))            % 0.8147 0.9058 0.1270 in numkit AND MATLAB R2025b
+disp(rand(3,1))            % 0.8147 0.9058 0.1270 in nk AND MATLAB R2025b
 % ...run any simulated-annealing loop; final sol_best/E_best match,
 % intermediate E_current/sol_current diverge after the first 1-ulp
 % acceptance flip (expected for chaotic stochastic dynamics).

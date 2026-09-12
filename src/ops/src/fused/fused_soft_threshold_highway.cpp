@@ -3,12 +3,12 @@
 // SIMD kernel for fusedSoftThreshold: out[i] = sign(x) * max(0, |x| - t), the
 // wavelet/L1 shrinkage operator. One pass instead of sign + abs + sub + max +
 // mul (five per-op passes). Every step is exact/IEEE — sign is replicated from
-// numkit's signOp (NaN→NaN, v>0→1, v<0→-1, else→0), abs is a sign-bit clear,
-// and max(0, d) omits NaN (std::fmax semantics, matching numkit's max(0,·)) —
+// nk's signOp (NaN→NaN, v>0→1, v<0→-1, else→0), abs is a sign-bit clear,
+// and max(0, d) omits NaN (std::fmax semantics, matching nk's max(0,·)) —
 // so the result is bit-identical to `sign(x) .* max(0, abs(x) - t)`.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -19,7 +19,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -32,7 +32,7 @@ void SoftThresholdImpl(const double *x, double t, double *out, std::size_t n) {
     std::size_t i = 0;
     for (; i + L <= n; i += L) {
         const auto v = hn::LoadU(d, x + i);
-        // sign(v): NaN→v, v>0→1, v<0→-1, else→0 (== numkit signOp).
+        // sign(v): NaN→v, v>0→1, v<0→-1, else→0 (== nk signOp).
         auto s = hn::IfThenElse(hn::Gt(v, zero), one,
                                 hn::IfThenElse(hn::Lt(v, zero), neg1, zero));
         s = hn::IfThenElse(hn::IsNaN(v), v, s);
@@ -49,11 +49,11 @@ void SoftThresholdImpl(const double *x, double t, double *out, std::size_t n) {
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(SoftThresholdImpl);
 
@@ -64,5 +64,5 @@ void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n) {
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

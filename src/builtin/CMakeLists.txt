@@ -1,6 +1,6 @@
 # src/builtin/CMakeLists.txt
 
-list(APPEND NUMKIT_BUILTIN_SOURCES
+list(APPEND NK_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/binary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/unary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/int_math.cpp
@@ -35,8 +35,8 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/keywords.cpp
 )
 
-if(NUMKIT_WITH_SIMD)
-    list(APPEND NUMKIT_BUILTIN_SOURCES
+if(NK_WITH_SIMD)
+    list(APPEND NK_BUILTIN_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/trig_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/trig_recip_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/exp_log_highway.cpp
@@ -51,7 +51,7 @@ if(NUMKIT_WITH_SIMD)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/casts_highway.cpp
     )
 else()
-    list(APPEND NUMKIT_BUILTIN_SOURCES
+    list(APPEND NK_BUILTIN_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/trig_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/trig_recip_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/exp_log_portable.cpp
@@ -67,27 +67,27 @@ else()
     )
 endif()
 
-list(APPEND NUMKIT_BUILTIN_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/builtin.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/ops.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/elmat.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/elfun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/matfun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/datafun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/specfun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/polyfun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/strfun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/timefun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/datatypes.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/iofun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/lang.hpp
+list(APPEND NK_BUILTIN_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/builtin.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/ops.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/elmat.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/elfun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/matfun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/datafun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/specfun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/polyfun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/strfun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/timefun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/datatypes.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/iofun.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/builtin/lang.hpp
 )
 
-list(APPEND NUMKIT_BUILTIN_INCLUDE_DIRS
+list(APPEND NK_BUILTIN_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-set(NUMKIT_BUILTIN_SOURCES      ${NUMKIT_BUILTIN_SOURCES}      PARENT_SCOPE)
-set(NUMKIT_BUILTIN_HEADERS      ${NUMKIT_BUILTIN_HEADERS}      PARENT_SCOPE)
-set(NUMKIT_BUILTIN_INCLUDE_DIRS ${NUMKIT_BUILTIN_INCLUDE_DIRS} PARENT_SCOPE)
+set(NK_BUILTIN_SOURCES      ${NK_BUILTIN_SOURCES}      PARENT_SCOPE)
+set(NK_BUILTIN_HEADERS      ${NK_BUILTIN_HEADERS}      PARENT_SCOPE)
+set(NK_BUILTIN_INCLUDE_DIRS ${NK_BUILTIN_INCLUDE_DIRS} PARENT_SCOPE)

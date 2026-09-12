@@ -20,7 +20,7 @@ fprintf('  expect [5 4]\n\n');
 % --- Verify closed-loop poles match desired ---
 A_cl = A - B*K;
 fprintf('  A_cl =\n'); disp(A_cl);
-% Closed-loop char poly via numkit poly()-roots() round-trip:
+% Closed-loop char poly via nk poly()-roots() round-trip:
 charP = [1, -A_cl(1,1) - A_cl(2,2), A_cl(1,1)*A_cl(2,2) - A_cl(1,2)*A_cl(2,1)];
 fprintf('  char poly = '); disp(charP);
 fprintf('  expect [1 4 5]\n\n');

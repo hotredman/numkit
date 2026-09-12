@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Comparison groups (R5): run a curated group of .m scripts through numkit
+"""Comparison groups (R5): run a curated group of .m scripts through nk
 AND MATLAB, print a human-readable divergence report.
 
   python compare.py --list         show available groups

@@ -1,11 +1,11 @@
 // src/builtin/src/ops/unary_ops_detail.hpp
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -24,7 +24,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -50,7 +50,7 @@ inline Value transpose2D(const Value &x, bool conjugate, const char *fnName,
 {
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
-                     0, 0, fnName, "", "numkit:transpose:3DInput");
+                     0, 0, fnName, "", "nk:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
     const ValueType t = x.type();
 
@@ -82,7 +82,7 @@ inline Value transpose2D(const Value &x, bool conjugate, const char *fnName,
     if (t == ValueType::STRING || t == ValueType::STRUCT ||
         t == ValueType::FUNC_HANDLE)
         throw Error("Transpose not supported for this type",
-                     0, 0, fnName, "", "numkit:transpose:unsupportedType");
+                     0, 0, fnName, "", "nk:transpose:unsupportedType");
 
     if (t == ValueType::DOUBLE && x.isScalar())
         return Value::scalar(x.toScalar(), p);
@@ -99,4 +99,4 @@ inline Value transpose2D(const Value &x, bool conjugate, const char *fnName,
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

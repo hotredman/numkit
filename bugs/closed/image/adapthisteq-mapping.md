@@ -23,7 +23,7 @@ R2025b's `adapthisteq.m` clip + map exactly:
    `2·numTiles` so each tile is even (the half-tile regions are exact).
 
 Result on the repro: `J(32,32)` 205→**128** (= MATLAB), `min` 127→**20** (=),
-`max`/`mean` exact, gradient interior ≤±1. numkit now matches MATLAB R2025b to
+`max`/`mean` exact, gradient interior ≤±1. nk now matches MATLAB R2025b to
 **±1 gray level** (residual = final round-half-away FP order); `j`/`jmin`/`jmax`/
 `jd` are bit-exact on the parity setup. tonemap (which calls adapthisteq)
 re-matches MATLAB exactly. Guard `ImageKnownBug.AdapthisteqMapping` live at ±2;
@@ -47,7 +47,7 @@ I = uint8(120 + 40*sin(xx/8) + 30*cos(yy/6));   % deterministic textured image
 J = adapthisteq(I);                              % defaults (uniform, ClipLimit 0.01, NumTiles [8 8])
 ```
 
-| fingerprint            | numkit | MATLAB R2025b |
+| fingerprint            | nk | MATLAB R2025b |
 |------------------------|--------|---------------|
 | `J(32,32)`             | 205    | **128**       |
 | `J(1,1)`               | 174    | **100**       |
@@ -57,7 +57,7 @@ J = adapthisteq(I);                              % defaults (uniform, ClipLimit 
 | rayleigh `Jr(32,32)`   | 193    | **118**       |
 | double `Jd(32,32)`     | 0.8032 | **0.5027**    |
 
-MATLAB roughly preserves/centres the mean and spreads to ~[20,235]; numkit
+MATLAB roughly preserves/centres the mean and spreads to ~[20,235]; nk
 pushes the mean way up (~201 vs ~130) and collapses the bottom half to ≥127.
 The pure-gradient degenerate case is even worse (all-255).
 

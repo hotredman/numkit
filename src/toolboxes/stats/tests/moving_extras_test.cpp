@@ -3,12 +3,12 @@
 // Tests for B1 (moving stats: mov*, smoothdata, hampel) and B2
 // (descriptive extras: bounds, iqr, maxk, mink, rmse).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MovingTest : public ::testing::Test
 {
@@ -187,7 +187,7 @@ TEST_F(MovingTest, MovmeanMatrixDim2)
 
 // MATLAB even-length scalar windows lean BACKWARD (centre = current+previous,
 // kb=k/2, kf=k/2-1) across the whole mov* family. Odd windows stay symmetric.
-// Regression for the 2026-05-29 fix (numkit had even windows leaning forward).
+// Regression for the 2026-05-29 fix (nk had even windows leaning forward).
 TEST_F(MovingTest, EvenWindowLeansBackwardLikeMATLAB)
 {
     eval("s = movsum([1 2 3 4], 2);");      // [1 3 5 7]

@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "Sig: s = datastats(x). MATLAB requires column vector input. Numkit emits same struct fields {min,max,mean,median,num,range,std} -- bit-identical on probed COLUMN input."
+  "comment": "Sig: s = datastats(x). MATLAB requires column vector input. NK emits same struct fields {min,max,mean,median,num,range,std} -- bit-identical on probed COLUMN input."
 }

@@ -6,14 +6,14 @@
 // MATLAB-facing readmatrix/writematrix (VFS read/write) are covered by
 // io_extras_test.cpp via eval().
 
-#include <numkit/io/text/extras.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/io/text/extras.hpp>
+#include <nk/value/value.hpp>
 
 #include <gtest/gtest.h>
 
 #include <string>
 
-using namespace numkit;
+using namespace nk;
 
 TEST(ExtrasCppApi, ReadMatrixFromStringEngineFree)
 {

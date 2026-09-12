@@ -6,16 +6,16 @@
 // cellfun('isempty'|'length'|'ndims'|'prodofsize'|'isreal'|'islogical', C),
 // plus cellfun('size', C, k) and cellfun('isclass', C, 'cls'). MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class CellfunInputFormsTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 

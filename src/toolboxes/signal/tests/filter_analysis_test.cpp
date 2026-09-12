@@ -4,12 +4,12 @@
 //   impz / impzlength / stepz / phasedelay / zerophase
 //   isfir / isstable / isminphase / ismaxphase / islinphase / isallpass
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FilterAnalysisTest : public ::testing::Test
 {

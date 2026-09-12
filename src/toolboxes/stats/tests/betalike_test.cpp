@@ -5,11 +5,11 @@
 // the Hessian — verified by direct MATLAB probe. The two estimators
 // only coincide at the MLE.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class BetalikeTest : public ::testing::Test
 {

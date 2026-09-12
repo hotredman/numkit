@@ -4,13 +4,13 @@
 // descriptive_extras_detail.hpp (sliceQuantile) so the select primitive lives
 // in the kernel layer. See quantile_select.hpp.
 
-#include <numkit/ops/quantile_select.hpp>
+#include <nk/ops/quantile_select.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 double sliceQuantile(double *s, std::size_t n, double p)
 {
@@ -35,4 +35,4 @@ double sliceQuantile(double *s, std::size_t n, double p)
     return a + frac * (b - a);
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

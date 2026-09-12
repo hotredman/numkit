@@ -3,11 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -67,7 +67,7 @@ Value flipCellStr(const Value &x, int axis, const char *fn, std::pmr::memory_res
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error(std::string(fn) + ": cell/string arrays support up to 2-D",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":cellRank");
+                     0, 0, fn, "", std::string("nk:") + fn + ":cellRank");
     const size_t R = d.rows(), C = d.cols();
     Value r = makeCellOrString(x.type(), R, C, mr);
     if (x.numel() == 0) return r;
@@ -120,13 +120,13 @@ Value flipNDAlongAxis(const Value &x, int axis, const char *fn, std::pmr::memory
     if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":typeND");
+                     0, 0, fn, "", std::string("nk:") + fn + ":typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error(std::string(fn) + ": rank exceeds 32",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("nk:") + fn + ":tooManyDims");
 
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = d.dim(i);
@@ -228,7 +228,7 @@ Value rot90CellStr(const Value &x, int kMod, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("rot90: cell/string arrays support up to 2-D",
-                     0, 0, "rot90", "", "numkit:rot90:cellRank");
+                     0, 0, "rot90", "", "nk:rot90:cellRank");
     const size_t R = d.rows(), C = d.cols();
     const ValueType t = x.type();
     if (kMod == 0 || kMod == 2) {                    // shape stays R×C
@@ -324,13 +324,13 @@ Value trilTriuND(const Value &x, int k, PageBytesFn pageFn, const char *fn, std:
     const int nd = dd.ndim();
     if (nd > kMaxNd)
         throw Error(std::string(fn) + ": rank exceeds 32",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("nk:") + fn + ":tooManyDims");
     const ValueType t = x.type();
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
         || t == ValueType::FUNC_HANDLE)
         throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":typeND");
+                     0, 0, fn, "", std::string("nk:") + fn + ":typeND");
 
     const size_t R = dd.rows(), C = dd.cols();
     size_t outDimArr[kMaxNd];
@@ -360,7 +360,7 @@ ScratchVec<size_t> repelemMap(const Value &counts, size_t dimLen, ScratchArena &
     auto checkCount = [](double c) -> size_t {
         if (!(c >= 0.0) || std::floor(c) != c)
             throw Error("repelem: replication counts must be nonnegative integers",
-                         0, 0, "repelem", "", "numkit:repelem:badCount");
+                         0, 0, "repelem", "", "nk:repelem:badCount");
         return static_cast<size_t>(c);
     };
     if (counts.isScalar()) {
@@ -372,10 +372,10 @@ ScratchVec<size_t> repelemMap(const Value &counts, size_t dimLen, ScratchArena &
     }
     if (counts.type() != ValueType::DOUBLE)
         throw Error("repelem: count vector must be DOUBLE",
-                     0, 0, "repelem", "", "numkit:repelem:type");
+                     0, 0, "repelem", "", "nk:repelem:type");
     if (counts.numel() != dimLen)
         throw Error("repelem: count vector length must equal the dimension size",
-                     0, 0, "repelem", "", "numkit:repelem:countLen");
+                     0, 0, "repelem", "", "nk:repelem:countLen");
     const double *cd = counts.doubleData();
     for (size_t i = 0; i < dimLen; ++i) {
         const size_t rep = checkCount(cd[i]);
@@ -396,4 +396,4 @@ inline bool isVectorLike(const Value &v)
 }
 } // anon
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

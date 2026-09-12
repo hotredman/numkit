@@ -3,11 +3,11 @@
 // Covers cens + freq + scalar avar + edge fixes (mu<=0 => NaN,
 // empty => 0).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ExplikeTest : public ::testing::Test
 {

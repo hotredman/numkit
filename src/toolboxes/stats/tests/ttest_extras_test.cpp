@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/ttest_extras_test.cpp
 // Reference values from MATLAB R2025b probe.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TtestExtrasTest : public ::testing::Test
 {
@@ -96,5 +96,5 @@ TEST_F(TtestExtrasTest, ParametricStatsStructs)
 
 TEST_F(TtestExtrasTest, Ttest2DimRejected)
 {
-    EXPECT_THROW(eval("ttest2(x, y, 'Dim', 1);"), numkit::Error);
+    EXPECT_THROW(eval("ttest2(x, y, 'Dim', 1);"), nk::Error);
 }

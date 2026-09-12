@@ -7,15 +7,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/modulation/psk.hpp>
+#include <nk/comm/modulation/psk.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 namespace {
@@ -33,7 +33,7 @@ void pskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pskmod: requires (x, M[, ini_phase, symbol_order])",
-                    0, 0, "pskmod", "", "numkit:pskmod:nargin");
+                    0, 0, "pskmod", "", "nk:pskmod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -47,7 +47,7 @@ void pskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pskdemod: requires (y, M[, ini_phase, symbol_order])",
-                    0, 0, "pskdemod", "", "numkit:pskdemod:nargin");
+                    0, 0, "pskdemod", "", "nk:pskdemod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -61,7 +61,7 @@ void dpskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("dpskmod: requires (x, M[, phaserot, symbol_order])",
-                    0, 0, "dpskmod", "", "numkit:dpskmod:nargin");
+                    0, 0, "dpskmod", "", "nk:dpskmod:nargin");
     const int M = (int)args[1].toScalar();
     const double rot = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -75,7 +75,7 @@ void dpskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("dpskdemod: requires (y, M[, phaserot, symbol_order])",
-                    0, 0, "dpskdemod", "", "numkit:dpskdemod:nargin");
+                    0, 0, "dpskdemod", "", "nk:dpskdemod:nargin");
     const int M = (int)args[1].toScalar();
     const double rot = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -85,4 +85,4 @@ void dpskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::comm
+} // namespace nk::comm

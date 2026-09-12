@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""deploy_pages.py — unified cross-platform publisher for NumKit GitHub Pages repositories."""
+"""deploy_pages.py — unified cross-platform publisher for NK GitHub Pages repositories."""
 
 import os
 import sys
@@ -35,13 +35,13 @@ def get_git_rev():
 
 def deploy(target_type, source_dir, repo_url, dest_dir=None, push=True, skip_build=False):
     source_dir = Path(source_dir).resolve()
-    print(f"=== NumKit Deploy to GitHub Pages [{target_type.upper()}] ===")
+    print(f"=== NK Deploy to GitHub Pages [{target_type.upper()}] ===")
     print(f"Source Directory: {source_dir}")
 
     # 1. Build if needed
     if not skip_build:
         if target_type == 'bugs':
-            print("Building NumKit Bugs Docsify site...")
+            print("Building NK Bugs Docsify site...")
             run_cmd([sys.executable, str(ROOT / 'tools' / 'build_bugs_site.py'), '--output', str(source_dir)])
         elif target_type == 'doxy':
             print("Building Doxygen documentation...")
@@ -106,11 +106,11 @@ def deploy(target_type, source_dir, repo_url, dest_dir=None, push=True, skip_bui
     # 5. Commit 1 clean state (Orphan Branch)
     print("Creating clean 1-commit state...")
     msg_map = {
-        'bugs': f"docs(bugs): NumKit Defect & Parity Catalog (numkit@{src_rev})",
-        'doxy': f"docs(doxy): NumKit C++ API Documentation (numkit@{src_rev})",
-        'demo': f"deploy(demo): NumKit Web IDE Demo (numkit@{src_rev})"
+        'bugs': f"docs(bugs): NK Defect & Parity Catalog (nk@{src_rev})",
+        'doxy': f"docs(doxy): NK C++ API Documentation (nk@{src_rev})",
+        'demo': f"deploy(demo): NK Web IDE Demo (nk@{src_rev})"
     }
-    commit_msg = msg_map.get(target_type, f"deploy: NumKit {target_type} (numkit@{src_rev})")
+    commit_msg = msg_map.get(target_type, f"deploy: NK {target_type} (nk@{src_rev})")
 
     run_cmd(['git', 'checkout', '--orphan', 'temp_deploy'], cwd=deploy_dir, check=False)
     run_cmd(['git', 'add', '-A'], cwd=deploy_dir)
@@ -130,7 +130,7 @@ def deploy(target_type, source_dir, repo_url, dest_dir=None, push=True, skip_bui
         print(f"\n[OK] Clean commit created locally in: {deploy_dir} (push skipped).")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Deploy NumKit docs/demo to GitHub Pages repository.')
+    parser = argparse.ArgumentParser(description='Deploy NK docs/demo to GitHub Pages repository.')
     parser.add_argument('--type', choices=['bugs', 'doxy', 'demo'], default='bugs', help='Type of deployment')
     parser.add_argument('--source', help='Source directory of built site')
     parser.add_argument('--repo', help='Remote Git repository URL')
@@ -146,9 +146,9 @@ if __name__ == '__main__':
         'demo': ROOT / 'deploy'
     }
     default_repos = {
-        'bugs': os.environ.get('NUMKIT_BUGS_REPO', 'git@github.com:hotredman/numkit-bugs.git'),
-        'doxy': os.environ.get('NUMKIT_DOXY_REPO', 'git@github.com:hotredman/numkit-doxy.git'),
-        'demo': os.environ.get('NUMKIT_DEMO_REPO', 'git@github.com:hotredman/numkit-demo.git')
+        'bugs': os.environ.get('NK_BUGS_REPO', 'git@github.com:hotredman/nk-bugs.git'),
+        'doxy': os.environ.get('NK_DOXY_REPO', 'git@github.com:hotredman/nk-doxy.git'),
+        'demo': os.environ.get('NK_DEMO_REPO', 'git@github.com:hotredman/nk-demo.git')
     }
 
     src = args.source or default_sources[args.type]

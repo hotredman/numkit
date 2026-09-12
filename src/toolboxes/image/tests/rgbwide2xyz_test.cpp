@@ -3,10 +3,10 @@
 // Regression guard for rgbwide2xyz + xyz2rgbwide — narrow-range
 // BT.2020/BT.2100 RGB ↔ CIE 1931 XYZ.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WideXYZTest : public ::testing::Test
 {

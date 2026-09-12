@@ -25,7 +25,7 @@
     "z0n",
     "z00"
   ],
-  "comment": "Sig: r = mod(...). INTEGER input keeps the class: mod(int8(-7),int8(3))=2 int8 (floored), mod(int8([7 8 9]),int8(3))=[1 2 0] int8; a double operand is promoted to the integer class (mod(int8(7),3)=1 int8). Real-DOUBLE arrays (va = vector%vector, vsa = vector%scalar) take the SIMD path (a-floor(a/b)*b, bit-identical to the scalar formula). Zero divisor: mod(a,0)==a (z0=5, z0n=-5, z00=0) — the scalar VM/TW fast path previously returned NaN via std::fmod. numkit previously returned double / threw on integer arrays; fixed 2026-05-30. SIMD mod added 2026-06; scalar mod(a,0) fixed 2026-06. NOTE: ; only inside matrix-literal INPUTS.",
+  "comment": "Sig: r = mod(...). INTEGER input keeps the class: mod(int8(-7),int8(3))=2 int8 (floored), mod(int8([7 8 9]),int8(3))=[1 2 0] int8; a double operand is promoted to the integer class (mod(int8(7),3)=1 int8). Real-DOUBLE arrays (va = vector%vector, vsa = vector%scalar) take the SIMD path (a-floor(a/b)*b, bit-identical to the scalar formula). Zero divisor: mod(a,0)==a (z0=5, z0n=-5, z00=0) — the scalar VM/TW fast path previously returned NaN via std::fmod. nk previously returned double / threw on integer arrays; fixed 2026-05-30. SIMD mod added 2026-06; scalar mod(a,0) fixed 2026-06. NOTE: ; only inside matrix-literal INPUTS.",
   "bench_setup": "xb = mod((1:N)*7919,2000)*0.01 - 10;",
   "bench_expr": "rb=mod(xb,3);"
 }

@@ -19,7 +19,7 @@ clear;
 A = [2, 1i; -1i, 2];
 R = chol(A);
 disp(R(1,1))
-% numkit: Error: Not a double array (in call to 'chol')
+% nk: Error: Not a double array (in call to 'chol')
 % MATLAB: 1.4142 (complex Cholesky works)
 ```
 

@@ -4,12 +4,12 @@
 //   db / db2mag / mag2db / db2pow / pow2db
 //   rms / rssq / peak2peak / peak2rms
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MeasurementsTest : public ::testing::Test
 {

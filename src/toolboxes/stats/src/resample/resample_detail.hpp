@@ -3,12 +3,12 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/matlab_mt19937.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/ops/matlab_mt19937.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -27,14 +27,14 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
 // Sample K indices in [0..N-1] given (optional) weights.
 std::vector<int> sample_indices(int N, int K, bool with_replacement,
                                 const std::vector<double> &weights,
-                                numkit::ops::MatlabMT19937 &gen)
+                                nk::ops::MatlabMT19937 &gen)
 {
     std::vector<int> out;
     out.reserve((size_t)K);
@@ -89,7 +89,7 @@ Value combnkImpl(const std::vector<double> &items, int K,
     const int N = static_cast<int>(items.size());
     if (K < 0)
         throw Error("combnk: K must be non-negative", 0, 0, "combnk", "",
-                    "numkit:combnk:badK");
+                    "nk:combnk:badK");
     // MATLAB: choosing K > N elements yields an empty 0xK result (not an
     // error). E.g. combnk(1:4, 5) -> 0x5, combnk(5, 2) -> 0x2 (scalar 5 is
     // the 1-element set {5}, so K=2 > N=1).
@@ -124,4 +124,4 @@ Value combnkImpl(const std::vector<double> &items, int K,
 }
 } // anon
 
-} // namespace numkit::stats
+} // namespace nk::stats

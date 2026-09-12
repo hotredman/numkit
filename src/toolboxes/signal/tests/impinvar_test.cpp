@@ -7,10 +7,10 @@
 // a^{(m-1)}), partial fractions with multiplicity, impulse-invariant Eulerian
 // z-kernel. Bit-equal MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImpinvarTest : public ::testing::Test
 {

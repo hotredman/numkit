@@ -6,16 +6,16 @@
 // stepinfo — rise/settling/peak metrics computed off the existing
 //           step response.
 
-#include <numkit/control/analyze/analyze.hpp>
-#include <numkit/control/freq/freq.hpp>
-#include <numkit/control/response/response.hpp>
-#include <numkit/control/conversion/conversion.hpp>   // allmargin: open-loop num/den
-#include <numkit/builtin/polyfun.hpp>            // allmargin: roots for Stable
+#include <nk/control/analyze/analyze.hpp>
+#include <nk/control/freq/freq.hpp>
+#include <nk/control/response/response.hpp>
+#include <nk/control/conversion/conversion.hpp>   // allmargin: open-loop num/den
+#include <nk/builtin/polyfun.hpp>            // allmargin: roots for Stable
 
 // Compute-only TU: Value substrate + Error, no engine. The dcgain/margin/
 // stepinfo builtins (CallContext wrappers) live in analyze_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -156,7 +156,7 @@ openLoopNumDen(const Value &sys, std::pmr::memory_resource *mr) {
         }
     }
     throw Error("allmargin: expected an LTI struct (tf/zpk/ss)",
-                0, 0, "allmargin", "", "numkit:allmargin:kind");
+                0, 0, "allmargin", "", "nk:allmargin:kind");
 }
 
 Value rowFrom(const std::vector<double> &v, std::pmr::memory_resource *mr) {
@@ -215,7 +215,7 @@ Value allmargin(const Value &sys, std::pmr::memory_resource *mr)
         std::vector<double> mags;
         auto addRoots = [&](const std::vector<double> &c) {
             if (c.size() < 2) return;
-            Value rts = numkit::builtin::roots(rowFrom(c, mr), mr);
+            Value rts = nk::builtin::roots(rowFrom(c, mr), mr);
             const size_t n = rts.numel();
             if (rts.type() == ValueType::COMPLEX) {
                 const std::complex<double> *p = rts.complexData();
@@ -285,7 +285,7 @@ Value allmargin(const Value &sys, std::pmr::memory_resource *mr)
         while (s0 + 1 < cl.size() && cl[s0] == 0.0) ++s0;
         cl.erase(cl.begin(), cl.begin() + s0);
         if (cl.size() >= 2) {
-            Value rts = numkit::builtin::roots(rowFrom(cl, mr), mr);
+            Value rts = nk::builtin::roots(rowFrom(cl, mr), mr);
             const size_t n = rts.numel();
             if (rts.type() == ValueType::COMPLEX) {
                 const std::complex<double> *p = rts.complexData();
@@ -430,4 +430,4 @@ Value stepinfo(const Value &sys, std::pmr::memory_resource *mr)
     return s;
 }
 
-} // namespace numkit::control
+} // namespace nk::control

@@ -6,11 +6,11 @@
 // Highway backend can replace it without touching this signature or the
 // toolbox call sites). See conv.hpp.
 
-#include <numkit/ops/conv.hpp>
+#include <nk/ops/conv.hpp>
 
 #include <algorithm>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 ScratchVec<double> convDirect(const double *a, std::size_t na,
                               const double *b, std::size_t nb,
@@ -45,4 +45,4 @@ void conv2Direct(const double *A, std::size_t M, std::size_t N,
     }
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

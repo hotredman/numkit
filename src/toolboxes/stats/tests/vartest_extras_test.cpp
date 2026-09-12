@@ -2,11 +2,11 @@
 // — Name-Value parsing
 // for Alpha/Tail.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class VartestExtrasTest : public ::testing::Test
 {
@@ -36,7 +36,7 @@ TEST_F(VartestExtrasTest, TailNVRecognised)
 
 TEST_F(VartestExtrasTest, DimRejected)
 {
-    EXPECT_THROW(eval("vartest(x, 1, 'Dim', 1);"), numkit::Error);
+    EXPECT_THROW(eval("vartest(x, 1, 'Dim', 1);"), nk::Error);
 }
 
 TEST_F(VartestExtrasTest, Vartest2AlphaNVRecognised)
@@ -51,7 +51,7 @@ TEST_F(VartestExtrasTest, Vartest2TailNV)
 
 TEST_F(VartestExtrasTest, Vartest2DimRejected)
 {
-    EXPECT_THROW(eval("vartest2(x, y, 'Dim', 1);"), numkit::Error);
+    EXPECT_THROW(eval("vartest2(x, y, 'Dim', 1);"), nk::Error);
 }
 
 TEST_F(VartestExtrasTest, BasicValuesUnchanged)

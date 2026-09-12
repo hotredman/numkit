@@ -3,10 +3,10 @@
 // Regression guard for autocorr / crosscorr (Econometrics sample correlation).
 // Expected values from MATLAB R2025b. bugs/stats/autocorr.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SampleCorrTest : public ::testing::Test
 {

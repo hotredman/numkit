@@ -3,16 +3,16 @@
 // CallContext register half of math/exp_log/exponents.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "elfun/_unary_hint.hpp"   // 3-arg exp/log hint overloads
-#include <numkit/ops/helpers.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,8 +24,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -35,7 +35,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
@@ -54,7 +54,7 @@ void pow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("pow2: requires 1 or 2 arguments",
-                     0, 0, "pow2", "", "numkit:pow2:nargin");
+                     0, 0, "pow2", "", "nk:pow2:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2)
         outs[0] = pow2(args[0], args[1], mr);
@@ -66,10 +66,10 @@ void realpow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("realpow: requires 2 arguments",
-                     0, 0, "realpow", "", "numkit:realpow:nargin");
+                     0, 0, "realpow", "", "nk:realpow:nargin");
     outs[0] = realpow(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

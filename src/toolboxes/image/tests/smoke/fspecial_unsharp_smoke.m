@@ -3,7 +3,7 @@ clear
 % fspecial('unsharp',alpha) is the 3x3 unsharp contrast-enhancement filter
 % (a sharpening Laplacian). MATLAB R2025b:
 %   h = [-a  a-1  -a;  a-1  a+5  a-1;  -a  a-1  -a] / (a+1)
-% with alpha in [0,1], default 0.2. It sums to 1. numkit previously threw
+% with alpha in [0,1], default 0.2. It sums to 1. nk previously threw
 % 'unknown filter type 'unsharp'' (the type was unimplemented).
 
 u = fspecial('unsharp');         % default alpha = 0.2

@@ -4,7 +4,7 @@ clear
 % used to diagnose outliers: if rint(i,:) does NOT contain 0, observation i
 % is a likely outlier. MATLAB R2025b computes these via the Chatterjee & Hadi
 % LEAVE-ONE-OUT studentized-residual variance estimate with (nu-1) degrees of
-% freedom -- NOT the textbook r +/- t*sigma*sqrt(1-h). numkit used the
+% freedom -- NOT the textbook r +/- t*sigma*sqrt(1-h). nk used the
 % textbook form (rint disagreed with MATLAB); now it matches.
 
 y = [1.1 1.9 3.2 3.8 5.1]';

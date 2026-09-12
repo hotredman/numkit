@@ -13,16 +13,16 @@
 // planar2raw is the exact inverse. Both round-trip with equality on
 // any class accepted by Value (numeric and logical).
 
-#include <numkit/image/color/color.hpp>
+#include <nk/image/color/color.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cstdint>
 #include <cstring>
 #include <string>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -43,7 +43,7 @@ inline void copyElem(Value &dst, size_t di, const Value &src, size_t si)
         case ValueType::LOGICAL: dst.logicalDataMut()[di] = src.logicalData()[si]; break;
         default:
             throw Error("raw_planar: unsupported element type",
-                        0, 0, "raw_planar", "", "numkit:raw_planar:type");
+                        0, 0, "raw_planar", "", "nk:raw_planar:type");
     }
 }
 
@@ -54,15 +54,15 @@ Value raw2planar(const Value &cfa, std::pmr::memory_resource *mr)
     const auto &d = cfa.dims();
     if (d.ndims() < 2)
         throw Error("raw2planar: cfa must be 2-D",
-                    0, 0, "raw2planar", "", "numkit:raw2planar:rank");
+                    0, 0, "raw2planar", "", "nk:raw2planar:rank");
     const size_t M = d.dim(0);
     const size_t N = d.dim(1);
     if (cfa.numel() != M * N)
         throw Error("raw2planar: cfa must be a 2-D matrix",
-                    0, 0, "raw2planar", "", "numkit:raw2planar:shape");
+                    0, 0, "raw2planar", "", "nk:raw2planar:shape");
     if ((M % 2) != 0 || (N % 2) != 0)
         throw Error("raw2planar: cfa dimensions must both be even",
-                    0, 0, "raw2planar", "", "numkit:raw2planar:DimsMustBeEven");
+                    0, 0, "raw2planar", "", "nk:raw2planar:DimsMustBeEven");
 
     const size_t Mp = M / 2;
     const size_t Np = N / 2;
@@ -94,12 +94,12 @@ Value planar2raw(const Value &I, std::pmr::memory_resource *mr)
     const auto &d = I.dims();
     if (d.ndims() < 3 || d.dim(2) != 4)
         throw Error("planar2raw: I must be (M)×(N)×4",
-                    0, 0, "planar2raw", "", "numkit:planar2raw:shape");
+                    0, 0, "planar2raw", "", "nk:planar2raw:shape");
     const size_t Mp = d.dim(0);
     const size_t Np = d.dim(1);
     if (I.numel() != Mp * Np * 4)
         throw Error("planar2raw: I must be (M)×(N)×4",
-                    0, 0, "planar2raw", "", "numkit:planar2raw:shape");
+                    0, 0, "planar2raw", "", "nk:planar2raw:shape");
 
     const size_t M = 2 * Mp;
     const size_t N = 2 * Np;
@@ -120,4 +120,4 @@ Value planar2raw(const Value &I, std::pmr::memory_resource *mr)
     return cfa;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

@@ -1,14 +1,14 @@
 // toolboxes/wavelet/tests/wrcoef_test.cpp
 //
 // Backfill gtest for toolboxes/wavelet/src/dwt/wrcoef.cpp::wrcoef.
-// Parity verified on Haar (where numkit's wavedec matches MATLAB);
+// Parity verified on Haar (where nk's wavedec matches MATLAB);
 // db/sym/coif use a different boundary convention (BUGS.md #37).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WrcoefTest : public ::testing::Test
 {
@@ -58,10 +58,10 @@ TEST_F(WrcoefTest, DefaultLevelEqualsMaxLevel)
 
 TEST_F(WrcoefTest, BadTypeRejected)
 {
-    EXPECT_THROW(eval("wrcoef('x', c, l, 'haar', 1);"), numkit::Error);
+    EXPECT_THROW(eval("wrcoef('x', c, l, 'haar', 1);"), nk::Error);
 }
 
 TEST_F(WrcoefTest, DetailLevelZeroRejected)
 {
-    EXPECT_THROW(eval("wrcoef('d', c, l, 'haar', 0);"), numkit::Error);
+    EXPECT_THROW(eval("wrcoef('d', c, l, 'haar', 0);"), nk::Error);
 }

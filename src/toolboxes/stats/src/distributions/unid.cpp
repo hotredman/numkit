@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/unid.cpp
 
-#include <numkit/stats/distributions/unid.hpp>
+#include <nk/stats/distributions/unid.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -16,7 +16,7 @@
 
 #include "unid_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value unidpdf(const Value &k, double N, std::pmr::memory_resource *mr)
@@ -56,7 +56,7 @@ Value unidinv(const Value &p, double N, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unidrnd(::numkit::ops::RngContext &rng, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value unidrnd(::nk::ops::RngContext &rng, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -77,4 +77,4 @@ std::tuple<double, double> unidstat(double N)
     return std::make_tuple(0.5 * (N + 1.0), (N * N - 1.0) / 12.0);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

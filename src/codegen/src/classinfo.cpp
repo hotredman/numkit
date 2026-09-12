@@ -1,13 +1,13 @@
 // codegen/src/classinfo.cpp — see classinfo.hpp.
 
-#include <numkit/codegen/classinfo.hpp>
+#include <nk/codegen/classinfo.hpp>
 
-#include <numkit/codegen/inference.hpp>
+#include <nk/codegen/inference.hpp>
 
 #include <stdexcept>
 #include <utility>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 const ClassField *ClassInfo::field(const std::string &n) const
 {
@@ -115,4 +115,4 @@ std::size_t collectClasses(const ASTNode &root, ClassRegistry &reg,
     return added;
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

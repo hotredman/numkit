@@ -2,13 +2,13 @@
 //
 // Latin Hypercube sampling (lhsdesign / lhsnorm).
 
-#include <numkit/stats/sampling/lhs.hpp>
-#include <numkit/stats/distributions/normal.hpp>
+#include <nk/stats/sampling/lhs.hpp>
+#include <nk/stats/distributions/normal.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/ops/rng_context.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/ops/rng_context.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 #include <random>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -34,7 +34,7 @@ void choleskyUpperInPlace(double *S, std::size_t n)
         if (diag <= 0.0)
             throw Error("lhsnorm: Sigma must be positive definite "
                         "(Cholesky failed at row " + std::to_string(j + 1) + ")",
-                        0, 0, "lhsnorm", "", "numkit:lhsnorm:notPD");
+                        0, 0, "lhsnorm", "", "nk:lhsnorm:notPD");
         const double Rjj = std::sqrt(diag);
         S[j * n + j] = Rjj;
         for (std::size_t i = j + 1; i < n; ++i) {
@@ -133,7 +133,7 @@ double maxAbsColCorrelation(const double *X, std::size_t n, std::size_t p)
 
 } // anonymous
 
-Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
+Value lhsdesign(::nk::ops::RngContext &rng, std::size_t n, std::size_t p,
                 bool smooth, LhsCriterion criterion, std::size_t iterations,
                 std::pmr::memory_resource *mr)
 {
@@ -171,14 +171,14 @@ Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
     return out;
 }
 
-Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
+Value lhsdesign(::nk::ops::RngContext &rng, std::size_t n, std::size_t p,
                 std::pmr::memory_resource *mr)
 {
     // MATLAB defaults: smooth=on, criterion=maximin, iterations=5.
     return lhsdesign(rng, n, p, /*smooth=*/true, LhsCriterion::Maximin, 5, mr);
 }
 
-Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
+Value lhsnorm(::nk::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
               std::pmr::memory_resource *mr)
 {
     // Resolve d from mu's length, validate against Sigma's shape.
@@ -187,7 +187,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
         throw Error("lhsnorm: Sigma must be d × d where d = length(mu)",
-                    0, 0, "lhsnorm", "", "numkit:lhsnorm:shape");
+                    0, 0, "lhsnorm", "", "nk:lhsnorm:shape");
 
     // U is the LHS uniform design (n × d).
     Value U = lhsdesign(rng, n, d, mr);
@@ -222,4 +222,4 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

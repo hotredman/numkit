@@ -1,17 +1,17 @@
 # ops/CMakeLists.txt
 #
-# numkit_ops — reusable numeric primitives shared by the VM (core) and the
+# nk_ops — reusable numeric primitives shared by the VM (core) and the
 # pure toolboxes (libs):
 #   • element-wise op kernels (plus/minus/times/rdivide, matmul, compare)
-#     with portable + Highway-SIMD backends, selected by NUMKIT_WITH_SIMD;
+#     with portable + Highway-SIMD backends, selected by NK_WITH_SIMD;
 #   • parallel_for + thread_pool (the parallel-execution infra those kernels
 #     and the toolboxes use).
 #
-# L0.5 layer: depends on numkit_value (Value), Highway (under SIMD) and
-# Threads (under NUMKIT_WITH_THREADS) — never on core, fs, or any toolbox.
+# L0.5 layer: depends on nk_value (Value), Highway (under SIMD) and
+# Threads (under NK_WITH_THREADS) — never on core, fs, or any toolbox.
 
 # Always-on primitives (no SIMD/threads gating).
-set(NUMKIT_OPS_SOURCES
+set(NK_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
@@ -41,15 +41,15 @@ set(NUMKIT_OPS_SOURCES
     # lambda-free TU so it auto-vectorizes) — see bugs/ops/cheap-elementwise-simd-small-n.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_scalar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_scalar.cpp
-    # Public kernel facade (numkit/ops/kernels.hpp) — stable forwarders over the
+    # Public kernel facade (nk/ops/kernels.hpp) — stable forwarders over the
     # backend-split detail loops; the codegen lowering target. Base TU (no SIMD
     # specialisation of its own; resolves to the linked backend).
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernels.cpp)
-if(NUMKIT_WITH_THREADS)
-    list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
+if(NK_WITH_THREADS)
+    list(APPEND NK_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
-if(NUMKIT_WITH_SIMD)
-    list(APPEND NUMKIT_OPS_SOURCES
+if(NK_WITH_SIMD)
+    list(APPEND NK_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_affine_clamp_highway.cpp
@@ -74,7 +74,7 @@ if(NUMKIT_WITH_SIMD)
         # nanvar) — Highway; backs stats nan_aware. Portable fallback below.
         ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp)
 else()
-    list(APPEND NUMKIT_OPS_SOURCES
+    list(APPEND NK_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_kernels_portable.cpp
@@ -82,9 +82,9 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_portable.cpp)
 endif()
 
-add_library(numkit_ops STATIC ${NUMKIT_OPS_SOURCES})
+add_library(nk_ops STATIC ${NK_OPS_SOURCES})
 
-target_include_directories(numkit_ops
+target_include_directories(nk_ops
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
@@ -93,25 +93,25 @@ target_include_directories(numkit_ops
         # ("binary_ops_highway.cpp" / "compare_highway.cpp").
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-target_link_libraries(numkit_ops PUBLIC numkit_value)
-target_compile_features(numkit_ops PUBLIC cxx_std_17)
-set_target_properties(numkit_ops PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(nk_ops PUBLIC nk_value)
+target_compile_features(nk_ops PUBLIC cxx_std_17)
+set_target_properties(nk_ops PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(EMSCRIPTEN)
-    target_compile_options(numkit_ops PRIVATE -fexceptions)
+    target_compile_options(nk_ops PRIVATE -fexceptions)
 endif()
 
-if(NUMKIT_WITH_SIMD)
+if(NK_WITH_SIMD)
     # PRIVATE + BUILD_INTERFACE: Highway is a pure implementation detail and
-    # stays out of the exported target set (mirrors the numkit aggregate).
-    target_link_libraries(numkit_ops PRIVATE
+    # stays out of the exported target set (mirrors the nk aggregate).
+    target_link_libraries(nk_ops PRIVATE
         $<BUILD_INTERFACE:hwy>
         $<BUILD_INTERFACE:hwy_contrib>)
-    target_compile_definitions(numkit_ops PUBLIC NUMKIT_WITH_SIMD=1)
+    target_compile_definitions(nk_ops PUBLIC NK_WITH_SIMD=1)
 endif()
 
-if(NUMKIT_WITH_THREADS)
+if(NK_WITH_THREADS)
     find_package(Threads REQUIRED)
-    target_link_libraries(numkit_ops PUBLIC Threads::Threads)
-    target_compile_definitions(numkit_ops PUBLIC NUMKIT_WITH_THREADS=1)
+    target_link_libraries(nk_ops PUBLIC Threads::Threads)
+    target_compile_definitions(nk_ops PUBLIC NK_WITH_THREADS=1)
 endif()

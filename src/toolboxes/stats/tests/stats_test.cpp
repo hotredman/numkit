@@ -3193,7 +3193,7 @@ TEST_P(CumLogicalTest, DiffNDDim2)
 TEST_P(CumLogicalTest, DiffPreservesIntegerClass)
 {
     // MATLAB R2025b keeps the integer class for diff (and saturates). Fixed
-    // 2026-05-30 — numkit previously promoted to double.
+    // 2026-05-30 — nk previously promoted to double.
     // diff(int32([10 25 60 100])) = [15 35 40] int32.
     eval("d = diff(int32([10 25 60 100]));");
     auto *d = getVarPtr("d");

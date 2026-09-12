@@ -8,7 +8,7 @@
 % Scope rule: eval inside a function runs in *that function's*
 % workspace, not in the global workspace. Variables defined by eval
 % are local to the function and disappear when it returns. (Set the
-% `NUMKIT_LEGACY_EVAL_SCOPE=1` env var to revert to the pre-2026-05
+% `NK_LEGACY_EVAL_SCOPE=1` env var to revert to the pre-2026-05
 % behaviour where eval/run leaked to base.)
 %
 % Available without `import compat.*` — core builtin.

@@ -27,8 +27,8 @@
 
 ## Repro
 ```matlab
-psi(0)        % numkit: NaN;  MATLAB: -Inf
-psi([0 1 2])  % numkit: [NaN -0.5772 0.4228];  MATLAB: [-Inf -0.5772 0.4228]
+psi(0)        % nk: NaN;  MATLAB: -Inf
+psi([0 1 2])  % nk: [NaN -0.5772 0.4228];  MATLAB: [-Inf -0.5772 0.4228]
 psi(1)        % -0.57721566 on both (unchanged)
 ```
 
@@ -37,10 +37,10 @@ psi(1)        % -0.57721566 on both (unchanged)
 genuine pole that MATLAB reports as -Inf.
 
 ## Related (NOT fixed — separate / murky)
-- `psi(NEGATIVE)`: MATLAB ERRORS ("X must be nonnegative"); numkit returns NaN
+- `psi(NEGATIVE)`: MATLAB ERRORS ("X must be nonnegative"); nk returns NaN
   (integers) or the reflection-formula value (non-integers). The negative-domain
   error semantics are a separate decision and left as-is.
-- `gammaln(-1)` similarly: MATLAB errors, numkit lenient.
+- `gammaln(-1)` similarly: MATLAB errors, nk lenient.
 
 ## References
 - `src/math/src/special/special.cpp` (`psiScalar`)

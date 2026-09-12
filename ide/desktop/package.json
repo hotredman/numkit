@@ -1,5 +1,5 @@
 {
-  "name": "numkit_ide",
+  "name": "nk_ide",
   "version": "2.1.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
@@ -18,8 +18,8 @@
     "test:examples": "playwright test tests/e2e/examples"
   },
   "build": {
-    "appId": "com.numkit.ide",
-    "productName": "numkit_ide",
+    "appId": "com.nk.ide",
+    "productName": "nk_ide",
     "directories": {
       "output": "release"
     },
@@ -33,7 +33,7 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "numkit_ide.exe"
+      "artifactName": "nk_ide.exe"
     },
     "linux": {
       "target": [
@@ -41,7 +41,7 @@
         "dir"
       ],
       "category": "Development",
-      "artifactName": "numkit_ide.AppImage"
+      "artifactName": "nk_ide.AppImage"
     }
   },
   "devDependencies": {

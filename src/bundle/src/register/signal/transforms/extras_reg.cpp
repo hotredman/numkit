@@ -3,17 +3,17 @@
 // CallContext register half of transforms/extras.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
-#include <numkit/signal/transforms/extras.hpp>
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
+#include <nk/signal/transforms/extras.hpp>
+#include <nk/signal/transforms/fft.hpp>
 #include "transforms/extras_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void dftmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("dftmtx: requires N",
-                     0, 0, "dftmtx", "", "numkit:dftmtx:nargin");
+                     0, 0, "dftmtx", "", "nk:dftmtx:nargin");
     outs[0] = dftmtx(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
 }
 
@@ -41,7 +41,7 @@ void bitrevorder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("bitrevorder: requires x",
-                     0, 0, "bitrevorder", "", "numkit:bitrevorder:nargin");
+                     0, 0, "bitrevorder", "", "nk:bitrevorder:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = bitrevorder(args[0], mr);
     // 2nd output: 1-based index vector I such that Y(k) = X(I(k)).
@@ -71,7 +71,7 @@ void dst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("dst: requires x",
-                     0, 0, "dst", "", "numkit:dst:nargin");
+                     0, 0, "dst", "", "nk:dst:nargin");
     outs[0] = dst(args[0], ctx.engine->resource());
 }
 
@@ -79,7 +79,7 @@ void idst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("idst: requires y",
-                     0, 0, "idst", "", "numkit:idst:nargin");
+                     0, 0, "idst", "", "nk:idst:nargin");
     outs[0] = idst(args[0], ctx.engine->resource());
 }
 
@@ -87,7 +87,7 @@ void rceps_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.empty())
         throw Error("rceps: requires x",
-                     0, 0, "rceps", "", "numkit:rceps:nargin");
+                     0, 0, "rceps", "", "nk:rceps:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [y, ym] = rcepsMinPhase(args[0], mr);
@@ -102,7 +102,7 @@ void cceps_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.empty())
         throw Error("cceps: requires x",
-                     0, 0, "cceps", "", "numkit:cceps:nargin");
+                     0, 0, "cceps", "", "nk:cceps:nargin");
     auto *mr = ctx.engine->resource();
     double nd = 0.0;
     outs[0] = cceps(args[0], mr, &nd);
@@ -114,10 +114,10 @@ void icceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("icceps: requires c",
-                     0, 0, "icceps", "", "numkit:icceps:nargin");
+                     0, 0, "icceps", "", "nk:icceps:nargin");
     outs[0] = icceps(args[0], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

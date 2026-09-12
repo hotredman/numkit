@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish packages/numkit (the WASM CLI) to npm — manual flow.
+# Publish packages/nk (the WASM CLI) to npm — manual flow.
 #
 #   scripts/linux/npm-publish.sh [--skip-build] [--dry-run]
 #
@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PKG_DIR="$PROJECT_DIR/packages/numkit"
+PKG_DIR="$PROJECT_DIR/packages/nk"
 
 SKIP_BUILD=0
 DRY_RUN=0
@@ -25,7 +25,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-echo "=== Numkit - Publish npm package (manual) ==="
+echo "=== NK - Publish npm package (manual) ==="
 echo "Package: $PKG_DIR"
 [ "$DRY_RUN" = 1 ] && echo "Mode: DRY RUN (no upload to the registry)"
 echo
@@ -71,6 +71,6 @@ npm publish --access public
 
 echo
 PKG_VERSION=$(node -p "require('./package.json').version")
-echo "=== Published numkit@${PKG_VERSION} ==="
-echo "Verify: https://www.npmjs.com/package/numkit"
-echo "Test:   npx numkit -e \"disp(1+1)\""
+echo "=== Published nk@${PKG_VERSION} ==="
+echo "Verify: https://www.npmjs.com/package/nk"
+echo "Test:   npx nk -e \"disp(1+1)\""

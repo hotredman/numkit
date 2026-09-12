@@ -18,19 +18,19 @@ Enforces the acyclic dependency direction established by the layering refactor:
 This checker pins value, fs, ops, core and the math/lang COMPUTE: none may
 include headers from a layer above them. core MUST stay free of every toolbox
 (the original "core pulls libs" defect); math/lang compute MUST stay free of
-core / runtime / toolboxes (the point of the C4 numkit::math / numkit::lang
+core / runtime / toolboxes (the point of the C4 nk::math / nk::lang
 split). The `*_reg.cpp` registration adapters now live in bundle/src/register
 (core-coupled CallContext / Engine glue), so they are outside the scanned
 compute trees. (The transitional `builtin` allowance is gone — the C4
 include-path migration completed; no math/lang/toolbox TU includes a
-<numkit/builtin/...> header.) Toolbox purity is
+<nk/builtin/...> header.) Toolbox purity is
 now ALSO enforced: every toolbox compute TU must stay core/runtime-free (their
 Engine glue moved to bundle in F; stateful surfaces decoupled via FsContext/
 FnHandle). Exempt: each toolbox's library.{cpp,hpp} installer + io's type.cpp
 (engine.outputText). The AST→NodeGraph IDE-analysis pass (formerly the `graph`
 toolbox) now lives in its own `scriptgraph` layer, honestly core-allowed.
 
-Scans each guarded layer's include/ + src/ trees for `#include <numkit/X/...>`
+Scans each guarded layer's include/ + src/ trees for `#include <nk/X/...>`
 and fails if X is not in that layer's allowed set. Exit 0 = clean, 1 = a
 forbidden edge was introduced.
 
@@ -43,7 +43,7 @@ import re
 import sys
 from pathlib import Path
 
-# numkit/<prefix> each guarded layer is allowed to include.
+# nk/<prefix> each guarded layer is allowed to include.
 ALLOWED = {
     "value": {"value"},
     "fs":    {"fs"},
@@ -52,7 +52,7 @@ ALLOWED = {
     # figure (L0.5 header-only): plot/figure session state (FigureManager); uses
     # only ops (decimate) + STL, never core. core + graphics depend on it.
     "figure": {"value", "fs", "ops", "figure"},
-    # builtin (L2 compute, ns numkit::builtin) — standard library compute & catalog.
+    # builtin (L2 compute, ns nk::builtin) — standard library compute & catalog.
     # May use value/fs/ops/runtime and its own headers. Must stay free of core / toolboxes.
     "builtin": {"value", "fs", "ops", "builtin", "runtime"},
     # toolboxes/* (L2 compute) must stay free of core / runtime — all their
@@ -106,7 +106,7 @@ LAYER_DIRS = {
     "toolboxes": ["src/toolboxes"],
 }
 
-INCLUDE_RE = re.compile(r'#\s*include\s*<numkit/([a-zA-Z0-9_]+)/')
+INCLUDE_RE = re.compile(r'#\s*include\s*<nk/([a-zA-Z0-9_]+)/')
 QUOTED_INCLUDE_RE = re.compile(r'#\s*include\s*"([^"]+)"')
 SRC_SUFFIXES = {".cpp", ".hpp", ".h", ".cc", ".cxx", ".ipp"}
 HEADER_SUFFIXES = {".hpp", ".h", ".ipp", ".cuh", ".hh", ".hxx"}
@@ -114,7 +114,7 @@ HEADER_SUFFIXES = {".hpp", ".h", ".ipp", ".cuh", ".hh", ".hxx"}
 # Layers that must be fully self-contained: a quoted `#include "X"` from one of
 # these layers must resolve to a header that physically lives inside the layer's
 # own tree. A quoted include whose basename isn't found in the layer resolves via
-# some external -I — a cross-layer leak. The convention is <numkit/...> for ANY
+# some external -I — a cross-layer leak. The convention is <nk/...> for ANY
 # cross-module dependency; quoted form is for same-component headers only.
 STRICT_QUOTED = ("value", "fs", "ops", "core")
 
@@ -173,7 +173,7 @@ def scan(repo: Path) -> list[str]:
                     if m and m.group(1) not in allowed:
                         violations.append(
                             f"{rel}:{n}: layer '{layer}' must not include "
-                            f"<numkit/{m.group(1)}/...>  (allowed: {sorted(allowed)})"
+                            f"<nk/{m.group(1)}/...>  (allowed: {sorted(allowed)})"
                         )
                     # Quoted-include cross-layer-leak check (strict layers only).
                     if strict:
@@ -184,7 +184,7 @@ def scan(repo: Path) -> list[str]:
                                 violations.append(
                                     f"{rel}:{n}: layer '{layer}' quoted-includes "
                                     f'"{mq.group(1)}" — not part of the {layer}/ tree '
-                                    f"(cross-layer leak: use <numkit/...> for a cross-module "
+                                    f"(cross-layer leak: use <nk/...> for a cross-module "
                                     f"dependency, or relocate the header into {layer}/)"
                                 )
     return violations

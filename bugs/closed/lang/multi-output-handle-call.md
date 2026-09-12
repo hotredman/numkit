@@ -47,7 +47,7 @@ core `varargout` + anonymous nargout forwarding — see
 unblocked `fmincon`'s `nonlcon` (`@(x) deal(c, ceq)`).
 
 ## References
-- `src/core/include/numkit/core/bytecode.hpp` (`CALL_INDIRECT_MULTI`),
+- `src/core/include/nk/core/bytecode.hpp` (`CALL_INDIRECT_MULTI`),
   `src/core/src/compiler.cpp` (`compileMultiAssign` gate),
   `src/core/src/vm.cpp` (`execCallIndirectMulti`)
 - live guard: `src/bundle/tests/known_bugs_test.cpp` (`MultiOutputHandleCall`)

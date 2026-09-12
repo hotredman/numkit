@@ -22,7 +22,7 @@ if "%1"=="--skip-native" set SKIP_NATIVE=1
 if "%2"=="--skip-native" set SKIP_NATIVE=1
 if "%3"=="--skip-native" set SKIP_NATIVE=1
 
-echo === Numkit IDE — Desktop Build (Windows) ===
+echo === NK IDE — Desktop Build (Windows) ===
 echo.
 
 where node >nul 2>&1
@@ -32,7 +32,7 @@ if errorlevel 1 (
 )
 
 if "%SKIP_WASM%"=="1" (
-    if exist "%WASM_DIST%\numkit_ide.wasm" (
+    if exist "%WASM_DIST%\nk_ide.wasm" (
         echo [1/5] Skipping WASM rebuild (--skip-wasm; reusing existing build^)
     ) else (
         echo [1/5] WARNING: --skip-wasm but no WASM at %WASM_DIST% — falling through to rebuild
@@ -61,9 +61,9 @@ if "%SKIP_NATIVE%"=="1" (
     echo [1b/7] Native C++ binaries ready
 )
 
-if exist "%WASM_DIST%\numkit_ide.wasm" (
-    copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
+if exist "%WASM_DIST%\nk_ide.wasm" (
+    copy /y "%WASM_DIST%\nk_ide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\nk_ide.wasm" "%IDE_DIR%\public\" >nul
     echo [2/7] WASM engine copied to ide\public\
 ) else (
     echo [2/7] WARNING: WASM not found at %WASM_DIST% — app will run in demo mode
@@ -139,13 +139,13 @@ for %%f in ("%DESKTOP_DIR%\release\*.exe") do (
     echo [6/7] Copied IDE: %%~nxf
 )
 
-set NUMKIT_EXE=%CPP_RELEASE%\numkit\Release\numkit_repl.exe
-if not exist "%NUMKIT_EXE%" set NUMKIT_EXE=%CPP_RELEASE%\numkit\numkit_repl.exe
-if exist "%NUMKIT_EXE%" (
-    copy /y "%NUMKIT_EXE%" "%DEPLOY_DIR%\" >nul
-    echo [6/7] Copied interpreter: numkit_repl.exe
+set NK_EXE=%CPP_RELEASE%\nk\Release\nk_repl.exe
+if not exist "%NK_EXE%" set NK_EXE=%CPP_RELEASE%\nk\nk_repl.exe
+if exist "%NK_EXE%" (
+    copy /y "%NK_EXE%" "%DEPLOY_DIR%\" >nul
+    echo [6/7] Copied interpreter: nk_repl.exe
 ) else (
-    echo [6/7] WARNING: numkit_repl.exe not found at %NUMKIT_EXE%
+    echo [6/7] WARNING: nk_repl.exe not found at %NK_EXE%
 )
 
 echo.
@@ -157,7 +157,7 @@ exit /b 0
 :show_help
 echo Usage: desktop-build.cmd [--skip-wasm] [--skip-native] [--no-package]
 echo.
-echo Builds the Numkit Desktop application using Electron and CMake.
+echo Builds the NK Desktop application using Electron and CMake.
 echo.
 echo Options:
 echo   --skip-wasm    Do not rebuild WASM engine (reuse existing build)

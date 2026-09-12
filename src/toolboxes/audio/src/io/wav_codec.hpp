@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include <numkit/audio/io/audio_io.hpp>
+#include <nk/audio/io/audio_io.hpp>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 /// Sniff RIFF/WAVE header directly from an in-memory buffer.
 bool isWavBytes(const std::uint8_t *data, std::size_t len);
@@ -33,4 +33,4 @@ std::vector<std::uint8_t> writeWavToBytes(const Value &y, double sampleRate,
                                           const std::string &artist = "",
                                           const std::string &comment = "");
 
-} // namespace numkit::audio
+} // namespace nk::audio

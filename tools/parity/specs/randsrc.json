@@ -6,5 +6,5 @@
   "iters": 3,
   "tol": 0.05,
   "fingerprint": ["y1(1,1)", "y1(1,2)", "y1(2,1)", "y1(2,3)", "y2(1,1)", "y2(2,2)", "y2(3,4)", "p1", "p2", "p3"],
-  "comment": "MATLAB randsrc: random matrix from finite alphabet with optional weighted probabilities. Numkit uses MatlabMT19937 (= MATLAB's mt19937ar) seeded with explicit state arg, so seeded outputs are bit-identical with MATLAB R2025b. Probability fingerprints (~70/20/10%) within 5% Monte-Carlo tolerance over 5000 samples. Octave 11.1.0 doesn't ship randsrc in core (signal/communications package only); reports N/A."
+  "comment": "MATLAB randsrc: random matrix from finite alphabet with optional weighted probabilities. NK uses MatlabMT19937 (= MATLAB's mt19937ar) seeded with explicit state arg, so seeded outputs are bit-identical with MATLAB R2025b. Probability fingerprints (~70/20/10%) within 5% Monte-Carlo tolerance over 5000 samples. Octave 11.1.0 doesn't ship randsrc in core (signal/communications package only); reports N/A."
 }

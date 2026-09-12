@@ -9,8 +9,8 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -49,16 +49,16 @@ inline double besseli_scalar(double nu, double xx, std::pmr::memory_resource *mr
 {
     Value nv = Value::scalar(nu, mr);
     Value xv = Value::scalar(xx, mr);
-    return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
+    return ::nk::builtin::besseli(nv, xv, mr).toScalar();
 }
 
 inline double marcumq_scalar(double a, double b, std::pmr::memory_resource *mr)
 {
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
-    return ::numkit::comm::marcumq(av, bv, 1, mr).toScalar();
+    return ::nk::comm::marcumq(av, bv, 1, mr).toScalar();
 }
 
 } // anonymous
 
-} // namespace numkit::stats
+} // namespace nk::stats

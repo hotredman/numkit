@@ -2,17 +2,17 @@
 //
 // Direct C++ API guard for the group operations lifted from adapter-only
 // to public typed entry points in math/group/group.hpp:
-// numkit::builtin::findgroups (FindgroupsResult) and groupcounts
+// nk::builtin::findgroups (FindgroupsResult) and groupcounts
 // (GroupcountsResult). (splitapply/groupsummary/grouptransform/groupfilter
 // stay adapter-only — they need engine function-handle callbacks.)
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/core/engine.hpp>
 
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value gv(Engine &e, const char *expr, const char *name)

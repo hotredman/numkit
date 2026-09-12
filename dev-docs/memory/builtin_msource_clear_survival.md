@@ -6,7 +6,7 @@ quadprog, fmincon, fminunc, fsolve, linprog, funm, decomposition,
 integral, …) and the `inline` classdef lived in the same `userFuncs_` /
 `classDefs_` buckets that `clear all` / `clear classes` / `clear
 functions` wipe. In MATLAB those clears unload compiled code but reload
-it from disk on the next call; numkit's startup registrations have no
+it from disk on the next call; nk's startup registrations have no
 disk backing, so after ANY script beginning with `clear all` (every
 textbook example does) all of them became undefined or mis-dispatched
 (impulse fell through to the control LTI overload). Found 2026-09-06 via

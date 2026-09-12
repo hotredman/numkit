@@ -4,11 +4,11 @@
 // coefficient vector up N levels. bugs/wavelet/upcoef.md. Reference values
 // from MATLAB R2025b.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class UpcoefTest : public ::testing::Test
 {

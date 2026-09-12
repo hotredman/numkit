@@ -3,10 +3,10 @@
 // Regression guard for uencode/udecode (Phase 4.2 of audio sweep).
 // Bit-equal MATLAB R2025b on all 16 documented variants.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class UquantTest : public ::testing::Test
 {

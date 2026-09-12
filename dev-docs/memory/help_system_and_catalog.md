@@ -1,7 +1,7 @@
 # MATLAB-Style Category Organization and `help` / `what` / `builtins` System
 
 ## Context & Problem
-Previously, Numkit registered hundreds of built-in and toolbox functions across multiple layers without a user-facing introspection and documentation query system (like MATLAB's `help`, `what`, and `inmem`). Users in the REPL and IDE had no way to discover registered functions or query signatures and category listings interactively.
+Previously, NK registered hundreds of built-in and toolbox functions across multiple layers without a user-facing introspection and documentation query system (like MATLAB's `help`, `what`, and `inmem`). Users in the REPL and IDE had no way to discover registered functions or query signatures and category listings interactively.
 
 ## Architectural Decision & Solution
 Introduced a centralized, structured Help and Category Catalog (`help_catalog.hpp`, `help_catalog.cpp`) and registered user-facing introspection functions (`help_reg.cpp`):
@@ -36,9 +36,9 @@ Introduced a centralized, structured Help and Category Catalog (`help_catalog.hp
      * `[M, MEX, C] = inmem()` — returns loaded user functions and classes.
 
 3. **IDE Integration & Demos**:
-   * Added interactive example [`examples/Basics/help_system_demo.m`](file:///c:/Users/User/Projects/megahard/numkit/examples/Basics/help_system_demo.m) demonstrating all features.
-   * Added automated test suite [`tests/gtest/integration/help_system_test.cpp`](file:///c:/Users/User/Projects/megahard/numkit/tests/gtest/integration/help_system_test.cpp).
+   * Added interactive example [`examples/Basics/help_system_demo.m`](file:///c:/Users/User/Projects/megahard/nk/examples/Basics/help_system_demo.m) demonstrating all features.
+   * Added automated test suite [`tests/gtest/integration/help_system_test.cpp`](file:///c:/Users/User/Projects/megahard/nk/tests/gtest/integration/help_system_test.cpp).
 
 ## Quantitative Verification & Results
 * `HelpSystemTest`: 7/7 tests passed in 45 ms.
-* `numkit_repl.exe --compat examples/Basics/help_system_demo.m` executed with zero errors and produced full formatted output for all 18 categories and 419 registered functions.
+* `nk_repl.exe --compat examples/Basics/help_system_demo.m` executed with zero errors and produced full formatted output for all 18 categories and 419 registered functions.

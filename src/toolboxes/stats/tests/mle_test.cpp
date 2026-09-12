@@ -2,10 +2,10 @@
 //
 // Regression guard for mle (closed-form max-likelihood estimator).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MleTest : public ::testing::Test
 {

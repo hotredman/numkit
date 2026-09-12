@@ -4,14 +4,14 @@
 // from a direct MATLAB R2025b probe (the parity harness can't capture
 // convenc output: MATLAB -batch crashes on shutdown, 0xC0000005 in
 // libmwcustom_holes_factory.dll, eating the spec's stdout — a MATLAB
-// environment defect, not a numkit issue; convenc is verified correct here
+// environment defect, not a nk issue; convenc is verified correct here
 // and via the direct probe).
 
-#include <numkit/comm/coding/convcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/convcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ConvencTest : public ::testing::Test
 {

@@ -4,12 +4,12 @@
 // linear-assignment solver on rectangular Cost with unmatched-cost
 // penalty per row / per col.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MatchpairsTest : public ::testing::Test
 {

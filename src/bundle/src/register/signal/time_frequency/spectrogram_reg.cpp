@@ -14,15 +14,15 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/time_frequency/spectrogram.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/time_frequency/spectrogram.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -43,21 +43,21 @@ void iscola_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("iscola: requires (window, noverlap [, method])",
-                     0, 0, "iscola", "", "numkit:iscola:nargin");
+                     0, 0, "iscola", "", "nk:iscola:nargin");
     if (args[1].numel() != 1)
         throw Error("iscola: noverlap must be a scalar",
-                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
+                     0, 0, "iscola", "", "nk:iscola:badOverlap");
     const double novS = args[1].toScalar();
     if (!(novS >= 0.0))
         throw Error("iscola: noverlap must be non-negative",
-                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
+                     0, 0, "iscola", "", "nk:iscola:badOverlap");
     const std::size_t noverlap = static_cast<std::size_t>(novS);
 
     std::string method = "wola";  // MATLAB default
     if (args.size() >= 3) {
         if (!(args[2].isChar() || args[2].isString()))
             throw Error("iscola: method must be a string",
-                         0, 0, "iscola", "", "numkit:iscola:badMethod");
+                         0, 0, "iscola", "", "nk:iscola:badMethod");
         method = args[2].toString();
     }
 
@@ -72,7 +72,7 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("spectrogram: requires at least 1 argument",
-                     0, 0, "spectrogram", "", "numkit:spectrogram:nargin");
+                     0, 0, "spectrogram", "", "nk:spectrogram:nargin");
 
     // MATLAB's spectrogram(x, N) accepts a scalar-N (window length) and
     // builds a Hamming window of that length. If arg 1 is a vector, it's
@@ -213,7 +213,7 @@ static void parseStftNVPairs(Span<const Value> args, size_t startIdx,
     for (size_t i = startIdx; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar())
             throw Error("stft: name-value pair name must be a string",
-                         0, 0, "stft", "", "numkit:stft:badNVName");
+                         0, 0, "stft", "", "nk:stft:badNVName");
         const std::string key = args[i].toString();
         const Value &val      = args[i + 1];
         if (eqIgnoreCase(key, "Window"))           window    = val;
@@ -222,7 +222,7 @@ static void parseStftNVPairs(Span<const Value> args, size_t startIdx,
         else if (eqIgnoreCase(key, "FrequencyRange")) range  = val.toString();
         else
             throw Error("stft: unknown name-value key '" + key + "'",
-                         0, 0, "stft", "", "numkit:stft:badNVKey");
+                         0, 0, "stft", "", "nk:stft:badNVKey");
     }
 }
 
@@ -305,7 +305,7 @@ void stft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("stft: requires at least 1 argument",
-                     0, 0, "stft", "", "numkit:stft:nargin");
+                     0, 0, "stft", "", "nk:stft:nargin");
     auto *mr = ctx.engine->resource();
 
     bool fsGiven = false;
@@ -338,7 +338,7 @@ void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("istft: requires at least 1 argument",
-                     0, 0, "istft", "", "numkit:istft:nargin");
+                     0, 0, "istft", "", "nk:istft:nargin");
     auto *mr = ctx.engine->resource();
 
     bool fsGiven = false;
@@ -366,4 +366,4 @@ void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

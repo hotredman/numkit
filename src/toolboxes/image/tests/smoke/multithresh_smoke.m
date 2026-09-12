@@ -1,7 +1,7 @@
 clear
 
 % multithresh — multi-level Otsu thresholds. DEEP-PROBE c181 REWRITE.
-% numkit previously binned floating-point data over [0,1] (via imhist) and
+% nk previously binned floating-point data over [0,1] (via imhist) and
 % returned normalised / midpoint-of-means thresholds, so non-[0,1] data was
 % wildly wrong (multithresh(reshape(1:36,6,6)) gave 0.49 vs MATLAB 18.43).
 % Now follows MATLAB's getpdf (scale to [0,1] by the data range -> 256-bin

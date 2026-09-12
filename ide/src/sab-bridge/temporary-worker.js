@@ -20,7 +20,7 @@ import {
   STATUS_OK, STATUS_NOT_FOUND, STATUS_TOO_LARGE, STATUS_ERROR,
 } from './sab-protocol';
 
-const DB_NAME = 'numkit-ide-vfs';
+const DB_NAME = 'nk-ide-vfs';
 const DB_VERSION = 1;
 const STORE_NAME = 'files';
 

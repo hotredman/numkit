@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1", "r2", "r3"
   ],
-  "comment": "Sig Q=marcumq(a,b[,m]): generalized Marcum Q-function. marcumq(2,1)=0.918108 (b<a -> near 1), marcumq(1,2)=0.269012 (b>a -> small), marcumq(2,3,2)=0.352698 (order m=2). tol 1e-5: numkit's series approximation differs from MATLAB by ~5e-7."
+  "comment": "Sig Q=marcumq(a,b[,m]): generalized Marcum Q-function. marcumq(2,1)=0.918108 (b<a -> near 1), marcumq(1,2)=0.269012 (b>a -> small), marcumq(2,3,2)=0.352698 (order m=2). tol 1e-5: nk's series approximation differs from MATLAB by ~5e-7."
 }

@@ -4,10 +4,10 @@
 // Weights that put all mass on one element make the result deterministic
 // regardless of RNG state, so these are stable. vs MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RandsampleTest : public ::testing::Test
 {

@@ -27,19 +27,19 @@
 //   * seqperiod: matrix/N-D operates column-wise — only vector
 //     supported in v1.
 
-#include <numkit/signal/measurements/sig_utils.hpp>
+#include <nk/signal/measurements/sig_utils.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <utility>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // ── seqperiod ─────────────────────────────────────────────────────────
 std::pair<Value, Value>
@@ -154,4 +154,4 @@ CusumResult cusum(const Value &x, double climit, double mshift,
     return R;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

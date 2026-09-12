@@ -2,11 +2,11 @@
 //
 // regexp / regexpi / regexprep — ECMAScript regex via std::regex.
 
-#include <numkit/builtin/strfun.hpp>
+#include <nk/builtin/strfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <regex>
@@ -16,14 +16,14 @@
 
 #include "regex_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 
 Value regexpFind(const Value &s, const Value &pat, const std::string &option, bool ignoreCase, std::pmr::memory_resource *mr)
 {
     if ((!s.isChar() && !s.isString()) || (!pat.isChar() && !pat.isString()))
         throw Error("regexp: s and pat must be strings",
-                     0, 0, "regexp", "", "numkit:regexp:badArg");
+                     0, 0, "regexp", "", "nk:regexp:badArg");
     const std::string text = s.toString();
     // Strip MATLAB named-group syntax to a std::regex-compatible pattern,
     // keeping the name → capture-group-index map for the 'names' option.
@@ -146,7 +146,7 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
         throw Error("regexp: unknown option '" + option
                      + "' (supported: 'start' / 'end' / 'tokenExtents' / "
                        "'match' / 'tokens' / 'names' / 'split')",
-                     0, 0, "regexp", "", "numkit:regexp:badOption");
+                     0, 0, "regexp", "", "nk:regexp:badOption");
 
     // Default ('start'): 1-based start indices.
     ScratchVec<double> idx(&scratch);
@@ -171,7 +171,7 @@ Value regexpFindOnce(const Value &s, const Value &pat, const std::string &option
 {
     if ((!s.isChar() && !s.isString()) || (!pat.isChar() && !pat.isString()))
         throw Error("regexp: s and pat must be strings",
-                     0, 0, "regexp", "", "numkit:regexp:badArg");
+                     0, 0, "regexp", "", "nk:regexp:badArg");
     const std::string text = s.toString();
     const NamedGroups ng = extractNamedGroups(pat.toString());
     const std::regex  re = compileRegex(ng.cleaned, ignoreCase);
@@ -246,7 +246,7 @@ Value regexpFindOnce(const Value &s, const Value &pat, const std::string &option
         throw Error("regexp: unknown option '" + option
                      + "' (supported: 'start' / 'end' / 'tokenExtents' / "
                        "'match' / 'tokens' / 'names' / 'split')",
-                     0, 0, "regexp", "", "numkit:regexp:badOption");
+                     0, 0, "regexp", "", "nk:regexp:badOption");
 
     // 'start' (default): scalar 1-based index of the first match.
     if (!has) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -284,7 +284,7 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreC
     auto isStrLike = [](const Value &v) { return v.isChar() || v.isString() || v.isCell(); };
     if (!isStrLike(s) || !isStrLike(pat) || !isStrLike(rep))
         throw Error("regexprep: s, pat, rep must be strings or cell arrays of strings",
-                     0, 0, "regexprep", "", "numkit:regexprep:badArg");
+                     0, 0, "regexprep", "", "nk:regexprep:badArg");
 
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch), reps(&scratch);
@@ -301,7 +301,7 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreC
     if (reps.size() != 1 && reps.size() != pats.size())
         throw Error("regexprep: Multiple replace strings and patterns given "
                     "must have the same quantity.",
-                     0, 0, "regexprep", "", "numkit:regexprep:repCount");
+                     0, 0, "regexprep", "", "nk:regexprep:repCount");
 
     // A cell string operand processes element-wise -> cell of char vectors,
     // same shape; a char/string scalar processes to a single char row (the
@@ -361,7 +361,7 @@ Value regexptranslate(const std::string &op, const std::string &s, std::pmr::mem
     }
     throw Error("regexptranslate: unsupported op '" + op + "' "
                 "(supported: 'escape', 'wildcard')",
-                 0, 0, "regexptranslate", "", "numkit:regexptranslate:badOp");
+                 0, 0, "regexptranslate", "", "nk:regexptranslate:badOp");
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

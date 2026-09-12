@@ -3,12 +3,12 @@
 // Tests for E1 — convolution extras:
 //   cconv, convmtx, xcorr2, finddelay, alignsignals.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ConvolutionExtrasTest : public ::testing::Test
 {

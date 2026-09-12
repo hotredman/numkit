@@ -4,12 +4,12 @@
 // stats fn; equivalent to cov(X, 'omitrows')). v1 implements 'complete'
 // mode only ('pairwise' is a documented gap).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class NancovTest : public ::testing::Test
 {
@@ -142,7 +142,7 @@ TEST_F(NancovTest, CorrcoefRowsPairwise)
 
 // ── skewness/kurtosis NaN omission (2026-05-30) ──────────────────────
 // MATLAB skewness/kurtosis treat NaN as missing and remove it per
-// column; numkit previously NaN-poisoned. vs MATLAB R2025b.
+// column; nk previously NaN-poisoned. vs MATLAB R2025b.
 TEST_F(NancovTest, SkewnessKurtosisOmitNaN)
 {
     eval("Mn = [1 5; 2 NaN; 3 7; 4 100];");
@@ -163,7 +163,7 @@ TEST_F(NancovTest, SkewnessKurtosisOmitNaN)
 
 // ── mad/iqr NaN omission (2026-05-30) ────────────────────────────────
 // MATLAB mad and iqr treat NaN as missing and remove it per column;
-// numkit previously NaN-poisoned. vs MATLAB R2025b.
+// nk previously NaN-poisoned. vs MATLAB R2025b.
 TEST_F(NancovTest, MadIqrOmitNaN)
 {
     eval("Mn = [1 5; 2 NaN; 3 7; 4 100];");
@@ -187,7 +187,7 @@ TEST_F(NancovTest, MadIqrOmitNaN)
 
 // ── geomean/harmmean 'omitnan' nanflag (2026-05-30) ──────────────────
 // MATLAB geomean/harmmean accept a trailing 'omitnan' nanflag that
-// removes NaN per slice; numkit previously ignored it (geomean -> NaN)
+// removes NaN per slice; nk previously ignored it (geomean -> NaN)
 // or errored converting the char to a dim (harmmean). vs MATLAB R2025b.
 TEST_F(NancovTest, GeomeanHarmmeanOmitNaN)
 {
@@ -212,7 +212,7 @@ TEST_F(NancovTest, GeomeanHarmmeanOmitNaN)
 // ── mode 3rd output C (2026-05-30): cell of tied modal values ────────
 // [M,F,C]=mode(X). C is a cell array; each cell holds a sorted column
 // vector of the values tied for the modal frequency in that slice.
-// Previously numkit only returned [M,F]. vs MATLAB R2025b.
+// Previously nk only returned [M,F]. vs MATLAB R2025b.
 TEST_F(NancovTest, ModeThirdOutputCell)
 {
     // Vector: 2 and 3 both occur twice -> M=2 (smallest tie), C{1}=[2;3].

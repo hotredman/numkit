@@ -1,8 +1,8 @@
 // src/tree_walker.cpp
-#include <numkit/core/tree_walker.hpp>
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/stack_guard.hpp>
+#include <nk/core/tree_walker.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/stack_guard.hpp>
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
@@ -10,7 +10,7 @@
 #include <optional>
 #include <sstream>
 
-namespace numkit {
+namespace nk {
 
 TreeWalker::TreeWalker(Engine &engine)
     : engine_(engine)
@@ -3142,7 +3142,7 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             if (!node->strValue.empty()) {
                 auto err = Value::structure();
                 err.field("message") = Value::fromString(mle.what(), engine_.mr_);
-                std::string id = mle.identifier().empty() ? "numkit:error" : mle.identifier();
+                std::string id = mle.identifier().empty() ? "nk:error" : mle.identifier();
                 err.field("identifier") = Value::fromString(id, engine_.mr_);
                 env->set(node->strValue, err);
             }
@@ -3154,7 +3154,7 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             if (!node->strValue.empty()) {
                 auto err = Value::structure();
                 err.field("message") = Value::fromString(e.what(), engine_.mr_);
-                err.field("identifier") = Value::fromString("numkit:error", engine_.mr_);
+                err.field("identifier") = Value::fromString("nk:error", engine_.mr_);
                 env->set(node->strValue, err);
             }
             return execNode(node->children[1].get(), env);
@@ -3236,7 +3236,7 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
     if (!va && args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
     // Too-few args stays LENIENT (missing params unbound) — MATLAB errors
-    // for user functions, but numkit's m-source toolbox shims emulate
+    // for user functions, but nk's m-source toolbox shims emulate
     // builtins with optional args via `if nargin < k` guards and depend
     // on this (fmincon/lsqnonlin family).
 
@@ -3308,7 +3308,7 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
     if (!va && args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
     // Too-few args stays LENIENT (missing params unbound) — MATLAB errors
-    // for user functions, but numkit's m-source toolbox shims emulate
+    // for user functions, but nk's m-source toolbox shims emulate
     // builtins with optional args via `if nargin < k` guards and depend
     // on this (fmincon/lsqnonlin family).
 
@@ -3437,4 +3437,4 @@ DebugController *TreeWalker::debugCtl()
     return engine_.debugController_.get();
 }
 
-} // namespace numkit
+} // namespace nk

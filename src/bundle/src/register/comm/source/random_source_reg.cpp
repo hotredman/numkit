@@ -8,13 +8,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/source/random_source.hpp>
+#include <nk/comm/source/random_source.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void randsrc_reg(Span<const Value> args, size_t /*nargout*/,
@@ -22,7 +22,7 @@ void randsrc_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("randsrc: requires (m, n [, alphabet [, state]])",
-                    0, 0, "randsrc", "", "numkit:randsrc:nargin");
+                    0, 0, "randsrc", "", "nk:randsrc:nargin");
     const size_t m = static_cast<size_t>(args[0].toScalar());
     const size_t n = static_cast<size_t>(args[1].toScalar());
     auto *mr = ctx.engine->resource();
@@ -47,7 +47,7 @@ void randsrc_reg(Span<const Value> args, size_t /*nargout*/,
         const double s = args[3].toScalar();
         if (s < 0.0)
             throw Error("randsrc: state must be a non-negative integer",
-                        0, 0, "randsrc", "", "numkit:randsrc:InvalidState");
+                        0, 0, "randsrc", "", "nk:randsrc:InvalidState");
         state = static_cast<uint32_t>(s);
     }
 
@@ -59,7 +59,7 @@ void randerr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("randerr: requires (m, n [, errors [, state]])",
-                    0, 0, "randerr", "", "numkit:randerr:nargin");
+                    0, 0, "randerr", "", "nk:randerr:nargin");
     const size_t m = static_cast<size_t>(args[0].toScalar());
     const size_t n = static_cast<size_t>(args[1].toScalar());
     auto *mr = ctx.engine->resource();
@@ -81,7 +81,7 @@ void randerr_reg(Span<const Value> args, size_t /*nargout*/,
         const double s = args[3].toScalar();
         if (s < 0.0)
             throw Error("randerr: state must be a non-negative integer",
-                        0, 0, "randerr", "", "numkit:randerr:InvalidState");
+                        0, 0, "randerr", "", "nk:randerr:InvalidState");
         state = static_cast<uint32_t>(s);
     }
 
@@ -90,4 +90,4 @@ void randerr_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

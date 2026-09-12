@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/transform/transform.hpp>
+#include <nk/image/transform/transform.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -36,7 +36,7 @@ void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("integralImage: requires (I)",
-                    0, 0, "integralImage", "", "numkit:integralImage:nargin");
+                    0, 0, "integralImage", "", "nk:integralImage:nargin");
     outs[0] = integralImage(args[0], ctx.engine->resource());
 }
 
@@ -45,7 +45,7 @@ void integralImage3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("integralImage3: requires (V)",
-                    0, 0, "integralImage3", "", "numkit:integralImage3:nargin");
+                    0, 0, "integralImage3", "", "nk:integralImage3:nargin");
     outs[0] = integralImage3(args[0], ctx.engine->resource());
 }
 
@@ -54,7 +54,7 @@ void dct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("dct2: requires 1 argument",
-                    0, 0, "dct2", "", "numkit:dct2:nargin");
+                    0, 0, "dct2", "", "nk:dct2:nargin");
     outs[0] = dct2(args[0], ctx.engine->resource());
 }
 
@@ -63,7 +63,7 @@ void idct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("idct2: requires 1 argument",
-                    0, 0, "idct2", "", "numkit:idct2:nargin");
+                    0, 0, "idct2", "", "nk:idct2:nargin");
     outs[0] = idct2(args[0], ctx.engine->resource());
 }
 
@@ -72,7 +72,7 @@ void dctmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("dctmtx: requires 1 argument (N)",
-                    0, 0, "dctmtx", "", "numkit:dctmtx:nargin");
+                    0, 0, "dctmtx", "", "nk:dctmtx:nargin");
     outs[0] = dctmtx(args[0].toScalar(), ctx.engine->resource());
 }
 
@@ -107,7 +107,7 @@ void normxcorr2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("normxcorr2: requires (template, img)",
-                    0, 0, "normxcorr2", "", "numkit:normxcorr2:nargin");
+                    0, 0, "normxcorr2", "", "nk:normxcorr2:nargin");
     outs[0] = normxcorr2(args[0], args[1], ctx.engine->resource());
 }
 
@@ -116,7 +116,7 @@ void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("psf2otf: requires (PSF [, outsize])",
-                    0, 0, "psf2otf", "", "numkit:psf2otf:nargin");
+                    0, 0, "psf2otf", "", "nk:psf2otf:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     ScratchVec<size_t> outsizeBuf(&scratch);
@@ -134,7 +134,7 @@ void bestblk_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("bestblk: requires (IMS [, k])",
-                    0, 0, "bestblk", "", "numkit:bestblk:nargin");
+                    0, 0, "bestblk", "", "nk:bestblk:nargin");
     auto *mr = ctx.engine->resource();
     const double k = (args.size() >= 2 && !args[1].isEmpty())
                        ? args[1].toScalar() : 100.0;
@@ -153,12 +153,12 @@ void fftconv2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("fftconv2: requires (A, B [, shape])",
-                    0, 0, "fftconv2", "", "numkit:fftconv2:nargin");
+                    0, 0, "fftconv2", "", "nk:fftconv2:nargin");
     std::string shape = "full";
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("fftconv2: shape must be a string",
-                        0, 0, "fftconv2", "", "numkit:fftconv2:shape");
+                        0, 0, "fftconv2", "", "nk:fftconv2:shape");
         shape = args[2].toString();
     }
     outs[0] = fftconv2(args[0], args[1], shape, ctx.engine->resource());
@@ -169,7 +169,7 @@ void edgetaper_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("edgetaper: requires (I, PSF)",
-                    0, 0, "edgetaper", "", "numkit:edgetaper:nargin");
+                    0, 0, "edgetaper", "", "nk:edgetaper:nargin");
     outs[0] = edgetaper(args[0], args[1], ctx.engine->resource());
 }
 
@@ -178,7 +178,7 @@ void deconvreg_reg(Span<const Value> args, std::size_t nargout,
 {
     if (args.size() < 2 || args.size() > 5)
         throw Error("deconvreg: requires (I, PSF [, NP [, LRANGE [, REGOP]]])",
-                    0, 0, "deconvreg", "", "numkit:deconvreg:nargin");
+                    0, 0, "deconvreg", "", "nk:deconvreg:nargin");
     auto *mr = ctx.engine->resource();
     double np = 0.0;
     double lo = 1e-9, hi = 1e9;
@@ -186,7 +186,7 @@ void deconvreg_reg(Span<const Value> args, std::size_t nargout,
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (args[2].numel() != 1)
             throw Error("deconvreg: NP must be a scalar",
-                        0, 0, "deconvreg", "", "numkit:deconvreg:np");
+                        0, 0, "deconvreg", "", "nk:deconvreg:np");
         np = args[2].toScalar();
     }
     if (args.size() >= 4 && !args[3].isEmpty()) {
@@ -198,10 +198,10 @@ void deconvreg_reg(Span<const Value> args, std::size_t nargout,
             hi = lr.elemAsDouble(1);
             if (hi < lo)
                 throw Error("deconvreg: LRANGE must satisfy lo <= hi",
-                            0, 0, "deconvreg", "", "numkit:deconvreg:lrange");
+                            0, 0, "deconvreg", "", "nk:deconvreg:lrange");
         } else {
             throw Error("deconvreg: LRANGE must be a scalar or 2-element vector",
-                        0, 0, "deconvreg", "", "numkit:deconvreg:lrange");
+                        0, 0, "deconvreg", "", "nk:deconvreg:lrange");
         }
     }
     if (args.size() >= 5 && !args[4].isEmpty())
@@ -216,7 +216,7 @@ void deconvwnr_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("deconvwnr: requires (I, PSF [, NSR | NCORR, ICORR])",
-                    0, 0, "deconvwnr", "", "numkit:deconvwnr:nargin");
+                    0, 0, "deconvwnr", "", "nk:deconvwnr:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         outs[0] = deconvwnr(args[0], args[1], 0.0, mr);
@@ -225,7 +225,7 @@ void deconvwnr_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (args[2].numel() != 1)
             throw Error("deconvwnr: 3-arg NSR must be a scalar; use the "
                         "4-arg (NCORR, ICORR) form for array spectra",
-                        0, 0, "deconvwnr", "", "numkit:deconvwnr:nsr");
+                        0, 0, "deconvwnr", "", "nk:deconvwnr:nsr");
         outs[0] = deconvwnr(args[0], args[1], args[2].toScalar(), mr);
     } else {
         outs[0] = deconvwnr(args[0], args[1], args[2], args[3], mr);
@@ -237,7 +237,7 @@ void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("otf2psf: requires (OTF [, outsize])",
-                    0, 0, "otf2psf", "", "numkit:otf2psf:nargin");
+                    0, 0, "otf2psf", "", "nk:otf2psf:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     ScratchVec<size_t> outsizeBuf(&scratch);
@@ -258,7 +258,7 @@ void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
         const double s = args[0].toScalar();
         if (s < 0.0 || s != std::floor(s))
             throw Error("checkerboard: SIDE must be a non-negative integer",
-                        0, 0, "checkerboard", "", "numkit:checkerboard:side");
+                        0, 0, "checkerboard", "", "nk:checkerboard:side");
         side = static_cast<size_t>(s);
     }
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -276,4 +276,4 @@ void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

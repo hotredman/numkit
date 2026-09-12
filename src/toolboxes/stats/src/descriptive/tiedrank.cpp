@@ -20,10 +20,10 @@
 // the ranking sequence (the non-NaN values are ranked among
 // themselves, then NaN slots are written back as NaN).
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -31,7 +31,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -119,4 +119,4 @@ tiedrank(const Value &x, std::pmr::memory_resource *mr)
     return {std::move(r), std::move(ta)};
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

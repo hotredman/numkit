@@ -2,12 +2,12 @@
 //
 // Regression guard for mvtrnd + mnrnd.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class MvtMnTest : public ::testing::Test
 {

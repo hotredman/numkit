@@ -3,14 +3,14 @@
 // Unit tests for svdsketch and svdappend.
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/svd_sketch.hpp>
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/svd_sketch.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(SvdSketchTest, SvdSketchLowRankApproximation) {
     // Rank 2 matrix A = u1*v1' + u2*v2' (4x4)

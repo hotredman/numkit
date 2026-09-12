@@ -3,21 +3,21 @@
 // CallContext register half of distributions/dist_fits.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/specfun.hpp>   // gammainc (used by gamfit_full)
-#include <numkit/stats/distributions/beta.hpp>
-#include <numkit/stats/distributions/extreme_value.hpp>
-#include <numkit/stats/distributions/gamma_dist.hpp>
-#include <numkit/stats/distributions/gev.hpp>
-#include <numkit/stats/distributions/gp.hpp>
-#include <numkit/stats/distributions/negbin.hpp>
-#include <numkit/stats/distributions/weibull.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/specfun.hpp>   // gammainc (used by gamfit_full)
+#include <nk/stats/distributions/beta.hpp>
+#include <nk/stats/distributions/extreme_value.hpp>
+#include <nk/stats/distributions/gamma_dist.hpp>
+#include <nk/stats/distributions/gev.hpp>
+#include <nk/stats/distributions/gp.hpp>
+#include <nk/stats/distributions/negbin.hpp>
+#include <nk/stats/distributions/weibull.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_fits_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -51,7 +51,7 @@ void gamfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("gamfit: requires (x[, alpha[, cens[, freq[, options]]]])",
-                    0, 0, "gamfit", "", "numkit:gamfit:nargin");
+                    0, 0, "gamfit", "", "nk:gamfit:nargin");
     auto *mr = ctx.engine->resource();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -65,7 +65,7 @@ void wblfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("wblfit: requires (x[, alpha[, cens[, freq[, options]]]])",
-                    0, 0, "wblfit", "", "numkit:wblfit:nargin");
+                    0, 0, "wblfit", "", "nk:wblfit:nargin");
     auto *mr = ctx.engine->resource();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -79,7 +79,7 @@ void betafit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("betafit: requires (x[, alpha])",
-                    0, 0, "betafit", "", "numkit:betafit:nargin");
+                    0, 0, "betafit", "", "nk:betafit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = betafit(args[0], mr);
     if (nargout >= 2) outs[1] = betafit_ci(args[0], parse_alpha(args), mr);
@@ -90,7 +90,7 @@ void nbinfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("nbinfit: requires (x[, alpha])",
-                    0, 0, "nbinfit", "", "numkit:nbinfit:nargin");
+                    0, 0, "nbinfit", "", "nk:nbinfit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = nbinfit(args[0], mr);
     if (nargout >= 2) outs[1] = nbinfit_ci(args[0], parse_alpha(args), mr);
@@ -101,7 +101,7 @@ void evfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("evfit: requires (x[, alpha[, cens[, freq[, options]]]])",
-                    0, 0, "evfit", "", "numkit:evfit:nargin");
+                    0, 0, "evfit", "", "nk:evfit:nargin");
     auto *mr = ctx.engine->resource();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -116,7 +116,7 @@ void gpfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("gpfit: requires (x[, alpha])",
-                    0, 0, "gpfit", "", "numkit:gpfit:nargin");
+                    0, 0, "gpfit", "", "nk:gpfit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = gpfit(args[0], mr);
     if (nargout >= 2) outs[1] = gpfit_ci(args[0], parse_alpha(args), mr);
@@ -127,7 +127,7 @@ void gevfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("gevfit: requires (x[, alpha])",
-                    0, 0, "gevfit", "", "numkit:gevfit:nargin");
+                    0, 0, "gevfit", "", "nk:gevfit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = gevfit(args[0], mr);
     if (nargout >= 2) outs[1] = gevfit_ci(args[0], parse_alpha(args), mr);
@@ -135,4 +135,4 @@ void gevfit_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -9,7 +9,7 @@
 // (*ShiftDiv), min-outer-clamp and complex (*Cx) variants share the same perf
 // profile as the representative below, so they're not benched separately.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -39,8 +39,8 @@ void mark(benchmark::State &state, size_t n, int streams)
 
 } // namespace
 
-using numkit::ops::TransAffineFn;
-using numkit::ops::UnaryAffineFn;
+using nk::ops::TransAffineFn;
+using nk::ops::UnaryAffineFn;
 
 #define FUSED_RANGE ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN)
 
@@ -51,7 +51,7 @@ static void BM_FusedAffine(benchmark::State &state)
     auto x = makeBuf(n, 1, -1.0, 1.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedAffine(x.data(), 2.5, -1.0, out.data(), n);
+        nk::ops::fusedAffine(x.data(), 2.5, -1.0, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -63,7 +63,7 @@ static void BM_FusedAffineClamp(benchmark::State &state)
     auto x = makeBuf(n, 1, -2.0, 2.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedAffineClamp(x.data(), 1.5, 0.2, 0.0, 1.0, out.data(), n);
+        nk::ops::fusedAffineClamp(x.data(), 1.5, 0.2, 0.0, 1.0, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -75,7 +75,7 @@ static void BM_FusedShiftScaleMul(benchmark::State &state)
     auto x = makeBuf(n, 1, -5.0, 5.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedShiftScaleMul(x.data(), 1.0, 0.5, out.data(), n);
+        nk::ops::fusedShiftScaleMul(x.data(), 1.0, 0.5, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -87,7 +87,7 @@ static void BM_FusedAbsAffine(benchmark::State &state)
     auto x = makeBuf(n, 1, -1.0, 1.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedAbsAffine(x.data(), 2.0, -0.5, out.data(), n);
+        nk::ops::fusedAbsAffine(x.data(), 2.0, -0.5, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -99,7 +99,7 @@ static void BM_FusedSqAffine(benchmark::State &state)
     auto x = makeBuf(n, 1, -1.0, 1.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedSqAffine(x.data(), 2.0, -0.5, out.data(), n);
+        nk::ops::fusedSqAffine(x.data(), 2.0, -0.5, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -111,7 +111,7 @@ static void BM_FusedSoftThreshold(benchmark::State &state)
     auto x = makeBuf(n, 1, -2.0, 2.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedSoftThreshold(x.data(), 0.3, out.data(), n);
+        nk::ops::fusedSoftThreshold(x.data(), 0.3, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -123,7 +123,7 @@ static void BM_FusedUnaryAffineSqrt(benchmark::State &state)
     auto x = makeBuf(n, 1, 0.0, 100.0);   // sqrt domain
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedUnaryAffine(x.data(), 1.0, 0.0, UnaryAffineFn::Sqrt, out.data(), n);
+        nk::ops::fusedUnaryAffine(x.data(), 1.0, 0.0, UnaryAffineFn::Sqrt, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -135,7 +135,7 @@ static void BM_FusedTransAffineExp(benchmark::State &state)
     auto x = makeBuf(n, 1, -5.0, 5.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedTransAffine(x.data(), 1.0, 0.0, TransAffineFn::Exp, out.data(), n);
+        nk::ops::fusedTransAffine(x.data(), 1.0, 0.0, TransAffineFn::Exp, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 1);
@@ -149,7 +149,7 @@ static void BM_FusedAxpby(benchmark::State &state)
     auto y = makeBuf(n, 2, -1.0, 1.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedAxpby(x.data(), 0.7, y.data(), 0.3, out.data(), n);
+        nk::ops::fusedAxpby(x.data(), 0.7, y.data(), 0.3, out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 2);
@@ -162,7 +162,7 @@ static void BM_FusedSqrtSumSq(benchmark::State &state)
     auto y = makeBuf(n, 2, -1.0, 1.0);
     std::vector<double> out(n);
     for (auto _ : state) {
-        numkit::ops::fusedSqrtSumSq(x.data(), y.data(), out.data(), n);
+        nk::ops::fusedSqrtSumSq(x.data(), y.data(), out.data(), n);
         benchmark::DoNotOptimize(out.data());
     }
     mark(state, n, 2);

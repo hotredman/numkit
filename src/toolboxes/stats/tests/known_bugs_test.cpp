@@ -4,11 +4,11 @@
 // (don't break the green baseline); remove `DISABLED_` to turn into a live
 // regression guard. Asserts MATLAB R2025b-correct behaviour.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class StatsKnownBug : public ::testing::Test
 {
@@ -79,7 +79,7 @@ TEST_F(StatsKnownBug, IsoutlierGesd)
 TEST_F(StatsKnownBug, SmoothdataSgolay)
 {
     // Default-window form runs + preserves length. (MATLAB's default window is a
-    // data-dependent heuristic that numkit's shared default only approximates, so
+    // data-dependent heuristic that nk's shared default only approximates, so
     // here we check shape, not values, for the default form.)
     eval("y = smoothdata([1 5 2 8 3 9 4 7 2 8 3], 'sgolay');");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 11);
@@ -111,8 +111,8 @@ TEST_F(StatsKnownBug, KstestPValue)
 {
     eval("[h, p, ks, cv] = kstest([-1 0 1 2 -0.5 0.5]);");
     EXPECT_NEAR(evalScalar("ks"), 0.19146246, 1e-6);   // statistic
-    EXPECT_NEAR(evalScalar("p"),  0.94998410, 1e-5);   // was numkit 0.9804
-    EXPECT_NEAR(evalScalar("cv"), 0.51926000, 1e-4);   // was numkit 0.5544
+    EXPECT_NEAR(evalScalar("p"),  0.94998410, 1e-5);   // was nk 0.9804
+    EXPECT_NEAR(evalScalar("cv"), 0.51926000, 1e-4);   // was nk 0.5544
 }
 
 // bugs/stats/friedman.md — Friedman's nonparametric two-way ANOVA missing.
@@ -137,7 +137,7 @@ TEST_F(StatsKnownBug, Kstest2PValue)
 {
     eval("[h,p,k]=kstest2([1 2 3 4 5],[2 3 4 5 6 7]);");
     EXPECT_NEAR(evalScalar("k"), 0.3333333, 1e-6);   // statistic
-    EXPECT_NEAR(evalScalar("p"), 0.8470543, 1e-5);   // was numkit 0.9223
+    EXPECT_NEAR(evalScalar("p"), 0.8470543, 1e-5);   // was nk 0.9223
 }
 
 // bugs/stats/dwtest-pvalue.md — exact DW p-value (Imhof). FIXED 2026-06-05
@@ -146,7 +146,7 @@ TEST_F(StatsKnownBug, DwtestPValue)
 {
     eval("[p,dw]=dwtest([1 2 1 3 2 4]', [ones(6,1) (1:6)']);");
     EXPECT_NEAR(evalScalar("dw"), 0.3142857, 1e-6);  // statistic
-    EXPECT_LT(evalScalar("p"), 1e-4);                // MATLAB ~0 (was numkit ~0.017)
+    EXPECT_LT(evalScalar("p"), 1e-4);                // MATLAB ~0 (was nk ~0.017)
 }
 
 // bugs/closed/stats/mahal-singular.md (FIXED; live guard) — the QR

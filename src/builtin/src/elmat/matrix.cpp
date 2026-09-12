@@ -1,21 +1,21 @@
 // toolboxes/builtin/src/lang/arrays/matrix.cpp
 
-#include <numkit/builtin/elmat.hpp>
+#include <nk/builtin/elmat.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
-#include <numkit/ops/rows_helpers.hpp>
-#include <numkit/ops/binary_ops.hpp>
-#include <numkit/ops/la_solve.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
+#include <nk/ops/rows_helpers.hpp>
+#include <nk/ops/binary_ops.hpp>
+#include <nk/ops/la_solve.hpp>
 #include "datafun/cumsum.hpp"
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
-#include <numkit/builtin/elmat.hpp>     // flip()
-#include <numkit/builtin/ops.hpp>  // transposeNC()
+#include <nk/builtin/elmat.hpp>     // flip()
+#include <nk/builtin/ops.hpp>  // transposeNC()
 
 #include <algorithm>
 #include <cctype>
@@ -29,7 +29,7 @@
 
 #include "matrix_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -98,12 +98,12 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("poly: input must be a 2D matrix",
-                    0, 0, "poly", "", "numkit:poly:notMatrix");
+                    0, 0, "poly", "", "nk:poly:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("poly: matrix must be square (use poly(roots) for vector input)",
-                    0, 0, "poly", "", "numkit:poly:notSquare");
+                    0, 0, "poly", "", "nk:poly:notSquare");
     if (n == 0) {
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = 1.0;
@@ -180,7 +180,7 @@ Value topkrows_full(const Value &A, std::size_t k,
 {
     if (A.dims().ndim() != 2)
         throw Error("topkrows: input must be a 2D matrix",
-                    0, 0, "topkrows", "", "numkit:topkrows:notMatrix");
+                    0, 0, "topkrows", "", "nk:topkrows:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t kk = std::min(k, m);
@@ -203,12 +203,12 @@ Value topkrows_full(const Value &A, std::size_t k,
     } else {
         throw Error("topkrows: direction must be a scalar or match the "
                     "length of col",
-                    0, 0, "topkrows", "", "numkit:topkrows:dirSize");
+                    0, 0, "topkrows", "", "nk:topkrows:dirSize");
     }
     for (std::size_t j : cols)
         if (j >= n)
             throw Error("topkrows: column index out of range",
-                        0, 0, "topkrows", "", "numkit:topkrows:badCol");
+                        0, 0, "topkrows", "", "nk:topkrows:badCol");
 
     ScratchArena scratch(mr);
     ScratchVec<std::size_t> idx(m, &scratch);
@@ -285,7 +285,7 @@ Value toeplitz(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
     const std::size_t n = single1 ? m : rV.numel();
     if (m == 0 || n == 0)
         throw Error("toeplitz: inputs must be non-empty",
-                    0, 0, "toeplitz", "", "numkit:toeplitz:empty");
+                    0, 0, "toeplitz", "", "nk:toeplitz:empty");
 
     // COMPLEX: gather per-element so the imaginary part is preserved.
     // Two-arg form is a plain gather; the single-arg complex form is a
@@ -351,7 +351,7 @@ Value hankel(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
     const std::size_t n = single1 ? m : rV.numel();
     if (m == 0 || n == 0)
         throw Error("hankel: inputs must be non-empty",
-                    0, 0, "hankel", "", "numkit:hankel:empty");
+                    0, 0, "hankel", "", "nk:hankel:empty");
 
     // H[i,j] = c[i+j] (i+j < m) else r[i+j-m+1]. hankel never conjugates.
     // Single-arg: r is all zeros (anti-triangular Hankel).
@@ -429,7 +429,7 @@ Value compan(const Value &pV, std::pmr::memory_resource *mr)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (p[0] == 0.0)
         throw Error("compan: leading coefficient must be non-zero",
-                    0, 0, "compan", "", "numkit:compan:zeroLead");
+                    0, 0, "compan", "", "nk:compan:zeroLead");
 
     const std::size_t n = pn - 1;
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
@@ -536,7 +536,7 @@ Value hadamard(size_t n, std::pmr::memory_resource *mr)
     // and are deferred (see header).
     if ((n & (n - 1)) != 0)
         throw Error("hadamard: only powers of 2 are supported in this revision (12·2^k and 20·2^k via Paley are deferred)",
-                    0, 0, "hadamard", "", "numkit:hadamard:badN");
+                    0, 0, "hadamard", "", "nk:hadamard:badN");
 
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
     // Sylvester recursion: H_1 = [1]; H_{2k} = [Hk Hk; Hk -Hk].
@@ -664,7 +664,7 @@ Value reshape(const Value &x, size_t rows, size_t cols, size_t pages, std::pmr::
     const size_t newNumel = rows * cols * (pages == 0 ? 1 : pages);
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
-                     0, 0, "reshape", "", "numkit:reshape:elementCountMismatch");
+                     0, 0, "reshape", "", "nk:reshape:elementCountMismatch");
 
     DimsArg d{rows, cols, pages};
 
@@ -707,7 +707,7 @@ Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resour
     for (std::size_t i = 0; i < nDims; ++i) newNumel *= dims[i];
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
-                     0, 0, "reshape", "", "numkit:reshape:elementCountMismatch");
+                     0, 0, "reshape", "", "nk:reshape:elementCountMismatch");
 
     if (x.isObject())
         return x.objectReshape(Dims(dims.data(), static_cast<int>(nDims)), mr);
@@ -715,7 +715,7 @@ Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resour
     if (x.type() == ValueType::CELL || x.type() == ValueType::STRING) {
         if (nDims > 3)
             throw Error("reshape: ND CELL/STRING (>3) not yet supported",
-                         0, 0, "reshape", "", "numkit:reshape:cellND");
+                         0, 0, "reshape", "", "nk:reshape:cellND");
         // Fall through to legacy path for 2D / 3D cell.
         const size_t r = nDims > 0 ? dims[0] : 1;
         const size_t c = nDims > 1 ? dims[1] : 1;
@@ -910,7 +910,7 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
     };
     if (!isFloatLike(x.type()) || !isFloatLike(y.type()))
         throw Error("pagemtimes: inputs must be 'single', 'double', or complex",
-                     0, 0, "pagemtimes", "", "numkit:pagemtimes:type");
+                     0, 0, "pagemtimes", "", "nk:pagemtimes:type");
     if (x.isComplex() || y.isComplex())
         return pagemtimesImpl<Complex>(x, tx, y, ty, mr);
     if (x.type() == ValueType::SINGLE || y.type() == ValueType::SINGLE)
@@ -931,7 +931,7 @@ Value diag(const Value &x, int k, std::pmr::memory_resource *mr)
     if (t == ValueType::CELL || t == ValueType::STRING ||
         t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error("diag: inputs must be numeric, char, or logical",
-                     0, 0, "diag", "", "numkit:diag:badType");
+                     0, 0, "diag", "", "nk:diag:badType");
 
     const size_t es = elementSize(t);
     const size_t ak = static_cast<size_t>(k < 0 ? -k : k);
@@ -1206,7 +1206,7 @@ Value nonzeros(const Value &x, std::pmr::memory_resource *mr)
     }
     default:
         throw Error("nonzeros: unsupported element type",
-                     0, 0, "nonzeros", "", "numkit:nonzeros:badType");
+                     0, 0, "nonzeros", "", "nk:nonzeros:badType");
     }
 }
 
@@ -1321,7 +1321,7 @@ Value cumsum(const Value &x, std::pmr::memory_resource *mr)
     }
     if (x.dims().isVector()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
-        numkit::builtin::cumsumScan(x.doubleData(), r.doubleDataMut(), x.numel());
+        nk::builtin::cumsumScan(x.doubleData(), r.doubleDataMut(), x.numel());
         return r;
     }
     const size_t R = x.dims().rows(), C = x.dims().cols();
@@ -1330,7 +1330,7 @@ Value cumsum(const Value &x, std::pmr::memory_resource *mr)
     double *dst = r.doubleDataMut();
     // Per-column inclusive scan — column data is contiguous.
     for (size_t c = 0; c < C; ++c)
-        numkit::builtin::cumsumScan(src + c * R, dst + c * R, R);
+        nk::builtin::cumsumScan(src + c * R, dst + c * R, R);
     return r;
 }
 
@@ -1348,7 +1348,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
     if (dim <= 0) return cumsum(x, mr);
     if (x.dims().isVector() || x.isScalar()) return cumsum(x, mr);
 
-    const int d = numkit::ops::resolveDim(x, dim, "cumsum");
+    const int d = nk::ops::resolveDim(x, dim, "cumsum");
     const auto &dd = x.dims();
 
     // ND fallback for rank ≥ 4: per-slice scan along axis d-1. Inner
@@ -1357,7 +1357,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
         constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw Error("cumsum: rank exceeds 32",
-                         0, 0, "cumsum", "", "numkit:cumsum:tooManyDims");
+                         0, 0, "cumsum", "", "nk:cumsum:tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
         auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
@@ -1371,7 +1371,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
         if (B == 1) {
             for (size_t o = 0; o < O; ++o) {
                 const size_t base = o * sliceLen;
-                numkit::builtin::cumsumScan(src + base, dst + base, sliceLen);
+                nk::builtin::cumsumScan(src + base, dst + base, sliceLen);
             }
         } else {
             for (size_t o = 0; o < O; ++o)
@@ -1402,7 +1402,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
         for (size_t pp = 0; pp < P; ++pp)
             for (size_t c = 0; c < C; ++c) {
                 const size_t base = pp * R * C + c * R;
-                numkit::builtin::cumsumScan(src + base, dst + base, R);
+                nk::builtin::cumsumScan(src + base, dst + base, R);
             }
     } else if (d == 2) {
         // Walk across columns for each (row, page). Stride = R.
@@ -1453,7 +1453,7 @@ Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr)
                                   /*isProd=*/true, mr);
     if (x.isLogical())
         return cumprod(toDoubleValue(x, mr), dim, mr);
-    return cumScanDispatch(x, dim, numkit::builtin::cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
+    return cumScanDispatch(x, dim, nk::builtin::cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
 }
 
 
@@ -1471,7 +1471,7 @@ Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr)
     // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
     // and propagates otherwise. Default = 'omitnan' since R2018a; we
     // skip NaN here, treating them as identity.
-    return cumScanDispatch(x, dim, numkit::builtin::cummaxScan, [](double a, double b) {
+    return cumScanDispatch(x, dim, nk::builtin::cummaxScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
                                return std::max(a, b);
@@ -1487,7 +1487,7 @@ Value cummin(const Value &x, int dim, std::pmr::memory_resource *mr)
     if (x.type() == ValueType::COMPLEX)
         return cumComplexMinMaxAlongDim(x, dim <= 0 ? firstNonSingletonDim(x) : dim,
                                         /*isMax=*/false, mr);
-    return cumScanDispatch(x, dim, numkit::builtin::cumminScan, [](double a, double b) {
+    return cumScanDispatch(x, dim, nk::builtin::cumminScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
                                return std::min(a, b);
@@ -1504,7 +1504,7 @@ Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     // passes 0).
     if (n < 1)
         throw Error("diff: Difference order N must be a positive integer scalar",
-                     0, 0, "diff", "", "numkit:diff:badOrder");
+                     0, 0, "diff", "", "nk:diff:badOrder");
 
     const bool isInt = isIntegerType(x.type());
 
@@ -1512,7 +1512,7 @@ Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     if (x.isScalar())
         return Value::matrix(1, 0, isInt ? x.type() : ValueType::DOUBLE, mr);
 
-    const int d = numkit::ops::resolveDim(x, dim, "diff");
+    const int d = nk::ops::resolveDim(x, dim, "diff");
     const auto &dd = x.dims();
     const size_t sliceLen = (d >= 1 && d <= dd.ndim()) ? dd.dim(d - 1) : 1;
 
@@ -1582,4 +1582,4 @@ Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

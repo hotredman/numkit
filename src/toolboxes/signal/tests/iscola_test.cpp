@@ -3,13 +3,13 @@
 // Regression guard for signal/iscola — COLA-compliance check.
 // Fingerprints from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class IscolaTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override
     {
                 engine.eval("w  = hann(64, 'periodic');");

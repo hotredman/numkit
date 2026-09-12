@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/squareform_test.cpp
 // squareform.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SquareformTest : public ::testing::Test
 {

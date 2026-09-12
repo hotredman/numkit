@@ -10,7 +10,7 @@ Essentially the entire linear-algebra suite rejects a complex matrix with
 "Not a double array" (or "not yet supported"). MATLAB supports complex
 matrices everywhere.
 
-| Op | numkit | MATLAB (B = [1+1i 2; 3 4-1i]) |
+| Op | nk | MATLAB (B = [1+1i 2; 3 4-1i]) |
 |---|---|---|
 | `trace(B)` ✅ FIXED 2026-06-17 | `5` (diagonal sum + narrow) | `5+0i` → real `5` |
 | `det(B)` ✅ FIXED 2026-08-05 | `-1+3i` | `-1+3i` |

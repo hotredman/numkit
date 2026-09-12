@@ -3,7 +3,7 @@
 // In-tree Truevision TGA (.tga) decoder and encoder. Zero external dependencies.
 
 #include "tga_codec.hpp"
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -11,7 +11,7 @@
 #include <cstring>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -91,7 +91,7 @@ Value readTga(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
     TgaHeader hdr;
     if (!parseTgaHeader(data, len, hdr)) {
         throw Error("imread: failed to decode TGA — invalid header",
-                    0, 0, "imread", "", "numkit:imread:tgaHeader");
+                    0, 0, "imread", "", "nk:imread:tgaHeader");
     }
 
     const std::size_t W = hdr.width;
@@ -109,7 +109,7 @@ Value readTga(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
         const int cMapBytes = hdr.cMapDepth / 8;
         if (len < offset + static_cast<std::size_t>(hdr.cMapLength) * cMapBytes) {
             throw Error("imread: TGA color map truncated",
-                        0, 0, "imread", "", "numkit:imread:tgaColorMap");
+                        0, 0, "imread", "", "nk:imread:tgaColorMap");
         }
         palette.resize(hdr.cMapLength);
         for (std::size_t i = 0; i < hdr.cMapLength; ++i) {
@@ -131,7 +131,7 @@ Value readTga(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
         // Uncompressed pixels
         if (len < offset + totalPixels * bytesPerPixel) {
             throw Error("imread: TGA image data truncated",
-                        0, 0, "imread", "", "numkit:imread:tgaTruncated");
+                        0, 0, "imread", "", "nk:imread:tgaTruncated");
         }
         std::memcpy(rawPixels.data(), data + offset, totalPixels * bytesPerPixel);
     } else {
@@ -168,7 +168,7 @@ Value readTga(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
 
         if (pixelIdx < totalPixels) {
             throw Error("imread: TGA RLE stream ended prematurely",
-                        0, 0, "imread", "", "numkit:imread:tgaRleEof");
+                        0, 0, "imread", "", "nk:imread:tgaRleEof");
         }
     }
 
@@ -222,7 +222,7 @@ Value readTga(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
     }
 
     throw Error("imread: unsupported TGA pixel format (" + std::to_string(bytesPerPixel) + " bytes/pixel)",
-                0, 0, "imread", "", "numkit:imread:tgaFormat");
+                0, 0, "imread", "", "nk:imread:tgaFormat");
 }
 
 std::string writeTgaToBytes(const Value &A) {
@@ -230,7 +230,7 @@ std::string writeTgaToBytes(const Value &A) {
     const std::size_t W = A.dims().cols();
     if (H == 0 || W == 0) {
         throw Error("imwrite: empty image matrix",
-                    0, 0, "imwrite", "", "numkit:imwrite:empty");
+                    0, 0, "imwrite", "", "nk:imwrite:empty");
     }
 
     int channels = 1;
@@ -239,7 +239,7 @@ std::string writeTgaToBytes(const Value &A) {
     else if (A.numel() == H * W * 4) channels = 4;
     else {
         throw Error("imwrite: input must be H×W or H×W×{1,3,4}",
-                    0, 0, "imwrite", "", "numkit:imwrite:shape");
+                    0, 0, "imwrite", "", "nk:imwrite:shape");
     }
 
     const std::uint8_t imageType = (channels == 1) ? 3 : 2; // Uncompressed Grayscale or Truecolor
@@ -307,4 +307,4 @@ std::string writeTgaToBytes(const Value &A) {
     return std::string(buf.begin(), buf.end());
 }
 
-} // namespace numkit::image
+} // namespace nk::image

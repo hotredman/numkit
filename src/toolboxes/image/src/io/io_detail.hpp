@@ -9,14 +9,14 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <memory_resource>
 #include <string>
 
-namespace numkit::image {
+namespace nk::image {
 
 // Lower-cased file extension (without the dot), or "" if none. Used by both
 // the native and VFS imread/imwrite paths to dispatch on format.
@@ -36,4 +36,4 @@ bool isTiffBytes(const std::string &b);
 // Decode an image from in-memory bytes — the single place pixels are produced.
 Value imreadFromBytes(const std::string &bytes, std::pmr::memory_resource *mr);
 
-} // namespace numkit::image
+} // namespace nk::image

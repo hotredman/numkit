@@ -2,14 +2,14 @@
 //
 // eigs & svds: Subset of eigenvalues / singular values.
 
-#include <numkit/linalg/eigs.hpp>
-#include <numkit/linalg/eig.hpp>
-#include <numkit/linalg/decompositions.hpp>
+#include <nk/linalg/eigs.hpp>
+#include <nk/linalg/eig.hpp>
+#include <nk/linalg/decompositions.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 #include <numeric>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -49,10 +49,10 @@ std::tuple<Value, Value> eig_auto(const Value &A, std::pmr::memory_resource *mr)
 Value eigs_values(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("eigs: input must be a 2D matrix", 0, 0, "eigs", "", "numkit:eigs:notMatrix");
+        throw Error("eigs: input must be a 2D matrix", 0, 0, "eigs", "", "nk:eigs:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
-        throw Error("eigs: matrix must be square", 0, 0, "eigs", "", "numkit:eigs:notSquare");
+        throw Error("eigs: matrix must be square", 0, 0, "eigs", "", "nk:eigs:notSquare");
 
     if (n == 0 || k == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
     if (k > n) k = n;
@@ -84,10 +84,10 @@ Value eigs_values(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 std::tuple<Value, Value> eigs(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("eigs: input must be a 2D matrix", 0, 0, "eigs", "", "numkit:eigs:notMatrix");
+        throw Error("eigs: input must be a 2D matrix", 0, 0, "eigs", "", "nk:eigs:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
-        throw Error("eigs: matrix must be square", 0, 0, "eigs", "", "numkit:eigs:notSquare");
+        throw Error("eigs: matrix must be square", 0, 0, "eigs", "", "nk:eigs:notSquare");
 
     if (n == 0 || k == 0) {
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -131,7 +131,7 @@ std::tuple<Value, Value> eigs(const Value &A, std::size_t k, std::pmr::memory_re
 Value svds_values(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("svds: input must be a 2D matrix", 0, 0, "svds", "", "numkit:svds:notMatrix");
+        throw Error("svds: input must be a 2D matrix", 0, 0, "svds", "", "nk:svds:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t min_mn = std::min(m, n);
@@ -149,7 +149,7 @@ Value svds_values(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 std::tuple<Value, Value, Value> svds(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("svds: input must be a 2D matrix", 0, 0, "svds", "", "numkit:svds:notMatrix");
+        throw Error("svds: input must be a 2D matrix", 0, 0, "svds", "", "nk:svds:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t min_mn = std::min(m, n);
@@ -212,4 +212,4 @@ std::tuple<Value, Value, Value> svds(const Value &A, std::size_t k, std::pmr::me
             detail::narrow_if_real(Vk, mr)};
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

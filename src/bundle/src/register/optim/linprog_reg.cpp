@@ -18,9 +18,9 @@
 //   * Unboundedness is only flagged heuristically (‖x‖ blows up); a full
 //     2-phase simplex would be the exact follow-up.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
-namespace numkit::optim {
+namespace nk::optim {
 
 static const char *kLinprogMSource = R"NKM(
 function [x, fval, exitflag] = linprog(f, A, b, Aeq, beq, lb, ub, x0)
@@ -49,4 +49,4 @@ void registerLinprogM(Engine &engine)
     engine.registerBuiltinMSource(kLinprogMSource);
 }
 
-} // namespace numkit::optim
+} // namespace nk::optim

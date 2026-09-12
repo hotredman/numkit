@@ -3,13 +3,13 @@
 // CallContext register half of descriptive/grp2idx.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ void grp2idx_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("grp2idx: requires (s)",
-                    0, 0, "grp2idx", "", "numkit:grp2idx:nargin");
+                    0, 0, "grp2idx", "", "nk:grp2idx:nargin");
     Grp2idxResult r = grp2idx(args[0], ctx.engine->resource());
     outs[0] = std::move(r.G);
     if (nargout >= 2) outs[1] = std::move(r.GN);
@@ -39,4 +39,4 @@ void grp2idx_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

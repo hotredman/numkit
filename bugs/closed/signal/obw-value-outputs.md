@@ -9,7 +9,7 @@
 1. **Value** — `obw(x, fs)` (the 99% occupied bandwidth) diverges from MATLAB.
 2. **Outputs** — MATLAB `obw` returns up to four outputs
    `[bw, flo, fhi, power]` (bandwidth + lower/upper band edges + power in the
-   band); numkit emits only `bw` and throws "Too many output arguments" for
+   band); nk emits only `bw` and throws "Too many output arguments" for
    the rest.
 
 ## Repro
@@ -18,16 +18,16 @@ fs = 1000; t = (0:fs-1)/fs;
 x = sin(2*pi*100*t) + 0.5*sin(2*pi*200*t);   % deterministic two-tone
 
 obw(x, fs)
-% numkit: 108.7721
+% nk: 108.7721
 % MATLAB: 100.9688
 
 [bw, flo, fhi, p] = obw(x, fs)
-% numkit: Error — Too many output arguments
+% nk: Error — Too many output arguments
 % MATLAB: bw=100.9688, flo=99.5062, fhi=200.4750, p=0.6188
 ```
 
 ## Root cause
-Two parts. The single-output value already differs (~8%), so numkit's
+Two parts. The single-output value already differs (~8%), so nk's
 occupied-bandwidth integration (PSD estimate and/or the 99%-power band
 search) does not match MATLAB's. Separately, the `obw_reg` adapter emits
 only `outs[0]` — the band edges and in-band power are not threaded to
@@ -36,10 +36,10 @@ only `outs[0]` — the band edges and in-band power are not threaded to
 ## Fix (2026-06-18)
 Black-box probing of MATLAB R2025b pinned the exact algorithm (it's a standard
 cumulative-power band — no MATLAB source read). Three bugs compounded:
-1. **nfft** — numkit's PSD used the default `max(256, 2^nextpow2(N))` (=1024 for
+1. **nfft** — nk's PSD used the default `max(256, 2^nextpow2(N))` (=1024 for
    N=1000, zero-padded); MATLAB uses **nfft = N** (no padding). This was the
    dominant error (108.77 vs 100.97).
-2. **cumulative rule** — numkit used the trapezoid; MATLAB uses the **rectangle
+2. **cumulative rule** — nk used the trapezoid; MATLAB uses the **rectangle
    rule** `cum[k] = Σ_{j≤k} P[j]·df`.
 3. **band-edge frequency** — MATLAB places a band edge at the bin's **upper edge
    `F + df/2`** (not the bin centre). `bw = fhi − flo` is invariant to the shift,
@@ -48,7 +48,7 @@ The window is **rectangular** (NOT Kaiser — the original "Kaiser" guess above 
 wrong). The band edges are the `0.5%` / `99.5%` cumulative-power crossings;
 `power = p · total`.
 
-numkit's `periodogram` helper is radix-2 only, so it can't take `nfft = N` for a
+nk's `periodogram` helper is radix-2 only, so it can't take `nfft = N` for a
 non-power-of-two `N` (that path produced a garbage spectrum). `obw` now computes
 the length-N DFT via the general `fft` (Bluestein for non-pow2 N) and forms the
 one-sided PSD inline: `Pxx[k] = (2 if folded)·|X[k]|² / (fs·N)`, which obeys

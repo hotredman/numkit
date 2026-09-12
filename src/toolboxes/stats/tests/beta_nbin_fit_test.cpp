@@ -2,12 +2,12 @@
 //
 // Regression guard for betafit + nbinfit.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class BetaNbinFitTest : public ::testing::Test
 {
@@ -72,7 +72,7 @@ TEST_F(BetaNbinFitTest, BetafitCIMatchesMatlab)
 {
     // Deterministic Beta(2, 5) sample. MATLAB CI:
     //   [1.8883 4.6999; 2.1207 5.3258]
-    // numkit uses analytical Hessian (trigamma); MATLAB betafit uses
+    // nk uses analytical Hessian (trigamma); MATLAB betafit uses
     // a simulation-based CI, so we match to ~5e-4 in width.
     eval(R"(
         n=2000; u=((1:n)' - 0.5)/n; x = betainv(u, 2.0, 5.0);

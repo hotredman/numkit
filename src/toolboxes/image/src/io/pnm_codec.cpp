@@ -3,7 +3,7 @@
 // In-tree Netpbm (.pnm, .ppm, .pgm, .pbm) decoder and encoder. Zero external dependencies.
 
 #include "pnm_codec.hpp"
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <cstdint>
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -105,7 +105,7 @@ Value readPnm(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
     PnmHeader hdr;
     if (!parsePnmHeader(data, len, hdr)) {
         throw Error("imread: failed to decode PNM — invalid header",
-                    0, 0, "imread", "", "numkit:imread:pnmHeader");
+                    0, 0, "imread", "", "nk:imread:pnmHeader");
     }
 
     const std::size_t W = hdr.width;
@@ -121,7 +121,7 @@ Value readPnm(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
             const std::size_t rowBytes = (W + 7) / 8;
             if (len < hdr.dataOffset + rowBytes * H) {
                 throw Error("imread: truncated PBM binary data",
-                            0, 0, "imread", "", "numkit:imread:pbmTruncated");
+                            0, 0, "imread", "", "nk:imread:pbmTruncated");
             }
             Value out = Value::matrix(H, W, ValueType::UINT8, mr);
             std::uint8_t *dst = out.uint8DataMut();
@@ -142,7 +142,7 @@ Value readPnm(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
             const std::size_t bytesPerSample = is16Bit ? 2 : 1;
             if (len < hdr.dataOffset + W * H * bytesPerSample) {
                 throw Error("imread: truncated PGM binary data",
-                            0, 0, "imread", "", "numkit:imread:pgmTruncated");
+                            0, 0, "imread", "", "nk:imread:pgmTruncated");
             }
             const std::uint8_t *pixels = data + hdr.dataOffset;
 
@@ -174,7 +174,7 @@ Value readPnm(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
             const std::size_t bytesPerSample = is16Bit ? 2 : 1;
             if (len < hdr.dataOffset + W * H * 3 * bytesPerSample) {
                 throw Error("imread: truncated PPM binary data",
-                            0, 0, "imread", "", "numkit:imread:ppmTruncated");
+                            0, 0, "imread", "", "nk:imread:ppmTruncated");
             }
             const std::uint8_t *pixels = data + hdr.dataOffset;
             const std::size_t plane = H * W;
@@ -222,7 +222,7 @@ Value readPnm(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
                 std::uint32_t val = 0;
                 if (!readNextInt(data, len, p, val)) {
                     throw Error("imread: premature end of ASCII PNM stream",
-                                0, 0, "imread", "", "numkit:imread:pnmAsciiEof");
+                                0, 0, "imread", "", "nk:imread:pnmAsciiEof");
                 }
                 if (hdr.magic == 1) val = val ? 0 : 255;
                 if (is16Bit) out.uint16DataMut()[c * H + r] = static_cast<std::uint16_t>(val);
@@ -243,7 +243,7 @@ Value readPnm(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
                     !readNextInt(data, len, p, green) ||
                     !readNextInt(data, len, p, blue)) {
                     throw Error("imread: premature end of PPM ASCII stream",
-                                0, 0, "imread", "", "numkit:imread:ppmAsciiEof");
+                                0, 0, "imread", "", "nk:imread:ppmAsciiEof");
                 }
                 if (is16Bit) {
                     out.uint16DataMut()[c * H + r]             = static_cast<std::uint16_t>(red);
@@ -265,7 +265,7 @@ std::string writePnmToBytes(const Value &A, const std::string &/*ext*/) {
     const std::size_t W = A.dims().cols();
     if (H == 0 || W == 0) {
         throw Error("imwrite: empty image matrix",
-                    0, 0, "imwrite", "", "numkit:imwrite:empty");
+                    0, 0, "imwrite", "", "nk:imwrite:empty");
     }
 
     int channels = 1;
@@ -273,7 +273,7 @@ std::string writePnmToBytes(const Value &A, const std::string &/*ext*/) {
     else if (A.numel() == H * W * 3) channels = 3;
     else {
         throw Error("imwrite: PNM only supports 1 (PGM) or 3 (PPM) channels",
-                    0, 0, "imwrite", "", "numkit:imwrite:pnmChannels");
+                    0, 0, "imwrite", "", "nk:imwrite:pnmChannels");
     }
 
     const bool is16Bit = (A.type() == ValueType::UINT16);
@@ -326,4 +326,4 @@ std::string writePnmToBytes(const Value &A, const std::string &/*ext*/) {
     return std::string(buf.begin(), buf.end());
 }
 
-} // namespace numkit::image
+} // namespace nk::image

@@ -2,10 +2,10 @@
 //
 // Regression guard for anymissing / ismissing.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MissingTest : public ::testing::Test
 {

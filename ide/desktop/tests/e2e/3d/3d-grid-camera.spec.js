@@ -4,7 +4,7 @@
 // 39b — major-grid lines must hide on the three "front" faces of
 //       the bounding cube and stay visible only on back faces.
 //
-// We hook into the live three.js context via `canvas.__numkit3dCtx`,
+// We hook into the live three.js context via `canvas.__nk3dCtx`,
 // a debug-only ref attached at component mount. Tests read camera
 // position and per-face `LineSegments.visible` flags directly.
 
@@ -21,11 +21,11 @@ test.describe('3-D grid + camera — BUG #39', () => {
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
     // Wait for the canvas + three.js ctx to mount.
-    const canvas = ide.figureWindow.locator('canvas[data-numkit-3d]').first();
+    const canvas = ide.figureWindow.locator('canvas[data-nk-3d]').first();
     await expect(canvas).toBeVisible({ timeout: 5_000 });
     // Read camera position before toggling.
     const before = await canvas.evaluate((cv) => {
-      const ctx = cv.__numkit3dCtx?.current;
+      const ctx = cv.__nk3dCtx?.current;
       if (!ctx) return null;
       const p = ctx.camera.position;
       return { x: p.x, y: p.y, z: p.z };
@@ -38,7 +38,7 @@ test.describe('3-D grid + camera — BUG #39', () => {
     await gridBtn.click();
     await page.waitForTimeout(50);
     const after = await canvas.evaluate((cv) => {
-      const ctx = cv.__numkit3dCtx?.current;
+      const ctx = cv.__nk3dCtx?.current;
       if (!ctx) return null;
       const p = ctx.camera.position;
       return { x: p.x, y: p.y, z: p.z };
@@ -59,12 +59,12 @@ test.describe('3-D grid + camera — BUG #39', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    const canvas = ide.figureWindow.locator('canvas[data-numkit-3d]').first();
+    const canvas = ide.figureWindow.locator('canvas[data-nk-3d]').first();
     await expect(canvas).toBeVisible({ timeout: 5_000 });
     // Allow the first tick to settle visibility flags.
     await page.waitForTimeout(100);
     const stats = await canvas.evaluate((cv) => {
-      const ctx = cv.__numkit3dCtx?.current;
+      const ctx = cv.__nk3dCtx?.current;
       if (!ctx) return null;
       const major = ctx.gridMajorByFace || {};
       const faces = Object.keys(major);
@@ -87,11 +87,11 @@ test.describe('3-D grid + camera — BUG #39', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    const canvas = ide.figureWindow.locator('canvas[data-numkit-3d]').first();
+    const canvas = ide.figureWindow.locator('canvas[data-nk-3d]').first();
     await expect(canvas).toBeVisible({ timeout: 5_000 });
     await page.waitForTimeout(100);
     const result = await canvas.evaluate((cv) => {
-      const ctx = cv.__numkit3dCtx?.current;
+      const ctx = cv.__nk3dCtx?.current;
       if (!ctx) return null;
       const sample = () => {
         const m = ctx.gridMajorByFace;

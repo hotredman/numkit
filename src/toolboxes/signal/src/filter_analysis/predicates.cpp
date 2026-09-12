@@ -2,19 +2,19 @@
 //
 // isfir / isstable / isminphase / ismaxphase / islinphase / isallpass.
 
-#include <numkit/signal/filter_analysis/predicates.hpp>
+#include <nk/signal/filter_analysis/predicates.hpp>
 #include "predicates_detail.hpp"
 
-#include <numkit/builtin/polyfun.hpp>             // roots()
-#include <numkit/signal/filter_analysis/frequency_response.hpp> // freqz()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/polyfun.hpp>             // roots()
+#include <nk/signal/filter_analysis/frequency_response.hpp> // freqz()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -34,7 +34,7 @@ bool isTrivialA(const Value &a)
 double maxRootRadius(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.numel() < 2) return 0.0;
-    auto r = numkit::builtin::roots(p, mr);
+    auto r = nk::builtin::roots(p, mr);
     double mx = 0.0;
     if (r.isComplex()) {
         const Complex *src = r.complexData();
@@ -147,4 +147,4 @@ bool isallpass(const Value &b, const Value &a)
     return true;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

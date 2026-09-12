@@ -10,5 +10,5 @@
     "r2",
     "r3"
   ],
-  "comment": "Sig: r = sprintf(fmt, ...). Spec-extension batch 2026-05-09. Note: numkit sprintf(\"...\") with double-quoted format returns empty \u2014 only single-quoted char format works. Documented as separate gap (string vs char distinction in format arg)."
+  "comment": "Sig: r = sprintf(fmt, ...). Spec-extension batch 2026-05-09. Note: nk sprintf(\"...\") with double-quoted format returns empty \u2014 only single-quoted char format works. Documented as separate gap (string vs char distinction in format arg)."
 }

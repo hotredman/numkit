@@ -3,10 +3,10 @@
 // Regression guard for mjuliandate() — Modified Julian Date.
 // MJD = JD - 2400000.5; epoch is 1858-11-17 00:00 UTC.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MjuliandateTest : public ::testing::Test
 {

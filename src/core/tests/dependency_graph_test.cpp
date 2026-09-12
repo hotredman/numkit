@@ -3,14 +3,14 @@
 // The beamforming-shaped case mirrors the real gallery script — the
 // top-level if/elseif block is a WILDCARD there.
 
-#include <numkit/core/dependency_graph.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/dependency_graph.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
 #include <gtest/gtest.h>
 #include <sstream>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 

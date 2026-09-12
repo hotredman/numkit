@@ -9,5 +9,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: graphics primitives — log-scale axis variants of plot. loglog (both x and y log), semilogx (x log only), semilogy (y log only). Side-effect (emits __FIGURE_DATA__ JSON with xscale/yscale set); spec verifies the call runs without erroring. Same pattern as `plot` spec — numkit graphics handles aren't directly comparable to MATLAB."
+  "comment": "Sig: graphics primitives — log-scale axis variants of plot. loglog (both x and y log), semilogx (x log only), semilogy (y log only). Side-effect (emits __FIGURE_DATA__ JSON with xscale/yscale set); spec verifies the call runs without erroring. Same pattern as `plot` spec — nk graphics handles aren't directly comparable to MATLAB."
 }

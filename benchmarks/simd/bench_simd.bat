@@ -8,7 +8,7 @@ setlocal
 :: side-by-sides the numbers via Google Benchmark's compare.py if
 :: Python is on PATH.
 ::
-:: Kernels covered — every numkit SIMD family with a portable-vs-Highway split:
+:: Kernels covered — every nk SIMD family with a portable-vs-Highway split:
 ::   unary math   abs sin cos tan exp log sqrt round floor ceil fix isfinite
 ::   binary       plus minus times rdivide mod ; compares eq ne lt gt le ge
 ::   matmul / fft mtimes ; fft
@@ -21,8 +21,8 @@ setlocal
 
 set PROJECT_DIR=%~dp0..\..\
 set FILTER=BM_Abs^|BM_Sin^|BM_Cos^|BM_Tan^|BM_Exp^|BM_Log^|BM_Sqrt^|BM_Round^|BM_Floor^|BM_Ceil^|BM_Fix^|BM_Isfinite^|BM_Plus^|BM_Minus^|BM_Times^|BM_Rdivide^|BM_Mod/^|BM_Lt^|BM_Gt^|BM_Le^|BM_Ge^|BM_Eq^|BM_Ne^|BM_Mtimes^|BM_Fft_PowerOfTwo^|BM_Cumsum^|BM_Any^|BM_All^|BM_Var^|BM_Std^|BM_Fused
-set PORTABLE=%PROJECT_DIR%build\bench\benchmarks\Release\numkit_bench.exe
-set SIMD=%PROJECT_DIR%build\bench-simd\benchmarks\Release\numkit_bench.exe
+set PORTABLE=%PROJECT_DIR%build\bench\benchmarks\Release\nk_bench.exe
+set SIMD=%PROJECT_DIR%build\bench-simd\benchmarks\Release\nk_bench.exe
 set COMPARE=%~dp0compare_simd.py
 set BASELINE_JSON=%~dp0baseline.json
 set SIMD_JSON=%~dp0simd.json

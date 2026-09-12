@@ -67,7 +67,7 @@ set(STATSLIB_SOURCES
 )
 
 # The nan_reductions single-pass kernels (nansum/nanmean/nanmax/nanmin/nanvar)
-# moved to the ops kernel layer — numkit::ops::nan*Scan (numkit/ops/
+# moved to the ops kernel layer — nk::ops::nan*Scan (nk/ops/
 # nan_reductions.hpp); their SIMD/portable split is built in ops/CMakeLists.txt.
 
 set(STATSLIB_SOURCES ${STATSLIB_SOURCES} PARENT_SCOPE)

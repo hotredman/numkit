@@ -13,7 +13,7 @@ too, on 2-D and N-D alike. `sum(A,'all')` worked, but max/min did not.)
 
 ## Repro (pre-fix)
 ```matlab
-max([1 2; 3 4], [], 'all')                 % numkit: Error "Cannot convert char to scalar"
+max([1 2; 3 4], [], 'all')                 % nk: Error "Cannot convert char to scalar"
 [m, i] = max([3 1; 4 1; 2 9], [], 'all')   % MATLAB: m = 9, i = 6 (linear index)
 max(reshape(1:24,2,3,4), [], 'all')        % MATLAB: 24
 ```

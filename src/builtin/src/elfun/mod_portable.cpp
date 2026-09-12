@@ -1,14 +1,14 @@
 // toolboxes/builtin/src/math/arithmetic/mod_portable.cpp
 //
 // Scalar reference for the mod() fast-path entry points. Compiled when
-// NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
+// NK_WITH_SIMD=OFF; the Highway-dispatched variant lives in
 // mod_highway.cpp and is bit-identical (same separate-mul/sub formula).
 
 #include "mod_simd.hpp"
 
 #include <cmath>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 void modLoopVV(const double *a, const double *b, double *out, std::size_t n)
 {
@@ -28,4 +28,4 @@ void modLoopSV(double s, const double *b, double *out, std::size_t n)
         out[i] = (b[i] != 0) ? s - std::floor(s / b[i]) * b[i] : s;
 }
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail

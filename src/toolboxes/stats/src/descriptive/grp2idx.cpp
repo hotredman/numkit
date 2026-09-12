@@ -18,10 +18,10 @@
 //
 // (categorical input and column-aligned char matrices are not yet handled.)
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -30,7 +30,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -111,4 +111,4 @@ Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

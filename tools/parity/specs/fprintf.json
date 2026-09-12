@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Side-effect smoke test (file I/O round-trip via tempname). fprintf writes 'x' to file -- read back length 1. NOTE: numkit fprintf returns void (no byte count); MATLAB returns the count. Probe uses round-trip rather than return value."
+  "comment": "Side-effect smoke test (file I/O round-trip via tempname). fprintf writes 'x' to file -- read back length 1. NOTE: nk fprintf returns void (no byte count); MATLAB returns the count. Probe uses round-trip rather than return value."
 }

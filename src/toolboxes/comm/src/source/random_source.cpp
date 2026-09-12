@@ -3,21 +3,21 @@
 // Random data sources: randsrc.
 // Future: randerr planned for the same TU (random binary error matrix).
 
-#include <numkit/comm/source/random_source.hpp>
+#include <nk/comm/source/random_source.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/ops/matlab_mt19937.hpp>
-#include <numkit/ops/rng_context.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/ops/matlab_mt19937.hpp>
+#include <nk/ops/rng_context.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <mutex>
 #include <numeric>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -65,7 +65,7 @@ void parseAlphabet(const Value &a,
             if (!(pk >= 0.0 && pk <= 1.0))
                 throw Error("randsrc: probabilities must be in [0, 1]",
                             0, 0, "randsrc", "",
-                            "numkit:randsrc:InvalidProbabilityVal");
+                            "nk:randsrc:InvalidProbabilityVal");
             al[k] = sym;
             sum  += pk;
             pr[k] = sum;          // cumulative
@@ -73,7 +73,7 @@ void parseAlphabet(const Value &a,
         if (std::abs(sum - 1.0) > std::sqrt(2.220446049250313e-16))
             throw Error("randsrc: probabilities must sum to 1",
                         0, 0, "randsrc", "",
-                        "numkit:randsrc:InvalidProbabilitySum");
+                        "nk:randsrc:InvalidProbabilitySum");
         *alpha_out = al;
         *prob_out  = pr;
         *len_out   = K;
@@ -82,19 +82,19 @@ void parseAlphabet(const Value &a,
 
     if (R == 1 && C == 0)
         throw Error("randsrc: alphabet must be non-empty",
-                    0, 0, "randsrc", "", "numkit:randsrc:EmptyAlphabet");
+                    0, 0, "randsrc", "", "nk:randsrc:EmptyAlphabet");
 
     throw Error("randsrc: alphabet must be a row vector or 2-row matrix",
-                0, 0, "randsrc", "", "numkit:randsrc:InvalidAlphabet");
+                0, 0, "randsrc", "", "nk:randsrc:InvalidAlphabet");
 }
 
 } // namespace
 
-Value randsrc(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &alphabet,
+Value randsrc(::nk::ops::RngContext &rng, size_t m, size_t n, const Value &alphabet,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr)
 {
-    using ::numkit::ops::MatlabMT19937;
+    using ::nk::ops::MatlabMT19937;
 
     // Parse alphabet → cumulative probability table.
     double *alpha = nullptr;
@@ -162,11 +162,11 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
             if (!(v >= 0.0) || std::floor(v) != v)
                 throw Error("randerr: error counts must be non-negative integers",
                             0, 0, "randerr", "",
-                            "numkit:randerr:InvalidErrorsElements");
+                            "nk:randerr:InvalidErrorsElements");
             if (static_cast<size_t>(v) > n)
                 throw Error("randerr: error count exceeds n",
                             0, 0, "randerr", "",
-                            "numkit:randerr:InvalidErrorsForm");
+                            "nk:randerr:InvalidErrorsForm");
             cs[k] = static_cast<int>(v);
             pr[k] = static_cast<double>(k + 1) / static_cast<double>(K);
         }
@@ -189,15 +189,15 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
             if (!(v >= 0.0) || std::floor(v) != v)
                 throw Error("randerr: error counts must be non-negative integers",
                             0, 0, "randerr", "",
-                            "numkit:randerr:InvalidErrorsElements");
+                            "nk:randerr:InvalidErrorsElements");
             if (static_cast<size_t>(v) > n)
                 throw Error("randerr: error count exceeds n",
                             0, 0, "randerr", "",
-                            "numkit:randerr:InvalidErrorsForm");
+                            "nk:randerr:InvalidErrorsForm");
             if (!(p >= 0.0 && p <= 1.0))
                 throw Error("randerr: probabilities must be in [0, 1]",
                             0, 0, "randerr", "",
-                            "numkit:randerr:Invalid2ndRowErrorsVal");
+                            "nk:randerr:Invalid2ndRowErrorsVal");
             cs[k] = static_cast<int>(v);
             sum += p;
             pr[k] = sum;
@@ -205,7 +205,7 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
         if (std::abs(sum - 1.0) > std::sqrt(2.220446049250313e-16))
             throw Error("randerr: probabilities must sum to 1",
                         0, 0, "randerr", "",
-                        "numkit:randerr:InvalidProbabilitySum");
+                        "nk:randerr:InvalidProbabilitySum");
         *counts_out = cs;
         *prob_out   = pr;
         *len_out    = K;
@@ -213,7 +213,7 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
     }
 
     throw Error("randerr: errors must be a row vector or 2-row matrix",
-                0, 0, "randerr", "", "numkit:randerr:InvalidErrorsDims");
+                0, 0, "randerr", "", "nk:randerr:InvalidErrorsDims");
 }
 
 template <typename Rng>
@@ -242,11 +242,11 @@ void fillOneRow(double *o_col_major, size_t i, size_t m, size_t n,
 
 } // namespace
 
-Value randerr(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &errspec,
+Value randerr(::nk::ops::RngContext &rng, size_t m, size_t n, const Value &errspec,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr)
 {
-    using ::numkit::ops::MatlabMT19937;
+    using ::nk::ops::MatlabMT19937;
 
     int    *counts = nullptr;
     double *prob   = nullptr;
@@ -275,4 +275,4 @@ Value randerr(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &e
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

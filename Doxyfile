@@ -1,4 +1,4 @@
-# Doxyfile for numkit
+# Doxyfile for nk
 #
 # Generates API documentation for the public headers of toolboxes/*/include/.
 # HTML output renders LaTeX formulas via MathJax (no toolchain needed for
@@ -13,10 +13,10 @@
 # Via CMake: `cmake --build <preset> --target docs` (see cmake/Doxygen.cmake).
 
 # ── Project ──────────────────────────────────────────────────────────
-PROJECT_NAME           = "numkit"
+PROJECT_NAME           = "nk"
 PROJECT_NUMBER         = "1.0.0"
 PROJECT_BRIEF          = "C++ Numerical Computing Runtime"
-PROJECT_LOGO           = brand/numkit-mark-light.svg
+PROJECT_LOGO           = brand/nk-mark-light.svg
 OUTPUT_DIRECTORY       = build/docs
 OUTPUT_LANGUAGE        = English
 
@@ -85,7 +85,7 @@ TOC_INCLUDE_HEADINGS   = 5
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
-PREDEFINED             = "NUMKIT_API="                                   \
+PREDEFINED             = "NK_API="                                   \
                          "DOXYGEN_RUNNING=1"
 
 # C++ language tuning.

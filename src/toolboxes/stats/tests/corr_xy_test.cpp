@@ -3,10 +3,10 @@
 // Regression guard for corr's two-argument matrix-vs-matrix form.
 // Closes the ⚠️ gap.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CorrXYTest : public ::testing::Test
 {

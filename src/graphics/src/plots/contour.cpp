@@ -1,10 +1,10 @@
-// numkit/graphics — contour.cpp
+// nk/graphics — contour.cpp
 //
 // graphics.contour.* builders (contour / contourf), carved out of plots.cpp. Core-free bodies (GraphicsContext); shared
 // JSON/parse helpers come from plot_internal.hpp.
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildContourPlots(std::vector<PlotEntry> &table)
 {
@@ -423,4 +423,4 @@ void buildContourPlots(std::vector<PlotEntry> &table)
     reg("contour", "contourf", contourfImpl);
 }
 
-}  // namespace numkit
+}  // namespace nk

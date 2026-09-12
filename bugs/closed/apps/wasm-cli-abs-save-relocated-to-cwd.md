@@ -1,4 +1,4 @@
-# apps.cli — `numkit /abs/path/script.m`: absolute-path `save` inside the script's own dir silently relocates the file to the process cwd
+# apps.cli — `nk /abs/path/script.m`: absolute-path `save` inside the script's own dir silently relocates the file to the process cwd
 
 - **Status:** ✅ FIXED (81f9ad588, 2026-08-31)
 - **Severity:** P2 (silent wrong-location write; a same-named file in cwd gets clobbered)
@@ -20,17 +20,17 @@ cat > /d/proj/sub/s.m <<'EOF'
 save('/d/proj/sub/out.mat');                % absolute target inside scriptDir
 EOF
 cd /somewhere/else && node cli.js /d/proj/sub/s.m   # script by ABSOLUTE path
-ls /d/proj/sub/out.mat   # numkit: MISSING
-ls ./out.mat             # numkit: HERE — the file silently landed in cwd
+ls /d/proj/sub/out.mat   # nk: MISSING
+ls ./out.mat             # nk: HERE — the file silently landed in cwd
 ```
 
-Observed on numkit 0.1.0 (engine dist as of 2026-08-31): the workspace
+Observed on nk 0.1.0 (engine dist as of 2026-08-31): the workspace
 `out.mat` appears at `<cwd>/out.mat`; MATLAB R2025b writes it at the
 absolute path given, regardless of cwd.
 
 ## Root cause
 
-`packages/numkit/bin/cli.js`, `fsResolve()` — the doubled-scriptDir-prefix
+`packages/nk/bin/cli.js`, `fsResolve()` — the doubled-scriptDir-prefix
 stripping loop. When the engine prefixes an absolute Windows/POSIX path
 with the script-origin dir, the loop strips the prefix:
 
@@ -54,6 +54,6 @@ if (/^([A-Za-z]:\/|\/)/.test(rest)) return rest; // doubled prefix, now absolute
 
 ## References
 
-- **Guard:** `packages/numkit/test/cli_fs_test.js` (live node test: script
+- **Guard:** `packages/nk/test/cli_fs_test.js` (live node test: script
   in dir A, abs-path save inside A, CLI invoked from dir B; asserts the file
   lands in A, not B).

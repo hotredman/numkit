@@ -1,7 +1,7 @@
-#include <numkit/ops/blas2.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/blas2.hpp>
+#include <nk/ops/parallel_for.hpp>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 void gemv(std::size_t m, std::size_t n,
           double alpha, const double *A, std::size_t lda,
@@ -22,7 +22,7 @@ void gemv(std::size_t m, std::size_t n,
     // A is m x n (column-major)
     // We parallelize over columns to avoid data races on y
     constexpr std::size_t kParallelThreshold = 1024;
-    numkit::detail::parallel_for(n, kParallelThreshold, [=](std::size_t j_start, std::size_t j_end) {
+    nk::detail::parallel_for(n, kParallelThreshold, [=](std::size_t j_start, std::size_t j_end) {
         // If we parallelize over columns (n), multiple threads will write to y.
         // Wait, parallel_for over n would cause data races on y!
         // We MUST parallelize over m (rows) to avoid races on y.
@@ -32,7 +32,7 @@ void gemv(std::size_t m, std::size_t n,
     // Actually, parallelizing GEMV over rows (m) is safer:
     
     constexpr std::size_t kRowThreshold = 1024;
-    numkit::detail::parallel_for(m, kRowThreshold, [=](std::size_t i_start, std::size_t i_end) {
+    nk::detail::parallel_for(m, kRowThreshold, [=](std::size_t i_start, std::size_t i_end) {
         for (std::size_t j = 0; j < n; ++j) {
             const double xj = alpha * x[j * incx];
             if (xj == 0.0) continue;
@@ -52,7 +52,7 @@ void ger(std::size_t m, std::size_t n,
     if (alpha == 0.0 || m == 0 || n == 0) return;
 
     constexpr std::size_t kParallelThreshold = 256;
-    numkit::detail::parallel_for(n, kParallelThreshold, [=](std::size_t j_start, std::size_t j_end) {
+    nk::detail::parallel_for(n, kParallelThreshold, [=](std::size_t j_start, std::size_t j_end) {
         for (std::size_t j = j_start; j < j_end; ++j) {
             const double yj = alpha * y[j * incy];
             if (yj == 0.0) continue;
@@ -66,4 +66,4 @@ void ger(std::size_t m, std::size_t n,
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

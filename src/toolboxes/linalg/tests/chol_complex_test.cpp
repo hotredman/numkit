@@ -3,14 +3,14 @@
 // Unit tests for complex Hermitian Cholesky factorization (chol).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(CholComplexTest, CholHermitian2x2) {
     // A = [2 1i; -1i 2] (2x2 Hermitian positive definite)

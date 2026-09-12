@@ -1,7 +1,7 @@
 clear
 
 % cross / kron on COMPLEX inputs: ordinary complex arithmetic, NO conjugation
-% (unlike dot). numkit previously threw / rejected complex. MATLAB R2025b.
+% (unlike dot). nk previously threw / rejected complex. MATLAB R2025b.
 
 fprintf('cross([1+1i 0 0],[0 1 0]) = %s (expect [0 0 1+1i])\n', mat2str(cross([1+1i 0 0],[0 1 0])));
 cc = cross([1i; 2; 3], [4; 5i; 6]);

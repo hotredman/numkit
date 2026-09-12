@@ -3,13 +3,13 @@
 // Unit tests for ordschur.
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/ordschur.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/ordschur.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(OrdschurTest, ReorderSchur2x2Logical) {
     // T = [1 2; 0 3], U = [1 0; 0 1]

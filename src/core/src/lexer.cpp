@@ -1,9 +1,9 @@
-#include <numkit/core/lexer.hpp>
+#include <nk/core/lexer.hpp>
 
 #include <stdexcept>
 #include <unordered_map>
 
-namespace numkit {
+namespace nk {
 
 // ─── safe ctype wrappers ────────────────────────────────────────────────
 
@@ -827,4 +827,4 @@ std::vector<Token> Lexer::tokenize()
     return tokens_;
 }
 
-} // namespace numkit
+} // namespace nk

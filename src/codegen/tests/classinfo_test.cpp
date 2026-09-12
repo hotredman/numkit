@@ -5,28 +5,28 @@
 // and verify the v1-subset refusals (inheritance, accessors, attribute
 // properties, missing default) are loud — never silently miscompiled.
 
-#include <numkit/codegen/classinfo.hpp>
-#include <numkit/codegen/inference.hpp>
-#include <numkit/codegen/transfer.hpp>
-#include <numkit/codegen/type_lattice.hpp>
+#include <nk/codegen/classinfo.hpp>
+#include <nk/codegen/inference.hpp>
+#include <nk/codegen/transfer.hpp>
+#include <nk/codegen/type_lattice.hpp>
 
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
 #include <gtest/gtest.h>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 namespace {
 
-const numkit::ASTNode *findClass(const std::string &src, numkit::ASTNodePtr &root)
+const nk::ASTNode *findClass(const std::string &src, nk::ASTNodePtr &root)
 {
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     root = parser.parse();
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::CLASSDEF_DEF) return c.get();
+        if (c && c->type == nk::NodeType::CLASSDEF_DEF) return c.get();
     return nullptr;
 }
 
@@ -67,8 +67,8 @@ TEST(ClassInfoTest, ParseValueClass)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr root;
-    const numkit::ASTNode *cd = findClass(
+    nk::ASTNodePtr root;
+    const nk::ASTNode *cd = findClass(
         "classdef Point\n"
         "  properties\n    x = 0\n    y = 0\n  end\n"
         "  methods\n    function d = dist(obj)\n      d = obj.x;\n    end\n  end\n"
@@ -92,8 +92,8 @@ TEST(ClassInfoTest, HandleClassDetected)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr root;
-    const numkit::ASTNode *cd = findClass(
+    nk::ASTNodePtr root;
+    const nk::ASTNode *cd = findClass(
         "classdef Counter < handle\n  properties\n    n = 0\n  end\nend\n", root);
     ASSERT_NE(cd, nullptr);
     const ClassInfo ci = buildClassInfo(*cd, 0, reg);
@@ -104,8 +104,8 @@ TEST(ClassInfoTest, RegistryAssignsIds)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr root;
-    const numkit::ASTNode *cd = findClass(
+    nk::ASTNodePtr root;
+    const nk::ASTNode *cd = findClass(
         "classdef A\n  properties\n    v = 0\n  end\nend\n", root);
     ASSERT_NE(cd, nullptr);
     ClassRegistry creg;
@@ -124,8 +124,8 @@ TEST(ClassInfoTest, RefuseInheritance)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr root;
-    const numkit::ASTNode *cd =
+    nk::ASTNodePtr root;
+    const nk::ASTNode *cd =
         findClass("classdef Dog < Animal\n  properties\n    a = 0\n  end\nend\n", root);
     ASSERT_NE(cd, nullptr);
     EXPECT_FALSE(classRefusalReason(*cd).empty());
@@ -136,8 +136,8 @@ TEST(ClassInfoTest, RefuseAccessor)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr root;
-    const numkit::ASTNode *cd = findClass(
+    nk::ASTNodePtr root;
+    const nk::ASTNode *cd = findClass(
         "classdef P\n  properties\n    x = 0\n  end\n"
         "  methods\n    function v = get.x(obj)\n      v = 1;\n    end\n  end\nend\n",
         root);
@@ -150,8 +150,8 @@ TEST(ClassInfoTest, RefusePropertyWithoutDefault)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr root;
-    const numkit::ASTNode *cd =
+    nk::ASTNodePtr root;
+    const nk::ASTNode *cd =
         findClass("classdef Q\n  properties\n    x\n  end\nend\n", root);
     ASSERT_NE(cd, nullptr);
     EXPECT_THROW(buildClassInfo(*cd, 0, reg), std::runtime_error);  // no concrete default
@@ -163,20 +163,20 @@ TEST(ClassInfoTest, FieldAccessInference)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr croot;
-    const numkit::ASTNode *cd = findClass(
+    nk::ASTNodePtr croot;
+    const nk::ASTNode *cd = findClass(
         "classdef Point\n  properties\n    x = 0\n    y = 0\n  end\nend\n", croot);
     ASSERT_NE(cd, nullptr);
     ClassRegistry creg;
     const int     id = creg.add(buildClassInfo(*cd, 0, reg));
 
     // a tiny program whose statements hold `p.x` / `p.nope` as RHS exprs
-    numkit::Lexer  lex("z = p.x;\nw = p.nope;\n");
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex("z = p.x;\nw = p.nope;\n");
+    nk::Parser parser(lex.tokenize());
     auto           prog = parser.parse();
-    const numkit::ASTNode &okField  = *prog->children[0]->children[1];  // p.x
-    const numkit::ASTNode &badField = *prog->children[1]->children[1];  // p.nope
-    ASSERT_EQ(okField.type, numkit::NodeType::FIELD_ACCESS);
+    const nk::ASTNode &okField  = *prog->children[0]->children[1];  // p.x
+    const nk::ASTNode &badField = *prog->children[1]->children[1];  // p.nope
+    ASSERT_EQ(okField.type, nk::NodeType::FIELD_ACCESS);
 
     TypeEnv env;
     env.set("p", {InferredType::object(id), ConstVal::unknown()});
@@ -197,15 +197,15 @@ TEST(ClassInfoTest, ObjectArithmeticIsDynamic)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::ASTNodePtr croot;
-    const numkit::ASTNode *cd =
+    nk::ASTNodePtr croot;
+    const nk::ASTNode *cd =
         findClass("classdef Vec\n  properties\n    x = 0\n  end\nend\n", croot);
     ASSERT_NE(cd, nullptr);
     ClassRegistry creg;
     const int     id = creg.add(buildClassInfo(*cd, 0, reg));
 
-    numkit::Lexer  lex("p = a + b;\nq = a == b;\nr = sin(a);\ns = -a;\n");
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex("p = a + b;\nq = a == b;\nr = sin(a);\ns = -a;\n");
+    nk::Parser parser(lex.tokenize());
     auto           prog = parser.parse();
 
     TypeEnv env;
@@ -213,7 +213,7 @@ TEST(ClassInfoTest, ObjectArithmeticIsDynamic)
     env.set("b", {InferredType::object(id), ConstVal::unknown()});
 
     for (std::size_t i = 0; i < 4; ++i) {
-        const numkit::ASTNode &rhs = *prog->children[i]->children[1];
+        const nk::ASTNode &rhs = *prog->children[i]->children[1];
         EXPECT_TRUE(inferExpr(rhs, env, reg, &creg).type.isDynamic())
             << "object operator/ math expr #" << i << " must be Dynamic, not numeric";
     }

@@ -9,11 +9,11 @@
 
 #pragma once
 
-#include <numkit/builtin/datafun.hpp>   // sum / prod / mean
-#include <numkit/builtin/elmat.hpp>  // length / ndims
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/builtin/datafun.hpp>   // sum / prod / mean
+#include <nk/builtin/elmat.hpp>  // length / ndims
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,9 +21,9 @@
 #include <string>
 #include <vector>
 
-namespace numkit::runtime::detail::handlefn {
+namespace nk::runtime::detail::handlefn {
 
-using ::numkit::Engine;
+using ::nk::Engine;
 
 enum class BuiltinFn {
     // shape
@@ -75,7 +75,7 @@ inline bool tryParseBuiltinHandle(const Value &h, BuiltinFn &out, const char *fn
         bare = &h.cellAt(0);
     if (!bare->isFuncHandle())
         throw Error(std::string(fn) + ": fn argument must be a function handle",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":fnType");
+                     0, 0, fn, "", std::string("nk:") + fn + ":fnType");
     const std::string s = lowerName(bare->funcHandleName());
     if (s == "numel")     { out = BuiltinFn::Numel;     return true; }
     if (s == "length")    { out = BuiltinFn::Length;    return true; }
@@ -129,9 +129,9 @@ inline Value applyBuiltin(std::pmr::memory_resource *mr, BuiltinFn f, const Valu
     case BuiltinFn::Numel:
         return Value::scalar(static_cast<double>(v.numel()), mr);
     case BuiltinFn::Length:
-        return ::numkit::builtin::length(v, mr);
+        return ::nk::builtin::length(v, mr);
     case BuiltinFn::Ndims:
-        return ::numkit::builtin::ndims(v, mr);
+        return ::nk::builtin::ndims(v, mr);
     case BuiltinFn::IsEmpty:
         return Value::logicalScalar(v.isEmpty() || v.numel() == 0, mr);
     case BuiltinFn::IsNumeric: {
@@ -157,31 +157,31 @@ inline Value applyBuiltin(std::pmr::memory_resource *mr, BuiltinFn f, const Valu
     case BuiltinFn::IsNan: {
         if (!v.isScalar())
             throw Error(std::string(fn) + ": @isnan requires each cell to be scalar in uniform mode",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":notScalar");
+                         0, 0, fn, "", std::string("nk:") + fn + ":notScalar");
         return Value::logicalScalar(std::isnan(v.toScalar()), mr);
     }
     case BuiltinFn::IsInf: {
         if (!v.isScalar())
             throw Error(std::string(fn) + ": @isinf requires each cell to be scalar in uniform mode",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":notScalar");
+                         0, 0, fn, "", std::string("nk:") + fn + ":notScalar");
         return Value::logicalScalar(std::isinf(v.toScalar()), mr);
     }
     case BuiltinFn::IsFinite: {
         if (!v.isScalar())
             throw Error(std::string(fn) + ": @isfinite requires each cell to be scalar in uniform mode",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":notScalar");
+                         0, 0, fn, "", std::string("nk:") + fn + ":notScalar");
         return Value::logicalScalar(std::isfinite(v.toScalar()), mr);
     }
-    case BuiltinFn::Sum:  return ::numkit::builtin::sum (v, mr);
-    case BuiltinFn::Prod: return ::numkit::builtin::prod(v, mr);
-    case BuiltinFn::Mean: return ::numkit::builtin::mean(v, mr);
+    case BuiltinFn::Sum:  return ::nk::builtin::sum (v, mr);
+    case BuiltinFn::Prod: return ::nk::builtin::prod(v, mr);
+    case BuiltinFn::Mean: return ::nk::builtin::mean(v, mr);
     case BuiltinFn::ClassName: {
         const char *name = classNameOf(v);
         return Value::fromString(std::string(name), mr);
     }
     }
     throw Error(std::string(fn) + ": internal: unhandled builtin",
-                 0, 0, fn, "", std::string("numkit:") + fn + ":internal");
+                 0, 0, fn, "", std::string("nk:") + fn + ":internal");
 }
 
 inline Value applyHandle(std::pmr::memory_resource *mr, const Value &handle,
@@ -193,7 +193,7 @@ inline Value applyHandle(std::pmr::memory_resource *mr, const Value &handle,
     if (engine == nullptr)
         throw Error(std::string(fn) + ": custom function handles need an "
                      "Engine — use the engine-aware adapter (callback API).",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":fnUnsupported");
+                     0, 0, fn, "", std::string("nk:") + fn + ":fnUnsupported");
     Value arg = v;
     Span<const Value> args(&arg, 1);
     return engine->callFunctionHandle(handle, args);
@@ -206,7 +206,7 @@ inline Value packUniform(std::pmr::memory_resource *mr, BuiltinFn f,
     const bool wantLogical = builtinReturnsLogical(f);
     if (builtinReturnsString(f))
         throw Error(std::string(fn) + ": @class output must use UniformOutput=false",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":nonUniform");
+                     0, 0, fn, "", std::string("nk:") + fn + ":nonUniform");
 
     const ValueType outT = wantLogical ? ValueType::LOGICAL : ValueType::DOUBLE;
     const size_t r = outDims.rows();
@@ -219,7 +219,7 @@ inline Value packUniform(std::pmr::memory_resource *mr, BuiltinFn f,
         const Value &v = results[i];
         if (!v.isScalar())
             throw Error(std::string(fn) + ": fn returned a non-scalar; pass 'UniformOutput', false",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":notScalar");
+                         0, 0, fn, "", std::string("nk:") + fn + ":notScalar");
         if (wantLogical)
             out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
         else
@@ -235,19 +235,19 @@ inline bool parseUniformOutputFlag(Span<const Value> args, size_t dataArgCount,
     for (size_t i = dataArgCount; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected option name (string)",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+                         0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
         const std::string key = lowerName(args[i].toString());
         if (key == "uniformoutput") {
             uniform = args[i + 1].toBool();
         } else {
             throw Error(std::string(fn) + ": unsupported option '" + key + "'",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+                         0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
         }
     }
     if ((args.size() - dataArgCount) % 2 != 0)
         throw Error(std::string(fn) + ": option name without value",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
     return uniform;
 }
 
-} // namespace numkit::runtime::detail::handlefn
+} // namespace nk::runtime::detail::handlefn

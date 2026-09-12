@@ -1,6 +1,6 @@
 // toolboxes/signal/tests/filter_design_cpp_api_test.cpp
 //
-// Pilot of the new uniform public API: numkit::signal::* called
+// Pilot of the new uniform public API: nk::signal::* called
 // directly from C++ without engine.eval. Covers:
 //   * Value ergonomic ctors (init_list / vector / array / span)
 //   * Value::view non-owning factory
@@ -12,8 +12,8 @@
 // library user would, ensuring the public surface compiles cleanly and
 // produces correct results without any interpreter involvement.
 
-#include <numkit/value/value.hpp>
-#include <numkit/signal/filter_design/filter_design.hpp>
+#include <nk/value/value.hpp>
+#include <nk/signal/filter_design/filter_design.hpp>
 
 #include <gtest/gtest.h>
 
@@ -21,7 +21,7 @@
 #include <cmath>
 #include <vector>
 
-using namespace numkit;
+using namespace nk;
 
 // ── Value ergonomic ctors ──────────────────────────────────────────
 

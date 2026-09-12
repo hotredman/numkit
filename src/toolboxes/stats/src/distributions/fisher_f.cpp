@@ -4,13 +4,13 @@
 // (v1·x/(v1·x + v2), v1/2, v2/2) for cdf / icdf; rnd from two
 // independent χ²-distributed samples.
 
-#include <numkit/stats/distributions/fisher_f.hpp>
+#include <nk/stats/distributions/fisher_f.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -22,7 +22,7 @@
 
 #include "fisher_f_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
@@ -73,7 +73,7 @@ Value fcdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
     }, mr);
     Value a = Value::scalar(0.5 * v1, mr);
     Value b = Value::scalar(0.5 * v2, mr);
-    return ::numkit::builtin::betainc(z, a, b, mr);
+    return ::nk::builtin::betainc(z, a, b, mr);
 }
 
 Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
@@ -82,7 +82,7 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     Value a = Value::scalar(0.5 * v1, mr);
     Value b = Value::scalar(0.5 * v2, mr);
-    Value z = ::numkit::builtin::betaincinv(p, a, b, mr);
+    Value z = ::nk::builtin::betaincinv(p, a, b, mr);
     // x = (v2 / v1) · z / (1 - z)
     return elementwise(z, [=](double zi){
         if (zi <= 0.0) return 0.0;
@@ -91,7 +91,7 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value frnd(::nk::ops::RngContext &rng, double v1, double v2, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -167,7 +167,7 @@ std::tuple<double, double> ncfstat(double nu1, double nu2, double delta)
     return {m, v};
 }
 
-Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delta,
+Value ncfrnd(::nk::ops::RngContext &rng, double nu1, double nu2, double delta,
              std::size_t rows, std::size_t cols,
              std::pmr::memory_resource *mr)
 {
@@ -193,4 +193,4 @@ Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delt
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

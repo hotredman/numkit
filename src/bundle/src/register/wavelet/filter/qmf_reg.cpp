@@ -6,12 +6,12 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/filter/qmf.hpp>
+#include <nk/wavelet/filter/qmf.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 // y = wrev(x): reverse along the first non-singleton dimension. MATLAB
@@ -31,7 +31,7 @@ void wrev_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("wrev: requires one input vector",
-                    0, 0, "wrev", "", "numkit:wrev:nargin");
+                    0, 0, "wrev", "", "nk:wrev:nargin");
     outs[0] = wrev(args[0], ctx.engine->resource());
 }
 
@@ -47,11 +47,11 @@ void qmf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("qmf: requires one input vector",
-                    0, 0, "qmf", "", "numkit:qmf:nargin");
+                    0, 0, "qmf", "", "nk:qmf:nargin");
     int p = 0;
     if (args.size() >= 2) p = static_cast<int>(args[1].toScalar());
     outs[0] = qmf(args[0], p, ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

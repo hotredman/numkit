@@ -7,11 +7,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/page_ops.hpp>
+#include <nk/linalg/page_ops.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -19,14 +19,14 @@
 #include <string>
 #include <utility>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() != 1)
         throw Error("pageinv: requires exactly 1 argument",
-                    0, 0, "pageinv", "", "numkit:pageinv:nargin");
+                    0, 0, "pageinv", "", "nk:pageinv:nargin");
     outs[0] = pageinv(args[0], ctx.engine->resource());
 }
 
@@ -34,7 +34,7 @@ void pageeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("pageeig: requires exactly 1 argument",
-                    0, 0, "pageeig", "", "numkit:pageeig:nargin");
+                    0, 0, "pageeig", "", "nk:pageeig:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [V, D] = pageeig_VD(args[0], mr);
@@ -49,7 +49,7 @@ void pagesvd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("pagesvd: requires exactly 1 argument",
-                    0, 0, "pagesvd", "", "numkit:pagesvd:nargin");
+                    0, 0, "pagesvd", "", "nk:pagesvd:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [U, S, V] = pagesvd_decompose(args[0], mr);
@@ -65,7 +65,7 @@ void pagepinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty() || args.size() > 2)
         throw Error("pagepinv: requires (A) or (A, tol)",
-                    0, 0, "pagepinv", "", "numkit:pagepinv:nargin");
+                    0, 0, "pagepinv", "", "nk:pagepinv:nargin");
     const double tol = (args.size() == 2) ? args[1].toScalar() : -1.0;
     outs[0] = pagepinv(args[0], tol, ctx.engine->resource());
 }
@@ -74,7 +74,7 @@ void pagenorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty() || args.size() > 2)
         throw Error("pagenorm: requires (A) or (A, p)",
-                    0, 0, "pagenorm", "", "numkit:pagenorm:nargin");
+                    0, 0, "pagenorm", "", "nk:pagenorm:nargin");
     double p = 2.0;
     if (args.size() == 2) {
         if (args[1].isChar() || args[1].isString()) {
@@ -82,7 +82,7 @@ void pagenorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
             if      (s == "fro" || s == "Fro") p = -2.0; // sentinel
             else if (s == "inf" || s == "Inf") p = std::numeric_limits<double>::infinity();
             else throw Error("pagenorm: string p must be 'fro' or 'inf'",
-                             0, 0, "pagenorm", "", "numkit:pagenorm:badStringP");
+                             0, 0, "pagenorm", "", "nk:pagenorm:badStringP");
         } else {
             p = args[1].toScalar();
         }
@@ -93,7 +93,7 @@ void pagenorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         const int nd = args[0].dims().ndim();
         if (nd < 2 || nd > 3)
             throw Error("pagenorm: input must be 2-D or 3-D",
-                        0, 0, "pagenorm", "", "numkit:pagenorm:badDim");
+                        0, 0, "pagenorm", "", "nk:pagenorm:badDim");
         const std::size_t m = static_cast<std::size_t>(args[0].dims().dim(0));
         const std::size_t n = static_cast<std::size_t>(args[0].dims().dim(1));
         const std::size_t pages = (nd == 2) ? 1
@@ -117,7 +117,7 @@ void pagemldivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> ou
 {
     if (args.size() != 2)
         throw Error("pagemldivide: requires (A, B)",
-                    0, 0, "pagemldivide", "", "numkit:pagemldivide:nargin");
+                    0, 0, "pagemldivide", "", "nk:pagemldivide:nargin");
     outs[0] = pagemldivide(args[0], args[1], ctx.engine->resource());
 }
 
@@ -125,7 +125,7 @@ void pagemrdivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> ou
 {
     if (args.size() != 2)
         throw Error("pagemrdivide: requires (A, B)",
-                    0, 0, "pagemrdivide", "", "numkit:pagemrdivide:nargin");
+                    0, 0, "pagemrdivide", "", "nk:pagemrdivide:nargin");
     outs[0] = pagemrdivide(args[0], args[1], ctx.engine->resource());
 }
 
@@ -133,11 +133,11 @@ void pagelsqminnorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> 
 {
     if (args.size() < 2 || args.size() > 3)
         throw Error("pagelsqminnorm: requires (A, B[, tol])",
-                    0, 0, "pagelsqminnorm", "", "numkit:pagelsqminnorm:nargin");
+                    0, 0, "pagelsqminnorm", "", "nk:pagelsqminnorm:nargin");
     const bool have_tol = (args.size() == 3);
     const double tol = have_tol ? args[2].toScalar() : 0.0;
     outs[0] = pagelsqminnorm(args[0], args[1], have_tol, tol, ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

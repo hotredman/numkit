@@ -1,11 +1,11 @@
 // toolboxes/wavelet/tests/dwt_idwt_test.cpp
 // dwt + idwt + wavedec + waverec.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DwtIdwtTest : public ::testing::Test
 {

@@ -4,15 +4,15 @@
 //   specials:  ellipj · ellipke · erfcx · expint · flintmax · freqspace
 //   helpers:   cast · blkdiag · getfield · func2str · feval
 // Total: 16 working + 5 deferred = 21. All flagged "no major gap";
-// 5 surfaced numkit-side gaps (extract* family + erasebetween not
+// 5 surfaced nk-side gaps (extract* family + erasebetween not
 // implemented; freqspace size convention differs). Documented as
 // separate spec in their respective files
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Misc2BatchTest : public ::testing::Test
 {
@@ -115,7 +115,7 @@ TEST_F(Misc2BatchTest, ExtractInsertCells)
 TEST_F(Misc2BatchTest, EllipjEllipke)
 {
     eval("[sn, cn, dn] = ellipj(0.5, 0.5);");
-    // ellipj precision ~1e-3 in numkit's series implementation
+    // ellipj precision ~1e-3 in nk's series implementation
     EXPECT_NEAR(evalScalar("sn"), 0.470750473655006, 1e-3);
     EXPECT_NEAR(evalScalar("cn"), 0.882272484831715, 1e-3);
     EXPECT_NEAR(evalScalar("dn"), 0.943456829269590, 1e-3);

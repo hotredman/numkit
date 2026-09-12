@@ -43,7 +43,7 @@ TEST_P(DspGapsTest, Medfilt1OddWindow)
 TEST_P(DspGapsTest, Medfilt1BoundaryZeropadDefault)
 {
     // MATLAB default zero-pads the ends: medfilt1([10 1 1 1 1],3) =
-    // [median(0,10,1) ...] = [1 1 1 1 1]. (numkit previously truncated the
+    // [median(0,10,1) ...] = [1 1 1 1 1]. (nk previously truncated the
     // window at the boundary and gave 5.5 here — fixed 2026-05-30.)
     eval("y = medfilt1([10 1 1 1 1], 3);");
     auto *y = getVarPtr("y");

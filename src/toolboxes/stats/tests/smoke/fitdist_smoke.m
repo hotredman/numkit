@@ -23,6 +23,6 @@ pl = fitdist(xl, 'Lognormal');
 fprintf('  fitdist(xl, ''Lognormal''): mu = %g, sigma = %g\n', ...
         pl.ParameterValues(1), pl.ParameterValues(2));
 
-fprintf('\n  NB: numkit returns a struct (no class methods); MATLAB returns a\n');
+fprintf('\n  NB: nk returns a struct (no class methods); MATLAB returns a\n');
 fprintf('  probability-distribution OBJECT with .pdf/.cdf/.icdf methods.\n');
 fprintf('  Methods are deferred -- use existing pdf/cdf/inv functions instead.\n');

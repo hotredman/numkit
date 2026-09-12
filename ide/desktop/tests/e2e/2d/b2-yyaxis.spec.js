@@ -6,7 +6,7 @@
 //   yyaxis left;  ylabel('left units')
 //   yyaxis right; ylim([0 1])
 //
-// numkit: builtin `yyaxis(side)` enables the dual-axis state on the
+// nk: builtin `yyaxis(side)` enables the dual-axis state on the
 // current axes and switches the active side. ylim / ylabel / yscale
 // route to the active side's shadow fields when yy is on. plot,
 // scatter, bar, errorbar, etc. all stamp the active side onto the

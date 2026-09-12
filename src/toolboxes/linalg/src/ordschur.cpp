@@ -2,19 +2,19 @@
 //
 // ordschur — Reorder Schur decomposition A = U * T * U^H.
 
-#include <numkit/linalg/ordschur.hpp>
+#include <nk/linalg/ordschur.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -86,15 +86,15 @@ std::tuple<Value, Value> ordschur(const Value &U, const Value &T,
                                   std::pmr::memory_resource *mr)
 {
     if (U.dims().ndim() != 2 || T.dims().ndim() != 2)
-        throw Error("ordschur: U and T must be 2D matrices", 0, 0, "ordschur", "", "numkit:ordschur:notMatrix");
+        throw Error("ordschur: U and T must be 2D matrices", 0, 0, "ordschur", "", "nk:ordschur:notMatrix");
     const std::size_t n = static_cast<std::size_t>(T.dims().dim(0));
     if (n != static_cast<std::size_t>(T.dims().dim(1)) ||
         static_cast<std::size_t>(U.dims().dim(0)) != n ||
         static_cast<std::size_t>(U.dims().dim(1)) != n)
-        throw Error("ordschur: U and T must be n x n square matrices", 0, 0, "ordschur", "", "numkit:ordschur:badDims");
+        throw Error("ordschur: U and T must be n x n square matrices", 0, 0, "ordschur", "", "nk:ordschur:badDims");
 
     if (select.numel() != n)
-        throw Error("ordschur: select must have length n", 0, 0, "ordschur", "", "numkit:ordschur:badSelect");
+        throw Error("ordschur: select must have length n", 0, 0, "ordschur", "", "nk:ordschur:badSelect");
 
     if (n == 0) {
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -166,7 +166,7 @@ std::tuple<Value, Value> ordschur(const Value &U, const Value &T,
         } else if (domain == "uop") {
             s = (std::abs(val) > 1.0);
         } else {
-            throw Error("ordschur: unknown domain keyword '" + domain + "'", 0, 0, "ordschur", "", "numkit:ordschur:badDomain");
+            throw Error("ordschur: unknown domain keyword '" + domain + "'", 0, 0, "ordschur", "", "nk:ordschur:badDomain");
         }
         sd[i] = s ? 1 : 0;
     }
@@ -174,4 +174,4 @@ std::tuple<Value, Value> ordschur(const Value &U, const Value &T,
     return ordschur(U, T, select, mr);
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

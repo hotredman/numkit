@@ -3,11 +3,11 @@
 // Regression guard for the Communications Toolbox base-conversion
 // utilities: bit2int / int2bit / bi2de / de2bi / vec2mat.
 
-#include <numkit/comm/source/base_conversions.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/source/base_conversions.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class BaseConversionsTest : public ::testing::Test
 {
@@ -187,7 +187,7 @@ TEST_F(BaseConversionsTest, Vec2matExactFit)
     EXPECT_DOUBLE_EQ(evalScalar("m(2, 3)"), 6.0);
 }
 
-// ── Public C++ API (numkit::comm::*) ──────────────────────────────────
+// ── Public C++ API (nk::comm::*) ──────────────────────────────────
 // Exercise the typed entry points directly (not via the engine), guarding
 // the lift from adapter-only to a public header with the LIBRARY_API
 // signature (mr last, default nullptr; native scalar option args).

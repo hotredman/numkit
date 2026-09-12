@@ -13,7 +13,7 @@ returns `pxxc`, the two-column confidence interval for the PSD estimate.
 ## Repro
 ```matlab
 [pxx, f, pxxc] = periodogram([1 2 3 4 5 6 7 8], [], [], 1, 'ConfidenceLevel', 0.95)
-% numkit: Error — Cannot convert double to scalar
+% nk: Error — Cannot convert double to scalar
 % MATLAB: pxxc is an (nf × 2) matrix of [lower, upper] PSD bounds
 ```
 
@@ -34,7 +34,7 @@ the closed forms `chi2inv(q,2) = -2·ln(1-q)` and `chi2inv(q,1) = (√2·erfinv(
 (`erfinv` from the math layer — no cross-toolbox dep on stats). Default level
 0.95 when a 3rd output is requested without the name-value.
 
-New compute fn `numkit::signal::periodogramConf(Pxx, conf, realInput, nfftEven,
+New compute fn `nk::signal::periodogramConf(Pxx, conf, realInput, nfftEven,
 mr)` (nf×2 `[lower, upper]`); `periodogram_reg` now scans for the
 `'ConfidenceLevel'` pair (case-insensitive), tolerates `[]` placeholders +
 string flags in the positional slots, and emits `pxxc` as `outs[2]`.

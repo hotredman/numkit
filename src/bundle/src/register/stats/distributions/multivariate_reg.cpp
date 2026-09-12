@@ -3,18 +3,18 @@
 // CallContext register half of distributions/multivariate.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
-#include <numkit/stats/distributions/multivariate.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <nk/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
+#include <nk/stats/distributions/multivariate.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/multivariate_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void mvncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("mvncdf: requires (X [, mu, Sigma])",
-                    0, 0, "mvncdf", "", "numkit:mvncdf:nargin");
+                    0, 0, "mvncdf", "", "nk:mvncdf:nargin");
     const Value muV    = (args.size() >= 2) ? args[1] : Value();
     const Value sigmaV = (args.size() >= 3) ? args[2] : Value();
     outs[0] = mvncdf(args[0], muV, sigmaV, ctx.engine->resource());
@@ -44,7 +44,7 @@ void mvnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("mvnrnd: requires (mu, Sigma[, n])",
-                     0, 0, "mvnrnd", "", "numkit:mvnrnd:nargin");
+                     0, 0, "mvnrnd", "", "nk:mvnrnd:nargin");
     std::size_t n = 0;
     if (args.size() >= 3) n = static_cast<std::size_t>(args[2].toScalar());
     outs[0] = mvnrnd(ctx.engine->rng(), args[0], args[1], n, ctx.engine->resource());
@@ -54,7 +54,7 @@ void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("mvtrnd: requires (C, df, n)",
-                    0, 0, "mvtrnd", "", "numkit:mvtrnd:nargin");
+                    0, 0, "mvtrnd", "", "nk:mvtrnd:nargin");
     const double df = args[1].toScalar();
     const std::size_t n = static_cast<std::size_t>(args[2].toScalar());
     outs[0] = mvtrnd(ctx.engine->rng(), args[0], df, n, ctx.engine->resource());
@@ -64,7 +64,7 @@ void mnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("mnrnd: requires (N, P [, m])",
-                    0, 0, "mnrnd", "", "numkit:mnrnd:nargin");
+                    0, 0, "mnrnd", "", "nk:mnrnd:nargin");
     const std::size_t N = static_cast<std::size_t>(args[0].toScalar());
     std::size_t m = 1;
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -77,7 +77,7 @@ void wishrnd_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("wishrnd: requires (Sigma, df[, D])",
-                    0, 0, "wishrnd", "", "numkit:wishrnd:nargin");
+                    0, 0, "wishrnd", "", "nk:wishrnd:nargin");
     const double df = args[1].toScalar();
     const Value D_in = (args.size() > 2) ? args[2] : Value::Empty;
     auto [W, D] = wishrnd_factor(ctx.engine->rng(), args[0], df, D_in, ctx.engine->resource());
@@ -90,7 +90,7 @@ void iwishrnd_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("iwishrnd: requires (Tau, df[, DI])",
-                    0, 0, "iwishrnd", "", "numkit:iwishrnd:nargin");
+                    0, 0, "iwishrnd", "", "nk:iwishrnd:nargin");
     const double df = args[1].toScalar();
     const Value DI_in = (args.size() > 2) ? args[2] : Value::Empty;
     auto [W, DI] = iwishrnd_factor(ctx.engine->rng(), args[0], df, DI_in, ctx.engine->resource());
@@ -114,10 +114,10 @@ void mvtcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                              args[3].toScalar(), args[4].toScalar(), mr);
     } else {
         throw Error("mvtcdf: requires (X, C, df) or (L, U, C, df[, tol])",
-                    0, 0, "mvtcdf", "", "numkit:mvtcdf:nargin");
+                    0, 0, "mvtcdf", "", "nk:mvtcdf:nargin");
     }
 }
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

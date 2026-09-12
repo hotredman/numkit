@@ -3,18 +3,18 @@
 // CallContext register half of language/bitwise/int_math.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/ops.hpp>
-#include <numkit/builtin/datatypes.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/value_type.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/ops.hpp>
+#include <nk/builtin/datatypes.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/value_type.hpp>
+#include <nk/ops/helpers.hpp>
 #include "ops/int_math_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,8 +26,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -52,7 +52,7 @@ ValueType pickBitwiseResultType(const Value &a, const Value &b, const char *fn)
         if (t0 != t1)
             throw Error(std::string(fn) + ": integer inputs must be the same class",
                          0, 0, fn, "",
-                         std::string("numkit:") + fn + ":mixedInt");
+                         std::string("nk:") + fn + ":mixedInt");
         return t0;
     }
     // One int, one non-int.
@@ -60,13 +60,13 @@ ValueType pickBitwiseResultType(const Value &a, const Value &b, const char *fn)
         if (!dbl1 || !b.isScalar())
             throw Error(std::string(fn) + ": integer + non-scalar-double mix",
                          0, 0, fn, "",
-                         std::string("numkit:") + fn + ":badMix");
+                         std::string("nk:") + fn + ":badMix");
         return t0;
     }
     if (!dbl0 || !a.isScalar())
         throw Error(std::string(fn) + ": integer + non-scalar-double mix",
                      0, 0, fn, "",
-                     std::string("numkit:") + fn + ":badMix");
+                     std::string("nk:") + fn + ":badMix");
     return t1;
 }
 
@@ -118,7 +118,7 @@ inline int64_t extGcd(int64_t a, int64_t b, int64_t &u, int64_t &v)
     {                                                                                  \
         if (args.size() < 2)                                                           \
             throw Error(#name ": requires 2 arguments",                               \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                       \
+                         0, 0, #name, "", "nk:" #name ":nargin");                       \
         outs[0] = runBitwiseBinary(args[0], args[1], \
                                    #name, fn, ctx.engine->resource());                                         \
     }
@@ -129,7 +129,7 @@ inline int64_t extGcd(int64_t a, int64_t b, int64_t &u, int64_t &v)
     {                                                                          \
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
-                         0, 0, #name, "", "numkit:" #name ":nargin");               \
+                         0, 0, #name, "", "nk:" #name ":nargin");               \
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
@@ -148,7 +148,7 @@ void gcd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.size() < 2)
         throw Error("gcd: requires 2 arguments",
-                     0, 0, "gcd", "", "numkit:gcd:nargin");
+                     0, 0, "gcd", "", "nk:gcd:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = gcd(args[0], args[1], mr);
     if (nargout >= 2)
@@ -170,7 +170,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("bitcmp: requires at least 1 argument",
-                     0, 0, "bitcmp", "", "numkit:bitcmp:nargin");
+                     0, 0, "bitcmp", "", "nk:bitcmp:nargin");
     auto *mr = ctx.engine->resource();
 
     int width = 0;
@@ -185,7 +185,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             else if (t == "uint64" || t == "int64") { width = 64; explicitType = t; }
             else
                 throw Error("bitcmp: unknown type name",
-                             0, 0, "bitcmp", "", "numkit:bitcmp:badType");
+                             0, 0, "bitcmp", "", "nk:bitcmp:badType");
         } else {
             width = static_cast<int>(args[1].toScalar());
         }
@@ -197,7 +197,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             throw Error(
                 "bitcmp: 1-arg form requires an integer input "
                 "(use bitcmp(A, 'uintN') for double inputs).",
-                0, 0, "bitcmp", "", "numkit:bitcmp:doubleNeedsClass");
+                0, 0, "bitcmp", "", "nk:bitcmp:doubleNeedsClass");
         explicitType = mtypeName(t);
         switch (t) {
         case ValueType::INT8: case ValueType::UINT8:  width = 8;  break;
@@ -222,7 +222,7 @@ void bitset_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("bitset: requires (A, n) or (A, n, val)",
-                     0, 0, "bitset", "", "numkit:bitset:nargin");
+                     0, 0, "bitset", "", "nk:bitset:nargin");
     outs[0] = bitset(args[0], args[1],
                      (args.size() >= 3) ? args[2] : Value::Empty,
                      ctx.engine->resource());
@@ -233,10 +233,10 @@ void bitget_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("bitget: requires (A, n)",
-                     0, 0, "bitget", "", "numkit:bitget:nargin");
+                     0, 0, "bitget", "", "nk:bitget:nargin");
     outs[0] = bitget(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

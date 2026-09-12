@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-echo "=== Building test target (numkit_gtest) ==="
+echo "=== Building test target (nk_gtest) ==="
 if [[ ! -f "build/linux/release/CMakeCache.txt" ]]; then
     echo "Configuring linux-release preset..."
     EXTRA_FLAGS=()
@@ -19,14 +19,14 @@ if [[ ! -f "build/linux/release/CMakeCache.txt" ]]; then
     fi
     cmake --preset=linux-release "${EXTRA_FLAGS[@]}"
 fi
-cmake --build --preset=linux-release --target numkit_gtest -j"$(nproc)"
+cmake --build --preset=linux-release --target nk_gtest -j"$(nproc)"
 
 if [[ "${1:-}" == "--build-only" ]]; then
     echo "Build completed successfully (--build-only specified)."
     exit 0
 fi
 
-TEST_EXE="build/linux/release/tests/gtest/numkit_gtest"
+TEST_EXE="build/linux/release/tests/gtest/nk_gtest"
 if [[ ! -f "$TEST_EXE" ]]; then
     echo "ERROR: Could not find test runner at $TEST_EXE"
     exit 1

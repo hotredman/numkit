@@ -1,6 +1,6 @@
 % matrix_factorizations.m
 % 
-% Demonstrates the standard matrix factorizations available in numkit:
+% Demonstrates the standard matrix factorizations available in nk:
 % LU, QR, Cholesky, and Singular Value Decomposition (SVD).
 % These operations are powered by optimized BLAS/LAPACK routines.
 

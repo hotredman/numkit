@@ -9,11 +9,11 @@
 
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 #include <vector>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 /// Sniff MP3 magic or frame sync directly from an in-memory buffer.
 bool isMp3Bytes(const std::uint8_t *data, std::size_t len);
@@ -28,4 +28,4 @@ AudioData readMp3(const std::uint8_t *data, std::size_t len,
 /// Peek MP3 metadata and ID3 tags without decoding full stream.
 AudioInfo peekMp3(const std::uint8_t *data, std::size_t len);
 
-} // namespace numkit::audio
+} // namespace nk::audio

@@ -6,13 +6,13 @@
 // guards the moment the bug is fixed — just remove the `DISABLED_` prefix.
 // Each test asserts the MATLAB R2025b-correct behaviour.
 //
-// Run: numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='SignalKnownBug*'
+// Run: nk_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='SignalKnownBug*'
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SignalKnownBug : public ::testing::Test
 {
@@ -54,7 +54,7 @@ TEST_F(SignalKnownBug, DeconvIntegerInput)
 
 // bugs/opened/signal/instfreq-instbw.md — the DEFAULT (tfmoment) method
 // needs a pspectrum port; this guard pins MATLAB's DEFAULT-method values
-// until then (numkit's default is the hilbert method, guarded live below).
+// until then (nk's default is the hilbert method, guarded live below).
 TEST_F(SignalKnownBug, DISABLED_InstfreqTfmomentDefault)
 {
     eval("fs=1000; t=(0:1/fs:1-1/fs)'; x=chirp(t,10,1,40); ifr=instfreq(x,fs);");
@@ -173,7 +173,7 @@ TEST_F(SignalKnownBug, ResampleValues)
 TEST_F(SignalKnownBug, ObwValueAndOutputs)
 {
     eval("fs=1000; t=(0:fs-1)/fs; x=sin(2*pi*100*t)+0.5*sin(2*pi*200*t);");
-    EXPECT_NEAR(evalScalar("obw(x,fs)"), 100.96875, 1e-4);   // was numkit ~108.77
+    EXPECT_NEAR(evalScalar("obw(x,fs)"), 100.96875, 1e-4);   // was nk ~108.77
     eval("[bw,flo,fhi,p]=obw(x,fs);");                        // 4 outputs, was a throw
     EXPECT_NEAR(evalScalar("bw"),  100.96875,  1e-4);
     EXPECT_NEAR(evalScalar("flo"),  99.506250, 1e-4);

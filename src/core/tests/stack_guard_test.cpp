@@ -7,7 +7,7 @@
 // converted into a clean std::runtime_error BEFORE the hardware guard page
 // kills the process. Without the guard this test is a stack-overflow crash.
 
-#include <numkit/core/stack_guard.hpp>
+#include <nk/core/stack_guard.hpp>
 #include <gtest/gtest.h>
 
 #include <cstdio>
@@ -18,7 +18,7 @@ namespace {
 // read of `pad` keeps the frame from being tail-call-eliminated.
 void recurseWithGuard(int depth, int limit)
 {
-    numkit::StackGuard::check("stack_guard_test recursion");
+    nk::StackGuard::check("stack_guard_test recursion");
     volatile char pad[256];
     pad[0] = static_cast<char>(depth & 0x7f);
     if (depth < limit)

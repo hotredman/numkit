@@ -1,16 +1,16 @@
 // toolboxes/stats/tests/filloutliers_public_api_test.cpp
 //
 // Direct C++ API guard for filloutliers after the lift from adapter-only
-// to the public typed entry point numkit::stats::filloutliers (typed front
+// to the public typed entry point nk::stats::filloutliers (typed front
 // over filloutliers_of covering median/mean/quartiles find-methods).
 
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/core/engine.hpp>
 
 #include <limits>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value fv(Engine &e, const char *expr, const char *name)

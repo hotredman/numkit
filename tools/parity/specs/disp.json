@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Side-effect smoke test (no-throw stdout probe). disp exercised on scalar / string / matrix; success = no exception. NOTE: numkit lacks evalc, so stdout cannot be captured for content-level parity; functionality validated by gtest."
+  "comment": "Side-effect smoke test (no-throw stdout probe). disp exercised on scalar / string / matrix; success = no exception. NOTE: nk lacks evalc, so stdout cannot be captured for content-level parity; functionality validated by gtest."
 }

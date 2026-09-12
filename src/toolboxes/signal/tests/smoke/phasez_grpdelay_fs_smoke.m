@@ -3,7 +3,7 @@ clear
 % phasez / grpdelay sample-rate form fn(b,a,n,fs) (DEEP-PROBE 2026-05-31).
 % Like freqz, when a sample rate fs is given the returned frequency vector
 % is in Hz over [0, fs/2) = w*fs/(2*pi). The phase (phasez) and group delay
-% in samples (grpdelay) are unchanged. numkit was ignoring fs and returning
+% in samples (grpdelay) are unchanged. nk was ignoring fs and returning
 % radians. vs MATLAB R2025b.
 
 fprintf('=== phasez([1 1],[1 -0.5], 4, 100) ===\n');

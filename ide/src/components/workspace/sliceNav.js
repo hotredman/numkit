@@ -1,6 +1,6 @@
 // sliceNav.js — page navigation math for 3-D / N-D array viewing.
 //
-// A "page" is one 2-D rows×cols slice of an array. In numkit (column-major)
+// A "page" is one 2-D rows×cols slice of an array. In nk (column-major)
 // the slices of a 3-D / N-D array are laid out contiguously, ordered
 // column-major over dimensions 3..N, so a single linear page index p in
 // [0, pageCount) addresses any slice — for any rank. dims is the full shape

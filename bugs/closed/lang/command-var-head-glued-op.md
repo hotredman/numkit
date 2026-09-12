@@ -19,7 +19,7 @@ evaluates the expression (probed R2025b: `x=5; x -1` → 4, `x/2` → 2.5,
 clear;
 N = 42;
 N-1
-% numkit (pre-fix): VM: undefined function 'N' (in call to 'N')
+% nk (pre-fix): VM: undefined function 'N' (in call to 'N')
 % MATLAB R2025b:  41
 ```
 

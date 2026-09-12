@@ -9,15 +9,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/morph/morph.hpp>
+#include <nk/image/morph/morph.hpp>
 
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/core/vm.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/core/vm.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -30,7 +30,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 // [Phase 2b] relocated from morph.cpp compute: the reg-only strel default
 // (diamond_cross) and the synchronous Engine-driven makelut. The VM-pausable
@@ -59,7 +59,7 @@ void strel_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("strel: requires shape", 0, 0, "strel", "",
-                    "numkit:strel:nargin");
+                    "nk:strel:nargin");
     std::string shape = "square";
     if (args[0].isChar() || args[0].isString()) shape = args[0].toString();
     std::vector<double> params;
@@ -80,7 +80,7 @@ void strel_reg(Span<const Value> args, size_t /*nargout*/,
     {                                                                             \
         if (args.size() < 2)                                                      \
             throw Error(#name ": requires (I, SE)", 0, 0, #name, "",             \
-                        "numkit:" #name ":nargin");                                   \
+                        "nk:" #name ":nargin");                                   \
         outs[0] = name(args[0], args[1], ctx.engine->resource());                \
     }
 
@@ -96,7 +96,7 @@ void imreconstruct_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imreconstruct: requires (marker, mask [, conn])",
-                    0, 0, "imreconstruct", "", "numkit:imreconstruct:nargin");
+                    0, 0, "imreconstruct", "", "nk:imreconstruct:nargin");
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
     outs[0] = imreconstruct(args[0], args[1], conn, ctx.engine->resource());
@@ -107,18 +107,18 @@ void imfill_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imfill: requires (BW, 'holes' [, conn])",
-                    0, 0, "imfill", "", "numkit:imfill:nargin");
+                    0, 0, "imfill", "", "nk:imfill:nargin");
     auto *mr = ctx.engine->resource();
     // Currently we support `imfill(BW, 'holes' [, conn])` only.
     if (args.size() < 2 ||
         !(args[1].isChar() || args[1].isString()))
         throw Error("imfill: only the 'holes' mode is implemented",
-                    0, 0, "imfill", "", "numkit:imfill:mode");
+                    0, 0, "imfill", "", "nk:imfill:mode");
     const std::string mode = args[1].toString();
     if (mode != "holes" && mode != "Holes" && mode != "HOLES")
         throw Error("imfill: only 'holes' mode is implemented "
                     "(seed-list mode not yet supported)",
-                    0, 0, "imfill", "", "numkit:imfill:mode");
+                    0, 0, "imfill", "", "nk:imfill:mode");
     // Default connectivity is 4 — MATLAB's imfill uses conndef(2,'minimal').
     // With 8-connectivity the background flood leaks through 1-px diagonal
     // gaps in the foreground, so enclosed regions wrongly read as
@@ -133,7 +133,7 @@ void imregionalmax_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imregionalmax: requires (I [, conn])",
-                    0, 0, "imregionalmax", "", "numkit:imregionalmax:nargin");
+                    0, 0, "imregionalmax", "", "nk:imregionalmax:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
     outs[0] = imregionalmax(args[0], conn, ctx.engine->resource());
@@ -144,7 +144,7 @@ void imregionalmin_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imregionalmin: requires (I [, conn])",
-                    0, 0, "imregionalmin", "", "numkit:imregionalmin:nargin");
+                    0, 0, "imregionalmin", "", "nk:imregionalmin:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
     outs[0] = imregionalmin(args[0], conn, ctx.engine->resource());
@@ -155,7 +155,7 @@ void imhmax_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imhmax: requires (I, h [, conn])",
-                    0, 0, "imhmax", "", "numkit:imhmax:nargin");
+                    0, 0, "imhmax", "", "nk:imhmax:nargin");
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
@@ -167,7 +167,7 @@ void imhmin_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imhmin: requires (I, h [, conn])",
-                    0, 0, "imhmin", "", "numkit:imhmin:nargin");
+                    0, 0, "imhmin", "", "nk:imhmin:nargin");
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
@@ -179,7 +179,7 @@ void imextendedmax_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imextendedmax: requires (I, h [, conn])",
-                    0, 0, "imextendedmax", "", "numkit:imextendedmax:nargin");
+                    0, 0, "imextendedmax", "", "nk:imextendedmax:nargin");
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
@@ -191,7 +191,7 @@ void imextendedmin_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imextendedmin: requires (I, h [, conn])",
-                    0, 0, "imextendedmin", "", "numkit:imextendedmin:nargin");
+                    0, 0, "imextendedmin", "", "nk:imextendedmin:nargin");
     const double h = args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
@@ -203,7 +203,7 @@ void imimposemin_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imimposemin: requires (I, BW [, conn])",
-                    0, 0, "imimposemin", "", "numkit:imimposemin:nargin");
+                    0, 0, "imimposemin", "", "nk:imimposemin:nargin");
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
     outs[0] = imimposemin(args[0], args[1], conn, ctx.engine->resource());
@@ -214,7 +214,7 @@ void imclearborder_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imclearborder: requires (BW [, conn])",
-                    0, 0, "imclearborder", "", "numkit:imclearborder:nargin");
+                    0, 0, "imclearborder", "", "nk:imclearborder:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
     outs[0] = imclearborder(args[0], conn, ctx.engine->resource());
@@ -225,7 +225,7 @@ void imkeepborder_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imkeepborder: requires (BW [, conn])",
-                    0, 0, "imkeepborder", "", "numkit:imkeepborder:nargin");
+                    0, 0, "imkeepborder", "", "nk:imkeepborder:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
     outs[0] = imkeepborder(args[0], conn, ctx.engine->resource());
@@ -236,7 +236,7 @@ void imtophat_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imtophat: requires (I, SE)", 0, 0, "imtophat", "",
-                    "numkit:imtophat:nargin");
+                    "nk:imtophat:nargin");
     outs[0] = imtophat(args[0], args[1], ctx.engine->resource());
 }
 
@@ -245,7 +245,7 @@ void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imbothat: requires (I, SE)", 0, 0, "imbothat", "",
-                    "numkit:imbothat:nargin");
+                    "nk:imbothat:nargin");
     outs[0] = imbothat(args[0], args[1], ctx.engine->resource());
 }
 
@@ -254,7 +254,7 @@ void mmgradm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("mmgradm: requires (I [, se_dil [, se_ero]])",
-                    0, 0, "mmgradm", "", "numkit:mmgradm:nargin");
+                    0, 0, "mmgradm", "", "nk:mmgradm:nargin");
     auto *mr = ctx.engine->resource();
     // Defaults: arg omitted → elementary cross. Arg explicitly empty
     // means half-gradient (the C++ function reads .numel() == 0).
@@ -268,7 +268,7 @@ void bwpack_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwpack: requires (BW)", 0, 0, "bwpack", "",
-                    "numkit:bwpack:nargin");
+                    "nk:bwpack:nargin");
     outs[0] = bwpack(args[0], ctx.engine->resource());
 }
 
@@ -277,7 +277,7 @@ void bwunpack_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwunpack: requires (BWP [, M])",
-                    0, 0, "bwunpack", "", "numkit:bwunpack:nargin");
+                    0, 0, "bwunpack", "", "nk:bwunpack:nargin");
     size_t M = static_cast<size_t>(-1);
     if (args.size() >= 2 && !args[1].isEmpty())
         M = static_cast<size_t>(args[1].toScalar());
@@ -289,7 +289,7 @@ void applylut_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("applylut: requires (BW, LUT)",
-                    0, 0, "applylut", "", "numkit:applylut:nargin");
+                    0, 0, "applylut", "", "nk:applylut:nargin");
     outs[0] = applylut(args[0], args[1], ctx.engine->resource());
 }
 
@@ -298,7 +298,7 @@ void bwlookup_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bwlookup: requires (BW, lut)",
-                    0, 0, "bwlookup", "", "numkit:bwlookup:nargin");
+                    0, 0, "bwlookup", "", "nk:bwlookup:nargin");
     outs[0] = bwlookup(args[0], args[1], ctx.engine->resource());
 }
 
@@ -338,7 +338,7 @@ struct MakelutCallbackBuiltin : CallbackBuiltin
             for (std::size_t k = 0; k < results.size(); ++k) {
                 if (results[k].numel() != 1)
                     throw Error("makelut: fun must return a scalar", 0, 0, "makelut", "",
-                                "numkit:makelut:funScalar");
+                                "nk:makelut:funScalar");
                 ld[k] = results[k].toScalar();
             }
             return lut;
@@ -353,7 +353,7 @@ void makelut_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("makelut: requires (fun, n)",
-                    0, 0, "makelut", "", "numkit:makelut:nargin");
+                    0, 0, "makelut", "", "nk:makelut:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     const Value &handle = args[0];
     // Bind the user/builtin function handle into a core-free FnHandle for the
@@ -372,7 +372,7 @@ void bwmorph3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2 || !(args[1].isChar() || args[1].isString()))
         throw Error("bwmorph3: requires (V, operation)",
-                    0, 0, "bwmorph3", "", "numkit:bwmorph3:nargin");
+                    0, 0, "bwmorph3", "", "nk:bwmorph3:nargin");
     outs[0] = bwmorph3(args[0], args[1].toString(), ctx.engine->resource());
 }
 
@@ -381,7 +381,7 @@ void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bwhitmiss: requires (BW, interval) or (BW, se1, se2)",
-                    0, 0, "bwhitmiss", "", "numkit:bwhitmiss:nargin");
+                    0, 0, "bwhitmiss", "", "nk:bwhitmiss:nargin");
     auto *mr = ctx.engine->resource();
     Value se1, se2;
     if (args.size() == 2) {
@@ -415,10 +415,10 @@ void bwmorph_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bwmorph: requires (BW, op[, n])",
-                    0, 0, "bwmorph", "", "numkit:bwmorph:nargin");
+                    0, 0, "bwmorph", "", "nk:bwmorph:nargin");
     if (!args[1].isChar())
         throw Error("bwmorph: op must be a string",
-                    0, 0, "bwmorph", "", "numkit:bwmorph:badOp");
+                    0, 0, "bwmorph", "", "nk:bwmorph:badOp");
     std::string op = args[1].toString();
     // Normalise to lowercase.
     for (auto &ch : op) ch = static_cast<char>(std::tolower(ch));
@@ -441,12 +441,12 @@ void bwtraceboundary_reg(Span<const Value> args, std::size_t /*nargout*/,
         throw Error("bwtraceboundary: requires (BW, P, FSTEP [, conn] "
                     "[, n, dir])",
                     0, 0, "bwtraceboundary", "",
-                    "numkit:bwtraceboundary:nargin");
+                    "nk:bwtraceboundary:nargin");
     auto *mr = ctx.engine->resource();
     if (!args[2].isChar() && !args[2].isString())
         throw Error("bwtraceboundary: FSTEP must be a string",
                     0, 0, "bwtraceboundary", "",
-                    "numkit:bwtraceboundary:fstep");
+                    "nk:bwtraceboundary:fstep");
     std::string fstep = args[2].toString();
     // Upper-case fstep.
     for (auto &ch : fstep)
@@ -464,7 +464,7 @@ void bwtraceboundary_reg(Span<const Value> args, std::size_t /*nargout*/,
             if (!(v > 0))
                 throw Error("bwtraceboundary: N must be positive or Inf",
                             0, 0, "bwtraceboundary", "",
-                            "numkit:bwtraceboundary:n");
+                            "nk:bwtraceboundary:n");
             m_max = static_cast<std::size_t>(v);
         }
     }
@@ -472,7 +472,7 @@ void bwtraceboundary_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!args[5].isChar() && !args[5].isString())
             throw Error("bwtraceboundary: DIR must be a string",
                         0, 0, "bwtraceboundary", "",
-                        "numkit:bwtraceboundary:dirArg");
+                        "nk:bwtraceboundary:dirArg");
         dir = args[5].toString();
         std::string dlo;
         for (char ch : dir)
@@ -492,4 +492,4 @@ void registerMakelutCallbackBuiltin(Engine &engine)
                                    std::make_shared<detail::MakelutCallbackBuiltin>());
 }
 
-} // namespace numkit::image
+} // namespace nk::image

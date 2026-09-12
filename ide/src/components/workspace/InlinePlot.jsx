@@ -14,7 +14,7 @@ export function SaveAsMenu({ onPick, onClose }) {
     { id: 'csv',  label: 'CSV',           hint: 'comma-separated · spreadsheet' },
     { id: 'tsv',  label: 'TSV',           hint: 'tab-separated' },
     { id: 'json', label: 'JSON',          hint: 'with metadata' },
-    { id: 'mat',  label: 'Numkit script', hint: '.n — re-runnable' },
+    { id: 'mat',  label: 'NK script', hint: '.n — re-runnable' },
     { id: 'npy',  label: 'NumPy .npy',    hint: 'float64 binary' },
   ];
 
@@ -379,7 +379,7 @@ export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, pa
   const [aspectStr, setAspectStr] = useState(() => {
     try {
       // Need loadSettings here without importing it at top level if not already imported
-      const raw = localStorage.getItem('numkit.ide.settings');
+      const raw = localStorage.getItem('nk.ide.settings');
       if (raw) return JSON.parse(raw).plotAspectRatio || '16:9';
     } catch (e) {}
     return '16:9';
@@ -387,8 +387,8 @@ export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, pa
 
   useEffect(() => {
     const onSettings = (e) => setAspectStr(e.detail?.plotAspectRatio || '16:9');
-    window.addEventListener('numkitSettingsChanged', onSettings);
-    return () => window.removeEventListener('numkitSettingsChanged', onSettings);
+    window.addEventListener('nkSettingsChanged', onSettings);
+    return () => window.removeEventListener('nkSettingsChanged', onSettings);
   }, []);
 
   const aspect = (() => {

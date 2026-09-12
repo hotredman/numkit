@@ -9,19 +9,19 @@
 ## Symptom (recorded from the R4 workspace diff + stdout)
 
 An AHP (analytic hierarchy process) helper ran three eig-based blocks;
-numkit vs MATLAB R2025b:
+nk vs MATLAB R2025b:
 
 - block 1 (8×8): `cr1` 0.0250929 vs 0.0251, `w1` matched — OK;
-- **block 2 (8×8): numkit `cr1 = 0.101317`, `w1 = [1 0 0 0 0 0 0 0]`**
+- **block 2 (8×8): nk `cr1 = 0.101317`, `w1 = [1 0 0 0 0 0 0 0]`**
   (a canonical basis vector — not an AHP weight vector) vs MATLAB
   `cr1 = 0`, `w1 = [2.1875 −0.1875 …]`;
-- **block 3 (3×3 consistent): numkit `cr1 = 0`, `w1 = [1.25 1.25 −1.5]`**
+- **block 3 (3×3 consistent): nk `cr1 = 0`, `w1 = [1.25 1.25 −1.5]`**
   vs MATLAB `cr1 = 1.2810e-15`, `w1 = [0.3846 0.3846 0.2308]` (the
   Perron weights).
 
 Workspace diff also flagged `eigenvalue`, `x`, `y` as class real
-(numkit) vs complex (MATLAB) — MATLAB's `eig` returns a complex-typed
-decomposition here (tiny/zero imaginary parts), numkit a real one.
+(nk) vs complex (MATLAB) — MATLAB's `eig` returns a complex-typed
+decomposition here (tiny/zero imaginary parts), nk a real one.
 
 ## Confirmed so far (self-contained)
 
@@ -33,7 +33,7 @@ clear;
 A = [1 1 5/3; 1 1 5/3; 3/5 3/5 1];      % consistent AHP matrix
 [V, D] = eig(A);
 [mm, idx] = max(diag(D));
-% numkit: mm=3.000000000000000 idx=3
+% nk: mm=3.000000000000000 idx=3
 % MATLAB: mm=3.000000000000001 idx=1
 % w1 = V(:,idx)/sum(V(:,idx)) matches (Perron weights) in BOTH
 ```
@@ -43,7 +43,7 @@ A = [1 1 5/3; 1 1 5/3; 3/5 3/5 1];      % consistent AHP matrix
 
 ## Unknown (needs the original 8×8 construction)
 
-The `w1 = e1` result (block 2) indicates a matrix family where numkit's
+The `w1 = e1` result (block 2) indicates a matrix family where nk's
 decomposition itself is wrong or V/D are inconsistent (basis-vector
 "eigenvector" with a nonzero CR). The legacy corpus copy of the script is
 deleted (corpus switched to the catalog); AHP code is common in the

@@ -13,8 +13,8 @@
 // backends (the prior blocker was a VM-dispatch red herring — max/min default
 // to 'omitnan', so the live path is maxOmitNanBinary/minOmitNanBinary).
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
@@ -22,9 +22,9 @@
 
 namespace {
 
-class MaxMinComplexTest : public ::testing::TestWithParam<numkit::Engine::Backend> {
+class MaxMinComplexTest : public ::testing::TestWithParam<nk::Engine::Backend> {
 protected:
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     void SetUp() override { e.setBackend(GetParam()); }
     double re(const char *expr) { return e.eval(std::string("real(") + expr + ")").toScalar(); }
     double im(const char *expr) { return e.eval(std::string("imag(") + expr + ")").toScalar(); }
@@ -93,7 +93,7 @@ TEST_P(MaxMinComplexTest, ClampComposition) {
 }
 
 // Mixed-type edges. (a) integer + complex errors — MATLAB errors here too
-// ("integers combine only with same-class integers or scalar doubles"); numkit
+// ("integers combine only with same-class integers or scalar doubles"); nk
 // can't promote an integer to complex. (b) a real array vs a GENUINELY complex
 // scalar compares by |z| (MATLAB R2025b). (c) complex(x,0) (FORCED complex) vs a
 // real scalar also uses |z| (max(complex(-3),2) = -3; the all-real result then
@@ -111,7 +111,7 @@ TEST_P(MaxMinComplexTest, MixedTypeEdges) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, MaxMinComplexTest,
-                         ::testing::Values(numkit::Engine::Backend::TreeWalker,
-                                           numkit::Engine::Backend::VM));
+                         ::testing::Values(nk::Engine::Backend::TreeWalker,
+                                           nk::Engine::Backend::VM));
 
 } // namespace

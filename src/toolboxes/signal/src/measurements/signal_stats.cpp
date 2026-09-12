@@ -4,25 +4,25 @@
 // chosen dim. Built on the same applyAlongDim infrastructure that
 // builtin stats (mean/var/std/...) use.
 
-#include <numkit/signal/measurements/signal_stats.hpp>
+#include <nk/signal/measurements/signal_stats.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/reductions.hpp>  // numkit::ops::applyAlongDim
+#include <nk/ops/reductions.hpp>  // nk::ops::applyAlongDim
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
-using ::numkit::ops::applyAlongDim;
-using ::numkit::ops::firstNonSingletonDim;
-using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
-using ::numkit::ops::validateDim;
+using ::nk::ops::applyAlongDim;
+using ::nk::ops::firstNonSingletonDim;
+using ::nk::ops::resolveDim;   // 0 -> first non-singleton, else validate
+using ::nk::ops::validateDim;
 
 } // namespace
 
@@ -92,4 +92,4 @@ Value peak2rms(const Value &x, int dim, std::pmr::memory_resource *mr)
         }, mr);
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

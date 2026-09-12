@@ -21,5 +21,5 @@
     "double(T6(1)==T6(2))", "double(T6(3)==T6(4))",
     "numel(unique(T7))"
   ],
-  "comment": "Sig: T = cluster(Z, 'maxclust'|'cutoff', val[, 'criterion', 'distance'|'inconsistent'][, 'depth', d]). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests) because MATLAB / numkit / Octave assign different label IDs for the same partition. Default 'cutoff' criterion is 'inconsistent' (R2025b)."
+  "comment": "Sig: T = cluster(Z, 'maxclust'|'cutoff', val[, 'criterion', 'distance'|'inconsistent'][, 'depth', d]). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests) because MATLAB / nk / Octave assign different label IDs for the same partition. Default 'cutoff' criterion is 'inconsistent' (R2025b)."
 }

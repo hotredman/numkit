@@ -10,13 +10,13 @@
 //   • Cherubini, Luciano & Vecchiato, "Copula Methods in Finance"
 //     (Wiley, 2004).
 
-#include <numkit/stats/copulas/copulas.hpp>
-#include <numkit/stats/distributions/normal.hpp>
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/stats/distributions/multivariate.hpp>
+#include <nk/stats/copulas/copulas.hpp>
+#include <nk/stats/distributions/normal.hpp>
+#include <nk/stats/distributions/students_t.hpp>
+#include <nk/stats/distributions/multivariate.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -39,7 +39,7 @@ check_U(const Value &U, std::size_t d_expected, const char *fn)
     if (U.isScalar()) {
         if (d_expected != 1)
             throw Error(std::string(fn) + ": U has wrong shape",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":shapeU");
+                        0, 0, fn, "", std::string("nk:") + fn + ":shapeU");
         n = 1; d = 1;
     } else if (U.dims().rows() == 1) {
         n = 1; d = U.dims().cols();
@@ -49,12 +49,12 @@ check_U(const Value &U, std::size_t d_expected, const char *fn)
     if (d != d_expected)
         throw Error(std::string(fn) + ": U has " + std::to_string(d)
                   + " columns, expected " + std::to_string(d_expected),
-                    0, 0, fn, "", std::string("numkit:") + fn + ":dimU");
+                    0, 0, fn, "", std::string("nk:") + fn + ":dimU");
     for (std::size_t i = 0; i < n * d; ++i) {
         const double v = U.elemAsDouble(i);
         if (!(v > 0.0 && v < 1.0))
             throw Error(std::string(fn) + ": U entries must lie in (0, 1)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":rangeU");
+                        0, 0, fn, "", std::string("nk:") + fn + ":rangeU");
     }
     return {n, d};
 }
@@ -64,21 +64,21 @@ double extract_rho_2x2(const Value &R, const char *fn)
 {
     if (R.dims().rows() != 2 || R.dims().cols() != 2)
         throw Error(std::string(fn) + ": expected 2 × 2 R",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":dimR");
+                    0, 0, fn, "", std::string("nk:") + fn + ":dimR");
     const double r00 = R.elemAsDouble(0);
     const double r10 = R.elemAsDouble(1);
     const double r01 = R.elemAsDouble(2);
     const double r11 = R.elemAsDouble(3);
     if (std::fabs(r00 - 1.0) > 1e-9 || std::fabs(r11 - 1.0) > 1e-9)
         throw Error(std::string(fn) + ": R must have unit diagonal",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":Rdiag");
+                    0, 0, fn, "", std::string("nk:") + fn + ":Rdiag");
     if (std::fabs(r01 - r10) > 1e-9)
         throw Error(std::string(fn) + ": R must be symmetric",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":Rsym");
+                    0, 0, fn, "", std::string("nk:") + fn + ":Rsym");
     const double rho = 0.5 * (r01 + r10);
     if (!(rho > -1.0 && rho < 1.0))
         throw Error(std::string(fn) + ": ρ must lie strictly in (-1, 1)",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":Rrange");
+                    0, 0, fn, "", std::string("nk:") + fn + ":Rrange");
     return rho;
 }
 
@@ -88,18 +88,18 @@ std::size_t check_R_dim(const Value &R, const char *fn)
     if (R.dims().rows() != R.dims().cols() || R.dims().rows() < 2)
         throw Error(std::string(fn) + ": R must be a square d × d "
                     "matrix with d ≥ 2",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":dimR");
+                    0, 0, fn, "", std::string("nk:") + fn + ":dimR");
     const std::size_t d = R.dims().rows();
     // Diagonal must be 1; matrix must be symmetric.
     for (std::size_t i = 0; i < d; ++i) {
         if (std::fabs(R.elemAsDouble(i * d + i) - 1.0) > 1e-9)
             throw Error(std::string(fn) + ": R must have unit diagonal",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":Rdiag");
+                        0, 0, fn, "", std::string("nk:") + fn + ":Rdiag");
         for (std::size_t j = i + 1; j < d; ++j) {
             if (std::fabs(R.elemAsDouble(j * d + i) - R.elemAsDouble(i * d + j))
                 > 1e-9)
                 throw Error(std::string(fn) + ": R must be symmetric",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":Rsym");
+                            0, 0, fn, "", std::string("nk:") + fn + ":Rsym");
         }
     }
     return d;
@@ -115,7 +115,7 @@ double chol_lower_inplace(double *R, std::size_t d, const char *fn)
             diag -= R[j * d + k] * R[j * d + k];
         if (!(diag > 0.0))
             throw Error(std::string(fn) + ": R must be positive definite",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":notPD");
+                        0, 0, fn, "", std::string("nk:") + fn + ":notPD");
         const double Ljj = std::sqrt(diag);
         R[j * d + j] = Ljj;
         det *= diag;
@@ -323,7 +323,7 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
     auto [n, dU] = check_U(U, d, "copulapdf");
     if (!(nu > 0.0))
         throw Error("copulapdf: nu must be positive",
-                    0, 0, "copulapdf", "", "numkit:copulapdf:badNu");
+                    0, 0, "copulapdf", "", "nk:copulapdf:badNu");
     auto out = make_out(n, mr);
     if (n == 0) return out;
 
@@ -376,7 +376,7 @@ Value copulacdf_t(const Value &U, const Value &R, double nu,
     auto [n, dU] = check_U(U, d, "copulacdf");
     if (!(nu > 0.0))
         throw Error("copulacdf: nu must be positive",
-                    0, 0, "copulacdf", "", "numkit:copulacdf:badNu");
+                    0, 0, "copulacdf", "", "nk:copulacdf:badNu");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -408,7 +408,7 @@ Value copulapdf_clayton(const Value &U, double alpha,
     auto [n, d] = check_U(U, 2, "copulapdf");
     if (!(alpha > 0.0))
         throw Error("copulapdf: Clayton alpha must be > 0",
-                    0, 0, "copulapdf", "", "numkit:copulapdf:badAlpha");
+                    0, 0, "copulapdf", "", "nk:copulapdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -429,7 +429,7 @@ Value copulacdf_clayton(const Value &U, double alpha,
     auto [n, d] = check_U(U, 2, "copulacdf");
     if (!(alpha > 0.0))
         throw Error("copulacdf: Clayton alpha must be > 0",
-                    0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");
+                    0, 0, "copulacdf", "", "nk:copulacdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -474,7 +474,7 @@ Value copulacdf_frank(const Value &U, double alpha,
     if (alpha == 0.0)
         throw Error("copulacdf: Frank alpha must be non-zero "
                     "(use independence for α = 0)",
-                    0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");
+                    0, 0, "copulacdf", "", "nk:copulacdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -503,7 +503,7 @@ Value copulapdf_gumbel(const Value &U, double alpha,
     auto [n, d] = check_U(U, 2, "copulapdf");
     if (!(alpha >= 1.0))
         throw Error("copulapdf: Gumbel alpha must be ≥ 1",
-                    0, 0, "copulapdf", "", "numkit:copulapdf:badAlpha");
+                    0, 0, "copulapdf", "", "nk:copulapdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -535,7 +535,7 @@ Value copulacdf_gumbel(const Value &U, double alpha,
     auto [n, d] = check_U(U, 2, "copulacdf");
     if (!(alpha >= 1.0))
         throw Error("copulacdf: Gumbel alpha must be ≥ 1",
-                    0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");
+                    0, 0, "copulacdf", "", "nk:copulacdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -550,4 +550,4 @@ Value copulacdf_gumbel(const Value &U, double alpha,
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -3,7 +3,7 @@
 // In-tree Windows Bitmap (.bmp) decoder and encoder. Zero external dependencies.
 
 #include "bmp_codec.hpp"
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -12,7 +12,7 @@
 #include <cstring>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -119,7 +119,7 @@ Value readBmp(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
     BmpHeader hdr;
     if (!parseBmpHeader(data, len, hdr)) {
         throw Error("imread: failed to decode BMP — invalid or corrupted header",
-                    0, 0, "imread", "", "numkit:imread:bmpHeader");
+                    0, 0, "imread", "", "nk:imread:bmpHeader");
     }
 
     const std::size_t W = static_cast<std::size_t>(hdr.width);
@@ -135,7 +135,7 @@ Value readBmp(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
 
         if (len < palOff + palSize * entryBytes) {
             throw Error("imread: BMP palette truncated",
-                        0, 0, "imread", "", "numkit:imread:bmpPalette");
+                        0, 0, "imread", "", "nk:imread:bmpPalette");
         }
 
         palette.resize(palSize);
@@ -161,7 +161,7 @@ Value readBmp(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
 
     if (len < hdr.offBits) {
         throw Error("imread: BMP pixel offset out of bounds",
-                    0, 0, "imread", "", "numkit:imread:bmpOffset");
+                    0, 0, "imread", "", "nk:imread:bmpOffset");
     }
 
     const std::uint8_t *pixelData = data + hdr.offBits;
@@ -238,14 +238,14 @@ Value readBmp(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
 
     if (hdr.compression != 0 && hdr.compression != 3) {
         throw Error("imread: unsupported BMP compression " + std::to_string(hdr.compression),
-                    0, 0, "imread", "", "numkit:imread:bmpComp");
+                    0, 0, "imread", "", "nk:imread:bmpComp");
     }
 
     // Uncompressed BMP row stride aligned to 4 bytes
     const std::size_t rowStride = ((W * hdr.bitCount + 31) / 32) * 4;
     if (pixelDataLen < rowStride * H) {
         throw Error("imread: truncated BMP pixel buffer",
-                    0, 0, "imread", "", "numkit:imread:bmpTruncated");
+                    0, 0, "imread", "", "nk:imread:bmpTruncated");
     }
 
     // 8-bit Grayscale
@@ -355,7 +355,7 @@ Value readBmp(const std::uint8_t *data, std::size_t len, std::pmr::memory_resour
     }
 
     throw Error("imread: unsupported BMP bit depth " + std::to_string(hdr.bitCount),
-                0, 0, "imread", "", "numkit:imread:bmpBits");
+                0, 0, "imread", "", "nk:imread:bmpBits");
 }
 
 std::string writeBmpToBytes(const Value &A) {
@@ -363,7 +363,7 @@ std::string writeBmpToBytes(const Value &A) {
     const std::size_t W = A.dims().cols();
     if (H == 0 || W == 0) {
         throw Error("imwrite: empty image matrix",
-                    0, 0, "imwrite", "", "numkit:imwrite:empty");
+                    0, 0, "imwrite", "", "nk:imwrite:empty");
     }
 
     int channels = 1;
@@ -372,7 +372,7 @@ std::string writeBmpToBytes(const Value &A) {
     else if (A.numel() == H * W * 4) channels = 4;
     else {
         throw Error("imwrite: input must be H×W or H×W×{1,3,4}",
-                    0, 0, "imwrite", "", "numkit:imwrite:shape");
+                    0, 0, "imwrite", "", "nk:imwrite:shape");
     }
 
     const std::uint16_t bitCount = (channels == 1) ? 8 : ((channels == 3) ? 24 : 32);
@@ -466,4 +466,4 @@ std::string writeBmpToBytes(const Value &A) {
     return std::string(buf.begin(), buf.end());
 }
 
-} // namespace numkit::image
+} // namespace nk::image

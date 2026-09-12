@@ -6,14 +6,14 @@
 //   - integral             — adaptive Gauss-Kronrod definite integral
 // fzero lives in math/optim/fzero.cpp (uses the same callback helper).
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 #include "integration_detail.hpp"
 
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/callback_eval.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/callback_eval.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -21,9 +21,9 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
-namespace cb = ::numkit::ops;
+namespace cb = ::nk::ops;
 
 using namespace detail;   // integration impl-helpers (gradientND/cumtrapz*/trapzImpl/...)
 
@@ -180,7 +180,7 @@ Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
 {
     if (h <= 0)
         throw Error("gradient: spacing h must be positive",
-                     0, 0, "gradient", "", "numkit:gradient:badSpacing");
+                     0, 0, "gradient", "", "nk:gradient:badSpacing");
     // Complex: gradient real + imaginary parts separately, recombine (MATLAB).
     if (f.type() == ValueType::COMPLEX) {
         Value gr = gradient(realPartCopy(f, mr), h, mr);
@@ -211,14 +211,14 @@ Value del2(const Value &u, double h, std::pmr::memory_resource *mr)
 {
     if (h <= 0)
         throw Error("del2: spacing h must be positive",
-                     0, 0, "del2", "", "numkit:del2:badSpacing");
+                     0, 0, "del2", "", "nk:del2:badSpacing");
     if (u.type() == ValueType::COMPLEX)
         throw Error("del2: complex inputs are not supported",
-                     0, 0, "del2", "", "numkit:del2:complex");
+                     0, 0, "del2", "", "nk:del2:complex");
     const auto &d = u.dims();
     if (d.is3D() || d.ndim() > 2)
         throw Error("del2: only 1D vector and 2D matrix inputs are supported",
-                     0, 0, "del2", "", "numkit:del2:rank");
+                     0, 0, "del2", "", "nk:del2:rank");
 
     auto src = toDoubleCopy(u, mr);
     auto out = createLike(u, ValueType::DOUBLE, mr);
@@ -254,7 +254,7 @@ gradient2(const Value &f, double hx, double hy, std::pmr::memory_resource *mr)
 {
     if (hx <= 0 || hy <= 0)
         throw Error("gradient: spacing arguments must be positive",
-                     0, 0, "gradient", "", "numkit:gradient:badSpacing");
+                     0, 0, "gradient", "", "nk:gradient:badSpacing");
     // Complex: gradient real + imaginary parts separately, recombine (MATLAB).
     if (f.type() == ValueType::COMPLEX) {
         auto [grx, gry] = gradient2(realPartCopy(f, mr), hx, hy, mr);
@@ -265,7 +265,7 @@ gradient2(const Value &f, double hx, double hy, std::pmr::memory_resource *mr)
     const auto &d = f.dims();
     if (d.is3D() || d.ndim() > 2)
         throw Error("gradient: 2-output form requires a 2D matrix input",
-                     0, 0, "gradient", "", "numkit:gradient:rank");
+                     0, 0, "gradient", "", "nk:gradient:rank");
 
     auto src = toDoubleCopy(f, mr);
     auto fx = createLike(f, ValueType::DOUBLE, mr);
@@ -312,11 +312,11 @@ std::pmr::vector<Value> gradientND(const Value &f, const double *hs, size_t nh,
         if (dim >= R)
             throw Error("gradient: too many output arguments for the input "
                         "dimensionality",
-                        0, 0, "gradient", "", "numkit:gradient:nargout");
+                        0, 0, "gradient", "", "nk:gradient:nargout");
         const double h = (o < nh) ? hs[o] : 1.0;
         if (h <= 0)
             throw Error("gradient: spacing arguments must be positive",
-                        0, 0, "gradient", "", "numkit:gradient:badSpacing");
+                        0, 0, "gradient", "", "nk:gradient:badSpacing");
         Value out = createLike(f, ValueType::DOUBLE, mr);
         gradientAlongDim(src.doubleData(), out.doubleDataMut(), shape, dim, h);
         outs.push_back(std::move(out));
@@ -475,7 +475,7 @@ Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     // The X coordinate must be real; Y may be complex.
     if (x.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: the X coordinate must be real",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complexX");
+                     0, 0, "cumtrapz", "", "nk:cumtrapz:complexX");
     const bool yIsC = (y.type() == ValueType::COMPLEX);
     Value ys;
     if (!yIsC) ys = toDoubleCopy(y, mr);
@@ -485,10 +485,10 @@ Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     if (y.dims().isVector() || y.isScalar()) {
         if (!x.dims().isVector() && !x.isScalar())
             throw Error("cumtrapz: when y is a vector, x must also be a vector",
-                         0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
+                         0, 0, "cumtrapz", "", "nk:cumtrapz:shapeMismatch");
         if (x.numel() != y.numel())
             throw Error("cumtrapz: x and y must have the same length",
-                         0, 0, "cumtrapz", "", "numkit:cumtrapz:lengthMismatch");
+                         0, 0, "cumtrapz", "", "nk:cumtrapz:lengthMismatch");
         auto xs = toDoubleCopy(x, mr);
         return yIsC ? cumtrapzVectorC(yc, xs.doubleData(), y.numel(), y.dims(), /*unitSpacing=*/false, mr)
                     : cumtrapzVector(yd, xs.doubleData(), y.numel(), y.dims(), /*unitSpacing=*/false, mr);
@@ -511,7 +511,7 @@ Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     }
     if (x.dims().rows() != rows || x.dims().cols() != cols)
         throw Error("cumtrapz: x size must match y or be a column-length vector",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
+                     0, 0, "cumtrapz", "", "nk:cumtrapz:shapeMismatch");
     return yIsC ? cumtrapzMatrixColsC(yc, xs.doubleData(), rows, cols, mr)
                 : cumtrapzMatrixCols(yd, xs.doubleData(), rows, cols, mr);
 }
@@ -556,10 +556,10 @@ Value integral(FnHandle fn, double a, double b, double absTol,
 {
     if (!std::isfinite(a) || !std::isfinite(b))
         throw Error("integral: bounds must be finite",
-                     0, 0, "integral", "", "numkit:integral:badBounds");
+                     0, 0, "integral", "", "nk:integral:badBounds");
     if (absTol <= 0)
         throw Error("integral: absTol must be positive",
-                     0, 0, "integral", "", "numkit:integral:badTol");
+                     0, 0, "integral", "", "nk:integral:badTol");
     const double sign = (b < a) ? -1.0 : 1.0;
     if (b < a) std::swap(a, b);
     if (a == b) return Value::scalar(0.0, mr);
@@ -699,8 +699,8 @@ Value trapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const size_t along = (dim != 2) ? y.dims().rows() : y.dims().cols();
     if (x.numel() != along)
         throw Error("trapz: x and y must have same length",
-                     0, 0, "trapz", "", "numkit:trapz:lengthMismatch");
+                     0, 0, "trapz", "", "nk:trapz:lengthMismatch");
     return trapzImpl(y, dim, x.doubleData(), mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

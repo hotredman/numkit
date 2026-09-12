@@ -7,12 +7,12 @@
 // adapters bridge the registration ABI, supplying engine.fsContext() +
 // engine.resource(). IoLibrary::install (toolboxes/io/src/library.cpp)
 // forward-declares + registers these by name; the definitions resolve at link.
-#include <numkit/io/file_io/fileio.hpp>
+#include <nk/io/file_io/fileio.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::io::detail {
+namespace nk::io::detail {
 
 #define NK_FILEIO_REG(FN)                                                                          \
     void FN##_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)      \
@@ -34,4 +34,4 @@ NK_FILEIO_REG(fwrite)
 
 #undef NK_FILEIO_REG
 
-} // namespace numkit::io::detail
+} // namespace nk::io::detail

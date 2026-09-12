@@ -1,22 +1,22 @@
 // toolboxes/ode/tests/ode_cpp_api_test.cpp
 //
-// Engine-free C++ API guard. ode45 / ode23 take a numkit::FnHandle RHS and
+// Engine-free C++ API guard. ode45 / ode23 take a nk::FnHandle RHS and
 // integrate WITHOUT an Engine — this is the layering goal: the solver is a
 // pure C++ library API usable by an embedder that has no script engine. These
-// tests call numkit::ode::ode45 / ode23 directly with a stack C++ lambda; no
+// tests call nk::ode::ode45 / ode23 directly with a stack C++ lambda; no
 // StandardEngine, no eval(). (The MATLAB-facing ode45/ode23 builtins are the
 // pausable .m wrappers — exercised separately in ode45_test/ode23_test.)
 
-#include <numkit/ode/solvers.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ode/solvers.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <memory_resource>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 constexpr double kPi = 3.14159265358979323846;
@@ -31,7 +31,7 @@ Value rowPair(double a, double b)
 } // namespace
 
 // dy/dt = -y, y(0) = 1, tspan = [0 1]  ⇒  y(1) = e^-1.  No Engine in sight —
-// the RHS is a plain C++ lambda passed as a numkit::FnHandle.
+// the RHS is a plain C++ lambda passed as a nk::FnHandle.
 TEST(OdeCppApi, Ode45ScalarExpDecayEngineFree)
 {
     auto rhs = [](Span<const Value> args, Span<Value> outs,

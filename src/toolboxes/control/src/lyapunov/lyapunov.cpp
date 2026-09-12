@@ -17,19 +17,19 @@
 // larger systems but would need a Schur decomposition we don't
 // have yet.
 
-#include <numkit/control/lyapunov/lyapunov.hpp>
-#include <numkit/control/internal/numerics.hpp>
+#include <nk/control/lyapunov/lyapunov.hpp>
+#include <nk/control/internal/numerics.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The lyap / dlyap
 // builtins (CallContext wrappers) live in lyapunov/lyapunov_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -52,11 +52,11 @@ Value matFromVec(size_t r, size_t c, const Mat &v, std::pmr::memory_resource *mr
 void checkABQ(const Value &A, const Value &Q, const char *name) {
     if (A.dims().rows() != A.dims().cols())
         throw Error(std::string(name) + ": A must be square",
-                    0, 0, name, "", "numkit:lyap:A");
+                    0, 0, name, "", "nk:lyap:A");
     if (Q.dims().rows() != A.dims().rows() ||
         Q.dims().cols() != A.dims().cols())
         throw Error(std::string(name) + ": Q must match A in shape",
-                    0, 0, name, "", "numkit:lyap:Q");
+                    0, 0, name, "", "nk:lyap:Q");
 }
 
 // Solve a Kronecker-form linear system M·x = b, where M is n²×n²
@@ -70,7 +70,7 @@ Vec solveKron(Mat &M, Vec &rhs, size_t n2)
     if (!solveInPlace(M, rhsMat, n2, 1))
         throw Error("lyap/dlyap: linear system is singular "
                     "(check that A is stable / Lyapunov equation is solvable)",
-                    0, 0, "lyap", "", "numkit:lyap:singular");
+                    0, 0, "lyap", "", "nk:lyap:singular");
     return rhsMat;
 }
 
@@ -168,4 +168,4 @@ Value dlyap(const Value &Av, const Value &Qv, std::pmr::memory_resource *mr)
     return matFromVec(n, n, X, mr);
 }
 
-} // namespace numkit::control
+} // namespace nk::control

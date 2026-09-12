@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = bwarea(BW). Pratt area estimate. KNOWN GAP: numkit returns integer pixel count (4) vs MATLAB's pattern-weighted estimate (4.75). Documented as separate \u0422\u0417; only positive-result structural check pinned."
+  "comment": "Sig: r = bwarea(BW). Pratt area estimate. KNOWN GAP: nk returns integer pixel count (4) vs MATLAB's pattern-weighted estimate (4.75). Documented as separate \u0422\u0417; only positive-result structural check pinned."
 }

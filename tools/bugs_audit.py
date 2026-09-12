@@ -19,7 +19,7 @@ Rules (static):
      duplicate-registration layer retired 2026-09-12 (portions 36/37)
      together with the implicit-import engine machinery.
 
-Guard-run mode (add --guards <numkit_gtest.exe>):
+Guard-run mode (add --guards <nk_gtest.exe>):
   R5 every non-BY-DESIGN guard must FAIL under --gtest_also_run_disabled_tests
      (it reproduces its open bug). A passing guard means the bug was silently
      fixed (enable the guard, close the bug) or the guard is stale.
@@ -150,7 +150,7 @@ def main():
         i = args.index('--guards')
         exe = Path(args[i + 1]) if len(args) > i + 1 else None
         if not exe or not exe.exists():
-            sys.exit('--guards needs a path to numkit_gtest(.exe)')
+            sys.exit('--guards needs a path to nk_gtest(.exe)')
         violations += run_guards(guards, exe)
 
     if violations:

@@ -8,16 +8,16 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/modulation/analog.hpp>
+#include <nk/comm/modulation/analog.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <string>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void pmmod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -25,7 +25,7 @@ void pmmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("pmmod: requires (x, Fc, Fs, phasedev [, ini_phase])",
-                    0, 0, "pmmod", "", "numkit:pmmod:nargin");
+                    0, 0, "pmmod", "", "nk:pmmod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     const double phasedev = args[3].toScalar();
@@ -42,7 +42,7 @@ void ammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ammod: requires (x, Fc, Fs [, ini_phase [, carr_amp]])",
-                    0, 0, "ammod", "", "numkit:ammod:nargin");
+                    0, 0, "ammod", "", "nk:ammod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     double ini_phase = 0.0;
@@ -60,7 +60,7 @@ void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("fmmod: requires (x, Fc, Fs, freqdev [, ini_phase])",
-                    0, 0, "fmmod", "", "numkit:fmmod:nargin");
+                    0, 0, "fmmod", "", "nk:fmmod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     const double freqdev = args[3].toScalar();
@@ -76,7 +76,7 @@ void pmdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("pmdemod: requires (y, Fc, Fs, phasedev [, ini_phase])",
-                    0, 0, "pmdemod", "", "numkit:pmdemod:nargin");
+                    0, 0, "pmdemod", "", "nk:pmdemod:nargin");
     double ini_phase = 0.0;
     if (args.size() >= 5 && !args[4].isEmpty())
         ini_phase = args[4].toScalar();
@@ -89,7 +89,7 @@ void fmdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("fmdemod: requires (y, Fc, Fs, freqdev [, ini_phase])",
-                    0, 0, "fmdemod", "", "numkit:fmdemod:nargin");
+                    0, 0, "fmdemod", "", "nk:fmdemod:nargin");
     double ini_phase = 0.0;
     if (args.size() >= 5 && !args[4].isEmpty())
         ini_phase = args[4].toScalar();
@@ -102,7 +102,7 @@ void amdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("amdemod: requires (y, Fc, Fs [, ini_phase [, carramp]])",
-                    0, 0, "amdemod", "", "numkit:amdemod:nargin");
+                    0, 0, "amdemod", "", "nk:amdemod:nargin");
     double ini_phase = 0.0, carr_amp = 0.0;
     if (args.size() >= 4 && !args[3].isEmpty()) ini_phase = args[3].toScalar();
     if (args.size() >= 5 && !args[4].isEmpty()) carr_amp = args[4].toScalar();
@@ -115,7 +115,7 @@ void ssbdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ssbdemod: requires (y, Fc, Fs [, ini_phase])",
-                    0, 0, "ssbdemod", "", "numkit:ssbdemod:nargin");
+                    0, 0, "ssbdemod", "", "nk:ssbdemod:nargin");
     double ini_phase = 0.0;
     if (args.size() >= 4 && !args[3].isEmpty()) ini_phase = args[3].toScalar();
     outs[0] = ssbdemod(args[0], args[1].toScalar(), args[2].toScalar(),
@@ -127,7 +127,7 @@ void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("mskmod: requires (x, nSamp [, ini_phase])",
-                    0, 0, "mskmod", "", "numkit:mskmod:nargin");
+                    0, 0, "mskmod", "", "nk:mskmod:nargin");
     const int nSamp = static_cast<int>(args[1].toScalar());
     double ini_phase = 0.0;
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -140,7 +140,7 @@ void mskdemod_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("mskdemod: requires (y, nSamp [, dataenc [, ini_phase]])",
-                    0, 0, "mskdemod", "", "numkit:mskdemod:nargin");
+                    0, 0, "mskdemod", "", "nk:mskdemod:nargin");
     const int nSamp = static_cast<int>(args[1].toScalar());
     double ini_phase = 0.0;
     size_t i = 2;
@@ -151,10 +151,10 @@ void mskdemod_reg(Span<const Value> args, size_t nargout,
         if (elo == "nondiff")
             throw Error("mskdemod: 'nondiff' encoding is not supported "
                         "(differential 'diff' only — matches the mskmod gap)",
-                        0, 0, "mskdemod", "", "numkit:mskdemod:nondiff");
+                        0, 0, "mskdemod", "", "nk:mskdemod:nondiff");
         if (elo != "diff")
             throw Error("mskdemod: dataenc must be 'diff' or 'nondiff'",
-                        0, 0, "mskdemod", "", "numkit:mskdemod:dataenc");
+                        0, 0, "mskdemod", "", "nk:mskdemod:dataenc");
         ++i;
     }
     if (i < args.size() && !args[i].isEmpty())
@@ -173,7 +173,7 @@ void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ssbmod: requires (x, Fc, Fs [, ini_phase [, 'upper']])",
-                    0, 0, "ssbmod", "", "numkit:ssbmod:nargin");
+                    0, 0, "ssbmod", "", "nk:ssbmod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     double ini_phase = 0.0;
@@ -183,18 +183,18 @@ void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 5 && !args[4].isEmpty()) {
         if (!args[4].isChar() && !args[4].isString())
             throw Error("ssbmod: method must be a string ('upper')",
-                        0, 0, "ssbmod", "", "numkit:ssbmod:InvStr");
+                        0, 0, "ssbmod", "", "nk:ssbmod:InvStr");
         std::string m = args[4].toString();
         // Match MATLAB behaviour: any string containing 'up' selects USB.
         for (auto &c : m) c = static_cast<char>(std::tolower(c));
         upper = (m.find("up") != std::string::npos);
         if (!upper && !m.empty())
             throw Error("ssbmod: method must be 'upper'",
-                        0, 0, "ssbmod", "", "numkit:ssbmod:InvStr");
+                        0, 0, "ssbmod", "", "nk:ssbmod:InvStr");
     }
     outs[0] = ssbmod(args[0], fc, fs, ini_phase, upper,
                      ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::comm
+} // namespace nk::comm

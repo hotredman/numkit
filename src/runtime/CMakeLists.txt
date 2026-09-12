@@ -6,12 +6,12 @@
 # backend). NOT a math/io toolbox.
 #
 # Per-layer link-target split is DEFERRED (see Phase 3-A — cross-preset + WASM
-# -fexceptions risk), so these sources are compiled INTO the single `numkit`
+# -fexceptions risk), so these sources are compiled INTO the single `nk`
 # target for now, exactly like the toolboxes. This file only collects sources /
 # headers / include dirs and propagates them upward via PARENT_SCOPE, mirroring
 # toolboxes/<name>/CMakeLists.txt.
 
-list(APPEND NUMKIT_RUNTIME_SOURCES
+list(APPEND NK_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/eval.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/workspace.cpp
@@ -29,18 +29,18 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/diagnostics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/reflection.cpp
 )
-list(APPEND NUMKIT_RUNTIME_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-list(APPEND NUMKIT_RUNTIME_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/runtime.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/saveload.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/env.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/containers.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/cell.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/struct.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/diagnostics.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/io.hpp
+list(APPEND NK_RUNTIME_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+list(APPEND NK_RUNTIME_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/runtime.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/saveload.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/env.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/containers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/cell.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/struct.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/diagnostics.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/runtime/io.hpp
 )
 
-set(NUMKIT_RUNTIME_SOURCES      ${NUMKIT_RUNTIME_SOURCES}      PARENT_SCOPE)
-set(NUMKIT_RUNTIME_HEADERS      ${NUMKIT_RUNTIME_HEADERS}      PARENT_SCOPE)
-set(NUMKIT_RUNTIME_INCLUDE_DIRS ${NUMKIT_RUNTIME_INCLUDE_DIRS} PARENT_SCOPE)
+set(NK_RUNTIME_SOURCES      ${NK_RUNTIME_SOURCES}      PARENT_SCOPE)
+set(NK_RUNTIME_HEADERS      ${NK_RUNTIME_HEADERS}      PARENT_SCOPE)
+set(NK_RUNTIME_INCLUDE_DIRS ${NK_RUNTIME_INCLUDE_DIRS} PARENT_SCOPE)

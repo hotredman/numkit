@@ -2,11 +2,11 @@
 //
 // Backfill gtest for toolboxes/wavelet/src/filter/families.cpp::symwavf.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SymwavfTest : public ::testing::Test
 {

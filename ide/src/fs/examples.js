@@ -1,6 +1,6 @@
 /**
- * Examples extraction and management for Numkit IDE.
- * Handles cloning examples into Virtual FS (/numkit_ide/examples/...) or
+ * Examples extraction and management for NK IDE.
+ * Handles cloning examples into Virtual FS (/nk_ide/examples/...) or
  * OS temporary directory on local disk.
  */
 
@@ -59,7 +59,7 @@ export async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
   }
 
   // ── Virtual Filesystem Mode ──
-  const targetRelDir = `/numkit_ide/examples/${scriptBaseName}`;
+  const targetRelDir = `/nk_ide/examples/${scriptBaseName}`;
   const tempBackend = vfsAdapters?.temp || tempFS;
 
   if (tempBackend) {

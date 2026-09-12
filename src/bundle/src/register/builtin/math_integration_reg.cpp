@@ -2,48 +2,48 @@
 //
 // Engine adapters + the embedded-.m `integral` registration for polyfun
 // integration compute. The pure calculus + Gauss-Kronrod compute lives
-// engine-free in numkit::builtin (integration.cpp).
+// engine-free in nk::builtin (integration.cpp).
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 #include "polyfun/integration_detail.hpp"
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <string>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
-// Bring polyfun compute (numkit::builtin, integration.cpp)
+// Bring polyfun compute (nk::builtin, integration.cpp)
 // into adapter scope so the bodies below stay verbatim.
-using ::numkit::builtin::gradient;     using ::numkit::builtin::gradient2;
-using ::numkit::builtin::del2;         using ::numkit::builtin::cumtrapz;
-using ::numkit::builtin::cumtrapzDim;
-using ::numkit::builtin::integral;     using ::numkit::builtin::trapz;
-using ::numkit::builtin::integral2;    using ::numkit::builtin::integral3;
-using ::numkit::builtin::detail::gradientND;
-using ::numkit::builtin::detail::toDoubleCopy;
-using ::numkit::builtin::detail::cumtrapzMatrixRows;
-using ::numkit::builtin::detail::cumtrapzMatrixRowsC;
-using ::numkit::builtin::detail::cumtrapzMatrixCols;
-using ::numkit::builtin::detail::cumtrapzMatrixColsC;
-using ::numkit::builtin::detail::trapzImpl;
-using ::numkit::builtin::detail::kKronrodX;
-using ::numkit::builtin::detail::kKronrodW;
-using ::numkit::builtin::detail::kGaussW;
+using ::nk::builtin::gradient;     using ::nk::builtin::gradient2;
+using ::nk::builtin::del2;         using ::nk::builtin::cumtrapz;
+using ::nk::builtin::cumtrapzDim;
+using ::nk::builtin::integral;     using ::nk::builtin::trapz;
+using ::nk::builtin::integral2;    using ::nk::builtin::integral3;
+using ::nk::builtin::detail::gradientND;
+using ::nk::builtin::detail::toDoubleCopy;
+using ::nk::builtin::detail::cumtrapzMatrixRows;
+using ::nk::builtin::detail::cumtrapzMatrixRowsC;
+using ::nk::builtin::detail::cumtrapzMatrixCols;
+using ::nk::builtin::detail::cumtrapzMatrixColsC;
+using ::nk::builtin::detail::trapzImpl;
+using ::nk::builtin::detail::kKronrodX;
+using ::nk::builtin::detail::kKronrodW;
+using ::nk::builtin::detail::kGaussW;
 
 void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("gradient: requires at least 1 argument",
-                     0, 0, "gradient", "", "numkit:gradient:nargin");
+                     0, 0, "gradient", "", "nk:gradient:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     const Dims &shape = args[0].dims();
     const bool isND = shape.is3D() || shape.ndim() > 2;
@@ -87,20 +87,20 @@ void del2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("del2: requires at least 1 argument",
-                     0, 0, "del2", "", "numkit:del2:nargin");
+                     0, 0, "del2", "", "nk:del2:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     double h = 1.0;
     if (args.size() >= 2) {
         if (!args[1].isScalar())
             throw Error("del2: coordinate-vector spacing is not supported in "
                         "this revision (use a scalar spacing h)",
-                        0, 0, "del2", "", "numkit:del2:spacing");
+                        0, 0, "del2", "", "nk:del2:spacing");
         h = args[1].toScalar();
     }
     if (args.size() >= 3)
         throw Error("del2: per-axis spacing (hx, hy) is not supported in this "
                     "revision (use a single scalar h)",
-                    0, 0, "del2", "", "numkit:del2:spacing");
+                    0, 0, "del2", "", "nk:del2:spacing");
     outs[0] = del2(args[0], h, mr);
 }
 
@@ -108,7 +108,7 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("cumtrapz: requires at least 1 argument",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:nargin");
+                     0, 0, "cumtrapz", "", "nk:cumtrapz:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = cumtrapz(args[0], mr);
@@ -126,13 +126,13 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         return;
     }
     // cumtrapz(X, Y, dim): X is a coordinate vector of length size(Y,dim)
-    // (MATLAB), broadcast across the other dimension. numkit also accepts
+    // (MATLAB), broadcast across the other dimension. nk also accepts
     // an X matrix the same size as Y (per-element spacing — extension).
     const int dim = static_cast<int>(args[2].toScalar());
     const Value &x = args[0], &y = args[1];
     if (x.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: the X coordinate must be real",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complexX");
+                     0, 0, "cumtrapz", "", "nk:cumtrapz:complexX");
     const bool yIsC = (y.type() == ValueType::COMPLEX);
     const size_t rows = y.dims().rows(), cols = y.dims().cols();
     Value ys;
@@ -153,7 +153,7 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
             for (size_t r = 0; r < rows; ++r) dx[c * rows + r] = xsrc[r];
     } else {
         throw Error("cumtrapz: X must be a vector of length size(Y,dim)",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
+                     0, 0, "cumtrapz", "", "nk:cumtrapz:shapeMismatch");
     }
     if (dim == 2)
         outs[0] = yIsC ? cumtrapzMatrixRowsC(y.complexData(), dx, rows, cols, mr)
@@ -189,26 +189,26 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 3)
         throw Error("integral: requires at least 3 arguments (fn, a, b)",
-                     0, 0, "integral", "", "numkit:integral:nargin");
+                     0, 0, "integral", "", "nk:integral:nargin");
     if (!args[0].isFuncHandle()
         && !(args[0].isCell() && args[0].numel() >= 1
              && args[0].cellAt(0).isFuncHandle()))
         throw Error("integral: 1st argument must be a function handle",
-                     0, 0, "integral", "", "numkit:integral:fnType");
+                     0, 0, "integral", "", "nk:integral:fnType");
     const double a = args[1].toScalar();
     const double b = args[2].toScalar();
     double absTol = 1e-10;
     for (size_t i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("integral: expected option name (string)",
-                         0, 0, "integral", "", "numkit:integral:badFlag");
+                         0, 0, "integral", "", "nk:integral:badFlag");
         std::string key = args[i].toString();
         for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (key == "abstol") {
             absTol = args[i + 1].toScalar();
         } else {
             throw Error("integral: unsupported option '" + key + "'",
-                         0, 0, "integral", "", "numkit:integral:badFlag");
+                         0, 0, "integral", "", "nk:integral:badFlag");
         }
     }
     auto handle = args[0];
@@ -236,10 +236,10 @@ void integral2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 5)
         throw Error("integral2: requires (fn, a, b, c, d)",
-                     0, 0, "integral2", "", "numkit:integral2:nargin");
+                     0, 0, "integral2", "", "nk:integral2:nargin");
     if (!args[0].isFuncHandle())
         throw Error("integral2: 1st argument must be a function handle",
-                     0, 0, "integral2", "", "numkit:integral2:fnType");
+                     0, 0, "integral2", "", "nk:integral2:fnType");
     const double a = args[1].toScalar(), b = args[2].toScalar();
     const double c = args[3].toScalar(), d = args[4].toScalar();
     const double absTol = integral2AbsTol(args, 5);
@@ -257,10 +257,10 @@ void integral3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 7)
         throw Error("integral3: requires (fn, a, b, c, d, e, f)",
-                     0, 0, "integral3", "", "numkit:integral3:nargin");
+                     0, 0, "integral3", "", "nk:integral3:nargin");
     if (!args[0].isFuncHandle())
         throw Error("integral3: 1st argument must be a function handle",
-                     0, 0, "integral3", "", "numkit:integral3:fnType");
+                     0, 0, "integral3", "", "nk:integral3:fnType");
     const double a = args[1].toScalar(), b = args[2].toScalar();
     const double c = args[3].toScalar(), d = args[4].toScalar();
     const double e = args[5].toScalar(), f = args[6].toScalar();
@@ -282,10 +282,10 @@ void quadgk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("quadgk: requires (fn, a, b)",
-                     0, 0, "quadgk", "", "numkit:quadgk:nargin");
+                     0, 0, "quadgk", "", "nk:quadgk:nargin");
     if (!args[0].isFuncHandle())
         throw Error("quadgk: 1st argument must be a function handle",
-                     0, 0, "quadgk", "", "numkit:quadgk:fnType");
+                     0, 0, "quadgk", "", "nk:quadgk:fnType");
     const double a = args[1].toScalar(), b = args[2].toScalar();
     const double absTol = integral2AbsTol(args, 3);
     auto handle = args[0];
@@ -304,10 +304,10 @@ void quad2d_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 5)
         throw Error("quad2d: requires (fn, a, b, c, d)",
-                     0, 0, "quad2d", "", "numkit:quad2d:nargin");
+                     0, 0, "quad2d", "", "nk:quad2d:nargin");
     if (!args[0].isFuncHandle())
         throw Error("quad2d: 1st argument must be a function handle",
-                     0, 0, "quad2d", "", "numkit:quad2d:fnType");
+                     0, 0, "quad2d", "", "nk:quad2d:fnType");
     const double a = args[1].toScalar(), b = args[2].toScalar();
     const double c = args[3].toScalar(), d = args[4].toScalar();
     const double absTol = integral2AbsTol(args, 5);
@@ -325,7 +325,7 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("trapz: requires at least 1 argument",
-                     0, 0, "trapz", "", "numkit:trapz:nargin");
+                     0, 0, "trapz", "", "nk:trapz:nargin");
     auto *mr = ctx.engine->resource();
     // MATLAB promotes a logical X and/or Y to double (trapz(logical([1 0 1 1]))
     // = 2, class double — bugs/builtin/trapz-logical.md). Only logical is
@@ -352,7 +352,7 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     const size_t along = (dim != 2) ? a1.dims().rows() : a1.dims().cols();
     if (a0.numel() != along)
         throw Error("trapz: numel(x) must match size(y, dim)",
-                     0, 0, "trapz", "", "numkit:trapz:lengthMismatch");
+                     0, 0, "trapz", "", "nk:trapz:lengthMismatch");
     outs[0] = trapzImpl(a1, dim, a0.doubleData(), mr);
 }
 
@@ -368,23 +368,23 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 static const char *kIntegralMSource = R"NKM(
 function r = integral(fn, a, b, opt, optval)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:integral:fnType', 'integral: 1st argument must be a function handle');
+    error('nk:integral:fnType', 'integral: 1st argument must be a function handle');
   end
   absTol = 1e-10;
   if nargin >= 4
     if nargin < 5
-      error('numkit:integral:badFlag', 'integral: option name without a value');
+      error('nk:integral:badFlag', 'integral: option name without a value');
     end
     if ~strcmp(lower(opt), 'abstol')
-      error('numkit:integral:badFlag', 'integral: unsupported option');
+      error('nk:integral:badFlag', 'integral: unsupported option');
     end
     absTol = optval;
   end
   if ~(isfinite(a) && isfinite(b))
-    error('numkit:integral:badBounds', 'integral: bounds must be finite');
+    error('nk:integral:badBounds', 'integral: bounds must be finite');
   end
   if absTol <= 0
-    error('numkit:integral:badTol', 'integral: absTol must be positive');
+    error('nk:integral:badTol', 'integral: absTol must be positive');
   end
   sgn = 1;
   if b < a
@@ -542,4 +542,4 @@ void registerInlineImpulseM(Engine &engine)
     engine.registerBuiltinMSource(kImpulseMSource);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

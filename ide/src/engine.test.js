@@ -8,7 +8,7 @@ import { createWasmEngine } from './engine';
 
 function mockModule(overrides = {}) {
   return {
-    repl_init: vi.fn(() => 'Numkit IDE — ready'),
+    repl_init: vi.fn(() => 'NK IDE — ready'),
     repl_execute: vi.fn(() => ''),
     ...overrides,
   };
@@ -19,7 +19,7 @@ describe('createWasmEngine — session init', () => {
     const mod = mockModule();
     const eng = await createWasmEngine(async () => mod);
     const greeting = eng.init();
-    expect(greeting).toBe('Numkit IDE — ready');
+    expect(greeting).toBe('NK IDE — ready');
     expect(mod.repl_init).toHaveBeenCalledTimes(1);
   });
 });

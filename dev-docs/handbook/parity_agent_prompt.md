@@ -7,12 +7,12 @@
 > before re-arming — they drift.
 
 Ты — scheduled-агент Claude Code, продолжающий автономный MATLAB-парити-цикл для
-проекта numkit. Стартуешь cold; вся история — в memory + git.
+проекта nk. Стартуешь cold; вся история — в memory + git.
 
 ## Сначала прочти в этом порядке
 
 1. `AGENTS.md` — project rules (стоп-и-сверься, если `git status` грязный).
-2. `C:/Users/User/.claude/projects/C--Users-User-Projects-megahard-numkit/memory/MEMORY.md`
+2. `C:/Users/User/.claude/projects/C--Users-User-Projects-megahard-nk/memory/MEMORY.md`
 3. `…/memory/project_parity_cycle_progress.md` ← **главный документ: что сделано,
    текущая цель, правила.**
 4. `bugs/README.md` — индекс структурного баг-каталога (known issues — **НЕ**
@@ -39,7 +39,7 @@ Honest per-signature bulk-bench. **НЕ** реализовывать новые 
 ### B. Выбор работы
 
 4. Из `PROGRESS.md` выбери **до 30 функций** со статусом ✅ и пустой ячейкой
-   `numkit_ms` (приоритет: верхние секции — Trigonometry / Arithmetic / Special
+   `nk_ms` (приоритет: верхние секции — Trigonometry / Arithmetic / Special
    Functions). Пропусти секции с namespace `categorical.*`, `table.*`,
    `datetime.*`, `ode.*`, `wavelet.*`, `linalg.*` — они требуют отсутствующих
    типов и помечаются `SKIP`.
@@ -67,9 +67,9 @@ Honest per-signature bulk-bench. **НЕ** реализовывать новые 
    нескольких секциях — все вхождения.
 8. Любое расхождение (`MISMATCH` / `THROW`) → **заведи запись в баг-каталоге**
    (плоского `BUGS.md` больше нет — он расформирован в `bugs/`):
-   - `bugs/<namespace>/<fn>.md` — самодостаточный repro (numkit output vs MATLAB
+   - `bugs/<namespace>/<fn>.md` — самодостаточный repro (nk output vs MATLAB
      R2025b), тег `Kind:` (`bug` / `stub` / `missing-output` / `missing-fn` /
-     `perf`), expected (MATLAB), actual (numkit), root cause (toolboxes/ имя файла —
+     `perf`), expected (MATLAB), actual (nk), root cause (toolboxes/ имя файла —
      или `core, area unknown`), `Status: 🔴 OPEN`;
    - матчащий **`DISABLED_` gtest** в `toolboxes/<ns>/tests/known_bugs_test.cpp`,
      утверждающий MATLAB-корректное поведение (found a bug → add a test);
@@ -82,7 +82,7 @@ Honest per-signature bulk-bench. **НЕ** реализовывать новые 
 9. Полный test suite (с отфильтрованными известными flake'ами — актуальный
    список см. `memory/feedback_pre_existing_eval_test_flake.md`):
    ```
-   build/desktop-fast/tests/gtest/Release/numkit_gtest.exe \
+   build/desktop-fast/tests/gtest/Release/nk_gtest.exe \
      --gtest_filter="-TW_VM/EvalRegressionTest.AssignmentCaptureSuppressesInnerAns/*:\
    TW_VM/EvalRegressionTest.BracketConcatInLoopInsideFunction/*" \
      --gtest_brief=1
@@ -131,7 +131,7 @@ Honest per-signature bulk-bench. **НЕ** реализовывать новые 
 Завершайся успешно, если:
 
 - все 30 функций раунда обработаны;
-- `PROGRESS.md` показывает: 100% строк ✅ имеют либо `numkit_ms`-замер, либо явный
+- `PROGRESS.md` показывает: 100% строк ✅ имеют либо `nk_ms`-замер, либо явный
   `SKIP`-comment. Если так — отметь в commit `SWEEP COMPLETE`, следующие запуски
   будут no-op.
 

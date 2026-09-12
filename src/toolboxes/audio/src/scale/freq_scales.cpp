@@ -15,19 +15,19 @@
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 
-#include <numkit/audio/scale/freq_scales.hpp>
-#include <numkit/builtin/polyfun.hpp>   // numkit::builtin::pchip (engine-free)
+#include <nk/audio/scale/freq_scales.hpp>
+#include <nk/builtin/polyfun.hpp>   // nk::builtin::pchip (engine-free)
 
 // Compute-only TU: Value substrate + Error, no engine. The hz2mel / mel2hz
 // / hz2bark / bark2hz / hz2erb / erb2hz / phon2sone / sone2phon builtins
 // (CallContext wrappers) live in scale/freq_scales_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 namespace {
 
@@ -197,7 +197,7 @@ Value phon2sone(const Value &phon, bool standardIs532_2,
             phonVal = linearExtrap(kTab5Sone, kTab5Phon, kTab5N, s);
         } else {
             Value q = Value::scalar(s, mr);
-            Value y = numkit::builtin::pchip(xs_s, ys_p, q, mr);
+            Value y = nk::builtin::pchip(xs_s, ys_p, q, mr);
             phonVal = y.toScalar();
         }
         if (phonVal < 0.0) phonVal = 0.0;
@@ -210,7 +210,7 @@ Value phon2sone(const Value &phon, bool standardIs532_2,
         double guess;
         {
             Value q = Value::scalar(pCapped, mr);
-            Value y = numkit::builtin::pchip(xs, ys, q, mr);
+            Value y = nk::builtin::pchip(xs, ys, q, mr);
             guess = y.toScalar();
         }
         if (guess <= 0.0) return guess;  // matches MATLAB low-p path
@@ -263,7 +263,7 @@ Value sone2phon(const Value &sone, bool standardIs532_2,
             phon = linearExtrap(kTab5Sone, kTab5Phon, kTab5N, s);
         } else {
             Value q = Value::scalar(s, mr);
-            Value y = numkit::builtin::pchip(xs, ys, q, mr);
+            Value y = nk::builtin::pchip(xs, ys, q, mr);
             phon = y.toScalar();
         }
         if (phon < 0.0) phon = 0.0;
@@ -271,4 +271,4 @@ Value sone2phon(const Value &sone, bool standardIs532_2,
     });
 }
 
-} // namespace numkit::audio
+} // namespace nk::audio

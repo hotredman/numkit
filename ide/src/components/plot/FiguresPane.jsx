@@ -122,7 +122,7 @@ export default function FiguresPane({
 }) {
   const [columns, setColumns] = useState(() => {
     try {
-      const saved = localStorage.getItem('numkit_figures_cols');
+      const saved = localStorage.getItem('nk_figures_cols');
       if (saved) {
         const val = parseInt(saved, 10);
         if (val >= 1 && val <= 4) return val;
@@ -133,7 +133,7 @@ export default function FiguresPane({
 
   const [aspectRatio, setAspectRatio] = useState(() => {
     try {
-      const saved = localStorage.getItem('numkit_figures_aspect');
+      const saved = localStorage.getItem('nk_figures_aspect');
       if (saved && (saved === '16:9' || saved === '4:3' || saved === '16:10' || saved === '1:1')) {
         return saved;
       }
@@ -154,8 +154,8 @@ export default function FiguresPane({
         setAspectRatio(e.detail.plotAspectRatio);
       }
     };
-    window.addEventListener('numkitSettingsChanged', onSettings);
-    return () => window.removeEventListener('numkitSettingsChanged', onSettings);
+    window.addEventListener('nkSettingsChanged', onSettings);
+    return () => window.removeEventListener('nkSettingsChanged', onSettings);
   }, []);
 
   // Close menus on outside click or Esc
@@ -185,7 +185,7 @@ export default function FiguresPane({
   const handleSetColumns = (n) => {
     setColumns(n);
     try {
-      localStorage.setItem('numkit_figures_cols', String(n));
+      localStorage.setItem('nk_figures_cols', String(n));
     } catch (_) {}
     setColsOpen(false);
   };
@@ -193,7 +193,7 @@ export default function FiguresPane({
   const handleSetAspect = (ratio) => {
     setAspectRatio(ratio);
     try {
-      localStorage.setItem('numkit_figures_aspect', ratio);
+      localStorage.setItem('nk_figures_aspect', ratio);
     } catch (_) {}
     setAspectOpen(false);
   };

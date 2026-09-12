@@ -14,5 +14,5 @@
     "numel(D2)", "D2(1)",
     "icv", "ncv", "cv1n", "cv1_1", "cv3n", "ncs", "e1n", "e3_1"
   ],
-  "comment": "Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). DEEP-PROBE c175: added the multi-level vector forms — detcoef(C,L,[n1 n2 ...]) with a single output returns a CELL array of the per-level details (icv=1, ncv=3); detcoef(C,L,'cells') returns a cell of ALL nMax levels (ncs=3); [d1,...,dp] = detcoef(C,L,[n1 ...]) deals one detail per output (e1n=8, e3_1=detail-L3(1)). numkit previously threw 'level must be scalar'. The scalar and the [levels],'cells' forms are unchanged. covers:[detcoef]."
+  "comment": "Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). DEEP-PROBE c175: added the multi-level vector forms — detcoef(C,L,[n1 n2 ...]) with a single output returns a CELL array of the per-level details (icv=1, ncv=3); detcoef(C,L,'cells') returns a cell of ALL nMax levels (ncs=3); [d1,...,dp] = detcoef(C,L,[n1 ...]) deals one detail per output (e1n=8, e3_1=detail-L3(1)). nk previously threw 'level must be scalar'. The scalar and the [levels],'cells' forms are unchanged. covers:[detcoef]."
 }

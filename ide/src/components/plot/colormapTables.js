@@ -2,7 +2,7 @@
  * Colormaps for heatmap (imagesc) rendering, generated from MATLAB
  * R2025b ground truth (feval(<name>, 256) dumped 2026-09-11) — the
  * same byte-identical tables the engine export renderer uses
- * (src/figure/include/numkit/figure/figure_render.hpp). viridis:
+ * (src/figure/include/nk/figure/figure_render.hpp). viridis:
  * MATLAB R2025b ships no viridis() — the table is the matplotlib-
  * approximate stops this file always had, linearly sampled to 256, so
  * IDE and engine stay identical. Each entry is a hex string of 256

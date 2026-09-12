@@ -44,13 +44,13 @@ convert double to scalar". MATLAB broadcasts all arguments to a common size.
 ## Repro
 ```matlab
 normpdf(0, 0, [1 2 4])
-% numkit: Error — Cannot convert double to scalar
+% nk: Error — Cannot convert double to scalar
 % MATLAB: [0.3989  0.1995  0.0997]
 binopdf(2, [4 5 6], 0.5)
-% numkit: Error
+% nk: Error
 % MATLAB: [0.3750  0.3125  0.2344]
 gampdf(1, [1 2 3], 1)
-% numkit: Error
+% nk: Error
 % MATLAB: [0.3679  0.3679  0.1839]
 normpdf([0 1], [0 0], [1 2])   % all-vector broadcast
 % MATLAB: [0.3989  0.1760]

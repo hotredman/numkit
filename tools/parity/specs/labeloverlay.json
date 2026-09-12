@@ -6,5 +6,5 @@
   "iters": 3,
   "tol": 0,
   "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"],
-  "comment": "Sig: B = labeloverlay(A, L [, NV...]). Cover: default (auto/shuffle/jet), Transparency=0 (pure colour), IncludedLabels filter (skip label 2 -> A passthrough), ColorAssignment='noshuffle' on jet. Default shuffle uses MATLAB rng('default') = MT19937 seed-0 randperm; numkit implements MatlabMT19937 + sort(rand) bit-identically. Output uint8 H×W×3 always. tol=0 (exact uint8 match). Other branches (logical BW mask, custom Nx3 Colormap, RGB input, Transparency=1 passthrough) covered exhaustively in gtest. categorical input form not implemented (MATLAB OOP class — policy §0). Image namespace 2026-05-27."
+  "comment": "Sig: B = labeloverlay(A, L [, NV...]). Cover: default (auto/shuffle/jet), Transparency=0 (pure colour), IncludedLabels filter (skip label 2 -> A passthrough), ColorAssignment='noshuffle' on jet. Default shuffle uses MATLAB rng('default') = MT19937 seed-0 randperm; nk implements MatlabMT19937 + sort(rand) bit-identically. Output uint8 H×W×3 always. tol=0 (exact uint8 match). Other branches (logical BW mask, custom Nx3 Colormap, RGB input, Transparency=1 passthrough) covered exhaustively in gtest. categorical input form not implemented (MATLAB OOP class — policy §0). Image namespace 2026-05-27."
 }

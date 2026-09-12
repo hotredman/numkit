@@ -9,10 +9,10 @@
 // with the standard l'Hôpital limits at t = 0 and t = ±T/(4β).
 // Output normalised to unit energy, matching MATLAB R2025b.
 
-#include <numkit/comm/eq/pulse.hpp>
+#include <nk/comm/eq/pulse.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -23,7 +23,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -41,19 +41,19 @@ Value rcosdesign(double beta, int span, int sps,
 {
     if (!(beta >= 0.0 && beta <= 1.0))
         throw Error("rcosdesign: beta must be in [0, 1]",
-                    0, 0, "rcosdesign", "", "numkit:rcosdesign:beta");
+                    0, 0, "rcosdesign", "", "nk:rcosdesign:beta");
     if (span <= 0)
         throw Error("rcosdesign: span must be a positive integer",
-                    0, 0, "rcosdesign", "", "numkit:rcosdesign:span");
+                    0, 0, "rcosdesign", "", "nk:rcosdesign:span");
     if (sps <= 0)
         throw Error("rcosdesign: sps must be a positive integer",
-                    0, 0, "rcosdesign", "", "numkit:rcosdesign:sps");
+                    0, 0, "rcosdesign", "", "nk:rcosdesign:sps");
 
     const bool rrc = (shape == "sqrt" || shape == "Sqrt" || shape == "SQRT");
     if (!rrc && shape != "normal" && shape != "Normal" &&
         shape != "NORMAL" && !shape.empty())
         throw Error("rcosdesign: shape must be 'normal' or 'sqrt'",
-                    0, 0, "rcosdesign", "", "numkit:rcosdesign:shape");
+                    0, 0, "rcosdesign", "", "nk:rcosdesign:shape");
 
     // Filter length.
     const int N = span * sps + 1;
@@ -128,13 +128,13 @@ Value gaussdesign(double BT, int span, int sps,
 {
     if (!(BT > 0.0))
         throw Error("gaussdesign: BT must be positive",
-                    0, 0, "gaussdesign", "", "numkit:gaussdesign:BT");
+                    0, 0, "gaussdesign", "", "nk:gaussdesign:BT");
     if (span <= 0)
         throw Error("gaussdesign: span must be a positive integer",
-                    0, 0, "gaussdesign", "", "numkit:gaussdesign:span");
+                    0, 0, "gaussdesign", "", "nk:gaussdesign:span");
     if (sps <= 0)
         throw Error("gaussdesign: sps must be a positive integer",
-                    0, 0, "gaussdesign", "", "numkit:gaussdesign:sps");
+                    0, 0, "gaussdesign", "", "nk:gaussdesign:sps");
 
     const int N = span * sps + 1;
     const double centre = 0.5 * (1 + N);  // mean(1:N)
@@ -168,7 +168,7 @@ Value rectpulse(const Value &x, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("rectpulse: n must be a positive integer",
-                    0, 0, "rectpulse", "", "numkit:rectpulse:n");
+                    0, 0, "rectpulse", "", "nk:rectpulse:n");
 
     const auto &d = x.dims();
     const size_t H = d.rows();
@@ -216,7 +216,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("intdump: n must be a positive integer",
-                    0, 0, "intdump", "", "numkit:intdump:n");
+                    0, 0, "intdump", "", "nk:intdump:n");
 
     const auto &d = x.dims();
     const size_t H = d.rows();
@@ -229,7 +229,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
     if (is_row) {
         if (W % un != 0)
             throw Error("intdump: row length must be a multiple of n",
-                        0, 0, "intdump", "", "numkit:intdump:size");
+                        0, 0, "intdump", "", "nk:intdump:size");
         const size_t Wo = W / un;
         out = Value::matrix(1, Wo, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
@@ -242,7 +242,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
     } else if (is_col) {
         if (H % un != 0)
             throw Error("intdump: column length must be a multiple of n",
-                        0, 0, "intdump", "", "numkit:intdump:size");
+                        0, 0, "intdump", "", "nk:intdump:size");
         const size_t Ho = H / un;
         out = Value::matrix(Ho, 1, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
@@ -256,7 +256,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
         // Matrix: average n consecutive rows per column.
         if (H % un != 0)
             throw Error("intdump: row count must be a multiple of n",
-                        0, 0, "intdump", "", "numkit:intdump:size");
+                        0, 0, "intdump", "", "nk:intdump:size");
         const size_t Ho = H / un;
         out = Value::matrix(Ho, W, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
@@ -272,4 +272,4 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

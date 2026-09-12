@@ -49,7 +49,7 @@ accepts it (preserving the class, except movmedian-on-logical → double).
 
 ## Repro
 ```matlab
-movmax(int8([3 1 2 5 4]), 3)            % numkit: ERROR; MATLAB: int8 [3 3 5 5 5]
+movmax(int8([3 1 2 5 4]), 3)            % nk: ERROR; MATLAB: int8 [3 3 5 5 5]
 movmedian(int8([3 1 2 5 4]), 2)         % MATLAB: int8 [3 2 2 4 5] (1.5->2, 4.5->5)
 movmax(logical([1 0 1 1 0]), 3)         % MATLAB: logical [1 1 1 1 1]
 movmedian(logical([1 0 1 1 0]), 3)      % MATLAB: double [0.5 1 1 1 0.5]

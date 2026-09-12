@@ -3,10 +3,10 @@
 // Regression guard for arithenco / arithdeco — arithmetic coding pair.
 // Bit-equal with MATLAB R2025b on encoded bit string and round-trip.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ArithTest : public ::testing::Test
 {

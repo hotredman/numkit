@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/filter/filter.hpp>
+#include <nk/image/filter/filter.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -30,10 +30,10 @@ void fspecial3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fspecial3: requires at least (type)",
-                    0, 0, "fspecial3", "", "numkit:fspecial3:nargin");
+                    0, 0, "fspecial3", "", "nk:fspecial3:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("fspecial3: type must be a string",
-                    0, 0, "fspecial3", "", "numkit:fspecial3:BadType");
+                    0, 0, "fspecial3", "", "nk:fspecial3:BadType");
     const std::string type = args[0].toString();
     Value empty;
     // Positional layout per MATLAB R2025b:
@@ -56,9 +56,9 @@ void gabor_reg(Span<const Value> /*args*/, size_t /*nargout*/,
 {
     throw Error("gabor: not implemented in v1 — Gabor filter object "
                 "requires class infrastructure. KNOWN GAP.",
-                0, 0, "gabor", "", "numkit:gabor:NotImpl");
+                0, 0, "gabor", "", "nk:gabor:NotImpl");
 }
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

@@ -1,16 +1,16 @@
 // toolboxes/stats/src/test/hypothesis.cpp
 
-#include <numkit/stats/test/hypothesis.hpp>
+#include <nk/stats/test/hypothesis.hpp>
 
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/stats/distributions/normal.hpp>
-#include <numkit/stats/distributions/chi2.hpp>
-#include <numkit/stats/distributions/fisher_f.hpp>
-#include <numkit/stats/distributions/binomial.hpp>
+#include <nk/stats/distributions/students_t.hpp>
+#include <nk/stats/distributions/normal.hpp>
+#include <nk/stats/distributions/chi2.hpp>
+#include <nk/stats/distributions/fisher_f.hpp>
+#include <nk/stats/distributions/binomial.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -23,7 +23,7 @@
 
 #include "hypothesis_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -39,7 +39,7 @@ ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_re
     mean_var(x, mu_hat, var_hat, n);
     if (n < 2)
         throw Error("ttest: need at least 2 samples", 0, 0, "ttest", "",
-                    "numkit:ttest:nsamples");
+                    "nk:ttest:nsamples");
 
     const double sd  = std::sqrt(var_hat);
     const double se  = sd / std::sqrt(double(n));
@@ -98,7 +98,7 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::s
     mean_var(y, my, vy, ny);
     if (nx < 2 || ny < 2)
         throw Error("ttest2: need at least 2 samples per group",
-                    0, 0, "ttest2", "", "numkit:ttest2:nsamples");
+                    0, 0, "ttest2", "", "nk:ttest2:nsamples");
 
     double t, df, se;
     Value sdVal;   // MATLAB stats.sd: pooled sd (equal) | [sx sy] (unequal)
@@ -149,13 +149,13 @@ ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     if (sigma <= 0.0)
         throw Error("ztest: sigma must be positive", 0, 0, "ztest", "",
-                    "numkit:ztest:badsigma");
+                    "nk:ztest:badsigma");
 
     double mu_hat, var_hat; size_t n;
     mean_var(x, mu_hat, var_hat, n);
     if (n < 1)
         throw Error("ztest: need at least 1 sample", 0, 0, "ztest", "",
-                    "numkit:ztest:nsamples");
+                    "nk:ztest:nsamples");
 
     const double se = sigma / std::sqrt(double(n));
     const double z  = (mu_hat - m) / se;
@@ -184,13 +184,13 @@ vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     if (v <= 0.0)
         throw Error("vartest: v must be positive", 0, 0, "vartest", "",
-                    "numkit:vartest:badv");
+                    "nk:vartest:badv");
 
     double mu_hat, var_hat; size_t n;
     mean_var(x, mu_hat, var_hat, n);
     if (n < 2)
         throw Error("vartest: need at least 2 samples", 0, 0, "vartest", "",
-                    "numkit:vartest:nsamples");
+                    "nk:vartest:nsamples");
 
     const double df = double(n - 1);
     const double T  = df * var_hat / v;
@@ -240,7 +240,7 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::
     mean_var(y, my, vy, ny);
     if (nx < 2 || ny < 2 || vy == 0.0)
         throw Error("vartest2: need ≥ 2 samples per group and var(y) > 0",
-                    0, 0, "vartest2", "", "numkit:vartest2:nsamples");
+                    0, 0, "vartest2", "", "nk:vartest2:nsamples");
 
     const double F  = vx / vy;
     const double v1 = double(nx - 1);
@@ -290,7 +290,7 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::
     const size_t N = x.numel();
     if (N < 1)
         throw Error("kstest: empty sample", 0, 0, "kstest", "",
-                    "numkit:kstest:nsamples");
+                    "nk:kstest:nsamples");
 
     std::vector<double> xs(N);
     for (size_t i = 0; i < N; ++i) xs[i] = x.elemAsDouble(i);
@@ -363,7 +363,7 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::m
     const size_t Nx = x.numel(), Ny = y.numel();
     if (Nx < 1 || Ny < 1)
         throw Error("kstest2: empty sample", 0, 0, "kstest2", "",
-                    "numkit:kstest2:nsamples");
+                    "nk:kstest2:nsamples");
 
     std::vector<double> xs(Nx), ys(Ny);
     for (size_t i = 0; i < Nx; ++i) xs[i] = x.elemAsDouble(i);
@@ -416,7 +416,7 @@ jbtest(const Value &x, double alpha, double mctol, std::pmr::memory_resource *mr
     const size_t N = x.numel();
     if (N < 4)
         throw Error("jbtest: need at least 4 samples", 0, 0, "jbtest", "",
-                    "numkit:jbtest:nsamples");
+                    "nk:jbtest:nsamples");
 
     // Read sample into a flat scratch buffer.
     ScratchArena scratch(mr);
@@ -468,7 +468,7 @@ signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail, std::
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
     if (paired && y_or_m.numel() != Nx)
         throw Error("signtest: X and Y must have the same length",
-                    0, 0, "signtest", "", "numkit:signtest:size");
+                    0, 0, "signtest", "", "nk:signtest:size");
     const double m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
 
     // Count positive and non-zero diffs.
@@ -517,7 +517,7 @@ fishertest(const Value &T, double alpha, TestTail tail, std::pmr::memory_resourc
 {
     if (T.dims().rows() != 2 || T.dims().cols() != 2)
         throw Error("fishertest: T must be a 2×2 matrix",
-                    0, 0, "fishertest", "", "numkit:fishertest:size");
+                    0, 0, "fishertest", "", "nk:fishertest:size");
     const double a = T.elemAsDouble(0);  // (1,1)
     const double c = T.elemAsDouble(1);  // (2,1)
     const double b = T.elemAsDouble(2);  // (1,2)
@@ -595,7 +595,7 @@ chi2gof(const Value &observed, const Value &expected, int nparams, double alpha,
     const size_t K = observed.numel();
     if (expected.numel() != K)
         throw Error("chi2gof: observed and expected must have same length",
-                    0, 0, "chi2gof", "", "numkit:chi2gof:size");
+                    0, 0, "chi2gof", "", "nk:chi2gof:size");
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (K < 2)
         return std::make_tuple(Value::scalar(nan, mr),
@@ -642,7 +642,7 @@ vartestn_full(const Value &x, const Value &group, int test, std::pmr::memory_res
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (Nx == 0 || group.numel() != Nx)
         throw Error("vartestn: x and group must be same length",
-                    0, 0, "vartestn", "", "numkit:vartestn:size");
+                    0, 0, "vartestn", "", "nk:vartestn:size");
 
     ScratchArena scratch(mr);
     Groups G = bucket_by_group(x, group, &scratch);
@@ -1007,7 +1007,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
     if (paired && y_or_m.numel() != Nx)
         throw Error("signrank: X and Y must have the same length",
-                    0, 0, "signrank", "", "numkit:signrank:size");
+                    0, 0, "signrank", "", "nk:signrank:size");
     const double m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
 
     // Collect (|d|, sign) for non-zero diffs.
@@ -1321,10 +1321,10 @@ lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
     const std::size_t N = X.numel();
     if (N < 4)
         throw Error("lillietest: sample size must be >= 4",
-                    0, 0, "lillietest", "", "numkit:lillietest:nsamples");
+                    0, 0, "lillietest", "", "nk:lillietest:nsamples");
     if (alpha <= 0.0 || alpha >= 1.0)
         throw Error("lillietest: alpha must be in (0, 1)",
-                    0, 0, "lillietest", "", "numkit:lillietest:alpha");
+                    0, 0, "lillietest", "", "nk:lillietest:alpha");
 
     // Sort sample. PMR HARD RULE: scratch via per-call ScratchArena.
     ScratchArena scratch(mr);
@@ -1340,7 +1340,7 @@ lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
     const double sd = std::sqrt(ss / static_cast<double>(N - 1));
     if (sd == 0.0)
         throw Error("lillietest: sample has zero variance",
-                    0, 0, "lillietest", "", "numkit:lillietest:zeroVar");
+                    0, 0, "lillietest", "", "nk:lillietest:zeroVar");
 
     // KS statistic against the fitted normal CDF.
     double D = 0.0;
@@ -1411,4 +1411,4 @@ lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
                            Value::scalar(D_crit, mr));
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

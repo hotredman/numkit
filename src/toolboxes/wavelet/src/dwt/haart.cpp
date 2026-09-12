@@ -28,19 +28,19 @@
 // Complex input is supported only in 'noninteger' mode (lifting floor
 // is not defined on complex values; MATLAB also disallows it).
 
-#include <numkit/wavelet/dwt/haart.hpp>
+#include <nk/wavelet/dwt/haart.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The haart builtin
 // (CallContext wrapper) lives in dwt/haar_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <complex>
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -125,7 +125,7 @@ HaartResult haart(const Value &x, int level, bool integer,
     const size_t numel = x.numel();
     if (numel == 0)
         throw Error("haart: expected input number 1, X, to be nonempty",
-                    0, 0, "haart", "", "numkit:haart:empty");
+                    0, 0, "haart", "", "nk:haart:empty");
 
     Buf buf = load_x(x, false);
     const size_t colLen = buf.colLen;
@@ -134,17 +134,17 @@ HaartResult haart(const Value &x, int level, bool integer,
     if (colLen < 2 || (colLen % 2) != 0)
         throw Error("haart: the data length must be even. Consider replicating "
                     "for an even length signal, or removing the last element.",
-                    0, 0, "haart", "", "numkit:haart:even");
+                    0, 0, "haart", "", "nk:haart:even");
 
     const int max_lev = max_haar_level(colLen);
     const int lev = (level <= 0) ? max_lev : level;
     if (lev > max_lev)
         throw Error("haart: expected LEVEL to be a scalar with value <= " +
                     std::to_string(max_lev),
-                    0, 0, "haart", "", "numkit:haart:level");
+                    0, 0, "haart", "", "nk:haart:level");
     if (integer && buf.isComplex)
         throw Error("haart: integer mode is not supported for complex data",
-                    0, 0, "haart", "", "numkit:haart:flag");
+                    0, 0, "haart", "", "nk:haart:flag");
 
     const ValueType vt = buf.isComplex ? ValueType::COMPLEX : ValueType::DOUBLE;
     std::vector<double>  curR = buf.real;
@@ -197,4 +197,4 @@ HaartResult haart(const Value &x, int level, bool integer,
     return R;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

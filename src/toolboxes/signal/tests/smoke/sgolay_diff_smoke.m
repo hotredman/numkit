@@ -2,7 +2,7 @@ clear
 
 % [B,G] = sgolay(order, framelen) — the SECOND output G (DEEP-PROBE
 % 2026-05-31). G is the framelen x (order+1) differentiation-filter matrix
-% G = V*(V'V)^-1. Previously numkit returned only B, so [b,g]=sgolay(...)
+% G = V*(V'V)^-1. Previously nk returned only B, so [b,g]=sgolay(...)
 % errored "Undefined variable g". G(:,1) is the smoothing filter (= central
 % row of B); factorial(j-1)*G(:,j) is the (j-1)-th derivative filter.
 % vs MATLAB R2025b.

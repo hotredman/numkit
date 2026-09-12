@@ -2,15 +2,15 @@
 //
 // impz / impzlength / stepz / phasedelay / zerophase.
 
-#include <numkit/signal/filter_analysis/responses.hpp>
+#include <nk/signal/filter_analysis/responses.hpp>
 
-#include <numkit/builtin/polyfun.hpp>     // roots()
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/polyfun.hpp>     // roots()
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
-#include <numkit/signal/digital_filtering/filter.hpp>   // filter()
-#include <numkit/signal/filter_analysis/frequency_response.hpp>  // freqz, phasez
+#include <nk/signal/digital_filtering/filter.hpp>   // filter()
+#include <nk/signal/filter_analysis/frequency_response.hpp>  // freqz, phasez
 
 #include <algorithm>
 #include <cmath>
@@ -22,7 +22,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -59,7 +59,7 @@ bool isTrivialA(const Value &a)
 double maxRootRadius(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.numel() < 2) return 0.0;
-    auto r = numkit::builtin::roots(p, mr);
+    auto r = nk::builtin::roots(p, mr);
     double mx = 0.0;
     if (r.isComplex()) {
         const Complex *src = r.complexData();
@@ -178,4 +178,4 @@ zerophase(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *m
     return std::make_tuple(std::move(Hr), std::move(w));
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

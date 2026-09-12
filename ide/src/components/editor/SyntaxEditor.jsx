@@ -1018,7 +1018,7 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
           onSelect={reportCursor} onKeyUp={reportCursor} onClick={reportCursor}
           spellCheck={false} wrap="off"
           // nk-editor-textarea hides the native scrollbar (CSS in
-          // numkit-ide.css). The minimap is the scroll affordance now —
+          // nk-ide.css). The minimap is the scroll affordance now —
           // wheel + minimap drag both scroll; a native scrollbar
           // sitting right next to the minimap read as a duplicate.
           className="nk-editor-textarea"

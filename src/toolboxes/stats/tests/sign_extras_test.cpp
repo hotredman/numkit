@@ -3,13 +3,13 @@
 // three were already MATLAB-parity verified (no behavioural gap).
 // gtest provides regression coverage for all four.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class SignExtrasTest : public ::testing::Test
 {

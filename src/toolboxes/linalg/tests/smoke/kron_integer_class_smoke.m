@@ -2,7 +2,7 @@ clear
 
 % bugs/linalg/kron-integer-class.md — kron preserves the integer class of
 % integer operands (MATLAB R2025b), with saturating round-half-away casts.
-% Previously numkit always returned a double from kron.
+% Previously nk always returned a double from kron.
 
 k1 = kron(int8([1 2]), int8([1 1]));
 fprintf('kron(int8,int8) = [%d %d %d %d] class=%s   expect [1 1 2 2] int8\n', ...

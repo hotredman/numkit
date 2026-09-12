@@ -7,21 +7,21 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/filter/wfilters.hpp>
+#include <nk/wavelet/filter/wfilters.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <string>
 #include <utility>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected a string argument",
-                    0, 0, "", "", "numkit:wavelet:type");
+                    0, 0, "", "", "nk:wavelet:type");
     return v.toString();
 }
 
@@ -30,7 +30,7 @@ void wfilters_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("wfilters: requires the wavelet name",
-                    0, 0, "wfilters", "", "numkit:wfilters:nargin");
+                    0, 0, "wfilters", "", "nk:wfilters:nargin");
     const std::string name = argString(args[0]);
     std::string kind;
     if (args.size() >= 2) kind = argString(args[1]);
@@ -71,4 +71,4 @@ void wfilters_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

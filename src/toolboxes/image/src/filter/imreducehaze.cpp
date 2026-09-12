@@ -27,17 +27,17 @@
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 //
-// Composed entirely from existing numkit primitives (imerode, imopen,
+// Composed entirely from existing nk primitives (imerode, imopen,
 // imguidedfilter, rgb2gray, mat2gray, stretchlim, imadjust, im2*),
 // so the haze-physics layer is the only new code here.
 
-#include <numkit/image/filter/filter.hpp>
-#include <numkit/image/morph/morph.hpp>
-#include <numkit/image/contrast/contrast.hpp>
-#include <numkit/image/type_convert/type_convert.hpp>
+#include <nk/image/filter/filter.hpp>
+#include <nk/image/morph/morph.hpp>
+#include <nk/image/contrast/contrast.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -46,7 +46,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 namespace {
 
 // Lowercase helper (mirrors the one in color_extras).
@@ -610,32 +610,32 @@ Value imreducehaze(const Value &I, double amount,
     // ── Validate inputs ──────────────────────────────────────────
     if (!std::isfinite(amount) || amount < 0.0 || amount > 1.0)
         throw Error("imreducehaze: amount must be in [0, 1]",
-                    0, 0, "imreducehaze", "", "numkit:imreducehaze:amount");
+                    0, 0, "imreducehaze", "", "nk:imreducehaze:amount");
     const auto &d = I.dims();
     if (d.rows() == 0 || d.cols() == 0)
         throw Error("imreducehaze: I must be non-empty",
-                    0, 0, "imreducehaze", "", "numkit:imreducehaze:empty");
+                    0, 0, "imreducehaze", "", "nk:imreducehaze:empty");
     const bool isRGB = d.is3D() && d.pages() == 3;
     const bool isGray = !d.is3D() || (d.is3D() && d.pages() == 1);
     if (!isRGB && !isGray)
         throw Error("imreducehaze: I must be H×W (grayscale) or H×W×3 (RGB)",
-                    0, 0, "imreducehaze", "", "numkit:imreducehaze:shape");
+                    0, 0, "imreducehaze", "", "nk:imreducehaze:shape");
     const ValueType origClass = I.type();
     if (origClass != ValueType::UINT8 && origClass != ValueType::UINT16
         && origClass != ValueType::SINGLE && origClass != ValueType::DOUBLE)
         throw Error("imreducehaze: I must be uint8 / uint16 / single / double",
-                    0, 0, "imreducehaze", "", "numkit:imreducehaze:class");
+                    0, 0, "imreducehaze", "", "nk:imreducehaze:class");
 
     const std::string m = lower_str(method);
     if (m != "simpledcp" && m != "approxdcp")
         throw Error("imreducehaze: Method must be 'simpledcp' or 'approxdcp'",
-                    0, 0, "imreducehaze", "", "numkit:imreducehaze:method");
+                    0, 0, "imreducehaze", "", "nk:imreducehaze:method");
     const std::string ce = lower_str(contrast_enhancement);
     if (ce != "global" && ce != "boost" && ce != "none")
         throw Error("imreducehaze: ContrastEnhancement must be 'global', "
                     "'boost', or 'none'",
                     0, 0, "imreducehaze", "",
-                    "numkit:imreducehaze:contrastEnhancement");
+                    "nk:imreducehaze:contrastEnhancement");
     if (ce != "boost" && boost_amount > 0.0
         && !atmospheric_light.isEmpty())   /* sentinel never used */ {
         // BoostAmount can only be specified when ContrastEnhancement is
@@ -645,7 +645,7 @@ Value imreducehaze(const Value &I, double amount,
                           || !std::isfinite(boost_amount)))
         throw Error("imreducehaze: BoostAmount must be in [0, 1]",
                     0, 0, "imreducehaze", "",
-                    "numkit:imreducehaze:boostAmount");
+                    "nk:imreducehaze:boostAmount");
 
     // ── Short-circuit: amount == 0 → passthrough ──────────────────
     if (amount == 0.0) {
@@ -668,12 +668,12 @@ Value imreducehaze(const Value &I, double amount,
             throw Error("imreducehaze: AtmosphericLight must be a 3-element "
                         "vector for RGB input",
                         0, 0, "imreducehaze", "",
-                        "numkit:imreducehaze:atmRGB");
+                        "nk:imreducehaze:atmRGB");
         if (!isRGB && N != 1)
             throw Error("imreducehaze: AtmosphericLight must be a scalar for "
                         "grayscale input",
                         0, 0, "imreducehaze", "",
-                        "numkit:imreducehaze:atmGray");
+                        "nk:imreducehaze:atmGray");
         atm.resize(P);
         for (std::size_t p = 0; p < P; ++p)
             atm[p] = static_cast<float>(atmospheric_light.elemAsDouble(
@@ -720,10 +720,10 @@ Value imreducehaze(const Value &I, double amount,
         const std::size_t N = tmap.numel();
         for (std::size_t i = 0; i < N; ++i) td[i] = 1.0f - od[i];
         // Guided filter: nhood = 2*radius+1, radius=ceil(min(H,W)/50).
-        // numkit's imguidedfilter accepts grayscale guides only; for
+        // nk's imguidedfilter accepts grayscale guides only; for
         // RGB input we use rgb2gray(A) as guide (close approximation
         // to MATLAB's RGB-guide variant). MATLAB also uses a Fast-
-        // Guided-Filter subsample factor of min(4, radius); numkit's
+        // Guided-Filter subsample factor of min(4, radius); nk's
         // imguidedfilter does not yet expose subsample, so we run
         // the full-resolution variant (slower but higher quality).
         int radius = static_cast<int>(std::ceil(
@@ -772,4 +772,4 @@ Value imreducehaze(const Value &I, double amount,
     return cast_back(enhanced, origClass, mr);
 }
 
-} // namespace numkit::image
+} // namespace nk::image

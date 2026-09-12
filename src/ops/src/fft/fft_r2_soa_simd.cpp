@@ -25,7 +25,7 @@
 // Lives in its own TU for the same MSVC inliner-budget reason as the
 // r2 / r4 / Stockham split (see feedback_fft_msvc_limits memory).
 
-#include <numkit/ops/fft/fft_kernels.hpp>
+#include <nk/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
@@ -37,7 +37,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -148,12 +148,12 @@ void Radix2SoA(Complex *buf, std::size_t N, const Complex *W,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::ops::detail {
+namespace nk::ops::detail {
 
 HWY_EXPORT(Radix2SoA);
 HWY_EXPORT(Radix2SoAStages);
@@ -179,6 +179,6 @@ void fftRadix2SoaStagesDispatch(double *re, double *im, std::size_t N,
     HWY_DYNAMIC_DISPATCH(Radix2SoAStages)(re, im, N, W);
 }
 
-} // namespace numkit::ops::detail
+} // namespace nk::ops::detail
 
 #endif // HWY_ONCE

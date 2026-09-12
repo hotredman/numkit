@@ -13,5 +13,5 @@
     "g4", "u4", "v4",
     "uv1", "vv2"
   ],
-  "comment": "Sig: g = gcd(A,B); [g,u,v] = gcd(A,B) also returns the Bezout coefficients (extended Euclid) such that A.*u + B.*v = g, elementwise, matching MATLAB R2025b: gcd(12,18)->[6,-1,1], gcd(8,5)->[1,2,-3], gcd(-12,18)->[6,1,1] (g>=0, coeffs normalized with it), gcd(0,0)->[0,0,0]. numkit previously only supported the 1-output form (3-output threw 'Undefined function u'); fixed 2026-05-30. Spec-extension batch 2026-05-09 + extended-gcd."
+  "comment": "Sig: g = gcd(A,B); [g,u,v] = gcd(A,B) also returns the Bezout coefficients (extended Euclid) such that A.*u + B.*v = g, elementwise, matching MATLAB R2025b: gcd(12,18)->[6,-1,1], gcd(8,5)->[1,2,-3], gcd(-12,18)->[6,1,1] (g>=0, coeffs normalized with it), gcd(0,0)->[0,0,0]. nk previously only supported the 1-output form (3-output threw 'Undefined function u'); fixed 2026-05-30. Spec-extension batch 2026-05-09 + extended-gcd."
 }

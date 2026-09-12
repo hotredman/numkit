@@ -2,10 +2,10 @@
 //
 // Regression guard for grpstats() — per-group statistics.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GrpstatsTest : public ::testing::Test
 {
@@ -117,7 +117,7 @@ TEST_F(GrpstatsTest, GroupOrderIsAscending)
 }
 
 // DEEP-PROBE c178: with no whichstats arg, the default outputs are
-// [means, sem, counts] (MATLAB nargout default). numkit only emitted means,
+// [means, sem, counts] (MATLAB nargout default). nk only emitted means,
 // so [m, sem, counts] = grpstats(X, g) threw "Index 1 exceeds array size 0".
 TEST_F(GrpstatsTest, DefaultSemAndCountsOutputs)
 {

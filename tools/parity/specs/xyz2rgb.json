@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-06,
   "out_var": "y",
-  "comment": "Sig + small deterministic input. Sign-preserving sRGB gamma fix 2026-05-09 -- numkit no longer clamps out-of-gamut linear RGB before encoding."
+  "comment": "Sig + small deterministic input. Sign-preserving sRGB gamma fix 2026-05-09 -- nk no longer clamps out-of-gamut linear RGB before encoding."
 }

@@ -13,20 +13,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if exist "%WASM_DIST%\numkit_ide.wasm" (
-    copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
+if exist "%WASM_DIST%\nk_ide.wasm" (
+    copy /y "%WASM_DIST%\nk_ide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\nk_ide.wasm" "%IDE_DIR%\public\" >nul
     if exist "%DESKTOP_DIR%\dist" (
-        copy /y "%WASM_DIST%\numkit_ide.js"   "%DESKTOP_DIR%\dist\" >nul
-        copy /y "%WASM_DIST%\numkit_ide.wasm" "%DESKTOP_DIR%\dist\" >nul
+        copy /y "%WASM_DIST%\nk_ide.js"   "%DESKTOP_DIR%\dist\" >nul
+        copy /y "%WASM_DIST%\nk_ide.wasm" "%DESKTOP_DIR%\dist\" >nul
     )
     echo WASM engine found
 ) else (
     echo WASM not built — fallback mode
 )
 
-set NATIVE_REPL=%PROJECT_DIR%build\windows\release\apps\numkit\Release\numkit_repl.exe
-if not exist "%NATIVE_REPL%" set NATIVE_REPL=%PROJECT_DIR%build\windows\release\apps\numkit\numkit_repl.exe
+set NATIVE_REPL=%PROJECT_DIR%build\windows\release\apps\nk\Release\nk_repl.exe
+if not exist "%NATIVE_REPL%" set NATIVE_REPL=%PROJECT_DIR%build\windows\release\apps\nk\nk_repl.exe
 
 if exist "%NATIVE_REPL%" (
     if exist "%PROJECT_DIR%deploy\desktop" (

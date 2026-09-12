@@ -11,12 +11,12 @@
 
 ## Symptom
 MATLAB `anova1(X)` accepts a **matrix** whose columns are the groups.
-numkit requires the `(y, group)` form and throws on a bare matrix.
+nk requires the `(y, group)` form and throws on a bare matrix.
 
 ## Repro
 ```matlab
 anova1([1 2 3; 2 3 4; 3 4 5])
-% numkit: Error — anova1: requires (y, group[, 'off'])
+% nk: Error — anova1: requires (y, group[, 'off'])
 % MATLAB: p = 0.125000   (3 columns treated as 3 groups of 3)
 ```
 

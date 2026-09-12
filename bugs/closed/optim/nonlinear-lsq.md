@@ -12,13 +12,13 @@ registered.
 ## Repro
 ```matlab
 lsqcurvefit(@(p,xd) p(1)*exp(p(2)*xd), [1 -1], [0 1 2], [1 0.5 0.2])
-% numkit: Error — VM: undefined function 'lsqcurvefit'
+% nk: Error — VM: undefined function 'lsqcurvefit'
 lsqnonlin(@(p) [p(1)-1; p(2)-2], [0 0])
-% numkit: Error — VM: undefined function 'lsqnonlin'
+% nk: Error — VM: undefined function 'lsqnonlin'
 ```
 
 ## Root cause
-Not implemented. numkit has `lsqnonneg` (linear NNLS) and `fminsearch`
+Not implemented. nk has `lsqnonneg` (linear NNLS) and `fminsearch`
 (derivative-free), but no general nonlinear least-squares.
 
 ## Fix (2026-06-19)
@@ -38,7 +38,7 @@ objective runs as bytecode). Split into `lsqnonlin` + `lsqcurvefit` +
 Verified vs MATLAB R2025b: `lsqnonlin([p1−1;p2−2])` → `[1 2]` resnorm 0;
 Rosenbrock residual → `[1 1]`; `lsqcurvefit` noise-free `2·sin(1.5x)` →
 `[2 1.5]` exactly. The `a·exp(b·x)` 3-point fit has a **flat minimum** so its
-params are loosely determined (numkit vs MATLAB land ~1e-5 apart) but the
+params are loosely determined (nk vs MATLAB land ~1e-5 apart) but the
 **resnorm is tight** and matches to 8+ digits (`0.001248164767`) — parity
 fingerprints the resnorm for that case, not the params. Parity
 `lsqnonlin.json` → OK.

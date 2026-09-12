@@ -13,10 +13,10 @@ so the bug is silent.
 ## Repro
 ```matlab
 diff([1+2i 4+6i 9+12i])
-% numkit: [3+0i  5+0i]
+% nk: [3+0i  5+0i]
 % MATLAB: [3+4i  5+6i]
 diff([1+1i 3+2i])
-% numkit: 2+0i
+% nk: 2+0i
 % MATLAB: 2+1i
 ```
 
@@ -47,5 +47,5 @@ Add a `ValueType::COMPLEX` branch: difference `complexData()` element-wise
 - Live guard: `src/lang/tests/diff_complex_test.cpp` (4 cases). Parity:
   `tools/parity/specs/diff.json` extended (correctness=OK). Smoke:
   `src/lang/tests/smoke/diff_complex_smoke.m`.
-- Spin-off finding: numkit accepts `diff(X,0)` (returns identity) where MATLAB
+- Spin-off finding: nk accepts `diff(X,0)` (returns identity) where MATLAB
   errors — catalogued separately as bugs/lang/diff-zero-order.md.

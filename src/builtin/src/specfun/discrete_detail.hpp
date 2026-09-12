@@ -3,11 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +27,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -74,7 +74,7 @@ inline Value rowFromVec(const double *data, std::size_t n, std::pmr::memory_reso
 // then phase angle arg(z) (the same key as complex sort); a value with a
 // NaN component sorts last and is always distinct. Two complex values are
 // "equal" iff identical (real AND imag equal). Dedup is first-occurrence;
-// ia/ic match numkit's double-unique row orientation. (Linear first-occur
+// ia/ic match nk's double-unique row orientation. (Linear first-occur
 // scan: O(n*u) — fine for the small complex sets unique() sees in practice.)
 inline bool cxUniqLess(Complex a, Complex b)
 {
@@ -203,16 +203,16 @@ inline Value emptyRowsResult(size_t cols, std::pmr::memory_resource *mr)
 
 // Note: collectRowsByIndex moved to rows_helpers.hpp (shared with
 // matrix.cpp's sortRowsImpl). The duplicate definition that used to
-// live here has been removed in favour of numkit::ops::collectRowsByIndex.
+// live here has been removed in favour of nk::ops::collectRowsByIndex.
 
 void validateUniqueRowsInput(const Value &x, const char *fn)
 {
     if (x.type() != ValueType::DOUBLE)
         throw Error(std::string(fn) + ": 'rows' flag requires a DOUBLE matrix",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":rowsType");
+                     0, 0, fn, "", std::string("nk:") + fn + ":rowsType");
     if (x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": 'rows' flag requires a 2D matrix",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":rowsND");
+                     0, 0, fn, "", std::string("nk:") + fn + ":rowsND");
 }
 
 std::pmr::unordered_set<double, DoubleHashEq0>
@@ -231,12 +231,12 @@ void validateEdges(const Value &edges, const char *fn)
 {
     if (edges.numel() < 2)
         throw Error(std::string(fn) + ": edges must have length >= 2",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":shortEdges");
+                     0, 0, fn, "", std::string("nk:") + fn + ":shortEdges");
     const double *e = edges.doubleData();
     for (size_t i = 1; i < edges.numel(); ++i)
         if (!(e[i] >= e[i - 1]))
             throw Error(std::string(fn) + ": edges must be ascending",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":badEdges");
+                         0, 0, fn, "", std::string("nk:") + fn + ":badEdges");
 }
 
 bool edgesAreUniform(const double *e, size_t nEdges, double &outStep)
@@ -319,7 +319,7 @@ double factorialDouble(double v, const char *fn)
     if (!std::isfinite(v) || v < 0 || v != std::floor(v))
         throw Error(std::string(fn)
                      + ": entries must be non-negative integers",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badArg");
+                     0, 0, fn, "", std::string("nk:") + fn + ":badArg");
     if (v > 170.0)
         return std::numeric_limits<double>::infinity();
     double r = 1.0;
@@ -343,4 +343,4 @@ inline bool nearlyEqualTol(double x, double y, double tol)
 std::pair<Value, Value> ismemberComplex(const Value &a, const Value &b, bool wantLoc, std::pmr::memory_resource *mr);
 Value nchoosekCombinations(const Value &v, double kd, std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -2,13 +2,13 @@
 //
 // Regression guard for friedman() — Friedman nonparametric two-way ANOVA by
 // ranks. Expected p-values from MATLAB R2025b. bugs/stats/friedman.
-// numkit returns [p, Q, df] (statistic + df), not MATLAB's (tbl, stats); the
+// nk returns [p, Q, df] (statistic + df), not MATLAB's (tbl, stats); the
 // primary p matches MATLAB exactly.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FriedmanTest : public ::testing::Test
 {

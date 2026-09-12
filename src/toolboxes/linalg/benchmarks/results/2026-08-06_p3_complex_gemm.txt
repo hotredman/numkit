@@ -1,5 +1,5 @@
 2026-08-06T14:59:33+03:00
-Running C:\Users\User\Projects\megahard\numkit\build\desktop-fast\benchmarks\Release\numkit_bench.exe
+Running C:\Users\User\Projects\megahard\nk\build\desktop-fast\benchmarks\Release\nk_bench.exe
 Run on (24 X 3072 MHz CPU s)
 CPU Caches:
   L1 Data 48 KiB (x24)

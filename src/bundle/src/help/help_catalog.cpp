@@ -1,11 +1,11 @@
-#include <numkit/bundle/help/help_catalog.hpp>
+#include <nk/bundle/help/help_catalog.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
 #include <sstream>
 
-namespace numkit::bundle {
+namespace nk::bundle {
 
 namespace {
 std::string toLowerStr(std::string s) {
@@ -67,7 +67,7 @@ const HelpEntry *HelpCatalog::findFunction(std::string name) const {
 
 std::string HelpCatalog::formatAllCategories() const {
     std::ostringstream os;
-    os << "Numkit Help Topics:\n\n";
+    os << "NK Help Topics:\n\n";
     os << "  Fundamentals:\n";
     for (size_t i = 0; i < 12 && i < categories_.size(); ++i) {
         os << "    " << padRight(categories_[i].name, 14) << "- " << categories_[i].title << "\n";
@@ -693,7 +693,7 @@ void HelpCatalog::initCategories() {
                         {"whos", "List current variables with size, bytes, and class.", "whos", "whos displays detailed table of workspace variables."},
                         {"which", "Locate functions and files.", "which NAME", "which displays origin (built-in, function, .m file) of NAME."},
                         {"exist", "Check existence of variable, script, function, or class.", "E = exist('name')", "exist returns 1 (var), 2 (file), 5 (builtin), 8 (class)."},
-                        {"what", "List Numkit/MATLAB files and toolboxes in folder.", "what or what TOPIC", "what returns list of functions, classes, and packages."},
+                        {"what", "List NK/MATLAB files and toolboxes in folder.", "what or what TOPIC", "what returns list of functions, classes, and packages."},
                         {"inmem", "List functions, classes, and MEX files loaded in memory.", "[M, MEX, C] = inmem", "inmem returns list of loaded functions and classes in session."},
                         {"help", "Display help for functions, categories, or toolboxes.", "help or help TOPIC", "help displays formatted reference documentation."},
                         {"path", "View or change search path.", "P = path", "path displays or modifies search path list."},
@@ -1078,4 +1078,4 @@ void HelpCatalog::initCategories() {
     }
 }
 
-} // namespace numkit::bundle
+} // namespace nk::bundle

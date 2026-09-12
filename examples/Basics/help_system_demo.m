@@ -1,5 +1,5 @@
 % Help System Demo — MATLAB-style Help & Library Catalog
-% Demonstrates how to explore Numkit's built-in functions,
+% Demonstrates how to explore NK's built-in functions,
 % toolboxes, and documentation using help, what, and builtins.
 
 clear;
@@ -50,4 +50,4 @@ fprintf('Total functions in elmat: %d\n', numel(w.m));
 fprintf('First 5 functions: %s, %s, %s, %s, %s\n', w.m{1}, w.m{2}, w.m{3}, w.m{4}, w.m{5});
 
 allFuncs = builtins();
-fprintf('Total registered functions in Numkit: %d\n', numel(allFuncs));
+fprintf('Total registered functions in NK: %d\n', numel(allFuncs));

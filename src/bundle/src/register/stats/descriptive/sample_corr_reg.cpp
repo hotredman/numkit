@@ -3,11 +3,11 @@
 // CallContext register half of descriptive/sample_corr.cpp (autocorr / crosscorr).
 // Engine-coupled glue: parses the MATLAB call forms (positional NumLags or the
 // 'NumLags'/'NumSTD' name-value pairs) and threads the 3 outputs by nargout.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -15,7 +15,7 @@
 #include <tuple>
 #include <utility>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -49,7 +49,7 @@ void autocorr_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("autocorr: requires at least one argument",
-                    0, 0, "autocorr", "", "numkit:autocorr:nargin");
+                    0, 0, "autocorr", "", "nk:autocorr:nargin");
     int    numLags = -1;
     double numSTD  = 2.0;
     parseCorrOpts(args, 1, numLags, numSTD);
@@ -65,7 +65,7 @@ void crosscorr_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("crosscorr: requires (y1, y2[, NumLags])",
-                    0, 0, "crosscorr", "", "numkit:crosscorr:nargin");
+                    0, 0, "crosscorr", "", "nk:crosscorr:nargin");
     int    numLags = -1;
     double numSTD  = 2.0;
     parseCorrOpts(args, 2, numLags, numSTD);
@@ -82,7 +82,7 @@ void parcorr_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("parcorr: requires at least one argument",
-                    0, 0, "parcorr", "", "numkit:parcorr:nargin");
+                    0, 0, "parcorr", "", "nk:parcorr:nargin");
     int    numLags = -1;
     double numSTD  = 2.0;
     parseCorrOpts(args, 1, numLags, numSTD);
@@ -95,4 +95,4 @@ void parcorr_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

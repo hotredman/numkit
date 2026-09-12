@@ -1,4 +1,4 @@
-numkit
+nk
 SPDX-License-Identifier: 0BSD
 
 This software is released under the BSD Zero Clause License (0BSD).
@@ -6,7 +6,7 @@ See the LICENSE file for details.
 
 --------------------------------------------------------------------
 
-Third-party components bundled with, or built into, numkit retain
+Third-party components bundled with, or built into, nk retain
 their own licenses. These are all permissive (Apache-2.0 / BSD / MIT / BSL-1.0)
 and include:
 

@@ -11,14 +11,14 @@
 // For bandpass/bandstop, Wn is a 2-vector [Wlo, Whi]; the prototype is
 // scaled to centre Ω₀ = √(Wlo·Whi), bandwidth Bw = Whi - Wlo.
 
-#include <numkit/signal/filter_design/iir_designs.hpp>
+#include <nk/signal/filter_design/iir_designs.hpp>
 
-#include <numkit/signal/filter_design/analog_filters.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/signal/filter_design/analog_filters.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <cmath>
@@ -30,7 +30,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -85,7 +85,7 @@ std::tuple<Value, Value>
 finishDesign(Value z, Value p, Value k_v, bool analog, std::pmr::memory_resource *mr)
 {
     const double k = k_v.toScalar();
-    auto [b, a] = ::numkit::builtin::zp2tf(z, p, k, mr);
+    auto [b, a] = ::nk::builtin::zp2tf(z, p, k, mr);
     if (analog) return std::make_tuple(std::move(b), std::move(a));
     // bilinear with fs = 1 reverses the pre-warp we applied earlier
     // (Ω = 2·tan(π·Wn/2) with fs = 1).
@@ -380,13 +380,13 @@ double findElliporderImpl(const std::vector<double> &WA, double Rp, double Rs, s
     Value mk = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     mk.doubleDataMut()[0] = k * k;
     mk.doubleDataMut()[1] = 1.0 - k * k;
-    auto capk = numkit::builtin::ellipke(mk, mr);
+    auto capk = nk::builtin::ellipke(mk, mr);
 
     // capk1 = ellipke([k1², 1-k1²])
     Value mk1 = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     mk1.doubleDataMut()[0] = k1 * k1;
     mk1.doubleDataMut()[1] = 1.0 - k1 * k1;
-    auto capk1 = numkit::builtin::ellipke(mk1, mr);
+    auto capk1 = nk::builtin::ellipke(mk1, mr);
 
     // capk.K is 1×2: [K(k²), K(1-k²)]; same for capk.E. Need:
     //   N = ceil(K(k²) * E1(1-k1²) / (K(k²)... wait MATLAB uses capk(2) for
@@ -406,15 +406,15 @@ ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog
 {
     if (Rp <= 0.0 || Rs <= 0.0)
         throw Error("ellipord: Rp, Rs must be positive",
-                    0, 0, "ellipord", "", "numkit:ellipord:BadRpRs");
+                    0, 0, "ellipord", "", "nk:ellipord:BadRpRs");
     if (Wp_v.numel() != Ws_v.numel())
         throw Error("ellipord: Wp and Ws must have same length",
-                    0, 0, "ellipord", "", "numkit:ellipord:DimMismatch");
+                    0, 0, "ellipord", "", "nk:ellipord:DimMismatch");
 
     const size_t numW = Wp_v.numel();
     if (numW != 1 && numW != 2)
         throw Error("ellipord: Wp must be scalar or 2-vector",
-                    0, 0, "ellipord", "", "numkit:ellipord:BadWp");
+                    0, 0, "ellipord", "", "nk:ellipord:BadWp");
 
     std::vector<double> wp(numW), ws(numW);
     for (size_t i = 0; i < numW; ++i) {
@@ -454,7 +454,7 @@ ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog
             // Ω_LP = (Bw·Ω) / (Ω² - Ω0²), Bw = WP2-WP1, Ω0² = WP1·WP2; written
             // here as the reciprocal of the case-4 expression so the shared
             // sign/abs convention in findElliporderImpl (WAmin = min|WA|) picks
-            // the worst-case stopband edge. (Mirrors numkit buttord/cheb*ord.)
+            // the worst-case stopband edge. (Mirrors nk buttord/cheb*ord.)
             for (size_t i = 0; i < numW; ++i) {
                 const double w = WS[i];
                 WA.push_back((w * (WP[0] - WP[1])) / (w * w - WP[0] * WP[1]));
@@ -472,7 +472,7 @@ ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog
         }
         default:
             throw Error("ellipord: invalid filter spec",
-                        0, 0, "ellipord", "", "numkit:ellipord:BadSpec");
+                        0, 0, "ellipord", "", "nk:ellipord:BadSpec");
     }
 
     // wn = wp (digital) or WP (analog).
@@ -526,13 +526,13 @@ firpmord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr::
 
     if (nbands != ndevs)
         throw Error("firpmord: A and DEV must have same length",
-                    0, 0, "firpmord", "", "numkit:firpmord:MismatchedVectorLength");
+                    0, 0, "firpmord", "", "nk:firpmord:MismatchedVectorLength");
     if (mf != 2 * (nbands - 1))
         throw Error("firpmord: numel(F) must equal 2*(numel(A)-1)",
-                    0, 0, "firpmord", "", "numkit:firpmord:InvalidLength");
+                    0, 0, "firpmord", "", "nk:firpmord:InvalidLength");
     if (fs <= 0.0)
         throw Error("firpmord: Fs must be positive",
-                    0, 0, "firpmord", "", "numkit:firpmord:BadFs");
+                    0, 0, "firpmord", "", "nk:firpmord:BadFs");
 
     std::vector<double> fcuts(mf), mags(nbands), devs(nbands);
     for (size_t i = 0; i < mf; ++i)     fcuts[i] = F.elemAsDouble(i) / fs;
@@ -545,7 +545,7 @@ firpmord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr::
         for (size_t i = 1; i < mf; ++i) if (fcuts[i] > mx) mx = fcuts[i];
         if (mx > 0.5)
             throw Error("firpmord: F edges must be <= Fs/2",
-                        0, 0, "firpmord", "", "numkit:firpmord:InvalidRange");
+                        0, 0, "firpmord", "", "nk:firpmord:InvalidRange");
     }
 
     // Relative deviation: devs[i] /= (stop + mag) (== 1 either way).
@@ -665,13 +665,13 @@ kaiserord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr:
 
     if (nbands != ndevs)
         throw Error("kaiserord: A and DEV must have same length",
-                    0, 0, "kaiserord", "", "numkit:kaiserord:InvalidDimensionsADEV");
+                    0, 0, "kaiserord", "", "nk:kaiserord:InvalidDimensionsADEV");
     if (mf != 2 * (nbands - 1))
         throw Error("kaiserord: numel(F) must equal 2*(numel(A)-1)",
-                    0, 0, "kaiserord", "", "numkit:kaiserord:InvalidDimensionsLengthF");
+                    0, 0, "kaiserord", "", "nk:kaiserord:InvalidDimensionsLengthF");
     if (fs <= 0.0)
         throw Error("kaiserord: Fs must be positive",
-                    0, 0, "kaiserord", "", "numkit:kaiserord:BadFs");
+                    0, 0, "kaiserord", "", "nk:kaiserord:BadFs");
 
     std::vector<double> fcuts(mf), mags(nbands), devs(nbands);
     for (size_t i = 0; i < mf; ++i)     fcuts[i] = F.elemAsDouble(i) / fs;
@@ -684,7 +684,7 @@ kaiserord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr:
         for (size_t i = 1; i < mf; ++i) if (fcuts[i] > mx) mx = fcuts[i];
         if (mx >= 0.5)
             throw Error("kaiserord: F edges must be < Fs/2",
-                        0, 0, "kaiserord", "", "numkit:kaiserord:InvalidRange");
+                        0, 0, "kaiserord", "", "nk:kaiserord:InvalidRange");
     }
 
     // Convert dev → relative deviation: dev /= (stop + mag)  (== 1 either way)
@@ -745,4 +745,4 @@ kaiserord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr:
     return {N, Wn, bta, ftype};
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

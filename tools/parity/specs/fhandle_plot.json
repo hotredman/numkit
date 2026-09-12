@@ -9,5 +9,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: function-handle plotting family. fplot(f [, xrange]) — 2-D, samples adaptively. fcontour(f [, range]) — contour from f(x,y). fmesh / fsurf — 3-D mesh / shaded surface from f(x,y). All side-effect (emit __FIGURE_DATA__). Spec verifies each runs with both default range and explicit range. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs (numkit graphics handles not directly comparable to MATLAB)."
+  "comment": "Sig: function-handle plotting family. fplot(f [, xrange]) — 2-D, samples adaptively. fcontour(f [, range]) — contour from f(x,y). fmesh / fsurf — 3-D mesh / shaded surface from f(x,y). All side-effect (emit __FIGURE_DATA__). Spec verifies each runs with both default range and explicit range. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs (nk graphics handles not directly comparable to MATLAB)."
 }

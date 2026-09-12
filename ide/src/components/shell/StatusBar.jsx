@@ -35,12 +35,12 @@ function HeapBadge({ outputCount }) {
       // separate spaces that V8 doesn't account for. We log a richer
       // line including the Emscripten Module's HEAP byte length when
       // we can reach it — the engine wrapper exposes the WASM Module
-      // on `window.__numkitIdeModule` in dev, and the binding bridge
-      // attaches it to `window.numkit.__module` in all builds.
+      // on `window.__nkIdeModule` in dev, and the binding bridge
+      // attaches it to `window.nk.__module` in all builds.
       const wasmBytes = (() => {
         try {
-          const m = (window.numkit && window.numkit.__module)
-                 || window.__numkitIdeModule;
+          const m = (window.nk && window.nk.__module)
+                 || window.__nkIdeModule;
           if (m?.HEAP8?.byteLength) return m.HEAP8.byteLength;
           if (m?.HEAPU8?.byteLength) return m.HEAPU8.byteLength;
         } catch { /* ignore */ }
@@ -49,10 +49,10 @@ function HeapBadge({ outputCount }) {
       if (typeof window !== 'undefined' && !window.__heapTraceCounter) window.__heapTraceCounter = 0;
       if (typeof window !== 'undefined') {
         window.__heapTraceCounter++;
-        // Opt-in only — set localStorage 'numkit.heapTrace' = '1' to enable.
+        // Opt-in only — set localStorage 'nk.heapTrace' = '1' to enable.
         // Off by default so production doesn't spam the console every 30 s.
         let heapTraceOn = false;
-        try { heapTraceOn = localStorage.getItem('numkit.heapTrace') === '1'; } catch { /* ignore */ }
+        try { heapTraceOn = localStorage.getItem('nk.heapTrace') === '1'; } catch { /* ignore */ }
         if (heapTraceOn && (window.__heapTraceCounter % 6) === 0) {
           // 6 ticks × 5 s = 30 s. Format chosen for grep:
           //   [heap-trace] js=NN MB wasm=NN MB total=NN MB / 3586 MB pct=NN.N
@@ -131,7 +131,7 @@ export default function StatusBar({
       {buildVersion && (
         <>
           <span className="status-sep" />
-          <span className="status-item" title="numkit engine build timestamp">
+          <span className="status-item" title="nk engine build timestamp">
             build {buildVersion}
           </span>
         </>

@@ -3,14 +3,14 @@
 // Scan-family builtins (fscanf / sscanf / textscan). Shares SizeSpec /
 // parseReadSize / shapeFreadOutput with fileio.cpp via io_helpers.hpp.
 
-#include <numkit/builtin/strfun.hpp>
+#include <nk/builtin/strfun.hpp>
 #include "scan_core.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/io_helpers.hpp>
+#include <nk/ops/io_helpers.hpp>
 
 #include <algorithm>
 #include <array>
@@ -23,7 +23,7 @@
 #include <string>
 #include <utility>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 using detail::scanfEmit;   // shared core; definition below + runtime fscanf shim
 using detail::ScanfOut;
 
@@ -272,7 +272,7 @@ Value makeCharRow(const double *vals, size_t n, std::pmr::memory_resource *mr)
 // Column-major char matrix from the flat `vals` buffer. Unfilled
 // cells stay zero (MATLAB's documented fill for partial char reads).
 Value makeCharMatrix(const double *vals, size_t n,
-                     numkit::ops::SizeSpec sz, std::pmr::memory_resource *mr)
+                     nk::ops::SizeSpec sz, std::pmr::memory_resource *mr)
 {
     size_t cols_out = (sz.cols == SIZE_MAX)
                          ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
@@ -304,12 +304,12 @@ Value shapeScanfOutput(const double *vals, size_t n,
 // Pure (no Engine), so it stays in lang. The engine-coupled fscanf shim
 // (relocated to the runtime layer) reads the file buffer then delegates here;
 // the pure sscanf below calls it directly. It reaches the file-local anon
-// helpers above — they are injected into numkit::lang, hence visible from
-// numkit::builtin::detail by ordinary unqualified lookup.
+// helpers above — they are injected into nk::lang, hence visible from
+// nk::builtin::detail by ordinary unqualified lookup.
 namespace detail {
 
 void scanfEmit(const std::string &input, const std::string &fmt,
-               const numkit::ops::SizeSpec &sz,
+               const nk::ops::SizeSpec &sz,
                size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr, ScanfOut &r)
 {
     ScratchArena scratch(mr);
@@ -320,7 +320,7 @@ void scanfEmit(const std::string &input, const std::string &fmt,
     // pure-text format → char matrix. Flat size keeps the
     // per-format column-or-row shape from shapeScanfOutput.
     if (sz.matrix() && hasNum)
-        outs[0] = numkit::ops::shapeFreadOutput(values.data(), values.size(), sz, mr);
+        outs[0] = nk::ops::shapeFreadOutput(values.data(), values.size(), sz, mr);
     else if (sz.matrix())
         outs[0] = makeCharMatrix(values.data(), values.size(), sz, mr);
     else
@@ -361,9 +361,9 @@ void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::
     if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
         throw Error("sscanf: requires (str, format [, size])");
 
-    numkit::ops::SizeSpec sz{numkit::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    nk::ops::SizeSpec sz{nk::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
-        sz = numkit::ops::parseReadSize(args[2], "sscanf");
+        sz = nk::ops::parseReadSize(args[2], "sscanf");
 
     std::string fmt = args[1].toString();
     ScanfOut r{0, 0};
@@ -376,4 +376,4 @@ void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::
 }
 
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

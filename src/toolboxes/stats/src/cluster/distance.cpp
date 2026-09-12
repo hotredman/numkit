@@ -1,10 +1,10 @@
 // toolboxes/stats/src/cluster/distance.cpp
 
-#include <numkit/stats/cluster/distance.hpp>
+#include <nk/stats/cluster/distance.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -15,7 +15,7 @@
 
 #include "distance_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value pdist(const Value &X, const std::string &metric, double p, const Value *C_opt, std::pmr::memory_resource *mr)
@@ -38,7 +38,7 @@ Value pdist(const Value &X, const std::string &metric, double p, const Value *C_
             const Value &C = *C_opt;
             if (C.dims().rows() != D || C.dims().cols() != D)
                 throw Error("pdist: mahalanobis covariance C must be D×D",
-                            0, 0, "pdist", "", "numkit:pdist:mahal");
+                            0, 0, "pdist", "", "nk:pdist:mahal");
             for (size_t r = 0; r < D; ++r)
                 for (size_t c = 0; c < D; ++c)
                     Cinv[r * D + c] = C.elemAsDouble(c * D + r);
@@ -68,7 +68,7 @@ Value pdist(const Value &X, const std::string &metric, double p, const Value *C_
             if (S.numel() != D)
                 throw Error("pdist: seuclidean scale must have one element "
                             "per column", 0, 0, "pdist", "",
-                            "numkit:pdist:seuclidean");
+                            "nk:pdist:seuclidean");
             for (size_t k = 0; k < D; ++k) inv_scale[k] = 1.0 / S.elemAsDouble(k);
         } else {
             ScratchVec<double> sd(D, &scratch);
@@ -125,7 +125,7 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
     const size_t Dy = Y.dims().cols();
     if (Dx != Dy)
         throw Error("pdist2: column counts must match", 0, 0, "pdist2", "",
-                    "numkit:pdist2:size");
+                    "nk:pdist2:size");
     Value out = Value::matrix(Mx, My, ValueType::DOUBLE, mr);
     if (Mx == 0 || My == 0) return out;
     double *od = out.doubleDataMut();
@@ -141,7 +141,7 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
             const Value &C = *C_opt;
             if (C.dims().rows() != Dx || C.dims().cols() != Dx)
                 throw Error("pdist2: mahalanobis covariance C must be D×D",
-                            0, 0, "pdist2", "", "numkit:pdist2:mahal");
+                            0, 0, "pdist2", "", "nk:pdist2:mahal");
             for (size_t r = 0; r < Dx; ++r)
                 for (size_t c = 0; c < Dx; ++c)
                     Cinv[r * Dx + c] = C.elemAsDouble(c * Dx + r);
@@ -170,7 +170,7 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
             if (S.numel() != Dx)
                 throw Error("pdist2: seuclidean scale must have one element "
                             "per column", 0, 0, "pdist2", "",
-                            "numkit:pdist2:seuclidean");
+                            "nk:pdist2:seuclidean");
             for (size_t k = 0; k < Dx; ++k) inv_scale[k] = 1.0 / S.elemAsDouble(k);
         } else {
             ScratchVec<double> sd(Dx, &scratch);
@@ -271,7 +271,7 @@ Value squareform(const Value &d, std::pmr::memory_resource *mr) {
         const size_t N = (size_t)std::round(Nf);
         if (N * (N - 1) / 2 != n)
             throw Error("squareform: vector length must be triangular number",
-                        0, 0, "squareform", "", "numkit:squareform:size");
+                        0, 0, "squareform", "", "nk:squareform:size");
         Value out = Value::matrix(N, N, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         size_t k = 0;
@@ -286,7 +286,7 @@ Value squareform(const Value &d, std::pmr::memory_resource *mr) {
     // Square → vector.
     if (r != c)
         throw Error("squareform: matrix must be square", 0, 0, "squareform", "",
-                    "numkit:squareform:size");
+                    "nk:squareform:size");
     const size_t N = r;
     Value out = Value::matrix(1, N * (N - 1) / 2, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -304,10 +304,10 @@ Value mahal(const Value &Y, const Value &X, std::pmr::memory_resource *mr)
     const size_t My = Y.dims().rows();
     if (Y.dims().cols() != D)
         throw Error("mahal: Y and X must have same column count",
-                    0, 0, "mahal", "", "numkit:mahal:size");
+                    0, 0, "mahal", "", "nk:mahal:size");
     if (Mx < 2)
         throw Error("mahal: X must have at least 2 rows for covariance",
-                    0, 0, "mahal", "", "numkit:mahal:size");
+                    0, 0, "mahal", "", "nk:mahal:size");
 
     ScratchArena scratch(mr);
 
@@ -391,4 +391,4 @@ Value mahal(const Value &Y, const Value &X, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

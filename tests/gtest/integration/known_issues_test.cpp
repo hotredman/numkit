@@ -4,7 +4,7 @@
 // Each test should PASS after the corresponding fix is applied.
 //
 // Run only these:
-//   ./numkit_tests --gtest_filter="TW_VM/KnownIssue*"
+//   ./nk_tests --gtest_filter="TW_VM/KnownIssue*"
 //
 // Parameterized: runs on both TreeWalker and VM backends
 
@@ -695,9 +695,9 @@ TEST_P(HorzcatGrowRewrite, ColumnVectorAppendFallsBackToHorzcat)
     // A is 3x1 (column). The fast path in HORZCAT_APPEND must NOT
     // misinterpret this as "append one element to a row vector"
     // and call appendScalar — that would yield a 1x4 instead of
-    // numkit's broadcast-to-column behaviour. Confirm the
+    // nk's broadcast-to-column behaviour. Confirm the
     // fallback path runs and produces a 3x2 (MATLAB raises
-    // dim-mismatch here; numkit chooses to broadcast — that is
+    // dim-mismatch here; nk chooses to broadcast — that is
     // a separate question not in scope for this rewrite).
     eval(R"(
         A = [1; 2; 3];
@@ -1425,7 +1425,7 @@ INSTANTIATE_DUAL(ModByZero);
 
 // ── NaN in a conditional is an error, not silently true (deep audit #2) ──
 // Verified against MATLAB R2025b: `if NaN` → "NaN values cannot be converted
-// to logicals." numkit previously returned true (NaN != 0).
+// to logicals." nk previously returned true (NaN != 0).
 class NanConditional : public DualEngineTest {};
 
 TEST_P(NanConditional, NanInIfThrows)
@@ -1445,7 +1445,7 @@ TEST_P(NanConditional, NanInIfThrows)
 INSTANTIATE_DUAL(NanConditional);
 
 // ── integer / single / char-typed index arrays (deep audit #2) ──
-// Verified against MATLAB R2025b: A(int32(2)) == 20. numkit's resolveIndices
+// Verified against MATLAB R2025b: A(int32(2)) == 20. nk's resolveIndices
 // else-branch used doubleData() → "Not a double array" for non-DOUBLE indices.
 class TypedIndex : public DualEngineTest {};
 
@@ -1483,7 +1483,7 @@ INSTANTIATE_DUAL(EmptyVarDefined);
 
 // ── complex assigned into a logical array errors (deep audit) ──────────
 // Verified vs MATLAB R2025b: L(2)=complex(0,5) → "Complex values cannot be
-// converted to logicals." numkit silently stored the real part (false).
+// converted to logicals." nk silently stored the real part (false).
 class ComplexToLogical : public DualEngineTest {};
 
 TEST_P(ComplexToLogical, AssignComplexToLogicalErrors)
@@ -1517,7 +1517,7 @@ INSTANTIATE_DUAL(SwitchCrossType);
 // ── c{i} brace indexing validates non-integer subscripts (deep audit) ──────
 // Verified vs MATLAB R2025b: c{1.5}, c{1.5,2} and c{1.5}=x all error with
 // "Array indices must be positive integers or logical values."
-// (MATLAB:badsubscript). numkit previously truncated 1.5 -> 1 and silently
+// (MATLAB:badsubscript). nk previously truncated 1.5 -> 1 and silently
 // returned / assigned c{1}. Every scalar cell subscript (1D / 2D / ND, GET
 // and SET, both engines) now routes through Value::checkedScalarIndex — the
 // same validator the paren-index path uses.

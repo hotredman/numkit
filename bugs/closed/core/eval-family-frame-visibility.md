@@ -21,8 +21,8 @@ clear;
 %   Undefined function or variable 'result'
 % examples/Frame_Introspection/workspace_introspection.m (line 62):
 %   Undefined function or variable 'fs'
-node packages/numkit/bin/cli.js examples/Frame_Introspection/eval_dynamic_code.m
-% numkit: Error (line 34): Undefined function or variable 'result'
+node packages/nk/bin/cli.js examples/Frame_Introspection/eval_dynamic_code.m
+% nk: Error (line 34): Undefined function or variable 'result'
 % MATLAB: runs to completion
 ```
 

@@ -1,11 +1,11 @@
 // toolboxes/comm/src/modulation/fsk_ofdm.cpp
 
-#include <numkit/comm/modulation/fsk_ofdm.hpp>
+#include <nk/comm/modulation/fsk_ofdm.hpp>
 
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/signal/transforms/fft.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -46,10 +46,10 @@ Value fskmod(const Value &x, int M, double freq_sep, int nsamp,
 {
     if (M < 2)
         throw Error("fskmod: M must be ≥ 2", 0, 0, "fskmod", "",
-                    "numkit:fskmod:badM");
+                    "nk:fskmod:badM");
     if (freq_sep <= 0.0 || nsamp <= 0 || fs <= 0.0)
         throw Error("fskmod: freq_sep / nsamp / fs must be positive",
-                    0, 0, "fskmod", "", "numkit:fskmod:badparam");
+                    0, 0, "fskmod", "", "nk:fskmod:badparam");
 
     const size_t Nsym = x.numel();
     const size_t Nout = Nsym * (size_t)nsamp;
@@ -85,10 +85,10 @@ Value fskdemod(const Value &y, int M, double freq_sep, int nsamp,
 {
     if (M < 2)
         throw Error("fskdemod: M must be ≥ 2", 0, 0, "fskdemod", "",
-                    "numkit:fskdemod:badM");
+                    "nk:fskdemod:badM");
     if (freq_sep <= 0.0 || nsamp <= 0 || fs <= 0.0)
         throw Error("fskdemod: freq_sep / nsamp / fs must be positive",
-                    0, 0, "fskdemod", "", "numkit:fskdemod:badparam");
+                    0, 0, "fskdemod", "", "nk:fskdemod:badparam");
 
     const size_t Nsamps = y.numel();
     const size_t Nsym = Nsamps / (size_t)nsamp;
@@ -139,13 +139,13 @@ Value ofdmmod(const Value &in, int nfft, int cplen,
 {
     if (nfft <= 0 || cplen < 0)
         throw Error("ofdmmod: bad nfft / cplen", 0, 0, "ofdmmod", "",
-                    "numkit:ofdmmod:badparam");
+                    "nk:ofdmmod:badparam");
 
     const size_t rows = in.dims().rows();
     const size_t cols = in.dims().cols();
     if ((int)rows != nfft)
         throw Error("ofdmmod: in must have nfft rows", 0, 0, "ofdmmod", "",
-                    "numkit:ofdmmod:size");
+                    "nk:ofdmmod:size");
     const size_t Nsym = cols;
     const size_t out_per_sym = (size_t)(nfft + cplen);
     Value out = Value::matrix(out_per_sym * Nsym, 1, ValueType::COMPLEX, mr);
@@ -163,7 +163,7 @@ Value ofdmmod(const Value &in, int nfft, int cplen,
             else
                 cd[i] = Cd(in.elemAsDouble(s * (size_t)nfft + (size_t)i), 0.0);
         }
-        Value tx = ::numkit::signal::ifft(col, -1, 1, mr);
+        Value tx = ::nk::signal::ifft(col, -1, 1, mr);
 
         Cd *txd = nullptr;
         std::vector<Cd> tmp;
@@ -190,7 +190,7 @@ Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
 {
     if (nfft <= 0 || cplen < 0)
         throw Error("ofdmdemod: bad nfft / cplen", 0, 0, "ofdmdemod", "",
-                    "numkit:ofdmdemod:badparam");
+                    "nk:ofdmdemod:badparam");
     if (symoffset < 0)         symoffset = cplen;
     if (symoffset > cplen)     symoffset = cplen;
 
@@ -198,7 +198,7 @@ Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
     const size_t Nsamps = in.numel();
     if (Nsamps % out_per_sym != 0)
         throw Error("ofdmdemod: input length must be a multiple of (nfft + cplen)",
-                    0, 0, "ofdmdemod", "", "numkit:ofdmdemod:size");
+                    0, 0, "ofdmdemod", "", "nk:ofdmdemod:size");
     const size_t Nsym = Nsamps / out_per_sym;
 
     Value out = Value::matrix((size_t)nfft, Nsym, ValueType::COMPLEX, mr);
@@ -213,7 +213,7 @@ Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
             if (in.type() == ValueType::COMPLEX) cd[i] = in.complexData()[src];
             else                                  cd[i] = Cd(in.elemAsDouble(src), 0.0);
         }
-        Value rx = ::numkit::signal::fft(col, -1, 1, mr);
+        Value rx = ::nk::signal::fft(col, -1, 1, mr);
         // Pack into the output column.
         const Cd *rxd = rx.complexData();
         for (int i = 0; i < nfft; ++i)
@@ -222,4 +222,4 @@ Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

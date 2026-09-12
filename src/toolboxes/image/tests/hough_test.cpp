@@ -3,10 +3,10 @@
 // Regression guard for hough + houghpeaks — Standard Hough Transform
 // for line detection. Bit-exact MATLAB R2025b (tol = 0).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class HoughTest : public ::testing::Test
 {

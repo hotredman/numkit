@@ -3,4 +3,4 @@
  "expr": "mse = crossval(predfun, X, Y); n_folds = numel(mse); m_shape = double(size(mse, 1) == 10 && size(mse, 2) == 1);",
  "iters": 5, "tol": 0,
  "fingerprint": ["n_folds", "m_shape"],
- "comment": "Sig: vals = crossval(predfun, X, Y[, 'kfold', K]). K-fold cross-validation. Default K=10. NOT bit-identical with MATLAB (fold splitting differs -- numkit uses contiguous blocks, MATLAB defaults to random). Shape verified."}
+ "comment": "Sig: vals = crossval(predfun, X, Y[, 'kfold', K]). K-fold cross-validation. Default K=10. NOT bit-identical with MATLAB (fold splitting differs -- nk uses contiguous blocks, MATLAB defaults to random). Shape verified."}

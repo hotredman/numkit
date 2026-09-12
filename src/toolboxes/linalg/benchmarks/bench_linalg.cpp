@@ -2,13 +2,13 @@
 //
 // Linear algebra benchmark suite for lu, qr, chol, mldivide, eig, svd.
 
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/linalg/eig.hpp>
-#include <numkit/linalg/properties.hpp>
-#include <numkit/linalg/solvers.hpp>
-#include <numkit/ops/blas.hpp>
-#include <numkit/ops/la_solve.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/linalg/eig.hpp>
+#include <nk/linalg/properties.hpp>
+#include <nk/linalg/solvers.hpp>
+#include <nk/ops/blas.hpp>
+#include <nk/ops/la_solve.hpp>
+#include <nk/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -17,8 +17,8 @@
 
 namespace {
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 Value makeRealMatrix(size_t n, uint32_t seed) {
     std::mt19937 rng(seed);
@@ -79,7 +79,7 @@ static void BM_Linalg_Gemm_Real(benchmark::State &state) {
     const double *bd = B.doubleData();
     double *cd = C.doubleDataMut();
     for (auto _ : state) {
-        ::numkit::ops::gemm(::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
+        ::nk::ops::gemm(::nk::ops::MatrixTranspose::NoTrans, ::nk::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
         benchmark::DoNotOptimize(C);
     }
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(double)));
@@ -98,7 +98,7 @@ static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
     const std::complex<double> *bd = B.complexData();
     std::complex<double> *cd = C.complexDataMut();
     for (auto _ : state) {
-        ::numkit::ops::gemm(::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixTranspose::NoTrans, n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
+        ::nk::ops::gemm(::nk::ops::MatrixTranspose::NoTrans, ::nk::ops::MatrixTranspose::NoTrans, n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
         benchmark::DoNotOptimize(C);
     }
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(std::complex<double>)));
@@ -120,8 +120,8 @@ static void BM_Linalg_Trsm_Complex(benchmark::State &state) {
     // Not strictly necessary for benchmarking time, but good practice.
     
     for (auto _ : state) {
-        ::numkit::ops::trsm(::numkit::ops::MatrixSide::Left, ::numkit::ops::MatrixUplo::Lower, 
-                            ::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixDiag::Unit,
+        ::nk::ops::trsm(::nk::ops::MatrixSide::Left, ::nk::ops::MatrixUplo::Lower, 
+                            ::nk::ops::MatrixTranspose::NoTrans, ::nk::ops::MatrixDiag::Unit,
                             n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n);
         benchmark::DoNotOptimize(B);
     }
@@ -137,7 +137,7 @@ static void BM_Linalg_LU_Real(benchmark::State &state) {
         state.PauseTiming();
         std::memcpy(A.doubleDataMut(), A_orig.doubleData(), n * n * sizeof(double));
         state.ResumeTiming();
-        ::numkit::ops::lu_factor_inplace(A.doubleDataMut(), n, piv.data(), n, n);
+        ::nk::ops::lu_factor_inplace(A.doubleDataMut(), n, piv.data(), n, n);
         benchmark::DoNotOptimize(A);
     }
 }
@@ -152,7 +152,7 @@ static void BM_Linalg_LU_Complex(benchmark::State &state) {
         state.PauseTiming();
         std::memcpy(A.complexDataMut(), A_orig.complexData(), n * n * sizeof(std::complex<double>));
         state.ResumeTiming();
-        ::numkit::ops::lu_factor_inplace(A.complexDataMut(), n, piv.data(), n, n);
+        ::nk::ops::lu_factor_inplace(A.complexDataMut(), n, piv.data(), n, n);
         benchmark::DoNotOptimize(A);
     }
 }

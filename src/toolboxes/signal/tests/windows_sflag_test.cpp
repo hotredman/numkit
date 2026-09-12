@@ -4,11 +4,11 @@
 // accept 'double'/'single' typeName.
 //.windows.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WindowSflagTest : public ::testing::Test
 {
@@ -68,32 +68,32 @@ TEST_F(WindowSflagTest, ExplicitSymmetricMatchesDefault)
 
 TEST_F(WindowSflagTest, BartlettRejectsPeriodic)
 {
-    EXPECT_THROW(eval("bartlett(8, 'periodic');"), numkit::Error);
+    EXPECT_THROW(eval("bartlett(8, 'periodic');"), nk::Error);
 }
 
 TEST_F(WindowSflagTest, TriangRejectsPeriodic)
 {
-    EXPECT_THROW(eval("triang(8, 'periodic');"), numkit::Error);
+    EXPECT_THROW(eval("triang(8, 'periodic');"), nk::Error);
 }
 
 TEST_F(WindowSflagTest, ParzenwinRejectsPeriodic)
 {
-    EXPECT_THROW(eval("parzenwin(8, 'periodic');"), numkit::Error);
+    EXPECT_THROW(eval("parzenwin(8, 'periodic');"), nk::Error);
 }
 
 TEST_F(WindowSflagTest, BohmanwinRejectsPeriodic)
 {
-    EXPECT_THROW(eval("bohmanwin(8, 'periodic');"), numkit::Error);
+    EXPECT_THROW(eval("bohmanwin(8, 'periodic');"), nk::Error);
 }
 
 TEST_F(WindowSflagTest, BarthannwinRejectsPeriodic)
 {
-    EXPECT_THROW(eval("barthannwin(8, 'periodic');"), numkit::Error);
+    EXPECT_THROW(eval("barthannwin(8, 'periodic');"), nk::Error);
 }
 
 TEST_F(WindowSflagTest, RectwinRejectsPeriodic)
 {
-    EXPECT_THROW(eval("rectwin(8, 'periodic');"), numkit::Error);
+    EXPECT_THROW(eval("rectwin(8, 'periodic');"), nk::Error);
 }
 
 TEST_F(WindowSflagTest, BartlettAcceptsDoubleTypeName)

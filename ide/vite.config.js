@@ -19,8 +19,8 @@ export default defineConfig({
     // keeps them in memory at startup). Benefit: every uncaught crash in
     // the renderer console comes back with a real file:line trace,
     // which is non-negotiable now that 3-D figures + three.js are in the
-    // hot path. Set NUMKIT_BUILD_SOURCEMAP=0 to opt out for slim builds.
-    sourcemap: process.env.NUMKIT_BUILD_SOURCEMAP !== '0',
+    // hot path. Set NK_BUILD_SOURCEMAP=0 to opt out for slim builds.
+    sourcemap: process.env.NK_BUILD_SOURCEMAP !== '0',
   },
   server: {
     port: 3000,
@@ -37,6 +37,6 @@ export default defineConfig({
   // them natively).
   worker: { format: 'es' },
   optimizeDeps: {
-    exclude: ['numkit_ide'],
+    exclude: ['nk_ide'],
   },
 });

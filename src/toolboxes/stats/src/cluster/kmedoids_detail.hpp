@@ -3,14 +3,14 @@
 // kmedoids.cpp, external). Phase 2b compute/register split.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <memory_resource>
 #include <string>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace nk { namespace ops { class RngContext; } }
 
-namespace numkit::stats {
+namespace nk::stats {
 
 struct KmedoidsResult {
     Value idx;     // N×1
@@ -22,8 +22,8 @@ struct KmedoidsResult {
     int   best_rep;
 };
 
-KmedoidsResult kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
+KmedoidsResult kmedoids_full(::nk::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
                              const std::string &metric_name,
                              std::pmr::memory_resource *mr);
 
-} // namespace numkit::stats
+} // namespace nk::stats

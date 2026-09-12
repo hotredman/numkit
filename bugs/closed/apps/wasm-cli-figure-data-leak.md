@@ -15,15 +15,15 @@ Any plotting script run through the WASM CLI prints its full figure payload
 ## Repro (self-contained)
 
 ```bash
-numkit -e "x = 1:10; plot(x, x.^2); disp('done')"
-# numkit: __FIGURE_DATA__:{"id":1,...huge JSON...}
+nk -e "x = 1:10; plot(x, x.^2); disp('done')"
+# nk: __FIGURE_DATA__:{"id":1,...huge JSON...}
 #         done
 # MATLAB R2025b (-batch): done        (figures create no stdout)
 ```
 
 ## Root cause
 
-`stripIdeMarkers` in `packages/numkit/bin/cli.js` drops bare sentinel lines
+`stripIdeMarkers` in `packages/nk/bin/cli.js` drops bare sentinel lines
 only; `__FIGURE_DATA__:<json>` keeps its payload and is printed as ordinary
 output.
 
@@ -37,7 +37,7 @@ stderr or a file).
 ## References
 
 - **Guard:** deferred — CLI stdout cosmetic; extend
-  `packages/numkit/test/cli_fs_test.js` with a no-figure-payload-on-stdout
+  `packages/nk/test/cli_fs_test.js` with a no-figure-payload-on-stdout
   check when fixed (the existing JS-guard home).
 
 
@@ -45,6 +45,6 @@ stderr or a file).
 
 stripIdeMarkers now drops both bare sentinels and payload lines:
 /^__[A-Z_]+__($|:)/ — the `__FIGURE_DATA__:{json}` channel line included.
-Guard: the no-figure-payload check in packages/numkit/test/cli_fs_test.js
+Guard: the no-figure-payload check in packages/nk/test/cli_fs_test.js
 (live). Figures remain available to the IDE through the engine channel;
 a CLI consumer wanting them can request that channel explicitly.

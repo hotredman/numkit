@@ -7,7 +7,7 @@
 
 ## Symptom
 `fsolve(fun, x0)` — solve a system of nonlinear equations `F(x)=0` — is not
-registered. numkit ships the 1-D root finder `fzero` and the minimizers
+registered. nk ships the 1-D root finder `fzero` and the minimizers
 `fminsearch`/`fminbnd`/`fminunc`, but not the vector root solver. This is a
 very common need (steady states, implicit equations, multi-variable roots).
 
@@ -16,11 +16,11 @@ very common need (steady states, implicit equations, multi-variable roots).
 x = fsolve(@(x) x^2 - 2, 1);                       % MATLAB: 1.41421356 (√2)
 xv = fsolve(@(v) [v(1)^2+v(2)^2-1; v(1)-v(2)], [0.5 0.5]);
 % MATLAB: xv = [0.70710678  0.70710678]
-% numkit (each): Error — VM: undefined function 'fsolve'
+% nk (each): Error — VM: undefined function 'fsolve'
 ```
 
 ## Root cause
-Not implemented. The pieces exist (numkit has linear solves and the
+Not implemented. The pieces exist (nk has linear solves and the
 `fminunc`/`lsqnonlin`-style descent machinery is being built); `fsolve` is a
 trust-region / Levenberg-Marquardt or Newton iteration on `F` with a
 finite-difference (or supplied) Jacobian.

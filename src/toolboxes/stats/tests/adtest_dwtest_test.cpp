@@ -4,12 +4,12 @@
 //   adtest — Anderson-Darling normality (estimated parameters)
 //   dwtest — Durbin-Watson first-order autocorrelation
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class AdDwTest : public ::testing::Test
 {

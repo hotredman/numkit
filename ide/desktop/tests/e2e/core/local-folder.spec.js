@@ -32,8 +32,8 @@ test.describe('Local Folder mount', () => {
     // Pre-seed: persist a "mounted folder" + sidebar source so the
     // next reload triggers nativeFS.reconnect() against the fixture.
     await page.evaluate((root) => {
-      localStorage.setItem('numkit.ide.native.root', root);
-      localStorage.setItem('numkit.ide.sidebar.source', '"localFolder"');
+      localStorage.setItem('nk.ide.native.root', root);
+      localStorage.setItem('nk.ide.sidebar.source', '"localFolder"');
     }, FIXTURE_ROOT);
     await page.reload();
     await ide.waitForReady();

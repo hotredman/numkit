@@ -22,7 +22,7 @@ x{end+1, 1} = 42;
 x{end+1, 1} = 'hi';
 disp(x{1,1})
 disp(class(x{2,1}))
-% numkit:  (empty) ... class(x{1,1}) -> 'empty' / numel(x) == 2 but x{1,1} is []
+% nk:  (empty) ... class(x{1,1}) -> 'empty' / numel(x) == 2 but x{1,1} is []
 % MATLAB R2025b: 42 / char
 ```
 

@@ -13,7 +13,7 @@ an empty matrix, so the assignment target never bound:
 ```matlab
 clear;
 a = [zeros(0,1); zeros(0,1)];
-% numkit (pre-fix): "Undefined function or variable 'a'" on ANY later use
+% nk (pre-fix): "Undefined function or variable 'a'" on ANY later use
 % MATLAB R2025b:  a is 0x1 double
 ```
 

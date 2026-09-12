@@ -3,14 +3,14 @@
 // Savitzky-Golay smoothing filter — sgolay() projection matrix and
 // sgolayfilt() applied to vectors.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class SgolayTest : public ::testing::Test
 {

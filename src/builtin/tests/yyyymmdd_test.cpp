@@ -3,14 +3,14 @@
 // Regression guard for yyyymmdd() — packed integer date
 // Y*10000 + M*100 + D from a serial date number.
 //
-// EXTENSION vs MATLAB: numkit accepts serial date numbers directly
+// EXTENSION vs MATLAB: nk accepts serial date numbers directly
 // (MATLAB R2025b requires datetime). Equivalent MATLAB call:
 //   yyyymmdd(datetime(d, 'ConvertFrom', 'datenum'))
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class YyyymmddTest : public ::testing::Test
 {

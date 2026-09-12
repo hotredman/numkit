@@ -7,13 +7,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/modulation/generic_qam.hpp>
+#include <nk/comm/modulation/generic_qam.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void genqammod_reg(Span<const Value> args, size_t /*nargout*/,
@@ -21,12 +21,12 @@ void genqammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("genqammod: requires (x, constellation)",
-                    0, 0, "genqammod", "", "numkit:genqammod:nargin");
+                    0, 0, "genqammod", "", "nk:genqammod:nargin");
     // Bit-input mode (name-value 'InputType','bit') -> deferred.
     if (args.size() > 2)
         throw Error("genqammod: name-value options not yet supported "
                     "(bit-input mode deferred)",
-                    0, 0, "genqammod", "", "numkit:genqammod:NotSupported");
+                    0, 0, "genqammod", "", "nk:genqammod:NotSupported");
     outs[0] = genqammod(args[0], args[1], ctx.engine->resource());
 }
 
@@ -35,13 +35,13 @@ void genqamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("genqamdemod: requires (y, constellation)",
-                    0, 0, "genqamdemod", "", "numkit:genqamdemod:nargin");
+                    0, 0, "genqamdemod", "", "nk:genqamdemod:nargin");
     if (args.size() > 2)
         throw Error("genqamdemod: name-value options not yet supported "
                     "(bit-output mode deferred)",
-                    0, 0, "genqamdemod", "", "numkit:genqamdemod:NotSupported");
+                    0, 0, "genqamdemod", "", "nk:genqamdemod:NotSupported");
     outs[0] = genqamdemod(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::comm
+} // namespace nk::comm

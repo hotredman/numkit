@@ -1,7 +1,7 @@
 // src/ast.cpp
-#include <numkit/core/ast.hpp>
+#include <nk/core/ast.hpp>
 
-namespace numkit {
+namespace nk {
 
 // ============================================================
 // Фабрики узлов
@@ -72,4 +72,4 @@ std::string tryBuildQualifiedName(const ASTNode *node, const ASTNode **rootIdent
     return out;
 }
 
-} // namespace numkit
+} // namespace nk

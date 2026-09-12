@@ -202,7 +202,7 @@ TEST_P(SosTest, Tf2sosZeroLeadingAThrows)
 // DEEP-PROBE 2026-05-31: SOS sections are ordered by MATLAB's default 'up'
 // rule — ASCENDING pole radius (poles nearest the origin first, nearest the
 // unit circle last), with the overall gain folded into the first (origin-
-// nearest) section. numkit previously emitted them in reversed order.
+// nearest) section. nk previously emitted them in reversed order.
 TEST_P(SosTest, Zp2sosComplexPoleSectionOrderAscending)
 {
     // Poles 0.2±0.3i (radius 0.361) and 0.5±0.5i (radius 0.707).

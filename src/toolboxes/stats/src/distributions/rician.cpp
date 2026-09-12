@@ -1,13 +1,13 @@
 // toolboxes/stats/src/distributions/rician.cpp
 
-#include <numkit/stats/distributions/rician.hpp>
+#include <nk/stats/distributions/rician.hpp>
 
-#include <numkit/builtin/specfun.hpp>   // besseli
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/comm/channel/channel.hpp>           // marcumq
+#include <nk/builtin/specfun.hpp>   // besseli
+#include <nk/builtin/datafun.hpp>
+#include <nk/comm/channel/channel.hpp>           // marcumq
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -22,7 +22,7 @@
 
 #include "rician_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value ricepdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr)
@@ -81,7 +81,7 @@ Value riceinv(const Value &p, double s, double sigma, std::pmr::memory_resource 
     }, mr);
 }
 
-Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value ricernd(::nk::ops::RngContext &rng, double s, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -120,4 +120,4 @@ std::tuple<double, double> ricestat(double s, double sigma, std::pmr::memory_res
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

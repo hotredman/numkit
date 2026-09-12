@@ -3,13 +3,13 @@
 // Unit tests for gsvd (generalized SVD).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/gsvd.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/gsvd.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(GsvdTest, GsvdValuesMatlabRepro) {
     // A = [1 2; 3 4], B = [1 0; 0 1]

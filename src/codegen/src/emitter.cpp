@@ -1,8 +1,8 @@
 // codegen/src/emitter.cpp — see emitter.hpp.
 
-#include <numkit/codegen/emitter.hpp>
+#include <nk/codegen/emitter.hpp>
 
-#include <numkit/codegen/indexing.hpp>
+#include <nk/codegen/indexing.hpp>
 
 #include <algorithm>
 #include <charconv>
@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 // ── scalar dtype / literal helpers (3a) ───────────────────────────────
 std::string cppScalarType(ValueType dtype)
@@ -807,7 +807,7 @@ private:
     // call (nk_rt::bridge_scalar) instead of throwing.
     bool                                        bridge_ = false;
     // Ops-kernel lowering: when true, a heavy array op with a matching ops
-    // kernel (matmul, …) emits a numkit::ops:: call instead of an inline loop.
+    // kernel (matmul, …) emits a nk::ops:: call instead of an inline loop.
     bool                                        opsKernels_ = false;
 };
 
@@ -827,12 +827,12 @@ const char *unaryMathStd(const std::string &name)
         // total-on-ℝ, real-only (transfer refuses complex) — see
         // realOnlyMathUnaryTransfer
         {"asinh", "asinh"}, {"erf", "erf"}, {"erfc", "erfc"}, {"expm1", "expm1"},
-        {"gammaln", "lgamma"}};  // numkit gammaln(x) == std::lgamma(x) (bit-identical)
+        {"gammaln", "lgamma"}};  // nk gammaln(x) == std::lgamma(x) (bit-identical)
     const auto it = kMap.find(name);
     return it == kMap.end() ? nullptr : it->second;
 }
 
-// MATLAB unary-math name -> the numkit::ops:: SIMD transcendental facade entry
+// MATLAB unary-math name -> the nk::ops:: SIMD transcendental facade entry
 // (kernels.hpp), for the opt-in ops-kernel tier. Restricted to the real-total
 // transcendentals fusedTransAffine handles (no complex-domain decline) that the
 // codegen also lowers inline — so routing here is a faithful, faster swap
@@ -856,7 +856,7 @@ const char *binaryMathStd(const std::string &name)
 {
     static const std::unordered_map<std::string, const char *> kMap = {
         {"atan2", "atan2"}, {"hypot", "hypot"},
-        {"rem", "fmod"},   // numkit rem(a,b) == std::fmod(a,b) (bit-identical)
+        {"rem", "fmod"},   // nk rem(a,b) == std::fmod(a,b) (bit-identical)
         // MATLAB's 2-arg max/min ignore NaN (the result is the non-NaN operand), which is
         // bit-identical to std::fmax/std::fmin. The 1-arg reduction max(x)/min(x) is a
         // different arity (handled at the statement level), so it never reaches this 2-arg
@@ -1416,7 +1416,7 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
         return adt == ValueType::COMPLEX ? ("std::conj(" + arg + ")") : ("(" + arg + ")");  // conj
     }
 
-    // deg2rad / rad2deg: a real scalar scaling. No std:: fn -> emit numkit's exact
+    // deg2rad / rad2deg: a real scalar scaling. No std:: fn -> emit nk's exact
     // constant (misc.cpp: x * k, k computed from these literals as pi/180 or 180/pi) so
     // it is bit-identical to the interpreter. Typed scalar-only (realScalarMathUnary-
     // Transfer); an array / complex arg is Dynamic -> bridged.
@@ -1793,7 +1793,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
             line("const std::size_t _nk_nA = (" + arrayNumel(ai) + ");");
             line("const std::size_t _nk_nB = (" + arrayNumel(b) + ");");
             line("if (_nk_nA != _nk_nB)");
-            line("    throw std::runtime_error(\"numkit: A(:) assignment element-count mismatch\");");
+            line("    throw std::runtime_error(\"nk: A(:) assignment element-count mismatch\");");
             open("for (std::size_t _nk_i = 0; _nk_i < _nk_nA; ++_nk_i)");
             line(ptr + "[_nk_i] = " + b.dataExpr + "[_nk_i];");
             close();
@@ -1821,7 +1821,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
                 for (const auto &s : srcArrays) {
                     line("if ((" + arrayNumel(arrays_.at(s)) + ") != _nk_nA)");
                     line("    throw std::runtime_error("
-                         "\"numkit: A(:) = expr element-count mismatch\");");
+                         "\"nk: A(:) = expr element-count mismatch\");");
                 }
                 elementCtx_ = "_nk_i";  // whole arrays in the expr -> arr[_nk_i]
                 const std::string e = emitExpr(rhs);
@@ -1865,9 +1865,9 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         ++indent_;
         line("const std::ptrdiff_t _nk_j = static_cast<std::ptrdiff_t>(" + j + ");");
         line("if (_nk_j < 1 || _nk_j > static_cast<std::ptrdiff_t>(" + Acols + "))");
-        line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
+        line("    throw std::out_of_range(\"nk: column index out of bounds\");");
         line("if (" + col.lenVar + " != " + Arows + ")");
-        line("    throw std::out_of_range(\"numkit: column assignment length mismatch\");");
+        line("    throw std::out_of_range(\"nk: column assignment length mismatch\");");
         line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j - 1) * " + Arows + ";");
         open("for (std::size_t _nk_i = 0; _nk_i < " + Arows + "; ++_nk_i)");
         line(ptr + "[_nk_off + _nk_i] = " + col.dataExpr + "[_nk_i];");
@@ -1904,9 +1904,9 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         ++indent_;
         line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
         line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + Arows + "))");
-        line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
+        line("    throw std::out_of_range(\"nk: row index out of bounds\");");
         line("if (" + row.lenVar + " != " + Acols + ")");
-        line("    throw std::out_of_range(\"numkit: row assignment length mismatch\");");
+        line("    throw std::out_of_range(\"nk: row assignment length mismatch\");");
         open("for (std::size_t _nk_j = 0; _nk_j < " + Acols + "; ++_nk_j)");
         line(ptr + "[static_cast<std::size_t>(_nk_i0) + _nk_j * " + Arows + "] = "
              + row.dataExpr + "[_nk_j];");
@@ -1940,7 +1940,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line(cppScalarType(ai.dtype) + " _nk_fv = " + emitExpr(rhs) + ";");
         line("const std::ptrdiff_t _nk_j = static_cast<std::ptrdiff_t>(" + j + ");");
         line("if (_nk_j < 1 || _nk_j > static_cast<std::ptrdiff_t>(" + Acols + "))");
-        line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
+        line("    throw std::out_of_range(\"nk: column index out of bounds\");");
         line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j - 1) * " + Arows + ";");
         open("for (std::size_t _nk_i = 0; _nk_i < " + Arows + "; ++_nk_i)");
         line(ptr + "[_nk_off + _nk_i] = _nk_fv;");
@@ -1972,7 +1972,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line(cppScalarType(ai.dtype) + " _nk_fv = " + emitExpr(rhs) + ";");
         line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
         line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + Arows + "))");
-        line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
+        line("    throw std::out_of_range(\"nk: row index out of bounds\");");
         open("for (std::size_t _nk_j = 0; _nk_j < " + Acols + "; ++_nk_j)");
         line(ptr + "[static_cast<std::size_t>(_nk_i0) + _nk_j * " + Arows + "] = _nk_fv;");
         close();
@@ -2009,10 +2009,10 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line("const std::size_t _nk_m = " + m + ";");
         line("const std::size_t _nk_n = " + n + ";");
         line("if (" + dimExpr(M, 0) + " != _nk_m || " + dimExpr(M, 1) + " != _nk_n)");
-        line("    throw std::out_of_range(\"numkit: page-slice assignment size mismatch\");");
+        line("    throw std::out_of_range(\"nk: page-slice assignment size mismatch\");");
         line("const std::ptrdiff_t _nk_k = static_cast<std::ptrdiff_t>(" + k + ");");
         line("if (_nk_k < 1 || _nk_k > static_cast<std::ptrdiff_t>(" + p + "))");
-        line("    throw std::out_of_range(\"numkit: page index out of bounds\");");
+        line("    throw std::out_of_range(\"nk: page index out of bounds\");");
         line("const std::size_t _nk_pg = _nk_m * _nk_n;");
         line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k - 1) * _nk_pg;");
         open("for (std::size_t _nk_i = 0; _nk_i < _nk_pg; ++_nk_i)");
@@ -2053,10 +2053,10 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line("const std::ptrdiff_t _nk_j2 = static_cast<std::ptrdiff_t>(" + j2 + ");");
         line("if (_nk_j1 < 1 || _nk_j2 > static_cast<std::ptrdiff_t>(" + cols
              + ") || _nk_j2 < _nk_j1)");
-        line("    throw std::out_of_range(\"numkit: column range out of bounds\");");
+        line("    throw std::out_of_range(\"nk: column range out of bounds\");");
         line("const std::size_t _nk_nc = static_cast<std::size_t>(_nk_j2 - _nk_j1 + 1);");
         line("if ((" + dimExpr(B, 0) + " * " + dimExpr(B, 1) + ") != _nk_rows * _nk_nc)");
-        line("    throw std::out_of_range(\"numkit: column-range assignment size mismatch\");");
+        line("    throw std::out_of_range(\"nk: column-range assignment size mismatch\");");
         line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j1 - 1) * _nk_rows;");
         open("for (std::size_t _nk_i = 0; _nk_i < _nk_rows * _nk_nc; ++_nk_i)");
         line(ptr + "[_nk_off + _nk_i] = " + B.dataExpr + "[_nk_i];");
@@ -2096,10 +2096,10 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line("const std::ptrdiff_t _nk_i1 = static_cast<std::ptrdiff_t>(" + i1 + ");");
         line("const std::ptrdiff_t _nk_i2 = static_cast<std::ptrdiff_t>(" + i2 + ");");
         line("if (_nk_i1 < 1 || _nk_i2 > static_cast<std::ptrdiff_t>(_nk_rows) || _nk_i2 < _nk_i1)");
-        line("    throw std::out_of_range(\"numkit: row range out of bounds\");");
+        line("    throw std::out_of_range(\"nk: row range out of bounds\");");
         line("const std::size_t _nk_nr = static_cast<std::size_t>(_nk_i2 - _nk_i1 + 1);");
         line("if ((" + dimExpr(B, 0) + " * " + dimExpr(B, 1) + ") != _nk_nr * _nk_cols)");
-        line("    throw std::out_of_range(\"numkit: row-range assignment size mismatch\");");
+        line("    throw std::out_of_range(\"nk: row-range assignment size mismatch\");");
         line("const std::size_t _nk_r0 = static_cast<std::size_t>(_nk_i1 - 1);");
         open("for (std::size_t _nk_j = 0; _nk_j < _nk_cols; ++_nk_j)");
         open("for (std::size_t _nk_r = 0; _nk_r < _nk_nr; ++_nk_r)");
@@ -2148,13 +2148,13 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line("const std::ptrdiff_t _nk_j1 = static_cast<std::ptrdiff_t>(" + j1 + ");");
         line("const std::ptrdiff_t _nk_j2 = static_cast<std::ptrdiff_t>(" + j2 + ");");
         line("if (_nk_i1 < 1 || _nk_i2 > static_cast<std::ptrdiff_t>(_nk_rows) || _nk_i2 < _nk_i1)");
-        line("    throw std::out_of_range(\"numkit: row range out of bounds\");");
+        line("    throw std::out_of_range(\"nk: row range out of bounds\");");
         line("if (_nk_j1 < 1 || _nk_j2 > static_cast<std::ptrdiff_t>(_nk_cols) || _nk_j2 < _nk_j1)");
-        line("    throw std::out_of_range(\"numkit: column range out of bounds\");");
+        line("    throw std::out_of_range(\"nk: column range out of bounds\");");
         line("const std::size_t _nk_nr = static_cast<std::size_t>(_nk_i2 - _nk_i1 + 1);");
         line("const std::size_t _nk_nc = static_cast<std::size_t>(_nk_j2 - _nk_j1 + 1);");
         line("if ((" + dimExpr(B, 0) + " * " + dimExpr(B, 1) + ") != _nk_nr * _nk_nc)");
-        line("    throw std::out_of_range(\"numkit: block-range assignment size mismatch\");");
+        line("    throw std::out_of_range(\"nk: block-range assignment size mismatch\");");
         line("const std::size_t _nk_r0 = static_cast<std::size_t>(_nk_i1 - 1);");
         line("const std::size_t _nk_c0 = static_cast<std::size_t>(_nk_j1 - 1);");
         open("for (std::size_t _nk_c = 0; _nk_c < _nk_nc; ++_nk_c)");
@@ -2212,10 +2212,10 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
             line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
             line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + lastDim
                  + ") || _nk_k2 < _nk_k1)");
-            line("    throw std::out_of_range(\"numkit: range out of bounds\");");
+            line("    throw std::out_of_range(\"nk: range out of bounds\");");
             line("const std::size_t _nk_nb = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
             line("if ((" + bNumel + ") != _nk_slab * _nk_nb)");
-            line("    throw std::out_of_range(\"numkit: range assignment size mismatch\");");
+            line("    throw std::out_of_range(\"nk: range assignment size mismatch\");");
             line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_slab;");
             open("for (std::size_t _nk_i = 0; _nk_i < _nk_slab * _nk_nb; ++_nk_i)");
             line(ptr + "[_nk_off + _nk_i] = " + B.dataExpr + "[_nk_i];");
@@ -2278,7 +2278,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
                 endStack_.pop_back();
                 line("{ const std::ptrdiff_t _nk_s = static_cast<std::ptrdiff_t>(" + sk + ") - 1;");
                 line("  if (_nk_s < 0 || _nk_s >= static_cast<std::ptrdiff_t>(" + dimExpr(ai, k)
-                     + ")) throw std::out_of_range(\"numkit: slice index out of bounds\");");
+                     + ")) throw std::out_of_range(\"nk: slice index out of bounds\");");
                 line("  _nk_base += static_cast<std::size_t>(_nk_s) * _nk_As" + std::to_string(k)
                      + "; }");
             }
@@ -2301,7 +2301,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
                 rNumel = R.lenVar;
             }
             line("if ((" + rNumel + ") != (" + numel + "))");
-            line("    throw std::out_of_range(\"numkit: slice assignment size mismatch\");");
+            line("    throw std::out_of_range(\"nk: slice assignment size mismatch\");");
             open("for (std::size_t _nk_o = 0; _nk_o < (" + numel + "); ++_nk_o)");
             line("std::size_t _nk_af = _nk_base;");
             for (std::size_t kk = 0; kk < keptRank; ++kk)
@@ -2459,7 +2459,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
             line("const double _nk_c = " + emitExpr(rhs) + ";");
         else {
             line("if (" + arrays_.at(rhs.strValue).lenVar + " != " + bi.lenVar + ")");
-            line("    throw std::out_of_range(\"numkit: scatter assignment length mismatch\");");
+            line("    throw std::out_of_range(\"nk: scatter assignment length mismatch\");");
         }
         const std::string rhsElem =
             rhsScalar ? std::string("_nk_c") : (arrays_.at(rhs.strValue).dataExpr + "[_nk_i]");
@@ -2467,7 +2467,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line("const double _nk_d = " + bi.dataExpr + "[_nk_i];");
         line("if (!(_nk_d >= 1.0 && _nk_d <= static_cast<double>(" + ai.lenVar
              + ") && _nk_d == std::floor(_nk_d)))");
-        line("    throw std::out_of_range(\"numkit: array index out of bounds\");");
+        line("    throw std::out_of_range(\"nk: array index out of bounds\");");
         line(ptr + "[static_cast<std::size_t>(_nk_d) - 1] = " + rhsElem + ";");
         close();
         --indent_;
@@ -2515,7 +2515,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line("const std::ptrdiff_t _nk_last = _nk_s0 + (_nk_cnt - 1) * _nk_st;");
         line("const std::ptrdiff_t _nk_len = static_cast<std::ptrdiff_t>(" + ai.lenVar + ");");
         line("if (_nk_s0 < 0 || _nk_s0 >= _nk_len || _nk_last < 0 || _nk_last >= _nk_len)");
-        line("    throw std::out_of_range(\"numkit: index out of bounds\");");
+        line("    throw std::out_of_range(\"nk: index out of bounds\");");
         close();
         if (rhsScalar) {
             line("const double _nk_v = " + emitExpr(rhs) + ";");
@@ -2525,7 +2525,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         } else {
             const ArrayInfo &ra = arrays_.at(rhs.strValue);
             line("if (static_cast<std::ptrdiff_t>(" + ra.lenVar + ") != _nk_cnt)");
-            line("    throw std::out_of_range(\"numkit: slice assignment length mismatch\");");
+            line("    throw std::out_of_range(\"nk: slice assignment length mismatch\");");
             open("for (std::ptrdiff_t _nk_k = 0; _nk_k < _nk_cnt; ++_nk_k)");
             line(ptr + "[static_cast<std::size_t>(_nk_s0 + _nk_k * _nk_st)] = " + ra.dataExpr
                  + "[static_cast<std::size_t>(_nk_k)];");
@@ -2965,7 +2965,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 ++indent_;
                 line("const std::ptrdiff_t _nk_j = static_cast<std::ptrdiff_t>(" + j + ");");
                 line("if (_nk_j < 1 || _nk_j > static_cast<std::ptrdiff_t>(" + Acols + "))");
-                line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: column index out of bounds\");");
                 line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j - 1) * "
                      + Arows + ";");
                 line(name + ".assign(" + A.dataExpr + " + _nk_off, " + A.dataExpr + " + _nk_off + "
@@ -3002,7 +3002,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 ++indent_;
                 line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
                 line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + Arows + "))");
-                line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: row index out of bounds\");");
                 line(name + ".assign(" + Acols + ", 0.0);");
                 open("for (std::size_t _nk_j = 0; _nk_j < " + Acols + "; ++_nk_j)");
                 line(name + "[_nk_j] = " + A.dataExpr + "[static_cast<std::size_t>(_nk_i0) + _nk_j * "
@@ -3141,7 +3141,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("{");
                 ++indent_;
                 line("if ((" + v.rowsVar + " * " + v.colsVar + ") != (" + xnumel + "))");
-                line("    throw std::out_of_range(\"numkit: reshape element count mismatch\");");
+                line("    throw std::out_of_range(\"nk: reshape element count mismatch\");");
                 line(name + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + (" + v.rowsVar + " * "
                      + v.colsVar + "));");
                 --indent_;
@@ -3181,7 +3181,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::size_t _nk_n = nk_rt::dim(" + emitExpr(*rhs.children[3]) + ");");
                 line("const std::size_t _nk_xn = (" + xnumel + ");");
                 line("if (_nk_m * _nk_n != _nk_xn)");
-                line("    throw std::out_of_range(\"numkit: reshape element count mismatch\");");
+                line("    throw std::out_of_range(\"nk: reshape element count mismatch\");");
                 line(M.ndDims[0] + " = _nk_m;");
                 line(M.ndDims[1] + " = _nk_n;");
                 line(name + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + _nk_xn);");
@@ -3227,7 +3227,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 for (std::size_t k = 1; k < N; ++k) prod += " * _nk_d" + std::to_string(k);
                 line("const std::size_t _nk_xn = (" + xnumel + ");");
                 line("if ((" + prod + ") != _nk_xn)");
-                line("    throw std::out_of_range(\"numkit: reshape element count mismatch\");");
+                line("    throw std::out_of_range(\"nk: reshape element count mismatch\");");
                 for (std::size_t k = 0; k < N; ++k)
                     line(M.ndDims[k] + " = _nk_d" + std::to_string(k) + ";");
                 line(name + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + _nk_xn);");
@@ -3583,7 +3583,7 @@ void Emitter::emitAssign(const ASTNode &s)
             line("const std::ptrdiff_t _nk_last = _nk_s0 + (_nk_cnt - 1) * _nk_st;");
             line("const std::ptrdiff_t _nk_len = static_cast<std::ptrdiff_t>(" + xa.lenVar + ");");
             line("if (_nk_s0 < 0 || _nk_s0 >= _nk_len || _nk_last < 0 || _nk_last >= _nk_len)");
-            line("    throw std::out_of_range(\"numkit: index out of bounds\");");
+            line("    throw std::out_of_range(\"nk: index out of bounds\");");
             close();
             line(name + ".assign(static_cast<std::size_t>(_nk_cnt), 0.0);");
             open("for (std::ptrdiff_t _nk_k = 0; _nk_k < _nk_cnt; ++_nk_k)");
@@ -3598,7 +3598,7 @@ void Emitter::emitAssign(const ASTNode &s)
         // rank is compile-time (2 for a scalar/vector/matrix; the array's rank
         // for N-D). Native + self-contained — the first array-RESULT-from-a-
         // builtin producer beyond zeros/ones. BEFORE the bridged path, so it
-        // lowers natively instead of boxing into numkit::size.
+        // lowers natively instead of boxing into nk::size.
         if (isArrayVar(name) && !arrays_.at(name).is2D && !arrays_.at(name).isND
             && rhs.type == NodeType::CALL && rhs.children.size() == 2
             && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "size"
@@ -3695,7 +3695,7 @@ void Emitter::emitAssign(const ASTNode &s)
         // Matrix product: C = A * B (both 2-D). C is m x n (A is m x k, B is
         // k x n), C(i,j) = sum_l A(i,l)*B(l,j), column-major. The shared dim
         // must agree (runtime guard, MATLAB-like). With ops kernels enabled +
-        // a DOUBLE result, lower to numkit::ops::matmulDouble (the SIMD kernel
+        // a DOUBLE result, lower to nk::ops::matmulDouble (the SIMD kernel
         // ops owns); otherwise an inline triple loop (the deletable fallback +
         // the complex path — no complex ops kernel yet). (Scalar*X / X*scalar
         // are elementwise scaling, handled above; matrix*vector needs a 1-D
@@ -3727,7 +3727,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 const std::string Brows = dimExpr(B, 0), Bn = dimExpr(B, 1);  // B is k x n
                 const bool        dstRuntime = dst.isND && dst.ndDims.size() == 2;
                 line("if (" + Ak + " != " + Brows
-                     + ") throw std::out_of_range(\"numkit: inner matrix dimensions must agree\");");
+                     + ") throw std::out_of_range(\"nk: inner matrix dimensions must agree\");");
                 if (dstRuntime) {
                     line(dst.ndDims[0] + " = " + Arows + ";");  // C rows = A rows (m)
                     line(dst.ndDims[1] + " = " + Bn + ";");     // C cols = B cols (n)
@@ -3743,7 +3743,7 @@ void Emitter::emitAssign(const ASTNode &s)
                         dst.dtype == ValueType::DOUBLE ? "matmulDouble" : "matmulComplex";
                     if (dst.isLocal)
                         line(name + ".resize(" + Crows + " * " + Ccols + ");");
-                    line("numkit::ops::" + std::string(fn) + "(" + A.dataExpr + ", "
+                    line("nk::ops::" + std::string(fn) + "(" + A.dataExpr + ", "
                          + B.dataExpr + ", " + dst.dataExpr + ", " + Crows + ", " + Ccols
                          + ", " + Ak + ");");
                 } else {
@@ -3798,7 +3798,7 @@ void Emitter::emitAssign(const ASTNode &s)
             if (lMat && rVec) {  // A * x -> column vector
                 const std::string Arows = dimExpr(L, 0), Acols = dimExpr(L, 1);
                 line("if (" + Acols + " != " + R.lenVar + ") throw std::out_of_range(\""
-                     "numkit: inner matrix dimensions must agree\");");
+                     "nk: inner matrix dimensions must agree\");");
                 if (dst.isLocal) line(name + ".resize(" + Arows + ");");
                 open("for (std::size_t _nk_i = 0; _nk_i < " + Arows + "; ++_nk_i)");
                 line(ty + " _nk_acc = " + zer + ";");
@@ -3811,7 +3811,7 @@ void Emitter::emitAssign(const ASTNode &s)
             } else if (lVec && rMat) {  // r * A -> row vector
                 const std::string Brows = dimExpr(R, 0), Bcols = dimExpr(R, 1);
                 line("if (" + L.lenVar + " != " + Brows + ") throw std::out_of_range(\""
-                     "numkit: inner matrix dimensions must agree\");");
+                     "nk: inner matrix dimensions must agree\");");
                 if (dst.isLocal) line(name + ".resize(" + Bcols + ");");
                 open("for (std::size_t _nk_j = 0; _nk_j < " + Bcols + "; ++_nk_j)");
                 line(ty + " _nk_acc = " + zer + ";");
@@ -3854,7 +3854,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line(name + ".assign(" + d0 + " * " + d1 + ", " + zeroLiteral(dst.dtype) + ");");
             } else {  // OUTPUT: caller-allocated + caller-passed dims; guard agreement
                 line("if (" + d0 + " != " + c.lenVar + " || " + d1 + " != " + r.lenVar
-                     + ") throw std::out_of_range(\"numkit: outer product output dimensions "
+                     + ") throw std::out_of_range(\"nk: outer product output dimensions "
                        "must agree\");");
             }
             open("for (std::size_t _nk_j = 0; _nk_j < " + d1 + "; ++_nk_j)");
@@ -3882,7 +3882,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 if (L.is2D || R.is2D || L.isND || R.isND)
                     unsupported("inner product over a non-vector operand");
                 line("if (" + L.lenVar + " != " + R.lenVar + ") throw std::out_of_range(\""
-                     "numkit: inner matrix dimensions must agree\");");
+                     "nk: inner matrix dimensions must agree\");");
                 line(cppScalarType(res.type.dtype) + " _nk_acc = "
                      + zeroLiteral(res.type.dtype) + ";");
                 open("for (std::size_t _nk_l = 0; _nk_l < " + L.lenVar + "; ++_nk_l)");
@@ -4259,7 +4259,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 && B.dtype == ValueType::DOUBLE && res.type.isConcrete()
                 && res.type.shape.isScalar()) {
                 line("if (" + A.lenVar + " != " + B.lenVar
-                     + ") throw std::out_of_range(\"numkit: dot inputs must be the same length\");");
+                     + ") throw std::out_of_range(\"nk: dot inputs must be the same length\");");
                 line("{");
                 ++indent_;
                 line("double _nk_acc = 0.0;");
@@ -5829,7 +5829,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::size_t _nk_br = " + dimExpr(B, 0) + ";");  // B rows
                 line("const std::size_t _nk_bc = " + dimExpr(B, 1) + ";");  // B cols
                 if (horz) {  // cat(2,..): A cols then B cols; rows must agree
-                    line("if (_nk_ar != _nk_br) throw std::out_of_range(\"numkit: cat dim-1 "
+                    line("if (_nk_ar != _nk_br) throw std::out_of_range(\"nk: cat dim-1 "
                          "sizes must agree\");");
                     line(M.ndDims[0] + " = _nk_ar;");
                     line(M.ndDims[1] + " = _nk_ac + _nk_bc;");
@@ -5841,7 +5841,7 @@ void Emitter::emitAssign(const ASTNode &s)
                     line(name + "[_nk_ar * _nk_ac + _nk_k] = " + B.dataExpr + "[_nk_k];");
                     close();
                 } else {  // cat(1,..): A rows then B rows interleaved per column; cols agree
-                    line("if (_nk_ac != _nk_bc) throw std::out_of_range(\"numkit: cat dim-2 "
+                    line("if (_nk_ac != _nk_bc) throw std::out_of_range(\"nk: cat dim-2 "
                          "sizes must agree\");");
                     line("const std::size_t _nk_tr = _nk_ar + _nk_br;");
                     line(M.ndDims[0] + " = _nk_tr;");
@@ -5902,7 +5902,7 @@ void Emitter::emitAssign(const ASTNode &s)
                     const ArrayInfo  &op = arrays_.at(rhs.children[2 + i]->strValue);
                     if (i > 0)
                         line("if (" + dimExpr(op, 0) + " != _nk_ar || " + dimExpr(op, 1)
-                             + " != _nk_ac) throw std::out_of_range(\"numkit: cat(3) page sizes "
+                             + " != _nk_ac) throw std::out_of_range(\"nk: cat(3) page sizes "
                                "must agree\");");
                     const std::string pi =
                         (op.isND && op.ndDims.size() == 3) ? dimExpr(op, 2) : std::string("1");
@@ -5973,7 +5973,7 @@ void Emitter::emitAssign(const ASTNode &s)
                     if (i > 0)
                         line("if (" + dimExpr(op, 0) + " != _nk_d0 || " + dimExpr(op, 1)
                              + " != _nk_d1 || " + dimExpr(op, 2)
-                             + " != _nk_d2) throw std::out_of_range(\"numkit: cat(4) leading dims "
+                             + " != _nk_d2) throw std::out_of_range(\"nk: cat(4) leading dims "
                                "must agree\");");
                     const std::string si =
                         op.ndDims.size() == 4 ? dimExpr(op, 3) : std::string("1");
@@ -6034,7 +6034,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::size_t _nk_n = " + n + ";");
                 line("const std::ptrdiff_t _nk_k = static_cast<std::ptrdiff_t>(" + k + ");");
                 line("if (_nk_k < 1 || _nk_k > static_cast<std::ptrdiff_t>(" + p + "))");
-                line("    throw std::out_of_range(\"numkit: page index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: page index out of bounds\");");
                 line("const std::size_t _nk_pg = _nk_m * _nk_n;");
                 line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k - 1) * _nk_pg;");
                 line(B.ndDims[0] + " = _nk_m;");
@@ -6079,7 +6079,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::ptrdiff_t _nk_j2 = static_cast<std::ptrdiff_t>(" + j2 + ");");
                 line("if (_nk_j1 < 1 || _nk_j2 > static_cast<std::ptrdiff_t>(" + cols
                      + ") || _nk_j2 < _nk_j1)");
-                line("    throw std::out_of_range(\"numkit: column range out of bounds\");");
+                line("    throw std::out_of_range(\"nk: column range out of bounds\");");
                 line("const std::size_t _nk_nc = static_cast<std::size_t>(_nk_j2 - _nk_j1 + 1);");
                 line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j1 - 1) * _nk_rows;");
                 line(B.ndDims[0] + " = _nk_rows;");
@@ -6126,7 +6126,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::ptrdiff_t _nk_i2 = static_cast<std::ptrdiff_t>(" + i2 + ");");
                 line("if (_nk_i1 < 1 || _nk_i2 > static_cast<std::ptrdiff_t>(_nk_rows) || _nk_i2 < "
                      "_nk_i1)");
-                line("    throw std::out_of_range(\"numkit: row range out of bounds\");");
+                line("    throw std::out_of_range(\"nk: row range out of bounds\");");
                 line("const std::size_t _nk_nr = static_cast<std::size_t>(_nk_i2 - _nk_i1 + 1);");
                 line("const std::size_t _nk_r0 = static_cast<std::size_t>(_nk_i1 - 1);");
                 line(B.ndDims[0] + " = _nk_nr;");
@@ -6184,10 +6184,10 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::ptrdiff_t _nk_j2 = static_cast<std::ptrdiff_t>(" + j2 + ");");
                 line("if (_nk_i1 < 1 || _nk_i2 > static_cast<std::ptrdiff_t>(_nk_rows) || _nk_i2 < "
                      "_nk_i1)");
-                line("    throw std::out_of_range(\"numkit: row range out of bounds\");");
+                line("    throw std::out_of_range(\"nk: row range out of bounds\");");
                 line("if (_nk_j1 < 1 || _nk_j2 > static_cast<std::ptrdiff_t>(_nk_cols) || _nk_j2 < "
                      "_nk_j1)");
-                line("    throw std::out_of_range(\"numkit: column range out of bounds\");");
+                line("    throw std::out_of_range(\"nk: column range out of bounds\");");
                 line("const std::size_t _nk_nr = static_cast<std::size_t>(_nk_i2 - _nk_i1 + 1);");
                 line("const std::size_t _nk_nc = static_cast<std::size_t>(_nk_j2 - _nk_j1 + 1);");
                 line("const std::size_t _nk_r0 = static_cast<std::size_t>(_nk_i1 - 1);");
@@ -6253,7 +6253,7 @@ void Emitter::emitAssign(const ASTNode &s)
                     line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
                     line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + lastDim
                          + ") || _nk_k2 < _nk_k1)");
-                    line("    throw std::out_of_range(\"numkit: range out of bounds\");");
+                    line("    throw std::out_of_range(\"nk: range out of bounds\");");
                     line("const std::size_t _nk_nb = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
                     line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_slab;");
                     for (std::size_t i = 0; i + 1 < r; ++i)
@@ -6300,7 +6300,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::size_t _nk_p = " + p + ";");
                 line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
                 line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(_nk_m))");
-                line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: row index out of bounds\");");
                 line(B.ndDims[0] + " = 1;");
                 line(B.ndDims[1] + " = _nk_n;");
                 line(B.ndDims[2] + " = _nk_p;");
@@ -6348,7 +6348,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::size_t _nk_p = " + p + ";");
                 line("const std::ptrdiff_t _nk_j0 = static_cast<std::ptrdiff_t>(" + j + ") - 1;");
                 line("if (_nk_j0 < 0 || _nk_j0 >= static_cast<std::ptrdiff_t>(_nk_n))");
-                line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: column index out of bounds\");");
                 line(B.ndDims[0] + " = _nk_m;");
                 line(B.ndDims[1] + " = 1;");
                 line(B.ndDims[2] + " = _nk_p;");
@@ -6402,7 +6402,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::ptrdiff_t _nk_j0 = static_cast<std::ptrdiff_t>(" + j + ") - 1;");
                 line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(_nk_m)"
                      " || _nk_j0 < 0 || _nk_j0 >= static_cast<std::ptrdiff_t>(_nk_n))");
-                line("    throw std::out_of_range(\"numkit: fiber index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: fiber index out of bounds\");");
                 line(B.ndDims[0] + " = 1;");
                 line(B.ndDims[1] + " = 1;");
                 line(B.ndDims[2] + " = _nk_p;");
@@ -6454,7 +6454,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::ptrdiff_t _nk_k0 = static_cast<std::ptrdiff_t>(" + k + ") - 1;");
                 line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(_nk_m)"
                      " || _nk_k0 < 0 || _nk_k0 >= static_cast<std::ptrdiff_t>(" + p + "))");
-                line("    throw std::out_of_range(\"numkit: slice index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: slice index out of bounds\");");
                 line(B.ndDims[0] + " = 1;");
                 line(B.ndDims[1] + " = _nk_n;");
                 line("const std::size_t _nk_b0 = static_cast<std::size_t>(_nk_i0)"
@@ -6504,7 +6504,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("const std::ptrdiff_t _nk_k0 = static_cast<std::ptrdiff_t>(" + k + ") - 1;");
                 line("if (_nk_j0 < 0 || _nk_j0 >= static_cast<std::ptrdiff_t>(" + n + ")"
                      " || _nk_k0 < 0 || _nk_k0 >= static_cast<std::ptrdiff_t>(" + p + "))");
-                line("    throw std::out_of_range(\"numkit: slice index out of bounds\");");
+                line("    throw std::out_of_range(\"nk: slice index out of bounds\");");
                 line(B.ndDims[0] + " = _nk_m;");
                 line(B.ndDims[1] + " = 1;");
                 line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j0) * _nk_m"
@@ -6577,7 +6577,7 @@ void Emitter::emitAssign(const ASTNode &s)
                     endStack_.pop_back();
                     line("{ const std::ptrdiff_t _nk_s = static_cast<std::ptrdiff_t>(" + sk + ") - 1;");
                     line("  if (_nk_s < 0 || _nk_s >= static_cast<std::ptrdiff_t>(" + dimExpr(A, k)
-                         + ")) throw std::out_of_range(\"numkit: slice index out of bounds\");");
+                         + ")) throw std::out_of_range(\"nk: slice index out of bounds\");");
                     line("  _nk_base += static_cast<std::size_t>(_nk_s) * _nk_As" + std::to_string(k)
                          + "; }");
                 }
@@ -7242,7 +7242,7 @@ void Emitter::emitAssign(const ASTNode &s)
                     }
                     if (!guard.empty())
                         line("if (" + guard
-                             + ") throw std::out_of_range(\"numkit: array dimensions must match\");");
+                             + ") throw std::out_of_range(\"nk: array dimensions must match\");");
                     if (ai.isLocal) line(name + ".resize(" + bound + ");");
                     // A runtime-dim N-D LOCAL result (an ndRuntimeLocal, e.g. a
                     // runtime-dim 2-D matrix produced by C = A + B): copy the reference
@@ -7285,12 +7285,12 @@ void Emitter::emitAssign(const ASTNode &s)
                         }
                     }
                     if (opsFn) {
-                        line("numkit::ops::" + std::string(opsFn) + "("
+                        line("nk::ops::" + std::string(opsFn) + "("
                              + arrays_.at(rhs.children[0]->strValue).dataExpr + ", "
                              + arrays_.at(rhs.children[1]->strValue).dataExpr + ", " + ai.dataExpr
                              + ", " + bound + ");");
                     } else if (opsMathFn) {
-                        line("numkit::ops::" + std::string(opsMathFn) + "("
+                        line("nk::ops::" + std::string(opsMathFn) + "("
                              + arrays_.at(rhs.children[1]->strValue).dataExpr + ", " + ai.dataExpr
                              + ", " + bound + ");");
                     } else {
@@ -7462,7 +7462,7 @@ void Emitter::emitAssign(const ASTNode &s)
             line("const double _nk_d = " + bi.dataExpr + "[_nk_i];");
             line("if (!(_nk_d >= 1.0 && _nk_d <= static_cast<double>(" + bx.lenVar
                  + ") && _nk_d == std::floor(_nk_d)))");
-            line("    throw std::out_of_range(\"numkit: array index out of bounds\");");
+            line("    throw std::out_of_range(\"nk: array index out of bounds\");");
             line(name + "[_nk_i] = " + bx.dataExpr + "[static_cast<std::size_t>(_nk_d) - 1];");
             close();
             types_.set(name, {InferredType::concrete(bx.dtype, Shape::rowVector()),
@@ -7609,7 +7609,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 for (std::size_t e = 1; e < rhs.children[0]->children.size(); ++e) {
                     const ArrayInfo &op = arrays_.at(rhs.children[0]->children[e]->strValue);
                     line("if (" + dimExpr(op, 0) + " != " + rows
-                         + ") throw std::out_of_range(\"numkit: horzcat row dimensions must "
+                         + ") throw std::out_of_range(\"nk: horzcat row dimensions must "
                            "agree\");");
                 }
                 line(name + ".resize(" + rows + " * (" + totalCols + "));");
@@ -7746,7 +7746,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 for (std::size_t e = 1; e < rhs.children.size(); ++e) {
                     const ArrayInfo &op = arrays_.at(rhs.children[e]->children[0]->strValue);
                     line("if (" + dimExpr(op, 1) + " != _nk_nc) throw std::out_of_range(\""
-                         "numkit: vertcat column dimensions must agree\");");
+                         "nk: vertcat column dimensions must agree\");");
                 }
                 line(name + ".resize(_nk_tr * _nk_nc);");
                 line("std::size_t _nk_ro = 0;");
@@ -7824,7 +7824,7 @@ void Emitter::emitAssign(const ASTNode &s)
                         ++indent_;
                         line("const std::size_t _nk_br = " + dimExpr(b, 0) + ";");
                         line("const std::size_t _nk_bc = " + dimExpr(b, 1) + ";");
-                        line("if (_nk_br != _nk_rh) throw std::out_of_range(\"numkit: block row "
+                        line("if (_nk_br != _nk_rh) throw std::out_of_range(\"nk: block row "
                              "heights must agree\");");
                         open("for (std::size_t _nk_j = 0; _nk_j < _nk_bc; ++_nk_j)");
                         open("for (std::size_t _nk_i = 0; _nk_i < _nk_br; ++_nk_i)");
@@ -7836,7 +7836,7 @@ void Emitter::emitAssign(const ASTNode &s)
                         --indent_;
                         line("}");
                     }
-                    line("if (_nk_co != _nk_Q) throw std::out_of_range(\"numkit: block row widths "
+                    line("if (_nk_co != _nk_Q) throw std::out_of_range(\"nk: block row widths "
                          "must agree\");");
                     line("_nk_ro += _nk_rh;");
                     --indent_;
@@ -8047,7 +8047,7 @@ void Emitter::emitMultiAssign(const ASTNode &s)
     // axes folded (cols for a matrix, the trailing-dim product for N-D) -- so
     // [r,c]=size(rand(2,3,4)) gives r=2, c=12, matching MATLAB. Both targets
     // are real scalars. BEFORE the user-function path so it lowers natively
-    // instead of bridging into numkit::size. v1 is exactly this two-output
+    // instead of bridging into nk::size. v1 is exactly this two-output
     // idiom; any other nargout (or a user-shadowed `size`) falls through.
     if (rhs.type == NodeType::CALL && rhs.children.size() == 2
         && rhs.children[0]->type == NodeType::IDENTIFIER
@@ -8835,7 +8835,7 @@ void Emitter::emitSwitch(const ASTNode &s)
 
 void Emitter::emitTry(const ASTNode &s)
 {
-    // try/catch -> C++ `try { <body> } catch (...) { <handler> }`. A numkit runtime
+    // try/catch -> C++ `try { <body> } catch (...) { <handler> }`. A nk runtime
     // error surfaces as a C++ exception, so `catch (...)` catches it. The inference
     // marks try/catch-assigned vars Dynamic (a throw mid-try leaves them uncertain
     // — sound over-approximation), so the bodies ride the Dynamic tier (bridge).
@@ -8913,7 +8913,7 @@ void Emitter::emitStmt(const ASTNode &s)
 
 // The self-contained runtime prelude every emitted TU carries.
 const char *kPrelude =
-    "// Generated by numkit codegen (RawBuffer ABI). Do not edit.\n"
+    "// Generated by nk codegen (RawBuffer ABI). Do not edit.\n"
     "#include <algorithm>\n"
     "#include <cmath>\n"
     "#include <complex>\n"
@@ -8962,40 +8962,40 @@ const char *kPrelude =
     "}\n"
     "template <class T>\n"  // all index helpers check `< 1.0` BEFORE the cast: a
     "inline T index(const T* a, std::size_t len, double idx1) {\n"  // negative idx
-    "    if (idx1 < 1.0) throw std::out_of_range(\"numkit: index out of bounds\");\n"  // never UB-casts
+    "    if (idx1 < 1.0) throw std::out_of_range(\"nk: index out of bounds\");\n"  // never UB-casts
     "    const std::size_t i = static_cast<std::size_t>(idx1);\n"
-    "    if (i > len) throw std::out_of_range(\"numkit: index out of bounds\");\n"
+    "    if (i > len) throw std::out_of_range(\"nk: index out of bounds\");\n"
     "    return a[i - 1];\n"
     "}\n"
     "template <class T>\n"
     "inline void index_set(T* a, std::size_t len, double idx1, T v) {\n"
     "    if (idx1 < 1.0)\n"
-    "        throw std::out_of_range(\"numkit: index out of bounds (RawBuffer ABI cannot grow)\");\n"
+    "        throw std::out_of_range(\"nk: index out of bounds (RawBuffer ABI cannot grow)\");\n"
     "    const std::size_t i = static_cast<std::size_t>(idx1);\n"
     "    if (i > len)\n"
-    "        throw std::out_of_range(\"numkit: index out of bounds (RawBuffer ABI cannot grow)\");\n"
+    "        throw std::out_of_range(\"nk: index out of bounds (RawBuffer ABI cannot grow)\");\n"
     "    a[i - 1] = v;\n"
     "}\n"
     "template <class T>\n"  // a LOCAL owned vector GROWS on an out-of-range store, MATLAB
     "inline void index_set_grow(std::vector<T>& v, double idx1, T val) {\n"  // semantics:
     "    if (idx1 < 1.0)\n"  // x(i)=val with i past the end resizes, zero-filling the gap
-    "        throw std::out_of_range(\"numkit: index out of bounds\");\n"
+    "        throw std::out_of_range(\"nk: index out of bounds\");\n"
     "    const std::size_t i = static_cast<std::size_t>(idx1);\n"
     "    if (i > v.size()) v.resize(i, T{});\n"  // grow + zero-fill (T{} = 0 / 0+0i / false)
     "    v[i - 1] = val;\n"
     "}\n"
     "template <class T>\n"  // A(i,j) read, column-major; 2-D writes are a later step
     "inline T index2(const T* a, std::size_t rows, std::size_t cols, double i1, double j1) {\n"
-    "    if (i1 < 1.0 || j1 < 1.0) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    if (i1 < 1.0 || j1 < 1.0) throw std::out_of_range(\"nk: 2-D index out of bounds\");\n"
     "    const std::size_t i = static_cast<std::size_t>(i1), j = static_cast<std::size_t>(j1);\n"
-    "    if (i > rows || j > cols) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    if (i > rows || j > cols) throw std::out_of_range(\"nk: 2-D index out of bounds\");\n"
     "    return a[(j - 1) * rows + (i - 1)];\n"
     "}\n"
     "template <class T>\n"  // A(i,j) = v write, column-major (mutable 2-D: local/output)
     "inline void index2_set(T* a, std::size_t rows, std::size_t cols, double i1, double j1, T v) {\n"
-    "    if (i1 < 1.0 || j1 < 1.0) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    if (i1 < 1.0 || j1 < 1.0) throw std::out_of_range(\"nk: 2-D index out of bounds\");\n"
     "    const std::size_t i = static_cast<std::size_t>(i1), j = static_cast<std::size_t>(j1);\n"
-    "    if (i > rows || j > cols) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    if (i > rows || j > cols) throw std::out_of_range(\"nk: 2-D index out of bounds\");\n"
     "    a[(j - 1) * rows + (i - 1)] = v;\n"
     "}\n"
     "// N-D (rank>=3) column-major linear offset from 1-based subscripts + dims;\n"
@@ -9005,9 +9005,9 @@ const char *kPrelude =
     "    const std::size_t* d = dims.begin(); const double* s = subs.begin();\n"
     "    std::size_t off = 0, stride = 1;\n"
     "    for (std::size_t _nk_a = 0; _nk_a < dims.size(); ++_nk_a) {\n"
-    "        if (s[_nk_a] < 1.0) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
+    "        if (s[_nk_a] < 1.0) throw std::out_of_range(\"nk: N-D index out of bounds\");\n"
     "        const std::size_t ik = static_cast<std::size_t>(s[_nk_a]);\n"
-    "        if (ik > d[_nk_a]) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
+    "        if (ik > d[_nk_a]) throw std::out_of_range(\"nk: N-D index out of bounds\");\n"
     "        off += (ik - 1) * stride; stride *= d[_nk_a];\n"
     "    }\n"
     "    return off;\n"
@@ -9039,7 +9039,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val r = nk_call(name, argv.data(), argv.size(), 1, nullptr, &err);\n"
            "    for (nk_val h : argv) nk_release(h);\n"
            "    if (!r || err.code) { nk_release(r);\n"
-           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "        throw std::runtime_error(err.code ? err.message : \"nk bridged call failed\"); }\n"
            "    const double v = nk_unbox_scalar(r); nk_release(r); return v;\n"
            "}\n"
            "// Pre-boxed args (incl. arrays) -> call (1 output) -> unbox a SCALAR\n"
@@ -9051,7 +9051,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
            "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
            "    if (!r || err.code) { nk_release(r);\n"
-           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "        throw std::runtime_error(err.code ? err.message : \"nk bridged call failed\"); }\n"
            "    const double v = nk_unbox_scalar(r); nk_release(r); return v;\n"
            "}\n"
            "// Box-args -> call (1 output) -> unbox the array result into the\n"
@@ -9062,7 +9062,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
            "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
            "    if (!r || err.code) { nk_release(r);\n"
-           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "        throw std::runtime_error(err.code ? err.message : \"nk bridged call failed\"); }\n"
            "    nk_unbox_array(r, out, out_len); nk_release(r);\n"
            "}\n"
            "// Same, but the result fills an owned vector (resized to its numel) —\n"
@@ -9073,7 +9073,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
            "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
            "    if (!r || err.code) { nk_release(r);\n"
-           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "        throw std::runtime_error(err.code ? err.message : \"nk bridged call failed\"); }\n"
            "    out.resize(nk_numel(r)); nk_unbox_array(r, out.data(), out.size()); nk_release(r);\n"
            "}\n"
            "// Char-result variant: unbox a CHAR array result into an owned uint16 vector (the\n"
@@ -9084,7 +9084,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
            "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
            "    if (!r || err.code) { nk_release(r);\n"
-           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "        throw std::runtime_error(err.code ? err.message : \"nk bridged call failed\"); }\n"
            "    out.resize(nk_numel(r)); nk_unbox_char_array(r, out.data(), out.size()); nk_release(r);\n"
            "}\n"
            "// Complex-result variants: unbox a complex array result via the\n"
@@ -9095,7 +9095,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
            "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
            "    if (!r || err.code) { nk_release(r);\n"
-           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "        throw std::runtime_error(err.code ? err.message : \"nk bridged call failed\"); }\n"
            "    nk_unbox_complex_array(r, reinterpret_cast<double*>(out), out_len); nk_release(r);\n"
            "}\n"
            "inline void bridge_to_vec_cx(const char* name, nk_val* args, std::size_t nargs,\n"
@@ -9104,7 +9104,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
            "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
            "    if (!r || err.code) { nk_release(r);\n"
-           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "        throw std::runtime_error(err.code ? err.message : \"nk bridged call failed\"); }\n"
            "    out.resize(nk_numel(r));\n"
            "    nk_unbox_complex_array(r, reinterpret_cast<double*>(out.data()), out.size()); nk_release(r);\n"
            "}\n"
@@ -9156,7 +9156,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "};\n"
            "inline val _checked(nk_val r, nk_error& e) {\n"
            "    if (!r || e.code) { nk_release(r);\n"
-           "        throw std::runtime_error(e.code ? e.message : \"numkit dynamic op failed\"); }\n"
+           "        throw std::runtime_error(e.code ? e.message : \"nk dynamic op failed\"); }\n"
            "    return val(r); }\n"
            "inline val binop(const char* op, const val& a, const val& b) {\n"
            "    nk_error e; e.code = 0; return _checked(nk_binop(op, a.get(), b.get(), &e), e); }\n"
@@ -9242,7 +9242,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_error e; e.code = 0;\n"
            "    nk_val r = nk_call(name, argv.data(), argv.size(), nargout, ex.data(), &e);\n"
            "    if (!r || e.code) { nk_release(r); for (nk_val h : ex) nk_release(h);\n"
-           "        throw std::runtime_error(e.code ? e.message : \"numkit dynamic op failed\"); }\n"
+           "        throw std::runtime_error(e.code ? e.message : \"nk dynamic op failed\"); }\n"
            "    for (std::size_t i = 0; i < ex.size(); ++i) extra[i] = val(ex[i]);\n"
            "    return val(r); }\n"
            "} // namespace nk_rt\n";
@@ -9655,7 +9655,7 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
                                     /*extraSeed=*/{}, bridge.enabled, opsKernels.enabled);
     std::string source = kPrelude;
     source += "\n";
-    if (opsKernels.enabled) source += "#include <numkit/ops/kernels.hpp>\n";
+    if (opsKernels.enabled) source += "#include <nk/ops/kernels.hpp>\n";
     if (bridge.enabled) source += bridgePrelude(bridge.runtimeHeader);
     source += emitAllStructs(classes);
     source += f.definition;
@@ -9704,7 +9704,7 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
 
     std::string source = kPrelude;
     source += "\n";
-    if (opsKernels.enabled) source += "#include <numkit/ops/kernels.hpp>\n";
+    if (opsKernels.enabled) source += "#include <nk/ops/kernels.hpp>\n";
     if (bridge.enabled) source += bridgePrelude(bridge.runtimeHeader);
     source += emitAllStructs(classes);              // class structs precede all functions
     source += "\n";
@@ -9807,4 +9807,4 @@ std::string emitClassStruct(const ClassInfo &ci)
     return s;
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

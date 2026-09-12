@@ -9,16 +9,16 @@
 #include "../src/io/pnm_codec.hpp"
 #include "../src/io/png_codec.hpp"
 #include "../src/io/jpeg_codec.hpp"
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::image;
+using namespace nk;
+using namespace nk::image;
 
 // ============================================================================
 // 1. Truncated & Corrupt Buffers Resilience

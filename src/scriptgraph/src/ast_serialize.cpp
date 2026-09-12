@@ -30,13 +30,13 @@
 // renderer — keeps JSON small and avoids ambiguity ("did I forget
 // to emit, or is the value just default-empty?").
 
-#include <numkit/scriptgraph/ast_serialize.hpp>
+#include <nk/scriptgraph/ast_serialize.hpp>
 
 #include <cmath>
 #include <cstdio>
 #include <sstream>
 
-namespace numkit::scriptgraph {
+namespace nk::scriptgraph {
 namespace {
 
 void escapeTo(std::ostringstream &os, const std::string &s)
@@ -65,59 +65,59 @@ void escapeTo(std::ostringstream &os, const std::string &s)
     os << '"';
 }
 
-const char *nodeTypeName(numkit::NodeType t)
+const char *nodeTypeName(nk::NodeType t)
 {
     switch (t) {
-    case numkit::NodeType::NUMBER_LITERAL:        return "NUMBER_LITERAL";
-    case numkit::NodeType::IMAG_LITERAL:          return "IMAG_LITERAL";
-    case numkit::NodeType::STRING_LITERAL:        return "STRING_LITERAL";
-    case numkit::NodeType::DQSTRING_LITERAL:      return "DQSTRING_LITERAL";
-    case numkit::NodeType::BOOL_LITERAL:          return "BOOL_LITERAL";
-    case numkit::NodeType::IDENTIFIER:            return "IDENTIFIER";
-    case numkit::NodeType::BINARY_OP:             return "BINARY_OP";
-    case numkit::NodeType::UNARY_OP:              return "UNARY_OP";
-    case numkit::NodeType::ASSIGN:                return "ASSIGN";
-    case numkit::NodeType::MULTI_ASSIGN:          return "MULTI_ASSIGN";
-    case numkit::NodeType::INDEX:                 return "INDEX";
-    case numkit::NodeType::CELL_INDEX:            return "CELL_INDEX";
-    case numkit::NodeType::FIELD_ACCESS:          return "FIELD_ACCESS";
-    case numkit::NodeType::DYNAMIC_FIELD_ACCESS:  return "DYNAMIC_FIELD_ACCESS";
-    case numkit::NodeType::MATRIX_LITERAL:        return "MATRIX_LITERAL";
-    case numkit::NodeType::CELL_LITERAL:          return "CELL_LITERAL";
-    case numkit::NodeType::CALL:                  return "CALL";
-    case numkit::NodeType::COLON_EXPR:            return "COLON_EXPR";
-    case numkit::NodeType::IF_STMT:               return "IF_STMT";
-    case numkit::NodeType::FOR_STMT:              return "FOR_STMT";
-    case numkit::NodeType::WHILE_STMT:            return "WHILE_STMT";
-    case numkit::NodeType::BREAK_STMT:            return "BREAK_STMT";
-    case numkit::NodeType::CONTINUE_STMT:         return "CONTINUE_STMT";
-    case numkit::NodeType::RETURN_STMT:           return "RETURN_STMT";
-    case numkit::NodeType::SWITCH_STMT:           return "SWITCH_STMT";
-    case numkit::NodeType::FUNCTION_DEF:          return "FUNCTION_DEF";
-    case numkit::NodeType::BLOCK:                 return "BLOCK";
-    case numkit::NodeType::EXPR_STMT:             return "EXPR_STMT";
-    case numkit::NodeType::END_VAL:               return "END_VAL";
-    case numkit::NodeType::ANON_FUNC:             return "ANON_FUNC";
-    case numkit::NodeType::TRY_STMT:              return "TRY_STMT";
-    case numkit::NodeType::GLOBAL_STMT:           return "GLOBAL_STMT";
-    case numkit::NodeType::PERSISTENT_STMT:       return "PERSISTENT_STMT";
-    case numkit::NodeType::DELETE_ASSIGN:         return "DELETE_ASSIGN";
-    case numkit::NodeType::COMMAND_CALL:          return "COMMAND_CALL";
+    case nk::NodeType::NUMBER_LITERAL:        return "NUMBER_LITERAL";
+    case nk::NodeType::IMAG_LITERAL:          return "IMAG_LITERAL";
+    case nk::NodeType::STRING_LITERAL:        return "STRING_LITERAL";
+    case nk::NodeType::DQSTRING_LITERAL:      return "DQSTRING_LITERAL";
+    case nk::NodeType::BOOL_LITERAL:          return "BOOL_LITERAL";
+    case nk::NodeType::IDENTIFIER:            return "IDENTIFIER";
+    case nk::NodeType::BINARY_OP:             return "BINARY_OP";
+    case nk::NodeType::UNARY_OP:              return "UNARY_OP";
+    case nk::NodeType::ASSIGN:                return "ASSIGN";
+    case nk::NodeType::MULTI_ASSIGN:          return "MULTI_ASSIGN";
+    case nk::NodeType::INDEX:                 return "INDEX";
+    case nk::NodeType::CELL_INDEX:            return "CELL_INDEX";
+    case nk::NodeType::FIELD_ACCESS:          return "FIELD_ACCESS";
+    case nk::NodeType::DYNAMIC_FIELD_ACCESS:  return "DYNAMIC_FIELD_ACCESS";
+    case nk::NodeType::MATRIX_LITERAL:        return "MATRIX_LITERAL";
+    case nk::NodeType::CELL_LITERAL:          return "CELL_LITERAL";
+    case nk::NodeType::CALL:                  return "CALL";
+    case nk::NodeType::COLON_EXPR:            return "COLON_EXPR";
+    case nk::NodeType::IF_STMT:               return "IF_STMT";
+    case nk::NodeType::FOR_STMT:              return "FOR_STMT";
+    case nk::NodeType::WHILE_STMT:            return "WHILE_STMT";
+    case nk::NodeType::BREAK_STMT:            return "BREAK_STMT";
+    case nk::NodeType::CONTINUE_STMT:         return "CONTINUE_STMT";
+    case nk::NodeType::RETURN_STMT:           return "RETURN_STMT";
+    case nk::NodeType::SWITCH_STMT:           return "SWITCH_STMT";
+    case nk::NodeType::FUNCTION_DEF:          return "FUNCTION_DEF";
+    case nk::NodeType::BLOCK:                 return "BLOCK";
+    case nk::NodeType::EXPR_STMT:             return "EXPR_STMT";
+    case nk::NodeType::END_VAL:               return "END_VAL";
+    case nk::NodeType::ANON_FUNC:             return "ANON_FUNC";
+    case nk::NodeType::TRY_STMT:              return "TRY_STMT";
+    case nk::NodeType::GLOBAL_STMT:           return "GLOBAL_STMT";
+    case nk::NodeType::PERSISTENT_STMT:       return "PERSISTENT_STMT";
+    case nk::NodeType::DELETE_ASSIGN:         return "DELETE_ASSIGN";
+    case nk::NodeType::COMMAND_CALL:          return "COMMAND_CALL";
     }
     return "UNKNOWN";
 }
 
 /** True if this NodeType uses `numValue` semantically (so we should
  *  emit it). For non-numeric types numValue is undefined garbage. */
-bool typeUsesNumValue(numkit::NodeType t)
+bool typeUsesNumValue(nk::NodeType t)
 {
-    return t == numkit::NodeType::NUMBER_LITERAL
-        || t == numkit::NodeType::IMAG_LITERAL;
+    return t == nk::NodeType::NUMBER_LITERAL
+        || t == nk::NodeType::IMAG_LITERAL;
 }
 
-bool typeUsesBoolValue(numkit::NodeType t)
+bool typeUsesBoolValue(nk::NodeType t)
 {
-    return t == numkit::NodeType::BOOL_LITERAL;
+    return t == nk::NodeType::BOOL_LITERAL;
 }
 
 void writeStringArray(std::ostringstream &os, const std::vector<std::string> &v)
@@ -146,7 +146,7 @@ void writeNumber(std::ostringstream &os, double v)
     os << tmp.str();
 }
 
-void writeNode(std::ostringstream &os, const numkit::ASTNode *n)
+void writeNode(std::ostringstream &os, const nk::ASTNode *n)
 {
     if (!n) {
         os << "null";
@@ -207,11 +207,11 @@ void writeNode(std::ostringstream &os, const numkit::ASTNode *n)
 
 } // namespace
 
-std::string toASTJSON(const numkit::ASTNode &root)
+std::string toASTJSON(const nk::ASTNode &root)
 {
     std::ostringstream os;
     writeNode(os, &root);
     return os.str();
 }
 
-} // namespace numkit::scriptgraph
+} // namespace nk::scriptgraph

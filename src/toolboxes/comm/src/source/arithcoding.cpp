@@ -13,17 +13,17 @@
 // bounds are kept in N+1-bit unsigned integers; E1/E2/E3 rescaling
 // emits / shifts bits as the bounds tighten.
 
-#include <numkit/comm/source/arithcoding.hpp>
+#include <nk/comm/source/arithcoding.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <vector>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -40,7 +40,7 @@ void readVecU(const Value &v, std::vector<uint64_t> &out)
         const double d = v.elemAsDouble(i);
         if (!(d > 0.0) || std::floor(d) != d)
             throw Error("arithenco: counts must be positive integers",
-                        0, 0, "arithenco", "", "numkit:arithenco:Counts");
+                        0, 0, "arithenco", "", "nk:arithenco:Counts");
         out[i] = static_cast<uint64_t>(d);
     }
 }
@@ -67,7 +67,7 @@ Value arithenco(const Value &seq, const Value &counts,
     const size_t K = cnt.size();
     if (K == 0)
         throw Error("arithenco: counts must be non-empty",
-                    0, 0, "arithenco", "", "numkit:arithenco:Counts");
+                    0, 0, "arithenco", "", "nk:arithenco:Counts");
 
     // Cumulative counts: cum[0]=0, cum[i]=sum(cnt[0..i-1])
     std::vector<uint64_t> cum(K + 1, 0);
@@ -90,7 +90,7 @@ Value arithenco(const Value &seq, const Value &counts,
         if (!(sd > 0.0) || std::floor(sd) != sd
             || static_cast<size_t>(sd) > K)
             throw Error("arithenco: symbol out of range [1, length(counts)]",
-                        0, 0, "arithenco", "", "numkit:arithenco:Sym");
+                        0, 0, "arithenco", "", "nk:arithenco:Sym");
         const size_t s = static_cast<size_t>(sd);
 
         const uint64_t span = dec_up - dec_low + 1;
@@ -172,12 +172,12 @@ Value arithdeco(const Value &code, const Value &counts, size_t len,
         const double d = code.elemAsDouble(i);
         if (d != 0.0 && d != 1.0)
             throw Error("arithdeco: code bits must be 0 or 1",
-                        0, 0, "arithdeco", "", "numkit:arithdeco:Bit");
+                        0, 0, "arithdeco", "", "nk:arithdeco:Bit");
         return static_cast<uint64_t>(d);
     };
     if (Lcode < static_cast<size_t>(N))
         throw Error("arithdeco: code shorter than required word length",
-                    0, 0, "arithdeco", "", "numkit:arithdeco:Short");
+                    0, 0, "arithdeco", "", "nk:arithdeco:Short");
 
     uint64_t dec_low = 0;
     uint64_t dec_up  = (1ULL << N) - 1;
@@ -244,4 +244,4 @@ Value arithdeco(const Value &code, const Value &counts, size_t len,
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

@@ -1,11 +1,11 @@
 // toolboxes/wavelet/tests/appcoef_test.cpp
 // appcoef.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class AppcoefTest : public ::testing::Test
 {

@@ -5,19 +5,19 @@
 // KNOWN GAP: Tukey-Kramer HSD (MATLAB default) needs the studentized
 // range distribution — not yet shipped.
 
-#include <numkit/stats/anova/anova.hpp>
+#include <nk/stats/anova/anova.hpp>
 
-#include <numkit/stats/distributions/students_t.hpp>   // tinv, tcdf
+#include <nk/stats/distributions/students_t.hpp>   // tinv, tcdf
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -36,14 +36,14 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
 {
     if (!stats.isStruct())
         throw Error("multcompare: stats must be a struct (from anova1)",
-                    0, 0, "multcompare", "", "numkit:multcompare:notStruct");
+                    0, 0, "multcompare", "", "nk:multcompare:notStruct");
     if (!stats.hasField("means") || !stats.hasField("n")
         || !stats.hasField("s") || !stats.hasField("df"))
         throw Error("multcompare: stats must have fields {means, n, s, df}",
-                    0, 0, "multcompare", "", "numkit:multcompare:missingField");
+                    0, 0, "multcompare", "", "nk:multcompare:missingField");
     if (alpha <= 0.0 || alpha >= 1.0)
         throw Error("multcompare: alpha must be in (0, 1)",
-                    0, 0, "multcompare", "", "numkit:multcompare:badAlpha");
+                    0, 0, "multcompare", "", "nk:multcompare:badAlpha");
 
     const Value &means = stats.field("means");
     const Value &nv    = stats.field("n");
@@ -52,7 +52,7 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
     const std::size_t K = means.numel();
     if (K < 2)
         throw Error("multcompare: need at least 2 groups",
-                    0, 0, "multcompare", "", "numkit:multcompare:tooFewGroups");
+                    0, 0, "multcompare", "", "nk:multcompare:tooFewGroups");
 
     std::vector<double> m(K), n(K);
     for (std::size_t i = 0; i < K; ++i) {
@@ -104,4 +104,4 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

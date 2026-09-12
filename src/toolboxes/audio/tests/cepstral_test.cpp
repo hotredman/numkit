@@ -3,10 +3,10 @@
 // Regression guard for Audio Cycle D: cepstralCoefficients / mfcc / gtcc.
 // cepstralCoefficients is bit-equal vs MATLAB; mfcc/gtcc shape-only.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CepstralTest : public ::testing::Test
 {

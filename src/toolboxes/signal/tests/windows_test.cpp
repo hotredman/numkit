@@ -1,7 +1,7 @@
 // tests/windows_test.cpp
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class WindowsTest : public ::testing::Test
 {

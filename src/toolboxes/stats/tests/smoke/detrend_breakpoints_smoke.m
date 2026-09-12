@@ -2,7 +2,7 @@ clear
 
 % detrend breakpoints (2026-05-30): MATLAB detrend(x, 1, bp) does a
 % CONTINUOUS piecewise-linear detrend — the trend changes slope at each
-% breakpoint but stays continuous. numkit previously IGNORED the 3rd
+% breakpoint but stays continuous. nk previously IGNORED the 3rd
 % (breakpoint) argument and returned the plain single-line linear detrend.
 % vs MATLAB R2025b. (order-0 + breakpoints is a rare/ill-defined MATLAB
 % edge and remains deferred.)

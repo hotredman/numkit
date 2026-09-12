@@ -3,12 +3,12 @@
 // Phase-10 sweep covering toolboxes/fit (interp1, polyval, trapz). These
 // existed before the parity expansion but have never been benched.
 
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -17,7 +17,7 @@
 
 namespace {
 
-using namespace numkit;
+using namespace nk;
 
 Value makeSorted(size_t n)
 {
@@ -61,7 +61,7 @@ static void BM_Interp1Linear(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = numkit::builtin::interp1(x, y, xq, "linear", mr);
+        auto out = nk::builtin::interp1(x, y, xq, "linear", mr);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -77,7 +77,7 @@ static void BM_Interp1Spline(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = numkit::builtin::interp1(x, y, xq, "spline", mr);
+        auto out = nk::builtin::interp1(x, y, xq, "spline", mr);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -92,7 +92,7 @@ static void BM_Polyval(benchmark::State &s)
     auto xq = makeY(n, 5);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::builtin::polyval(p, xq, mr);
+        auto y = nk::builtin::polyval(p, xq, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -105,7 +105,7 @@ static void BM_TrapzUniform(benchmark::State &s)
     auto y = makeY(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = numkit::builtin::trapz(y, mr);
+        auto out = nk::builtin::trapz(y, mr);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

@@ -13,11 +13,11 @@
 //   cyclgen(n,p): cyclic parity/generator matrices (system / nonsystem).
 //   encode/decode: reshape into words, generator-multiply / syndrome-decode.
 
-#include <numkit/comm/coding/blockcoding.hpp>
+#include <nk/comm/coding/blockcoding.hpp>
 
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -56,7 +56,7 @@ std::uint64_t defaultPrimMask(long long m, const char *who)
     case 16: return 0x1100BULL;    // 1+x+x^3+x^12+x^16
     default:
         throw Error(std::string(who) + ": M out of supported range [2,16]",
-                    0, 0, who, "", std::string("numkit:") + who + ":range");
+                    0, 0, who, "", std::string("nk:") + who + ":range");
     }
 }
 
@@ -156,7 +156,7 @@ Value gen2parImpl(const Value &mat, const char *who,
     const std::size_t c = mat.dims().cols();
     if (r == 0 || c == 0 || r >= c)
         throw Error(std::string(who) + ": input must be r×c with r < c",
-                    0, 0, who, "", std::string("numkit:") + who + ":shape");
+                    0, 0, who, "", std::string("nk:") + who + ":shape");
     const std::size_t pcols = c - r;  // parity columns / output rows
 
     // Branch A: last r columns form I_r  ⇒ mat = [P | I_r]
@@ -190,7 +190,7 @@ Value gen2parImpl(const Value &mat, const char *who,
     } else {
         throw Error(std::string(who) + ": neither the first nor the last r "
                     "columns form an identity matrix (input not systematic)",
-                    0, 0, who, "", std::string("numkit:") + who + ":notsystematic");
+                    0, 0, who, "", std::string("nk:") + who + ":notsystematic");
     }
     return out;
 }
@@ -211,7 +211,7 @@ HammgenResult hammgen(long long m, const Value &primPoly,
 {
     if (m < 2)
         throw Error("hammgen: M must be an integer >= 2",
-                    0, 0, "hammgen", "", "numkit:hammgen:M");
+                    0, 0, "hammgen", "", "nk:hammgen:M");
 
     // Primitive polynomial as an integer mask (bit j = coeff of x^j).
     std::uint64_t pmask;
@@ -221,13 +221,13 @@ HammgenResult hammgen(long long m, const Value &primPoly,
         const std::size_t len = primPoly.numel();
         if (static_cast<long long>(len) != m + 1)
             throw Error("hammgen: P must be a binary row of length M+1",
-                        0, 0, "hammgen", "", "numkit:hammgen:P");
+                        0, 0, "hammgen", "", "nk:hammgen:P");
         pmask = 0;
         for (std::size_t j = 0; j < len; ++j)
             if (primPoly.elemAsDouble(j) != 0.0) pmask |= (1ULL << j);
         if ((pmask & 1ULL) == 0 || (pmask & (1ULL << m)) == 0)
             throw Error("hammgen: P must have nonzero constant and degree-M terms",
-                        0, 0, "hammgen", "", "numkit:hammgen:P");
+                        0, 0, "hammgen", "", "nk:hammgen:P");
     }
 
     const long long n = (1LL << m) - 1;
@@ -261,10 +261,10 @@ Value cyclpoly(long long n, long long k, const std::string &opt,
 {
     if (n < 1)
         throw Error("cyclpoly: N must be a positive integer",
-                    0, 0, "cyclpoly", "", "numkit:cyclpoly:N");
+                    0, 0, "cyclpoly", "", "nk:cyclpoly:N");
     if (k < 1 || k > n)
         throw Error("cyclpoly: K must satisfy 1 <= K <= N",
-                    0, 0, "cyclpoly", "", "numkit:cyclpoly:K");
+                    0, 0, "cyclpoly", "", "nk:cyclpoly:K");
 
     const long long m = n - k;
     if (m == 0) return polyToRow({1}, mr);
@@ -342,18 +342,18 @@ CyclgenResult cyclgen(long long n, const Value &genpoly,
     const int m = polyDeg(p);
     if (m < 1)
         throw Error("cyclgen: generator polynomial must have degree >= 1",
-                    0, 0, "cyclgen", "", "numkit:cyclgen:P");
+                    0, 0, "cyclgen", "", "nk:cyclgen:P");
     const long long k = n - m;
     if (k < 1)
         throw Error("cyclgen: N must exceed the generator polynomial degree",
-                    0, 0, "cyclgen", "", "numkit:cyclgen:N");
+                    0, 0, "cyclgen", "", "nk:cyclgen:N");
 
     // p must divide x^n + 1.
     std::vector<int> pp(static_cast<std::size_t>(n) + 1, 0);
     pp[0] = 1; pp[static_cast<std::size_t>(n)] = 1;
     if (polyDeg(polyMod(pp, p)) >= 0)
         throw Error("cyclgen: generator polynomial must divide x^N - 1",
-                    0, 0, "cyclgen", "", "numkit:cyclgen:P2");
+                    0, 0, "cyclgen", "", "nk:cyclgen:P2");
 
     CyclgenResult res;
     res.k = k;
@@ -422,7 +422,7 @@ void parseMethod(const std::string &method, std::string &base, bool &decimal,
     else if (m.rfind("linear", 0) == 0)  base = "linear";
     else if (m.rfind("cyclic", 0) == 0)  base = "cyclic";
     else throw Error(std::string(who) + ": unknown coding method '" + method + "'",
-                     0, 0, who, "", std::string("numkit:") + who + ":method");
+                     0, 0, who, "", std::string("nk:") + who + ":method");
 }
 
 // Build the k×n generator (gen) and (n-k)×n parity-check (h) matrices for
@@ -438,7 +438,7 @@ void buildCode(const std::string &base, long long n, long long k,
         if (((1LL << m) - 1) != n)
             throw Error(std::string(who) + ": N and K do not form a Hamming "
                         "code (2^(N-K)-1 must equal N)",
-                        0, 0, who, "", std::string("numkit:") + who + ":nklen");
+                        0, 0, who, "", std::string("nk:") + who + ":nklen");
         HammgenResult hr = hammgen(m, opt.isEmpty() ? Value::Empty : opt, mr);
         h = matToRows(hr.h);
         gen = matToRows(hr.g);
@@ -446,11 +446,11 @@ void buildCode(const std::string &base, long long n, long long k,
         if (opt.isEmpty())
             throw Error(std::string(who) + ": the linear method requires a "
                         "generator matrix",
-                        0, 0, who, "", std::string("numkit:") + who + ":genmat");
+                        0, 0, who, "", std::string("nk:") + who + ":genmat");
         if (static_cast<long long>(opt.dims().rows()) != k ||
             static_cast<long long>(opt.dims().cols()) != n)
             throw Error(std::string(who) + ": generator matrix must be K x N",
-                        0, 0, who, "", std::string("numkit:") + who + ":gendims");
+                        0, 0, who, "", std::string("nk:") + who + ":gendims");
         gen = matToRows(opt);
         h = matToRows(gen2par(opt, mr));
     } else {  // cyclic
@@ -460,7 +460,7 @@ void buildCode(const std::string &base, long long n, long long k,
             if (gp.numel() == 0)
                 throw Error(std::string(who) + ": no valid cyclic generator "
                             "polynomial for (N,K)",
-                            0, 0, who, "", std::string("numkit:") + who + ":genpoly");
+                            0, 0, who, "", std::string("nk:") + who + ":genpoly");
         }
         CyclgenResult cr = cyclgen(n, gp, "system", mr);
         gen = matToRows(cr.g);
@@ -533,11 +533,11 @@ EncodeResult encode(const Value &msg, long long n, long long k,
                     std::pmr::memory_resource *mr)
 {
     if (n < 1) throw Error("encode: N must be a positive integer",
-                           0, 0, "encode", "", "numkit:encode:N");
+                           0, 0, "encode", "", "nk:encode:N");
     if (k < 1) throw Error("encode: K must be a positive integer",
-                           0, 0, "encode", "", "numkit:encode:K");
+                           0, 0, "encode", "", "nk:encode:K");
     if (n <= k) throw Error("encode: N must exceed K",
-                            0, 0, "encode", "", "numkit:encode:nlek");
+                            0, 0, "encode", "", "nk:encode:nlek");
 
     std::string base; bool decimal;
     parseMethod(method, base, decimal, "encode");
@@ -555,14 +555,14 @@ EncodeResult encode(const Value &msg, long long n, long long k,
         typeFlag = 1;
         if (!isVector)
             throw Error("encode: message must be a vector for the decimal format",
-                        0, 0, "encode", "", "numkit:encode:msgvec");
+                        0, 0, "encode", "", "nk:encode:msgvec");
         const double maxv = std::ldexp(1.0, static_cast<int>(k)) - 1.0;
         for (std::size_t w = 0; w < nel; ++w) {
             const double x = msg.elemAsDouble(w);
             if (x < 0 || x > maxv || std::floor(x) != x)
                 throw Error("encode: decimal message entries must be integers "
                             "in [0, 2^K-1]",
-                            0, 0, "encode", "", "numkit:encode:msgint");
+                            0, 0, "encode", "", "nk:encode:msgint");
             std::vector<int> word(static_cast<std::size_t>(k), 0);
             const unsigned long long xi = static_cast<unsigned long long>(x);
             for (long long p = 0; p < k; ++p)
@@ -574,7 +574,7 @@ EncodeResult encode(const Value &msg, long long n, long long k,
             const double x = msg.elemAsDouble(i);
             if (x != 0.0 && x != 1.0)
                 throw Error("encode: binary message must contain only 0s and 1s",
-                            0, 0, "encode", "", "numkit:encode:bin");
+                            0, 0, "encode", "", "nk:encode:bin");
         }
         if (isVector) {
             typeFlag = 2;
@@ -594,7 +594,7 @@ EncodeResult encode(const Value &msg, long long n, long long k,
         } else {
             if (static_cast<long long>(C) != k)
                 throw Error("encode: message matrix must have K columns",
-                            0, 0, "encode", "", "numkit:encode:cols");
+                            0, 0, "encode", "", "nk:encode:cols");
             typeFlag = 0;
             for (std::size_t w = 0; w < R; ++w) {
                 std::vector<int> word(static_cast<std::size_t>(k));
@@ -654,11 +654,11 @@ DecodeResult decode(const Value &code, long long n, long long k,
                     std::pmr::memory_resource *mr)
 {
     if (n < 1) throw Error("decode: N must be a positive integer",
-                           0, 0, "decode", "", "numkit:decode:N");
+                           0, 0, "decode", "", "nk:decode:N");
     if (k < 1) throw Error("decode: K must be a positive integer",
-                           0, 0, "decode", "", "numkit:decode:K");
+                           0, 0, "decode", "", "nk:decode:K");
     if (n <= k) throw Error("decode: N must exceed K",
-                            0, 0, "decode", "", "numkit:decode:nlek");
+                            0, 0, "decode", "", "nk:decode:nlek");
 
     std::string base; bool decimal;
     parseMethod(method, base, decimal, "decode");
@@ -676,14 +676,14 @@ DecodeResult decode(const Value &code, long long n, long long k,
         typeFlag = 1;
         if (!isVector)
             throw Error("decode: code must be a vector for the decimal format",
-                        0, 0, "decode", "", "numkit:decode:codevec");
+                        0, 0, "decode", "", "nk:decode:codevec");
         const double maxv = std::ldexp(1.0, static_cast<int>(n)) - 1.0;
         for (std::size_t w = 0; w < nel; ++w) {
             const double x = code.elemAsDouble(w);
             if (x < 0 || x > maxv || std::floor(x) != x)
                 throw Error("decode: decimal code entries must be integers in "
                             "[0, 2^N-1]",
-                            0, 0, "decode", "", "numkit:decode:codeint");
+                            0, 0, "decode", "", "nk:decode:codeint");
             std::vector<int> word(N, 0);
             const unsigned long long xi = static_cast<unsigned long long>(x);
             for (std::size_t p = 0; p < N; ++p) word[p] = static_cast<int>((xi >> p) & 1ULL);
@@ -694,7 +694,7 @@ DecodeResult decode(const Value &code, long long n, long long k,
             const double x = code.elemAsDouble(i);
             if (x != 0.0 && x != 1.0)
                 throw Error("decode: binary code must contain only 0s and 1s",
-                            0, 0, "decode", "", "numkit:decode:bin");
+                            0, 0, "decode", "", "nk:decode:bin");
         }
         if (isVector) {
             typeFlag = 2;
@@ -712,7 +712,7 @@ DecodeResult decode(const Value &code, long long n, long long k,
         } else {
             if (static_cast<long long>(C) != n)
                 throw Error("decode: code matrix must have N columns",
-                            0, 0, "decode", "", "numkit:decode:cols");
+                            0, 0, "decode", "", "nk:decode:cols");
             typeFlag = 0;
             for (std::size_t w = 0; w < R; ++w) {
                 std::vector<int> word(N);
@@ -737,7 +737,7 @@ DecodeResult decode(const Value &code, long long n, long long k,
         }
     if (!firstK && !lastK)
         throw Error("decode: generator matrix is not in systematic form",
-                    0, 0, "decode", "", "numkit:decode:gensys");
+                    0, 0, "decode", "", "nk:decode:gensys");
     const long long msgOff = firstK ? 0 : (n - k);
 
     const std::size_t numWords = wordsIn.size();
@@ -811,10 +811,10 @@ Value syndtable(const Value &H, std::pmr::memory_resource *mr)
     const std::size_t n  = H.dims().cols();
     if (nk == 0 || n == 0)
         throw Error("syndtable: H must be a nonempty (n-k) x n parity-check matrix",
-                    0, 0, "syndtable", "", "numkit:syndtable:empty");
+                    0, 0, "syndtable", "", "nk:syndtable:empty");
     if (nk > 24)
         throw Error("syndtable: n-k too large (table would be 2^(n-k) rows)",
-                    0, 0, "syndtable", "", "numkit:syndtable:size");
+                    0, 0, "syndtable", "", "nk:syndtable:size");
 
     const std::size_t M = static_cast<std::size_t>(1) << nk;
 
@@ -855,4 +855,4 @@ Value syndtable(const Value &H, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

@@ -3,13 +3,13 @@
 // Unit tests for qz (generalized Schur decomposition).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/qz.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/qz.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(QzTest, QzDecomposition2x2) {
     // A = [1 2; 3 4], B = [5 6; 7 8]

@@ -9,8 +9,8 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -44,7 +44,7 @@ void choleskyLowerInPlace(double *S, std::size_t n)
         if (diag <= 0.0)
             throw Error("mvnrnd: Sigma must be positive definite "
                         "(Cholesky failed at row " + std::to_string(j + 1) + ")",
-                         0, 0, "mvnrnd", "", "numkit:mvnrnd:notPD");
+                         0, 0, "mvnrnd", "", "nk:mvnrnd:notPD");
         const double Ljj = std::sqrt(diag);
         S[j * n + j] = Ljj;
         // Below-diagonal entries: L[i][j] = (S[i][j] - sum_{k<j} L[i][k]*L[j][k]) / L[j][j]
@@ -145,14 +145,14 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error(std::string(fn) + ": C must be square",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":notSquareC");
+                    0, 0, fn, "", std::string("nk:") + fn + ":notSquareC");
     const std::size_t d = C.dims().rows();
     if (d == 0) return {0, 0};
     std::size_t n;
     if (X.isScalar()) {
         if (d != 1)
             throw Error(std::string(fn) + ": X is scalar but d > 1",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":shapeX");
+                        0, 0, fn, "", std::string("nk:") + fn + ":shapeX");
         n = 1;
     } else if (X.dims().rows() == 1 && X.dims().cols() == d) {
         n = 1;
@@ -160,7 +160,7 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
         n = X.dims().rows();
     } else {
         throw Error(std::string(fn) + ": X must be 1×d or n×d",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":shapeX");
+                    0, 0, fn, "", std::string("nk:") + fn + ":shapeX");
     }
     return {d, n};
 }
@@ -225,4 +225,4 @@ double mvtcdf_mc(const std::vector<double> &Lchol, std::size_t d,
 
 } // anonymous
 
-} // namespace numkit::stats
+} // namespace nk::stats

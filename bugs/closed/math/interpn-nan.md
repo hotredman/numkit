@@ -12,10 +12,10 @@ interpolating. The 2-D / 3-D forms dispatch correctly (to interp2 / interp3,
 per a 2026-05-10 partial fix), but the 1-D path and the generic N-D (4+-D
 tensor-product) path do not work.
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
 interpn([1 2 3], [1 4 9], 2.5)
-% numkit:  NaN NaN NaN
+% nk:  NaN NaN NaN
 % MATLAB:  6.5            (linear interp of v=[1 4 9] at xq=2.5)
 ```
 

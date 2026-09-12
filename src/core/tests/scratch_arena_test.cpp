@@ -6,14 +6,14 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/value/scratch.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <cstddef>
 #include <memory_resource>
 #include <new>
 
-using numkit::ScratchArena;
-using numkit::ScratchVec;
+using nk::ScratchArena;
+using nk::ScratchVec;
 
 namespace {
 

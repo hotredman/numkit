@@ -5,7 +5,7 @@
 
 #include "png_codec.hpp"
 #include "deflate.hpp"
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -14,7 +14,7 @@
 #include <cstring>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -145,7 +145,7 @@ readPngWithMap(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
     PngIhdr ihdr;
     if (!parsePngIhdr(data, len, ihdr)) {
         throw Error("imread: failed to decode PNG — invalid or corrupted IHDR header",
-                    0, 0, "imread", "", "numkit:imread:pngHeader");
+                    0, 0, "imread", "", "nk:imread:pngHeader");
     }
 
     if (ihdr.interlace != 0) {
@@ -167,7 +167,7 @@ readPngWithMap(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
         std::uint32_t chunkLen = readU32BE(data + offset);
         if (offset + 12 + chunkLen > len) {
             throw Error("imread: truncated PNG chunk",
-                        0, 0, "imread", "", "numkit:imread:pngChunkOOB");
+                        0, 0, "imread", "", "nk:imread:pngChunkOOB");
         }
         const std::uint8_t *chunkType = data + offset + 4;
         const std::uint8_t *chunkData = data + offset + 8;
@@ -191,7 +191,7 @@ readPngWithMap(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
 
     if (compressedIdat.empty()) {
         throw Error("imread: PNG contains no IDAT image data",
-                    0, 0, "imread", "", "numkit:imread:pngNoData");
+                    0, 0, "imread", "", "nk:imread:pngNoData");
     }
 
     // Decompress IDAT stream
@@ -204,7 +204,7 @@ readPngWithMap(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
 
     if (raw.size() < (rowBytes + 1) * H) {
         throw Error("imread: decompressed PNG scanline stream is truncated",
-                    0, 0, "imread", "", "numkit:imread:pngTruncated");
+                    0, 0, "imread", "", "nk:imread:pngTruncated");
     }
 
     // Unfilter scanlines
@@ -252,11 +252,11 @@ readPngWithMap(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
                 break;
             default:
                 throw Error("imread: unknown PNG filter type " + std::to_string(filterType),
-                            0, 0, "imread", "", "numkit:imread:pngFilter");
+                            0, 0, "imread", "", "nk:imread:pngFilter");
         }
     }
 
-    // Convert uncompressed rows to numkit::Value (column-major order)
+    // Convert uncompressed rows to nk::Value (column-major order)
     const std::size_t plane = H * W;
 
     // 1. Indexed Color PNG (ColorType = 3)
@@ -383,7 +383,7 @@ readPngWithMap(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
     }
 
     throw Error("imread: unsupported PNG configuration",
-                0, 0, "imread", "", "numkit:imread:pngConfig");
+                0, 0, "imread", "", "nk:imread:pngConfig");
 }
 
 Value readPng(const std::uint8_t *data, std::size_t len, std::pmr::memory_resource *mr) {
@@ -396,7 +396,7 @@ std::string writePngToBytes(const Value &A, int level) {
     const std::size_t W = A.dims().cols();
     if (H == 0 || W == 0) {
         throw Error("imwrite: empty image matrix",
-                    0, 0, "imwrite", "", "numkit:imwrite:empty");
+                    0, 0, "imwrite", "", "nk:imwrite:empty");
     }
 
     int channels = 1;
@@ -405,7 +405,7 @@ std::string writePngToBytes(const Value &A, int level) {
     else if (A.numel() == H * W * 4) channels = 4;
     else {
         throw Error("imwrite: input must be H×W or H×W×{1,3,4}",
-                    0, 0, "imwrite", "", "numkit:imwrite:shape");
+                    0, 0, "imwrite", "", "nk:imwrite:shape");
     }
 
     const bool is16Bit = (A.type() == ValueType::UINT16);
@@ -520,4 +520,4 @@ std::string writePngToBytes(const Value &A, int level) {
     return std::string(out.begin(), out.end());
 }
 
-} // namespace numkit::image
+} // namespace nk::image

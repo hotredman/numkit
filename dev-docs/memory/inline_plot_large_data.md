@@ -11,7 +11,7 @@ When opening variables with large elements (e.g. `t = linspace(0, 5, 1500001)` w
 
 ## Decision & Solution
 1. **Engine-Side 1D Figure Generation & MinMax/M4 Downsampling:**
-   - Extended `getVarFigureJSON` in both native CLI (`apps/numkit/ide_serializer.hpp`) and WebAssembly (`wasm/src/repl_bindings.cpp`).
+   - Extended `getVarFigureJSON` in both native CLI (`apps/nk/ide_serializer.hpp`) and WebAssembly (`wasm/src/repl_bindings.cpp`).
    - For 1D series (`line`, `stem`, `bar`, `scatter`, `area`, `stairs`), when slice length exceeds 4,000 points, C++ performs high-performance MinMax/M4 bucket downsampling (1,000 buckets, retaining {first, min, max, last} per bucket).
    - This preserves all peaks, troughs, extrema, and trends with 0 aliasing and drops payload size from ~20MB to ~30KB, executing in <1 ms.
 2. **Frontend Integration:**

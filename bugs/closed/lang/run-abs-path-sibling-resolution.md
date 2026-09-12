@@ -30,8 +30,8 @@ EOF
 printf "run('main.m');\n"                      > wrap_rel.m
 printf "run('/abs/path/to/dirA/main.m');\n"    > wrap_abs.m
 
-node cli.js wrap_rel.m   # numkit: 42      (correct — matches MATLAB)
-node cli.js wrap_abs.m   # numkit: Error (line 1): VM: undefined function 'helper'
+node cli.js wrap_rel.m   # nk: 42      (correct — matches MATLAB)
+node cli.js wrap_abs.m   # nk: Error (line 1): VM: undefined function 'helper'
                           # MATLAB R2025b: 42 for BOTH forms
 ```
 
@@ -55,7 +55,7 @@ dir-existence check.
 
 - **Guard:** deferred to a DISABLED_-grade gtest (the bug does not
   reproduce in-engine — only through the CLI native-FS bridge). Interim
-  guard: `packages/numkit/test/cli_sibling_test.js`, deliberately RED
+  guard: `packages/nk/test/cli_sibling_test.js`, deliberately RED
   while open (exit 1, prints this file); turns green = live regression
   guard the moment the fix lands.
 

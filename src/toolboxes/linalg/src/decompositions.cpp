@@ -3,18 +3,18 @@
 // chol / lu / qr / svd — implementations and engine adapters.
 // Migrated from toolboxes/builtin/src/language/arrays/matrix.cpp.
 
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/ops/blas.hpp>
-#include <numkit/ops/la_solve.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/ops/blas.hpp>
+#include <nk/ops/la_solve.hpp>
 #include "decompositions_detail.hpp"   // shared raw-buffer kernels (private)
 
 // Compute-only TU: Value substrate + Error, no engine. The chol / lu / qr /
 // svd / qrupdate / qrinsert / qrdelete / cholupdate builtins (CallContext
 // wrappers) live in decompositions_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 // ────────────────────────────────────────────────────────────────────────
 // Cholesky
@@ -95,12 +95,12 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("chol: input must be a 2D matrix",
-                    0, 0, "chol", "", "numkit:chol:notMatrix");
+                    0, 0, "chol", "", "nk:chol:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("chol: matrix must be square",
-                    0, 0, "chol", "", "numkit:chol:notSquare");
+                    0, 0, "chol", "", "nk:chol:notSquare");
     if (m == 0)
         return Value::matrix(0, 0, A.type(), mr);
 
@@ -108,22 +108,22 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
         const auto *ad = A.complexData();
         for (std::size_t j = 0; j < n; ++j) {
             if (std::abs(ad[j + j * n].imag()) > 1e-11)
-                throw Error("chol: matrix is not positive-definite", 0, 0, "chol", "", "numkit:chol:notPosDef");
+                throw Error("chol: matrix is not positive-definite", 0, 0, "chol", "", "nk:chol:notPosDef");
             for (std::size_t i = j + 1; i < n; ++i) {
                 if (std::abs(ad[i + j * n] - std::conj(ad[j + i * n])) > 1e-11)
-                    throw Error("chol: matrix is not positive-definite", 0, 0, "chol", "", "numkit:chol:notPosDef");
+                    throw Error("chol: matrix is not positive-definite", 0, 0, "chol", "", "nk:chol:notPosDef");
             }
         }
         auto R = Value::complexMatrix(n, n, mr);
         if (cholUpperFactorBlockedImpl(A.complexData(), R.complexDataMut(), n) != 0)
             throw Error("chol: matrix is not positive-definite",
-                        0, 0, "chol", "", "numkit:chol:notPosDef");
+                        0, 0, "chol", "", "nk:chol:notPosDef");
         return detail::narrow_if_real(R);
     } else {
         auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
         if (cholUpperFactorBlocked(A.doubleData(), R.doubleDataMut(), n) != 0)
             throw Error("chol: matrix is not positive-definite",
-                        0, 0, "chol", "", "numkit:chol:notPosDef");
+                        0, 0, "chol", "", "nk:chol:notPosDef");
         return R;
     }
 }
@@ -145,9 +145,9 @@ lu_decompose_impl(const Value &A, std::pmr::memory_resource *mr)
     ScratchVec<std::int32_t> piv(n, &scratch);
     const T *src = detail::get_data<T>(A);
     std::copy(src, src + m * n, LU.begin());
-    if (!numkit::ops::lu_factor_inplace(LU.data(), n, piv.data(), n, n))
+    if (!nk::ops::lu_factor_inplace(LU.data(), n, piv.data(), n, n))
         throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "numkit:lu:singular");
+                    0, 0, "lu", "", "nk:lu:singular");
 
     Value Lout = detail::make_matrix<T>(n, n, mr);
     Value Uout = detail::make_matrix<T>(n, n, mr);
@@ -187,9 +187,9 @@ Value lu_combined_impl(const Value &A, std::pmr::memory_resource *mr)
     T *LU = detail::get_data_mut<T>(out);
     const T *src = detail::get_data<T>(A);
     std::copy(src, src + m * n, LU);
-    if (!numkit::ops::lu_factor_inplace(LU, n, piv.data(), n, n))
+    if (!nk::ops::lu_factor_inplace(LU, n, piv.data(), n, n))
         throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "numkit:lu:singular");
+                    0, 0, "lu", "", "nk:lu:singular");
     return detail::narrow_if_real(out);
 }
 
@@ -200,12 +200,12 @@ lu_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("lu: input must be a 2D matrix",
-                    0, 0, "lu", "", "numkit:lu:notMatrix");
+                    0, 0, "lu", "", "nk:lu:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("lu: square matrix required for [L,U,P] form",
-                    0, 0, "lu", "", "numkit:lu:notSquare");
+                    0, 0, "lu", "", "nk:lu:notSquare");
 
     if (A.isComplex()) {
         return lu_decompose_impl<detail::Complex>(A, mr);
@@ -217,12 +217,12 @@ Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("lu: input must be a 2D matrix",
-                    0, 0, "lu", "", "numkit:lu:notMatrix");
+                    0, 0, "lu", "", "nk:lu:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("lu: square matrix required",
-                    0, 0, "lu", "", "numkit:lu:notSquare");
+                    0, 0, "lu", "", "nk:lu:notSquare");
 
     if (A.isComplex()) {
         return lu_combined_impl<detail::Complex>(A, mr);
@@ -440,13 +440,13 @@ qr_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("qr: input must be a 2D matrix",
-                    0, 0, "qr", "", "numkit:qr:notMatrix");
+                    0, 0, "qr", "", "nk:qr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m < n)
         throw Error("qr: number of rows must be >= number of columns "
                     "(wide matrices via row-pivoted QR are deferred)",
-                    0, 0, "qr", "", "numkit:qr:wide");
+                    0, 0, "qr", "", "nk:qr:wide");
     if (A.isComplex()) {
         auto Q = Value::complexMatrix(m, m, mr);
         auto R = Value::complexMatrix(m, n, mr);
@@ -463,12 +463,12 @@ Value qr_R_only(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("qr: input must be a 2D matrix",
-                    0, 0, "qr", "", "numkit:qr:notMatrix");
+                    0, 0, "qr", "", "nk:qr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m < n)
         throw Error("qr: number of rows must be >= number of columns",
-                    0, 0, "qr", "", "numkit:qr:wide");
+                    0, 0, "qr", "", "nk:qr:wide");
     ScratchArena scratch(mr);
     if (A.isComplex()) {
         ScratchVec<detail::Complex> Q_unused(m * m, &scratch);
@@ -488,13 +488,13 @@ qr_pivoted(const Value &A, std::vector<std::size_t> &perm,
 {
     if (A.dims().ndim() != 2)
         throw Error("qr: input must be a 2D matrix",
-                    0, 0, "qr", "", "numkit:qr:notMatrix");
+                    0, 0, "qr", "", "nk:qr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m < n)
         throw Error("qr: number of rows must be >= number of columns "
                     "(wide matrices via row-pivoted QR are deferred)",
-                    0, 0, "qr", "", "numkit:qr:wide");
+                    0, 0, "qr", "", "nk:qr:wide");
     perm.assign(n, 0);
     if (A.isComplex()) {
         auto Q = Value::complexMatrix(m, m, mr);
@@ -595,7 +595,7 @@ svd_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("svd: input must be a 2D matrix",
-                    0, 0, "svd", "", "numkit:svd:notMatrix");
+                    0, 0, "svd", "", "nk:svd:notMatrix");
     const std::size_t m_in = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n_in = static_cast<std::size_t>(A.dims().dim(1));
 
@@ -860,17 +860,17 @@ qrupdate(const Value &Q, const Value &R, const Value &u, const Value &v,
 {
     if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
         throw Error("qrupdate: Q and R must be 2D matrices",
-                    0, 0, "qrupdate", "", "numkit:qrupdate:notMatrix");
+                    0, 0, "qrupdate", "", "nk:qrupdate:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
     const std::size_t mq = static_cast<std::size_t>(Q.dims().dim(1));
     const std::size_t mr2 = static_cast<std::size_t>(R.dims().dim(0));
     const std::size_t n  = static_cast<std::size_t>(R.dims().dim(1));
     if (mq != m || mr2 != m)
         throw Error("qrupdate: Q must be m×m and R must be m×n",
-                    0, 0, "qrupdate", "", "numkit:qrupdate:badShape");
+                    0, 0, "qrupdate", "", "nk:qrupdate:badShape");
     if (u.numel() != m || v.numel() != n)
         throw Error("qrupdate: length(u) must equal size(R, 1) and length(v) must equal size(R, 2)",
-                    0, 0, "qrupdate", "", "numkit:qrupdate:badVec");
+                    0, 0, "qrupdate", "", "nk:qrupdate:badVec");
 
     auto Q1 = Value::matrix(m, m, ValueType::DOUBLE, mr);
     auto R1 = Value::matrix(m, n, ValueType::DOUBLE, mr);
@@ -929,19 +929,19 @@ qrinsert(const Value &Q, const Value &R, std::size_t k_1based, const Value &x,
 {
     if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
         throw Error("qrinsert: Q and R must be 2D matrices",
-                    0, 0, "qrinsert", "", "numkit:qrinsert:notMatrix");
+                    0, 0, "qrinsert", "", "nk:qrinsert:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(R.dims().dim(1));
     if (static_cast<std::size_t>(Q.dims().dim(1)) != m
         || static_cast<std::size_t>(R.dims().dim(0)) != m)
         throw Error("qrinsert: Q must be m×m and R must be m×n",
-                    0, 0, "qrinsert", "", "numkit:qrinsert:badShape");
+                    0, 0, "qrinsert", "", "nk:qrinsert:badShape");
     if (x.numel() != m)
         throw Error("qrinsert: x must have length size(Q, 1)",
-                    0, 0, "qrinsert", "", "numkit:qrinsert:badX");
+                    0, 0, "qrinsert", "", "nk:qrinsert:badX");
     if (k_1based < 1 || k_1based > n + 1)
         throw Error("qrinsert: k must be in 1..n+1",
-                    0, 0, "qrinsert", "", "numkit:qrinsert:badK");
+                    0, 0, "qrinsert", "", "nk:qrinsert:badK");
     const std::size_t k = k_1based - 1;
 
     // y = Q' * x (length m).
@@ -994,19 +994,19 @@ qrdelete(const Value &Q, const Value &R, std::size_t k_1based,
 {
     if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
         throw Error("qrdelete: Q and R must be 2D matrices",
-                    0, 0, "qrdelete", "", "numkit:qrdelete:notMatrix");
+                    0, 0, "qrdelete", "", "nk:qrdelete:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(R.dims().dim(1));
     if (static_cast<std::size_t>(Q.dims().dim(1)) != m
         || static_cast<std::size_t>(R.dims().dim(0)) != m)
         throw Error("qrdelete: Q must be m×m and R must be m×n",
-                    0, 0, "qrdelete", "", "numkit:qrdelete:badShape");
+                    0, 0, "qrdelete", "", "nk:qrdelete:badShape");
     if (n == 0)
         throw Error("qrdelete: R has no columns to delete",
-                    0, 0, "qrdelete", "", "numkit:qrdelete:empty");
+                    0, 0, "qrdelete", "", "nk:qrdelete:empty");
     if (k_1based < 1 || k_1based > n)
         throw Error("qrdelete: k must be in 1..n",
-                    0, 0, "qrdelete", "", "numkit:qrdelete:badK");
+                    0, 0, "qrdelete", "", "nk:qrdelete:badK");
     const std::size_t k = k_1based - 1;
 
     // New R is m × (n-1) — drop column k, shift columns k+1..n-1 left.
@@ -1048,17 +1048,17 @@ Value cholupdate(const Value &R, const Value &x, int sign,
 {
     if (R.dims().ndim() != 2)
         throw Error("cholupdate: R must be a 2D matrix",
-                    0, 0, "cholupdate", "", "numkit:cholupdate:notMatrix");
+                    0, 0, "cholupdate", "", "nk:cholupdate:notMatrix");
     const std::size_t n = static_cast<std::size_t>(R.dims().dim(0));
     if (n != static_cast<std::size_t>(R.dims().dim(1)))
         throw Error("cholupdate: R must be square",
-                    0, 0, "cholupdate", "", "numkit:cholupdate:notSquare");
+                    0, 0, "cholupdate", "", "nk:cholupdate:notSquare");
     if (x.numel() != n)
         throw Error("cholupdate: x must have length equal to size(R, 1)",
-                    0, 0, "cholupdate", "", "numkit:cholupdate:badX");
+                    0, 0, "cholupdate", "", "nk:cholupdate:badX");
     if (sign != 1 && sign != -1)
         throw Error("cholupdate: sign must be '+' (1) or '-' (-1)",
-                    0, 0, "cholupdate", "", "numkit:cholupdate:badSign");
+                    0, 0, "cholupdate", "", "nk:cholupdate:badSign");
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -1128,8 +1128,8 @@ Value cholupdate(const Value &R, const Value &x, int sign,
         return chol(Btmp, mr);
     } catch (const Error &) {
         throw Error("cholupdate: downdate would break positive-definiteness",
-                    0, 0, "cholupdate", "", "numkit:cholupdate:downdateFailed");
+                    0, 0, "cholupdate", "", "nk:cholupdate:downdateFailed");
     }
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

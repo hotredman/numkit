@@ -1,12 +1,12 @@
 // toolboxes/stats/src/cluster/linkage.cpp
 
-#include <numkit/stats/cluster/linkage.hpp>
+#include <nk/stats/cluster/linkage.hpp>
 
-#include <numkit/stats/cluster/distance.hpp>
+#include <nk/stats/cluster/distance.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 
 #include "linkage_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -90,7 +90,7 @@ Value linkage(const Value &Y, const std::string &method, const std::string &metr
         N = solve_N_from_pdist(n);
         if (N * (N - 1) / 2 != n)
             throw Error("linkage: pdist input has invalid length",
-                        0, 0, "linkage", "", "numkit:linkage:size");
+                        0, 0, "linkage", "", "nk:linkage:size");
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Y.elemAsDouble(i);
     } else {
@@ -100,7 +100,7 @@ Value linkage(const Value &Y, const std::string &method, const std::string &metr
         N = Yrows;
         if (N * (N - 1) / 2 != n)
             throw Error("linkage: bad pdist intermediate", 0, 0, "linkage", "",
-                        "numkit:linkage:internal");
+                        "nk:linkage:internal");
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Yp.elemAsDouble(i);
     }
@@ -215,7 +215,7 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("cluster: Z must be (N-1)×3", 0, 0, "cluster", "",
-                    "numkit:cluster:size");
+                    "nk:cluster:size");
     const size_t N = M + 1;
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -368,11 +368,11 @@ std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, std::pmr:
     const size_t N = M + 1;
     if (Z.dims().cols() != 3)
         throw Error("cophenet: Z must be (N-1)×3", 0, 0, "cophenet", "",
-                    "numkit:cophenet:size");
+                    "nk:cophenet:size");
     const size_t Yn = Y.numel();
     if (N * (N - 1) / 2 != Yn)
         throw Error("cophenet: Y / Z size mismatch", 0, 0, "cophenet", "",
-                    "numkit:cophenet:size");
+                    "nk:cophenet:size");
 
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -445,7 +445,7 @@ Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr) {
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("inconsistent: Z must be (N-1)×3", 0, 0, "inconsistent", "",
-                    "numkit:inconsistent:size");
+                    "nk:inconsistent:size");
     if (depth <= 0) depth = 2;
     const size_t N = M + 1;
 
@@ -494,4 +494,4 @@ Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr) {
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

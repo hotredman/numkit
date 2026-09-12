@@ -1,11 +1,11 @@
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/core/vm.hpp>
-#include <numkit/runtime/runtime.hpp>
-#include <numkit/graphics/graphics_handle.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/core/vm.hpp>
+#include <nk/runtime/runtime.hpp>
+#include <nk/graphics/graphics_handle.hpp>
 
 #include <algorithm>
 #include <iomanip>
@@ -15,9 +15,9 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <numkit/core/build_info.hpp>
+#include <nk/core/build_info.hpp>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 void addpath_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void clc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -41,12 +41,12 @@ void rmpath_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void which_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 }
 
-namespace numkit::bundle::builtin {
+namespace nk::bundle::builtin {
 
-using namespace ::numkit::builtin;
+using namespace ::nk::builtin;
 
 void register_general(Engine &engine) {
-    using namespace ::numkit::builtin::detail;
+    using namespace ::nk::builtin::detail;
 // ── clc ────────────────────────────────────────────────────
     engine.registerFunction("clc",
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
@@ -59,19 +59,19 @@ void register_general(Engine &engine) {
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (!args.empty() && !args[0].isChar() && !args[0].isString())
                 throw Error("web: requires a string URL", 0, 0, "web", "",
-                             "numkit:web:nargin");
+                             "nk:web:nargin");
             if (!args.empty())
                 ctx.engine->outputText(
-                    "Warning: web: no browser in the numkit CLI — URL '"
+                    "Warning: web: no browser in the nk CLI — URL '"
                     + args[0].toString() + "' not opened.\n");
             else
                 ctx.engine->outputText(
-                    "Warning: web: no browser in the numkit CLI.\n");
+                    "Warning: web: no browser in the nk CLI.\n");
             outs[0] = Value::scalar(0.0);
         });
 
     // who / whos extracted to the runtime language-runtime layer:
-    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
+    //   runtime/src/workspace.cpp → nk::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
     // ── which ──────────────────────────────────────────────────
@@ -127,7 +127,7 @@ void register_general(Engine &engine) {
                             });
 
     // exist extracted to the runtime language-runtime layer:
-    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
+    //   runtime/src/workspace.cpp → nk::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
     
@@ -196,7 +196,7 @@ void register_general(Engine &engine) {
     //
     // eval-family (run / eval / evalin) + the shared resolveEvalScope helper
     // were extracted to the runtime language-runtime layer:
-    //   runtime/src/eval.cpp → numkit::runtime::installRuntimeLibrary
+    //   runtime/src/eval.cpp → nk::runtime::installRuntimeLibrary
     // which bundle/installStandardLibrary calls right after BuiltinLibrary::install.
 
     // ── pwd / cd (Phase 9c) ────────────────────────────────────
@@ -249,18 +249,18 @@ void register_general(Engine &engine) {
                             });
 
     // ── version ───────────────────────────────────────────────
-    // numkit doesn't carry a SemVer; the build's link-time stamp
+    // nk doesn't carry a SemVer; the build's link-time stamp
     // serves as our "version". The timestamp lives in a tiny
     // separate TU (version_string.cpp) that gets recompiled on
-    // every build via the `numkit_build_info` CMake target — so the
+    // every build via the `nk_build_info` CMake target — so the
     // value here ALWAYS reflects the actual link time, not stale
     // __DATE__/__TIME__ macros from whenever library.cpp's .o
     // happened to last refresh. Declaration lives in the generated
-    // build_info.hpp (alongside the NUMKIT_BUILD_TIMESTAMP macro).
+    // build_info.hpp (alongside the NK_BUILD_TIMESTAMP macro).
     engine.registerFunction(
         "version",
         [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
-            outs[0] = Value::fromString(std::string(numkit::buildTimestamp()),
+            outs[0] = Value::fromString(std::string(nk::buildTimestamp()),
                                         ctx.engine->resource());
         });
 
@@ -471,7 +471,7 @@ void register_general(Engine &engine) {
 // ── Pack 25: workspace / display utilities ────────────────────────
 
     // clearvars extracted to the runtime language-runtime layer:
-    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
+    //   runtime/src/workspace.cpp → nk::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
     // formatteddisplaytext(x) — return what disp(x) would print, but
@@ -484,7 +484,7 @@ void register_general(Engine &engine) {
                                          ctx.engine->resource());
         });
 
-    // format(spec) — accepted for compatibility, no-op (numkit always
+    // format(spec) — accepted for compatibility, no-op (nk always
     // formats with ~15 significant digits). Recognised specs are
     // 'short', 'long', 'compact', 'loose', 'shortG', 'longG', 'shortE',
     // 'longE', 'rat', 'hex'; unknown specs throw.
@@ -505,7 +505,7 @@ void register_general(Engine &engine) {
                     throw std::runtime_error(
                         "format: unrecognised format spec '" + s + "'");
             }
-            // No-op: numkit's display already runs at full precision.
+            // No-op: nk's display already runs at full precision.
             outs[0] = Value();
         });
 
@@ -626,4 +626,4 @@ void register_general(Engine &engine) {
         });
 }
 
-} // namespace numkit::bundle::builtin
+} // namespace nk::bundle::builtin

@@ -9,23 +9,23 @@
 // Polynomial multiplication uses signal::conv. Polynomial addition
 // is done locally (right-aligned, longer length wins).
 
-#include <numkit/control/connect/connect.hpp>
-#include <numkit/control/lti/lti.hpp>
-#include <numkit/control/conversion/conversion.hpp>
+#include <nk/control/connect/connect.hpp>
+#include <nk/control/lti/lti.hpp>
+#include <nk/control/conversion/conversion.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/signal/convolution/convolution.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/signal/convolution/convolution.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The series / parallel
 // / feedback builtins (CallContext wrappers) live in connect/connect_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -68,7 +68,7 @@ NumDen toNumDen(const Value &sys, std::pmr::memory_resource *mr) {
         if (sys.numel() == 1)
             return {{sys.toScalar()}, {1.0}};
         throw Error("control connect: a numeric system must be a scalar gain",
-                    0, 0, "control", "", "numkit:control:kind");
+                    0, 0, "control", "", "nk:control:kind");
     }
     if (hasKind(sys, "tf")) {
         return {coeffsReal(sys.field("num")), coeffsReal(sys.field("den"))};
@@ -83,7 +83,7 @@ NumDen toNumDen(const Value &sys, std::pmr::memory_resource *mr) {
         return {coeffsReal(num), coeffsReal(den)};
     }
     throw Error("control connect: expected tf/zpk/ss struct",
-                0, 0, "control", "", "numkit:control:kind");
+                0, 0, "control", "", "nk:control:kind");
 }
 
 // Polynomial addition right-aligned (highest order first, MATLAB style).
@@ -121,7 +121,7 @@ double Ts_combine(double Ts1, double Ts2, const char *op) {
     if (Ts2 == -1.0) return Ts1;
     throw Error(std::string("control ") + op +
                 ": sample times must match (Ts mismatch)",
-                0, 0, op, "", "numkit:control:Ts");
+                0, 0, op, "", "nk:control:Ts");
 }
 
 } // anonymous
@@ -165,4 +165,4 @@ Value feedback(const Value &G, const Value &H, int sign, std::pmr::memory_resour
     return tf(rowOf(numT, mr), rowOf(denT, mr), Ts, mr);
 }
 
-} // namespace numkit::control
+} // namespace nk::control

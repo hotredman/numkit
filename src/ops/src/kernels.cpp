@@ -1,16 +1,16 @@
-// numkit/ops/kernels.cpp
+// nk/ops/kernels.cpp
 //
-// The public kernel facade (numkit/ops/kernels.hpp) — thin forwarders to the
+// The public kernel facade (nk/ops/kernels.hpp) — thin forwarders to the
 // backend-split detail loops. The facade itself is allowed to reach into
 // detail; its callers are not. Keeping the forwarders in one base TU (always
 // compiled, no SIMD specialisation of its own) means the public symbol resolves
 // to whichever backend (Highway / portable) was linked, with no drift.
-#include <numkit/ops/kernels.hpp>
+#include <nk/ops/kernels.hpp>
 
-#include <numkit/ops/binary_ops.hpp>        // detail::matmulDoubleLoop / *Loop
-#include <numkit/ops/fused/fused_kernels.hpp>  // fusedTransAffine / TransAffineFn
+#include <nk/ops/binary_ops.hpp>        // detail::matmulDoubleLoop / *Loop
+#include <nk/ops/fused/fused_kernels.hpp>  // fusedTransAffine / TransAffineFn
 
-namespace numkit::ops {
+namespace nk::ops {
 
 void matmulDouble(const double *a, const double *b, double *c,
                   std::size_t M, std::size_t N, std::size_t K)
@@ -72,4 +72,4 @@ void asinhDouble(const double *x, double *out, std::size_t n)
 void expm1Double(const double *x, double *out, std::size_t n)
 { fusedTransAffine(x, 1.0, 0.0, TransAffineFn::Expm1, out, n); }
 
-} // namespace numkit::ops
+} // namespace nk::ops

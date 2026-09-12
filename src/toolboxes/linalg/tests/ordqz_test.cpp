@@ -3,14 +3,14 @@
 // Unit tests for ordqz (Reorder Generalized Schur Decomposition).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/qz.hpp>
-#include <numkit/linalg/ordqz.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/qz.hpp>
+#include <nk/linalg/ordqz.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(OrdqzTest, OrdqzSelectVectorReorder) {
     Value A = Value::matrix(2, 2);

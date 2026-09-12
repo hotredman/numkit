@@ -17,11 +17,11 @@ quadgk(@(x)exp(-x.^2),0,1)            % MATLAB: 0.746824132812427
 integral2(@(x,y)x.*y,0,1,0,1)         % MATLAB: 0.25
 integral3(@(x,y,z)x+y+z,0,1,0,1,0,1) % MATLAB: 1.5
 quad2d(@(x,y)x.*y,0,1,0,1)            % MATLAB: 0.25
-% numkit (each): Error — VM: undefined function '<name>'
+% nk (each): Error — VM: undefined function '<name>'
 ```
 
 ## Fix (2026-06-19)
-Implemented all four on top of numkit's existing 1-D adaptive Gauss-Kronrod
+Implemented all four on top of nk's existing 1-D adaptive Gauss-Kronrod
 `integral`:
 - `integral2(fn,a,b,c,d)` = **iterated quadrature** — an outer `integral`
   over `x` whose integrand, at each node, runs an inner `integral` over `y`
@@ -45,7 +45,7 @@ Verified vs MATLAB R2025b (parity `integral2.json` → OK):
 
 ## References
 - `src/math/src/integration/integration.cpp` (`integral2`, `integral3`),
-  `.../include/numkit/math/integration/integration.hpp`,
+  `.../include/nk/math/integration/integration.hpp`,
   `src/bundle/src/register/math/integration_reg.cpp` (`integral2_reg`,
   `integral3_reg`, `quadgk_reg`, `quad2d_reg`),
   `src/bundle/src/builtin_library.cpp` (registration).

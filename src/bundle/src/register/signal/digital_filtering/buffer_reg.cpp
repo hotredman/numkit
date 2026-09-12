@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/digital_filtering/buffer.hpp>
+#include <nk/signal/digital_filtering/buffer.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void buffer_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("buffer: requires (x, n [, p [, opt]])",
-                    0, 0, "buffer", "", "numkit:buffer:nargin");
+                    0, 0, "buffer", "", "nk:buffer:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     int p = 0;
     if (args.size() >= 3 && !args[2].isEmpty()) p = static_cast<int>(args[2].toScalar());
@@ -50,4 +50,4 @@ void buffer_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

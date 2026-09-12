@@ -19,16 +19,16 @@
 //   * `dithering` arg ('dither' | 'nodither') — deferred; always
 //     equivalent to 'nodither' (no error diffusion).
 
-#include <numkit/image/color/color.hpp>
-#include <numkit/image/type_convert/type_convert.hpp>
-#include <numkit/image/geom/geom.hpp>
-#include <numkit/image/contrast/contrast.hpp>
+#include <nk/image/color/color.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
+#include <nk/image/geom/geom.hpp>
+#include <nk/image/contrast/contrast.hpp>
 
-#include <numkit/ops/matlab_mt19937.hpp>
+#include <nk/ops/matlab_mt19937.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -42,16 +42,16 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 // ── rgb2lightness ─────────────────────────────────────────────────────
 // L = first channel of rgb2lab(RGB). MATLAB's rgb2lightness returns
-// single. Numkit's rgb2lab returns double, so we cast on the way out.
+// single. NK's rgb2lab returns double, so we cast on the way out.
 Value rgb2lightness(const Value &RGB, std::pmr::memory_resource *mr)
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("rgb2lightness: input must be H×W×3",
-                    0, 0, "rgb2lightness", "", "numkit:rgb2lightness:Shape");
+                    0, 0, "rgb2lightness", "", "nk:rgb2lightness:Shape");
     Value lab = rgb2lab(RGB, mr);
     const size_t H = lab.dims().rows();
     const size_t W = lab.dims().cols();
@@ -84,10 +84,10 @@ rgb2ind_inmap(const Value &RGB, const Value &cmap, std::pmr::memory_resource *mr
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("rgb2ind: input must be H×W×3",
-                    0, 0, "rgb2ind", "", "numkit:rgb2ind:Shape");
+                    0, 0, "rgb2ind", "", "nk:rgb2ind:Shape");
     if (cmap.dims().is3D() || cmap.dims().cols() != 3)
         throw Error("rgb2ind: colormap must be K×3",
-                    0, 0, "rgb2ind", "", "numkit:rgb2ind:CmapShape");
+                    0, 0, "rgb2ind", "", "nk:rgb2ind:CmapShape");
 
     const size_t H = RGB.dims().rows();
     const size_t W = RGB.dims().cols();
@@ -166,10 +166,10 @@ Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
 {
     if (bits_per_sample != 10 && bits_per_sample != 12)
         throw Error("rgbwide2ycbcr: BPS must be 10 or 12",
-                    0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:bps");
+                    0, 0, "rgbwide2ycbcr", "", "nk:rgbwide2ycbcr:bps");
     if (RGB.type() != ValueType::UINT16)
         throw Error("rgbwide2ycbcr: RGB must be UINT16",
-                    0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:class");
+                    0, 0, "rgbwide2ycbcr", "", "nk:rgbwide2ycbcr:class");
 
     const auto &d = RGB.dims();
     // Two shapes: p × 3 colour list, or H × W × 3 image.
@@ -177,11 +177,11 @@ Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
     if (is_image) {
         if (d.pages() != 3)
             throw Error("rgbwide2ycbcr: H×W×3 image expected",
-                        0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:shape");
+                        0, 0, "rgbwide2ycbcr", "", "nk:rgbwide2ycbcr:shape");
     } else {
         if (d.cols() != 3)
             throw Error("rgbwide2ycbcr: p×3 colour list expected",
-                        0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:shape");
+                        0, 0, "rgbwide2ycbcr", "", "nk:rgbwide2ycbcr:shape");
     }
 
     const double blackLevel  = (bits_per_sample == 10) ?  64.0 : 256.0;
@@ -265,7 +265,7 @@ inline double im2double_scalar(const Value &v, std::size_t i)
         case ValueType::SINGLE: return static_cast<double>(v.singleData()[i]);
         default:
             throw Error("cmunique: unsupported image class",
-                        0, 0, "cmunique", "", "numkit:cmunique:cls");
+                        0, 0, "cmunique", "", "nk:cmunique:cls");
     }
 }
 
@@ -412,7 +412,7 @@ cmunique_xm(const Value &X, const Value &MAP, std::pmr::memory_resource *mr)
 {
     if (MAP.dims().cols() != 3 || MAP.dims().is3D())
         throw Error("cmunique: MAP must be N×3",
-                    0, 0, "cmunique", "", "numkit:cmunique:map");
+                    0, 0, "cmunique", "", "nk:cmunique:map");
     const std::size_t M = MAP.dims().rows();
     const std::size_t H = X.dims().rows();
     const std::size_t W = X.dims().cols();
@@ -439,7 +439,7 @@ cmunique_rgb(const Value &RGB, std::pmr::memory_resource *mr)
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("cmunique: RGB must be H×W×3",
-                    0, 0, "cmunique", "", "numkit:cmunique:rgb");
+                    0, 0, "cmunique", "", "nk:cmunique:rgb");
     const std::size_t H = RGB.dims().rows();
     const std::size_t W = RGB.dims().cols();
     const std::size_t N = H * W;
@@ -460,7 +460,7 @@ cmunique_i(const Value &I, std::pmr::memory_resource *mr)
 {
     if (I.dims().ndims() > 2)
         throw Error("cmunique: I must be a 2-D intensity image",
-                    0, 0, "cmunique", "", "numkit:cmunique:i");
+                    0, 0, "cmunique", "", "nk:cmunique:i");
     const std::size_t H = I.dims().rows();
     const std::size_t W = I.dims().cols();
     const std::size_t N = H * W;
@@ -512,21 +512,21 @@ Value ycbcr2rgbwide(const Value &YCBCR, int bits_per_sample,
 {
     if (bits_per_sample != 10 && bits_per_sample != 12)
         throw Error("ycbcr2rgbwide: BPS must be 10 or 12",
-                    0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:bps");
+                    0, 0, "ycbcr2rgbwide", "", "nk:ycbcr2rgbwide:bps");
     if (YCBCR.type() != ValueType::UINT16)
         throw Error("ycbcr2rgbwide: YCBCR must be UINT16",
-                    0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:class");
+                    0, 0, "ycbcr2rgbwide", "", "nk:ycbcr2rgbwide:class");
 
     const auto &d = YCBCR.dims();
     const bool is_image = d.is3D();
     if (is_image) {
         if (d.pages() != 3)
             throw Error("ycbcr2rgbwide: H×W×3 image expected",
-                        0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:shape");
+                        0, 0, "ycbcr2rgbwide", "", "nk:ycbcr2rgbwide:shape");
     } else {
         if (d.cols() != 3)
             throw Error("ycbcr2rgbwide: p×3 colour list expected",
-                        0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:shape");
+                        0, 0, "ycbcr2rgbwide", "", "nk:ycbcr2rgbwide:shape");
     }
 
     double yzero, yrange, chromazero, chromarange;
@@ -635,7 +635,7 @@ BTParams bt2020_params(int bps)
     if (bps == 10) return {1.099, 0.018, 64, 940};
     if (bps == 12) return {1.0993, 0.0181, 256, 3760};
     throw Error("rgbwide2xyz: bits_per_sample must be 10 or 12",
-                0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:bps");
+                0, 0, "rgbwide2xyz", "", "nk:rgbwide2xyz:bps");
 }
 BTParams bt2100_params(int bps)
 {
@@ -644,7 +644,7 @@ BTParams bt2100_params(int bps)
     if (bps == 10) return {1.099, 0.018, 64, 940};
     if (bps == 12) return {1.099, 0.018, 256, 3760};
     throw Error("rgbwide2xyz: bits_per_sample must be 10 or 12",
-                0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:bps");
+                0, 0, "rgbwide2xyz", "", "nk:rgbwide2xyz:bps");
 }
 
 // Inverse transfer (normalized [0,1] non-linear → linear).
@@ -695,7 +695,7 @@ Value rgbwide2xyz(const Value &RGB, int bits_per_sample,
     bool is_bt2100 = (cs_lo == "bt.2100" || cs_lo == "bt2100");
     if (!is_bt2020 && !is_bt2100)
         throw Error("rgbwide2xyz: ColorSpace must be 'BT.2020' or 'BT.2100'",
-                    0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:cs");
+                    0, 0, "rgbwide2xyz", "", "nk:rgbwide2xyz:cs");
     bool use_hlg = (is_bt2100 && tf_lo == "hlg");
 
     BTParams P = is_bt2020 ? bt2020_params(bits_per_sample)
@@ -705,7 +705,7 @@ Value rgbwide2xyz(const Value &RGB, int bits_per_sample,
     const auto &d = RGB.dims();
     if (d.is3D() && d.pages() != 3)
         throw Error("rgbwide2xyz: RGB must be Nx3 or HxWx3",
-                    0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:shape");
+                    0, 0, "rgbwide2xyz", "", "nk:rgbwide2xyz:shape");
     const std::size_t H = d.rows();
     const std::size_t W = d.cols();
     const bool is_image = d.is3D();
@@ -782,7 +782,7 @@ Value xyz2rgbwide(const Value &XYZ, int bits_per_sample,
     bool is_bt2100 = (cs_lo == "bt.2100" || cs_lo == "bt2100");
     if (!is_bt2020 && !is_bt2100)
         throw Error("xyz2rgbwide: ColorSpace must be 'BT.2020' or 'BT.2100'",
-                    0, 0, "xyz2rgbwide", "", "numkit:xyz2rgbwide:cs");
+                    0, 0, "xyz2rgbwide", "", "nk:xyz2rgbwide:cs");
     bool use_hlg = (is_bt2100 && tf_lo == "hlg");
 
     BTParams P = is_bt2020 ? bt2020_params(bits_per_sample)
@@ -795,7 +795,7 @@ Value xyz2rgbwide(const Value &XYZ, int bits_per_sample,
     const auto &d = XYZ.dims();
     if (d.is3D() && d.pages() != 3)
         throw Error("xyz2rgbwide: XYZ must be Nx3 or HxWx3",
-                    0, 0, "xyz2rgbwide", "", "numkit:xyz2rgbwide:shape");
+                    0, 0, "xyz2rgbwide", "", "nk:xyz2rgbwide:shape");
     const std::size_t H = d.rows();
     const std::size_t W = d.cols();
     const bool is_image = d.is3D();
@@ -1037,10 +1037,10 @@ Value imfuse(const Value &Ain, const Value &Bin,
         throw Error("imfuse: unknown METHOD '" + method
                   + "' (allowed: falsecolor / blend / diff / "
                     "checkerboard / montage)",
-                    0, 0, "imfuse", "", "numkit:imfuse:method");
+                    0, 0, "imfuse", "", "nk:imfuse:method");
     if (scaling != "independent" && scaling != "joint" && scaling != "none")
         throw Error("imfuse: unknown SCALING '" + scaling + "'",
-                    0, 0, "imfuse", "", "numkit:imfuse:scaling");
+                    0, 0, "imfuse", "", "nk:imfuse:scaling");
 
     std::size_t Ha, Wa, Hb, Wb;
     hw_of(Ain, Ha, Wa);
@@ -1074,7 +1074,7 @@ Value imfuse(const Value &Ain, const Value &Bin,
                 const double v = channels.elemAsDouble(k);
                 if (v != 0.0 && v != 1.0 && v != 2.0)
                     throw Error("imfuse: ColorChannels values must be 0, 1, or 2",
-                                0, 0, "imfuse", "", "numkit:imfuse:channels");
+                                0, 0, "imfuse", "", "nk:imfuse:channels");
                 ch[k] = static_cast<int>(v);
             }
         }
@@ -1220,20 +1220,20 @@ Value tonemap(const Value &HDR,
        && lremap_lo < lremap_hi))
         throw Error("tonemap: AdjustLightness must satisfy "
                     "0 <= lo < hi <= 1",
-                    0, 0, "tonemap", "", "numkit:tonemap:adjust");
+                    0, 0, "tonemap", "", "nk:tonemap:adjust");
     if (!(saturation >= 0))
         throw Error("tonemap: AdjustSaturation must be non-negative",
-                    0, 0, "tonemap", "", "numkit:tonemap:sat");
+                    0, 0, "tonemap", "", "nk:tonemap:sat");
     if (ntilesR < 2 || ntilesC < 2)
         throw Error("tonemap: NumberOfTiles values must be >= 2",
-                    0, 0, "tonemap", "", "numkit:tonemap:tiles");
+                    0, 0, "tonemap", "", "nk:tonemap:tiles");
 
     const std::size_t H = HDR.dims().rows();
     const std::size_t W = HDR.dims().cols();
     const bool isRGB = HDR.dims().is3D();
     if (isRGB && HDR.dims().pages() != 3)
         throw Error("tonemap: HDR must be H×W or H×W×3",
-                    0, 0, "tonemap", "", "numkit:tonemap:shape");
+                    0, 0, "tonemap", "", "nk:tonemap:shape");
     const std::size_t C = isRGB ? 3 : 1;
     const std::size_t plane = H * W;
     const std::size_t Ntot = plane * C;
@@ -1246,7 +1246,7 @@ Value tonemap(const Value &HDR,
         const double v = HDR.elemAsDouble(i);
         if (v < 0.0)
             throw Error("tonemap: HDR must be non-negative",
-                        0, 0, "tonemap", "", "numkit:tonemap:negative");
+                        0, 0, "tonemap", "", "nk:tonemap:negative");
         data[i] = v;
         if (v != 0.0) {
             any_nz = true;
@@ -1363,7 +1363,7 @@ Value tonemap(const Value &HDR,
 // canonical column-major BFS does on integer-typed L matrices).
 
 // [Phase 2b] colormap/label2rgb cluster promoted from an anonymous namespace
-// to numkit::image scope so color_extras_reg.cpp can reuse it (decls in
+// to nk::image scope so color_extras_reg.cpp can reuse it (decls in
 // color_extras_detail.hpp). Internal-only — not public API.
 
 // ── jet(N) — MATLAB-canonical jet colormap ────────────────────────
@@ -1619,7 +1619,7 @@ Value resolve_named_colormap(const std::string &name, int N,
     if (lo == "bone")    return bone_colormap(N, mr);
     throw Error("labeloverlay: unsupported colormap name '" + name +
                 "' (supported: jet, hsv, parula, gray, hot, cool, bone)",
-                0, 0, "labeloverlay", "", "numkit:labeloverlay:cmapName");
+                0, 0, "labeloverlay", "", "nk:labeloverlay:cmapName");
 }
 
 // ── randperm(N) using MATLAB MT19937 with rng('default') ──────────
@@ -1629,7 +1629,7 @@ Value resolve_named_colormap(const std::string &name, int N,
 // after a stable sort give the permutation.
 std::vector<int> matlab_default_randperm(int N)
 {
-    ::numkit::ops::MatlabMT19937 rng;   // seed 0 → state[0] = 5489
+    ::nk::ops::MatlabMT19937 rng;   // seed 0 → state[0] = 5489
     std::vector<double> u(static_cast<std::size_t>(N));
     for (int i = 0; i < N; ++i) u[i] = rng.genRes53();
     std::vector<int> p(static_cast<std::size_t>(N));
@@ -1934,21 +1934,21 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
     const std::size_t W = dA.cols();
     if (H == 0 || W == 0)
         throw Error("labeloverlay: A must be nonempty",
-                    0, 0, "labeloverlay", "", "numkit:labeloverlay:emptyA");
+                    0, 0, "labeloverlay", "", "nk:labeloverlay:emptyA");
     const bool isRGB = dA.is3D() && dA.pages() == 3;
     const bool isGray = !dA.is3D() || (dA.is3D() && dA.pages() == 1);
     if (!isRGB && !isGray)
         throw Error("labeloverlay: A must be grayscale (H×W) or RGB (H×W×3)",
-                    0, 0, "labeloverlay", "", "numkit:labeloverlay:shapeA");
+                    0, 0, "labeloverlay", "", "nk:labeloverlay:shapeA");
 
     // ── Validate L ────────────────────────────────────────────────
     const auto &dL = L_in.dims();
     if (dL.is3D() && dL.pages() != 1)
         throw Error("labeloverlay: L must be 2-D",
-                    0, 0, "labeloverlay", "", "numkit:labeloverlay:shapeL");
+                    0, 0, "labeloverlay", "", "nk:labeloverlay:shapeL");
     if (dL.rows() != H || dL.cols() != W)
         throw Error("labeloverlay: size(L) must match size(A,1:2)",
-                    0, 0, "labeloverlay", "", "numkit:labeloverlay:sizeMismatch");
+                    0, 0, "labeloverlay", "", "nk:labeloverlay:sizeMismatch");
 
     // Logical → 0/1 integer label matrix. Already a numeric label
     // matrix? Accept as-is, but validate non-negative integer.
@@ -1958,7 +1958,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         const double v = L_in.elemAsDouble(i);
         if (v < 0 || std::floor(v) != v || !std::isfinite(v))
             throw Error("labeloverlay: L must be non-negative integer-valued",
-                        0, 0, "labeloverlay", "", "numkit:labeloverlay:badL");
+                        0, 0, "labeloverlay", "", "nk:labeloverlay:badL");
         const int iv = static_cast<int>(v);
         if (iv > maxLabel) maxLabel = iv;
     }
@@ -1968,7 +1968,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
     if (!std::isfinite(transparency) || transparency < 0 || transparency > 1)
         throw Error("labeloverlay: Transparency must be in [0, 1]",
                     0, 0, "labeloverlay", "",
-                    "numkit:labeloverlay:transparency");
+                    "nk:labeloverlay:transparency");
     const double alphaVal = 1.0 - transparency;
 
     // ── Resolve colormap ──────────────────────────────────────────
@@ -1985,7 +1985,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         if (colormap.dims().cols() != 3 || colormap.dims().is3D())
             throw Error("labeloverlay: Colormap must be an Nx3 numeric array",
                         0, 0, "labeloverlay", "",
-                        "numkit:labeloverlay:cmapShape");
+                        "nk:labeloverlay:cmapShape");
         // Convert to DOUBLE (matches MATLAB's normalizeColormap → single
         // then double for indexing). Stays bit-identical because the
         // user-supplied array IS the source of truth.
@@ -2005,7 +2005,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         throw Error("labeloverlay: ColorAssignment must be auto / shuffle / "
                     "noshuffle / contrasting-neighbors",
                     0, 0, "labeloverlay", "",
-                    "numkit:labeloverlay:colorAssignment");
+                    "nk:labeloverlay:colorAssignment");
     }
 
     if (ca == "shuffle") {
@@ -2029,14 +2029,14 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
                 throw Error("labeloverlay: IncludedLabels must be "
                             "non-negative integers",
                             0, 0, "labeloverlay", "",
-                            "numkit:labeloverlay:includedBad");
+                            "nk:labeloverlay:includedBad");
             included.push_back(static_cast<int>(v));
         }
         for (int v : included)
             if (v > maxLabel)
                 throw Error("labeloverlay: IncludedLabels exceeds max label",
                             0, 0, "labeloverlay", "",
-                            "numkit:labeloverlay:includedRange");
+                            "nk:labeloverlay:includedRange");
     }
     if (included.empty()) {
         // MATLAB behaviour: pass A through im2uint8.
@@ -2047,7 +2047,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         throw Error("labeloverlay: Colormap has fewer rows than the number "
                     "of labels",
                     0, 0, "labeloverlay", "",
-                    "numkit:labeloverlay:cmapTooSmall");
+                    "nk:labeloverlay:cmapTooSmall");
 
     // ── Build alphamap ────────────────────────────────────────────
     bool zero_in_included = false;
@@ -2138,4 +2138,4 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         }
     return out;
 }
-} // namespace numkit::image
+} // namespace nk::image

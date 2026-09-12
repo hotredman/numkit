@@ -1,4 +1,4 @@
-#include <numkit/ops/blas1.hpp>
+#include <nk/ops/blas1.hpp>
 
 #include <cmath>
 
@@ -8,7 +8,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -28,11 +28,11 @@ void AxpyDoubleKernel(std::size_t n, double alpha, const double *x, double *y)
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(AxpyDoubleKernel);
 
@@ -41,5 +41,5 @@ void axpy(std::size_t n, double alpha, const double *x, double *y)
     HWY_DYNAMIC_DISPATCH(AxpyDoubleKernel)(n, alpha, x, y);
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif

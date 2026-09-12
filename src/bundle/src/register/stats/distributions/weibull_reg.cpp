@@ -3,16 +3,16 @@
 // CallContext register half of distributions/weibull.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/weibull.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/weibull.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/weibull_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -40,7 +40,7 @@ inline double argB(Span<const Value> args, size_t i) {
 void wblpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("wblpdf: requires (x[, a, b])", 0, 0, "wblpdf", "", "numkit:wblpdf:nargin");
+        throw Error("wblpdf: requires (x[, a, b])", 0, 0, "wblpdf", "", "nk:wblpdf:nargin");
     auto *mr = ctx.engine->resource();
     Value ha, hb;
     const Value &a = dist_param(args, 1, 1.0, mr, ha);
@@ -56,7 +56,7 @@ void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> s = args.subspan(0, stripUpperFlag(args, upper));
     if (s.empty())
-        throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "numkit:wblcdf:nargin");
+        throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "nk:wblcdf:nargin");
     auto *mr = ctx.engine->resource();
     Value ha, hb;
     const Value &a = dist_param(s, 1, 1.0, mr, ha);
@@ -71,7 +71,7 @@ void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void wblinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("wblinv: requires (p[, a, b])", 0, 0, "wblinv", "", "numkit:wblinv:nargin");
+        throw Error("wblinv: requires (p[, a, b])", 0, 0, "wblinv", "", "nk:wblinv:nargin");
     auto *mr = ctx.engine->resource();
     Value ha, hb;
     const Value &a = dist_param(args, 1, 1.0, mr, ha);
@@ -99,4 +99,4 @@ void wblstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

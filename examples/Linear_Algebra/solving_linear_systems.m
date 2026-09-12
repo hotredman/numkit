@@ -14,7 +14,7 @@ x_true = rand(N, 1);
 b = A * x_true;
 
 % 2. Solve using the backslash operator (\)
-% This is the recommended way to solve A*x = b in numkit.
+% This is the recommended way to solve A*x = b in nk.
 % It uses LU decomposition (via BLAS/LAPACK) under the hood.
 disp('Solving using backslash (\):');
 tic;

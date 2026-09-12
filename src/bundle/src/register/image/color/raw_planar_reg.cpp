@@ -6,15 +6,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/color/color.hpp>
+#include <nk/image/color/color.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cstddef>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -23,7 +23,7 @@ void raw2planar_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 1)
         throw Error("raw2planar: requires (cfa)",
-                    0, 0, "raw2planar", "", "numkit:raw2planar:nargin");
+                    0, 0, "raw2planar", "", "nk:raw2planar:nargin");
     outs[0] = raw2planar(args[0], ctx.engine->resource());
 }
 
@@ -32,10 +32,10 @@ void planar2raw_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 1)
         throw Error("planar2raw: requires (I)",
-                    0, 0, "planar2raw", "", "numkit:planar2raw:nargin");
+                    0, 0, "planar2raw", "", "nk:planar2raw:nargin");
     outs[0] = planar2raw(args[0], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

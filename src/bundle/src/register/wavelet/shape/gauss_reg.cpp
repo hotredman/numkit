@@ -8,17 +8,17 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/shape/shape.hpp>
+#include <nk/wavelet/shape/shape.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <stdexcept>
 #include <string>
 #include <utility>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 // Parse the optional `p` argument: either an integer (1..8) or a string
@@ -34,12 +34,12 @@ static int parseGaussOrder(const Value &arg, const char *prefix, const char *fn)
         if (s.size() <= plen || s.compare(0, plen, prefix) != 0)
             throw Error(std::string(fn) + ": bad wname '" + s +
                         "' (expected " + prefix + "N)",
-                         0, 0, fn, "", "numkit:wname");
+                         0, 0, fn, "", "nk:wname");
         try { return std::stoi(s.substr(plen)); }
         catch (...) {
             throw Error(std::string(fn) + ": bad wname '" + s +
                         "' (cannot parse order N)",
-                         0, 0, fn, "", "numkit:wname");
+                         0, 0, fn, "", "nk:wname");
         }
     }
     return static_cast<int>(arg.toScalar());
@@ -50,7 +50,7 @@ void gauswavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("gauswavf: requires (LB, UB, N[, p|'gausN'])",
-                    0, 0, "gauswavf", "", "numkit:gauswavf:nargin");
+                    0, 0, "gauswavf", "", "nk:gauswavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -66,7 +66,7 @@ void cgauwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("cgauwavf: requires (LB, UB, N[, p|'cgauN'])",
-                    0, 0, "cgauwavf", "", "numkit:cgauwavf:nargin");
+                    0, 0, "cgauwavf", "", "nk:cgauwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -78,4 +78,4 @@ void cgauwavf_reg(Span<const Value> args, size_t nargout,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

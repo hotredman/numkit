@@ -1,6 +1,6 @@
-// numkit/graphics — plots/shared.cpp
+// nk/graphics — plots/shared.cpp
 //
-// Plot bodies shared across more than one family, as numkit::detail free
+// Plot bodies shared across more than one family, as nk::detail free
 // functions so the line / bar / image builders can each call them:
 //   heatmapImpl  — imagesc / pcolor (image) + histogram2 (bar)
 //   geoForward   — geoplot (line) + geoscatter / geobubble (bar)
@@ -8,7 +8,7 @@
 // Carved out of buildPlotTable; bodies verbatim (pure helpers via header).
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include <algorithm>
 #include <array>
@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::detail {
+namespace nk::detail {
 
 void heatmapImpl(
                        const char *typeName,
@@ -280,4 +280,4 @@ void delegateTo(const char *target, Span<const Value> args,
     outs[0] = Value();
 }
 
-}  // namespace numkit::detail
+}  // namespace nk::detail

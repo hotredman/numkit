@@ -3,16 +3,16 @@
 // CallContext register half of cluster/kmedoids.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/cluster/kmedoids.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/cluster/kmedoids.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "cluster/kmedoids_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void kmedoids_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("kmedoids: requires (X, K[, N-V pairs])",
-                    0, 0, "kmedoids", "", "numkit:kmedoids:nargin");
+                    0, 0, "kmedoids", "", "nk:kmedoids:nargin");
     const int K = (int)args[1].toScalar();
     int max_iter  = 100;
     int replicates = 1;
@@ -79,7 +79,7 @@ void dbscan_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("dbscan: requires (X, eps, minpts[, N-V pairs])",
-                    0, 0, "dbscan", "", "numkit:dbscan:nargin");
+                    0, 0, "dbscan", "", "nk:dbscan:nargin");
     const double eps    = args[1].toScalar();
     const int    minpts = (int)args[2].toScalar();
     std::string metric  = "euclidean";
@@ -89,7 +89,7 @@ void dbscan_reg(Span<const Value> args, size_t nargout,
         return s;
     };
     // MATLAB requires N-V form; we also tolerate a 4th positional metric
-    // string for backward compat with prior numkit usage.
+    // string for backward compat with prior nk usage.
     size_t i = 3;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         const std::string s = lower(args[i].toString());
@@ -114,4 +114,4 @@ void dbscan_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

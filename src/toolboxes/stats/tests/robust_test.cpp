@@ -2,12 +2,12 @@
 //
 // Regression guards for robustfit + robustcov.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class RobustTest : public ::testing::Test
 {
@@ -21,7 +21,7 @@ public:
 // ── robustfit ──────────────────────────────────────────────────────
 
 // MATLAB convention: robustfit(X, y) adds a constant term by default, so X
-// holds ONLY the predictor columns and b = [intercept; slopes...]. (numkit
+// holds ONLY the predictor columns and b = [intercept; slopes...]. (nk
 // previously required the caller to supply the constant column and returned
 // no intercept — 2026-05-31.)
 TEST_F(RobustTest, RobustfitRecoversTrueSlopeWithOutliers)
@@ -79,7 +79,7 @@ TEST_F(RobustTest, RobustfitDefaultIntercept)
 
 // DEEP-PROBE c174: all 9 MATLAB weight functions + the DuMouchel-O'Brien
 // leverage adjustment. Deterministic 10-point line with one outlier; values
-// pinned to MATLAB R2025b (bit-identical to 8 decimals). numkit previously
+// pinned to MATLAB R2025b (bit-identical to 8 decimals). nk previously
 // shipped only bisquare/huber AND omitted leverage, so values were off.
 TEST_F(RobustTest, RobustfitWeightFunctions)
 {
@@ -152,7 +152,7 @@ TEST_F(RobustTest, RobustcovTooFewObsThrows)
 // regress 4th output rint (residual confidence intervals for outlier
 // diagnosis). MATLAB R2025b uses the Chatterjee & Hadi leave-one-out
 // variance estimate with (nu-1) dof, NOT the textbook r +/- t*sigma*sqrt(1-h).
-// numkit previously returned the textbook form (rint disagreed with MATLAB);
+// nk previously returned the textbook form (rint disagreed with MATLAB);
 // now bit-exact. Pinned to MATLAB.
 TEST_F(RobustTest, RegressResidualIntervals)
 {

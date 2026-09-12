@@ -3,10 +3,10 @@
 // Regression guard for houghlines — line-segment extraction from
 // Hough-transform peaks. Bit-exact MATLAB R2025b (tol = 0).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class HoughlinesTest : public ::testing::Test
 {

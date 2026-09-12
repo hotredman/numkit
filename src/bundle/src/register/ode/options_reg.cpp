@@ -1,14 +1,14 @@
 // bundle/src/register/ode/options_reg.cpp — Engine adapter + embedded-.m registration relocated from the
 // ode toolbox in Phase D (solver 3-way split): the toolbox keeps the
 // Engine-free FnHandle kernel; this core-coupled glue lives in bundle.
-#include <numkit/ode/solvers.hpp>
-#include <numkit/ode/options.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/ode/solvers.hpp>
+#include <nk/ode/options.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
-namespace numkit::ode {
+namespace nk::ode {
 
 // ── Engine adapters ─────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ void odeget_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("odeget: requires (opts, name[, default])",
-                    0, 0, "odeget", "", "numkit:odeget:nargin");
+                    0, 0, "odeget", "", "nk:odeget:nargin");
     auto *mr = ctx.engine->resource();
     const Value def = (args.size() > 2) ? args[2] : Value::Empty;
     outs[0] = odeget(args[0], args[1], def, mr);
@@ -33,4 +33,4 @@ void odeget_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::ode
+} // namespace nk::ode

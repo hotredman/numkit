@@ -17,7 +17,7 @@ solver.
 clear;
 [t, y] = ode15s(@(t,y) -y, [0 1], 1);
 % MATLAB: y(1)=1, y(end)≈0.3683 (≈ e^-1, within solver tolerance)
-% numkit: Error — VM: undefined function 'ode15s'
+% nk: Error — VM: undefined function 'ode15s'
 ```
 
 ## Root cause

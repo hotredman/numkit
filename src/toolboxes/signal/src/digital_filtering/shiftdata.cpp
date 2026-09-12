@@ -9,18 +9,18 @@
 // unshiftdata(x, perm=[], nshifts=k): y = shiftdim(x, -k)
 // unshiftdata(x, perm, nshifts=[]):    y = ipermute(x, perm)
 
-#include <numkit/signal/digital_filtering/shiftdata.hpp>
+#include <nk/signal/digital_filtering/shiftdata.hpp>
 
-#include <numkit/builtin/elmat.hpp>
+#include <nk/builtin/elmat.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
 
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -38,7 +38,7 @@ shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim == 0) {
         // Auto path: shiftdim(x) drops leading singletons.
-        auto res = numkit::builtin::shiftdimAuto(x, mr);
+        auto res = nk::builtin::shiftdimAuto(x, mr);
         // perm = []  (return as 1×0 double matrix)
         Value emptyPerm = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         Value nsh = Value::scalar(static_cast<double>(res.dropped), mr);
@@ -46,7 +46,7 @@ shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
     }
     if (dim < 1)
         throw Error("shiftdata: DIM must be >= 1",
-                    0, 0, "shiftdata", "", "numkit:shiftdata:BadDim");
+                    0, 0, "shiftdata", "", "nk:shiftdata:BadDim");
 
     // perm = [dim, 1..dim-1, dim+1..N]
     const size_t N = std::max<size_t>(static_cast<size_t>(dim), mtlNdims(x));
@@ -56,7 +56,7 @@ shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
     for (int i = 1; i < dim; ++i) perm[k++] = i;
     for (size_t i = dim + 1; i <= N; ++i) perm[k++] = static_cast<int>(i);
 
-    Value shifted = numkit::builtin::permute(x, Span<const int>(perm.data(), N), mr);
+    Value shifted = nk::builtin::permute(x, Span<const int>(perm.data(), N), mr);
 
     // Build perm Value (1 × N row).
     Value permV = Value::matrix(1, N, ValueType::DOUBLE, mr);
@@ -72,14 +72,14 @@ Value unshiftdata(const Value &x, const Value &perm, const Value &nshifts, std::
 {
     if (perm.isEmpty()) {
         const int n = nshifts.isEmpty() ? 0 : static_cast<int>(nshifts.toScalar());
-        return numkit::builtin::shiftdim(x, -n, mr);
+        return nk::builtin::shiftdim(x, -n, mr);
     }
     // ipermute(x, perm)
     const size_t N = perm.numel();
     std::vector<int> permVec(N);
     for (size_t i = 0; i < N; ++i)
         permVec[i] = static_cast<int>(perm.elemAsDouble(i));
-    return numkit::builtin::ipermute(x, Span<const int>(permVec.data(), N), mr);
+    return nk::builtin::ipermute(x, Span<const int>(permVec.data(), N), mr);
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -1,4 +1,4 @@
-"""Diff local MATLAB reference against numkit's PROGRESS.md.
+"""Diff local MATLAB reference against nk's PROGRESS.md.
 
 Categorizes every MATLAB function as:
   HAVE   — listed in PROGRESS.md (regardless of ✅/❌ status)
@@ -26,7 +26,7 @@ TOC_FILES = [
 PROGRESS = ROOT / "tools" / "parity" / "PROGRESS.md"
 
 # ── Out-of-scope ────────────────────────────────────────────────────
-# Top-level sections to drop entirely (per project decision: numkit is
+# Top-level sections to drop entirely (per project decision: nk is
 # a scientific-compute lib, not an IDE / language interop runtime).
 SKIP_TOP = {
     "App Building",
@@ -105,7 +105,7 @@ def in_scope(fn) -> bool:
     return True
 
 
-def load_numkit_names() -> set[str]:
+def load_nk_names() -> set[str]:
     text = PROGRESS.read_text(encoding="utf-8")
     names = set()
     for m in re.finditer(r"^\| `([^`]+)`", text, re.MULTILINE):
@@ -113,7 +113,7 @@ def load_numkit_names() -> set[str]:
     return names
 
 
-def load_numkit_status() -> dict[str, str]:
+def load_nk_status() -> dict[str, str]:
     """Return {name_lower: status} where status is "OK" (✅), "STUB" (❌)
     or "PARTIAL" (⚠️). If a name appears in multiple sections, prefer
     the strongest status."""
@@ -161,7 +161,7 @@ def main():
         for fn in matlab_fns[before:]:
             fn["path"].insert(0, prefix_label)
 
-    nk_status = load_numkit_status()
+    nk_status = load_nk_status()
     classified = []
     for fn in matlab_fns:
         if not in_scope(fn):

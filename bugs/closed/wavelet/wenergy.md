@@ -18,11 +18,11 @@ registered.
 [C, L] = wavedec([1 2 3 4 5 6 7 8], 2, 'db1');
 [Ea, Ed] = wenergy(C, L);
 % MATLAB: Ea = 95.0980392157, Ed = [0.98039216 3.92156863]
-% numkit: Error — VM: undefined function 'wenergy'
+% nk: Error — VM: undefined function 'wenergy'
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::wavelet::wenergy` (`multilevel.cpp`, next to
+Implemented `nk::wavelet::wenergy` (`multilevel.cpp`, next to
 `wavedec`/`detcoef`): with total energy `‖C‖²`, the approximation
 percentage is `Ea = 100·‖cA_N‖²/‖C‖²` (the first `L(1)` coefficients), and
 each detail percentage is `Ed(i) = 100·‖cD‖²/‖C‖²`.
@@ -43,7 +43,7 @@ Ed=[0.267, 1.069, 4.278]; `sin(1:32)` db2 L2 → Ea=34.1876, Ed=[9.833,
 
 ## References
 - `src/toolboxes/wavelet/src/dwt/multilevel.cpp` (`wenergy`),
-  `.../include/numkit/wavelet/dwt/multilevel.hpp` (`WenergyResult`),
+  `.../include/nk/wavelet/dwt/multilevel.hpp` (`WenergyResult`),
   `src/bundle/src/register/wavelet/dwt/multilevel_reg.cpp` (`wenergy_reg`).
 - `tools/parity/specs/wenergy.json`.
 - related: wavelet/upcoef.md (the reconstruction half, still open)

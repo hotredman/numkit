@@ -2,10 +2,10 @@
 //
 // Regression guard for tiedrank() — ranks adjusted for ties.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TiedrankTest : public ::testing::Test
 {

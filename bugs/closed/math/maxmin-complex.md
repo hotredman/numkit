@@ -1,7 +1,7 @@
 # math.max / min — elementwise on complex errors "Not a double array"
 
 - **Status:** ✅ FIXED (2026-06-17)
-- **Severity:** P2 (missing feature; numkit errored, no silent-wrong result)
+- **Severity:** P2 (missing feature; nk errored, no silent-wrong result)
 - **Kind:** stub
 - **Found:** 2026-06-17 via complex-input fusion work (probe of per-op complex)
 
@@ -15,16 +15,16 @@ The single-arg REDUCTION `max(z)` / `min(z)` already worked (by magnitude).
 
 ## Repro
 ```matlab
-max([3+4i, 0.2-0.1i], 1)   % MATLAB: [3+4i, 1]      ; numkit (was): ERROR "Not a double array"
-min([3+4i, 0.2-0.1i], 1)   % MATLAB: [1, 0.2-0.1i]  ; numkit (was): ERROR
-max(1+0i, 0+1i)            % MATLAB: 0+1i (tie |·|=1 → larger angle) ; numkit (was): ERROR
-max(1+1i, 1-1i)            % MATLAB: 1+1i            ; numkit (was): ERROR
-max(complex(NaN,2), 3+4i)  % MATLAB: 3+4i (NaN omitted) ; numkit (was): ERROR
+max([3+4i, 0.2-0.1i], 1)   % MATLAB: [3+4i, 1]      ; nk (was): ERROR "Not a double array"
+min([3+4i, 0.2-0.1i], 1)   % MATLAB: [1, 0.2-0.1i]  ; nk (was): ERROR
+max(1+0i, 0+1i)            % MATLAB: 0+1i (tie |·|=1 → larger angle) ; nk (was): ERROR
+max(1+1i, 1-1i)            % MATLAB: 1+1i            ; nk (was): ERROR
+max(complex(NaN,2), 3+4i)  % MATLAB: 3+4i (NaN omitted) ; nk (was): ERROR
 max(complex(-3,0), 1)      % MATLAB: -3+0i (|−3|=3>1; NO all-real fallback in binary form)
 ```
 
 ## Root cause
-`numkit::math::max/min(const Value&, const Value&, mr)` and the omit-NaN variants
+`nk::math::max/min(const Value&, const Value&, mr)` and the omit-NaN variants
 `maxOmitNanBinary`/`minOmitNanBinary` (`src/math/src/arithmetic/reductions.cpp`)
 went straight to `dispatchIntegerBinaryOp` then `elementwiseDouble(...fmax/fmin)`,
 which calls `doubleData()` on a complex operand → throws. No complex branch.

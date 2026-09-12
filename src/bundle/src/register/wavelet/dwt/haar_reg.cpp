@@ -8,17 +8,17 @@
 //
 // Phase 2b compute/register-split pilot — see project_layering_refactor memory.
 
-#include <numkit/wavelet/dwt/haart.hpp>
-#include <numkit/wavelet/dwt/ihaart.hpp>
+#include <nk/wavelet/dwt/haart.hpp>
+#include <nk/wavelet/dwt/ihaart.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <cmath>
 #include <string>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 void haart_reg(Span<const Value> args, size_t nargout,
@@ -26,7 +26,7 @@ void haart_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("haart: requires (x[, level[, integerflag]])",
-                    0, 0, "haart", "", "numkit:haart:nargin");
+                    0, 0, "haart", "", "nk:haart:nargin");
     // Parse level (positive integer) + integerflag string here for
     // script-quality errors, then delegate to the public haart().
     int level = 0;  // 0 -> auto (max level), resolved inside haart()
@@ -34,10 +34,10 @@ void haart_reg(Span<const Value> args, size_t nargout,
         const double lvld = args[1].toScalar();
         if (!(lvld > 0.0))
             throw Error("haart: expected LEVEL to be positive",
-                        0, 0, "haart", "", "numkit:haart:level");
+                        0, 0, "haart", "", "nk:haart:level");
         if (lvld != std::floor(lvld))
             throw Error("haart: expected LEVEL to be an integer",
-                        0, 0, "haart", "", "numkit:haart:level");
+                        0, 0, "haart", "", "nk:haart:level");
         level = static_cast<int>(lvld);
     }
 
@@ -45,7 +45,7 @@ void haart_reg(Span<const Value> args, size_t nargout,
     if (args.size() >= 3) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("haart: integerflag must be 'noninteger' or 'integer'",
-                        0, 0, "haart", "", "numkit:haart:flag");
+                        0, 0, "haart", "", "nk:haart:flag");
         std::string flag = args[2].toString();
         for (auto &c : flag)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -54,7 +54,7 @@ void haart_reg(Span<const Value> args, size_t nargout,
         else
             throw Error("haart: integerflag must be 'noninteger' or 'integer' (got '" +
                         flag + "')",
-                        0, 0, "haart", "", "numkit:haart:flag");
+                        0, 0, "haart", "", "nk:haart:flag");
     }
 
     HaartResult r = haart(args[0], level, integer_mode, ctx.engine->resource());
@@ -67,7 +67,7 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ihaart: requires (a, d[, level[, integerflag]])",
-                    0, 0, "ihaart", "", "numkit:ihaart:nargin");
+                    0, 0, "ihaart", "", "nk:ihaart:nargin");
     // Lax positional parse: level (number) and/or integerflag (string), in
     // any order. The level < Nlevels range check is done inside ihaart().
     int level = 0;
@@ -83,16 +83,16 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
             else
                 throw Error("ihaart: integerflag must be 'noninteger' or "
                             "'integer' (got '" + flag + "')",
-                            0, 0, "ihaart", "", "numkit:ihaart:flag");
+                            0, 0, "ihaart", "", "nk:ihaart:flag");
         } else {
             const double lvld = arg.toScalar();
             if (!(lvld >= 0.0))
                 throw Error("ihaart: expected input number 3, LEVEL, to be a "
                             "scalar with value >= 0",
-                            0, 0, "ihaart", "", "numkit:ihaart:level");
+                            0, 0, "ihaart", "", "nk:ihaart:level");
             if (lvld != std::floor(lvld))
                 throw Error("ihaart: expected LEVEL to be an integer",
-                            0, 0, "ihaart", "", "numkit:ihaart:level");
+                            0, 0, "ihaart", "", "nk:ihaart:level");
             level = static_cast<int>(lvld);
         }
     }
@@ -101,4 +101,4 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

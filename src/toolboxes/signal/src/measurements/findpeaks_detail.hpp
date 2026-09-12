@@ -9,14 +9,14 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <cstddef>
 #include <limits>
 #include <memory_resource>
 #include <tuple>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // Parsed findpeaks options (filled by findpeaks_reg from Name-Value pairs).
 struct PeakOpts {
@@ -37,4 +37,4 @@ std::tuple<Value, Value, Value, Value>
 findpeaksImpl(const Value &x, const double *locArr, const PeakOpts &opt,
               std::pmr::memory_resource *mr);
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -17,13 +17,13 @@
 // family fell back to scalar libm). Parity vs MATLAB R2025b verified
 // at ULP <= 1e-10 for the test domains.
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/parallel_for.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/parallel_for.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <complex>
@@ -36,7 +36,7 @@
 #include <hwy/contrib/math/math-inl.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace nk::builtin {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -313,12 +313,12 @@ void AcotdLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace nk::builtin
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 HWY_EXPORT(SecLoop);
 HWY_EXPORT(CscLoop);
@@ -385,7 +385,7 @@ Value unaryRealDoubleRecip(const Value &x, LoopDispatch loop, ScalarOp scalarOp,
     if (x.numel() == 0) return r;
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
-    numkit::detail::parallel_for(x.numel(), numkit::detail::kTranscendentalThreshold,
+    nk::detail::parallel_for(x.numel(), nk::detail::kTranscendentalThreshold,
         [=](std::size_t s, std::size_t e) {
             loop(in + s, out + s, e - s);
         });
@@ -581,6 +581,6 @@ Value acotd(const Value &x, std::pmr::memory_resource *mr)
         }, [](double v) { return std::atan(1.0 / v) * kRad2Deg; }, [](const Complex &c) { return std::atan(Complex(1.0) / c) * kRad2Deg; }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin
 
 #endif // HWY_ONCE

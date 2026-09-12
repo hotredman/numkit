@@ -4,7 +4,7 @@
 //   streamline(X, Y, U, V, sx, sy)  — explicit seed points
 //   streamslice(X, Y, U, V)         — auto-pick seeds across the grid
 //
-// numkit's streamslice picks a 5×5 grid centred on each cell of the
+// nk's streamslice picks a 5×5 grid centred on each cell of the
 // 5×5 super-grid covering (xMin..xMax, yMin..yMax). Integration uses
 // classic 4-th-order Runge–Kutta with h = 0.4 * min(dx, dy); it stops
 // on out-of-bounds, NaN cell, or |F| < 1e-9 (stall).

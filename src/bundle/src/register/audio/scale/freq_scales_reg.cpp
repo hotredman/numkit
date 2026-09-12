@@ -9,16 +9,16 @@
 // Compute reconciled to the canonical mr-last API (matching the header)
 // as part of this split. Phase 2b — see project_layering_refactor memory.
 
-#include <numkit/audio/scale/freq_scales.hpp>
+#include <nk/audio/scale/freq_scales.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <string>
 
-namespace numkit::audio {
+namespace nk::audio {
 namespace detail {
 
 #define NK_ELEM_REG(FN)                                                          \
@@ -27,7 +27,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#FN ": requires (x)",                                    \
-                        0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
+                        0, 0, #FN, "", "nk:" #FN ":nargin");                      \
         outs[0] = FN(args[0], ctx.engine->resource());                           \
     }
 
@@ -62,7 +62,7 @@ void phon2sone_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("phon2sone: requires (phon [, standard])",
-                    0, 0, "phon2sone", "", "numkit:phon2sone:nargin");
+                    0, 0, "phon2sone", "", "nk:phon2sone:nargin");
     bool iso532_2 = (args.size() >= 2) && isStandard532_2(args[1]);
     outs[0] = phon2sone(args[0], iso532_2, ctx.engine->resource());
 }
@@ -72,10 +72,10 @@ void sone2phon_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("sone2phon: requires (sone [, standard])",
-                    0, 0, "sone2phon", "", "numkit:sone2phon:nargin");
+                    0, 0, "sone2phon", "", "nk:sone2phon:nargin");
     bool iso532_2 = (args.size() >= 2) && isStandard532_2(args[1]);
     outs[0] = sone2phon(args[0], iso532_2, ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::audio
+} // namespace nk::audio

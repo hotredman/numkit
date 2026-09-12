@@ -8,18 +8,18 @@
 //   evfit   — Type-I EV (Gumbel-min)      (1-D Newton, μ profiled)
 //   gpfit   — Generalised Pareto          (PWM / Hosking-Wallis)
 
-#include <numkit/stats/distributions/gamma_dist.hpp>
-#include <numkit/stats/distributions/weibull.hpp>
-#include <numkit/stats/distributions/beta.hpp>
-#include <numkit/stats/distributions/negbin.hpp>
-#include <numkit/stats/distributions/extreme_value.hpp>
-#include <numkit/stats/distributions/gp.hpp>
-#include <numkit/stats/distributions/gev.hpp>
+#include <nk/stats/distributions/gamma_dist.hpp>
+#include <nk/stats/distributions/weibull.hpp>
+#include <nk/stats/distributions/beta.hpp>
+#include <nk/stats/distributions/negbin.hpp>
+#include <nk/stats/distributions/extreme_value.hpp>
+#include <nk/stats/distributions/gp.hpp>
+#include <nk/stats/distributions/gev.hpp>
 
-#include <numkit/builtin/specfun.hpp>   // gammainc (used by gamfit_full)
+#include <nk/builtin/specfun.hpp>   // gammainc (used by gamfit_full)
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -29,7 +29,7 @@
 
 #include "dist_fits_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 // Generalised Gamma NLL with right-censoring and frequency weights.
@@ -55,7 +55,7 @@ static double nll_gam_full(double a, double b,
         if (cens[i] > 0.5 && f > 0.0) {
             Value xv_arg = Value::scalar(xv[i] / b, mr);
             Value av_arg = Value::scalar(a, mr);
-            const double P = ::numkit::builtin::gammainc(xv_arg, av_arg, mr).toScalar();
+            const double P = ::nk::builtin::gammainc(xv_arg, av_arg, mr).toScalar();
             const double Q = 1.0 - P;
             if (!(Q > 0.0)) return std::numeric_limits<double>::infinity();
             S_cens -= f * std::log(Q);
@@ -77,29 +77,29 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("gamfit: need at least 2 observations",
-                    0, 0, "gamfit", "", "numkit:gamfit:tooFewObs");
+                    0, 0, "gamfit", "", "nk:gamfit:tooFewObs");
     for (double v : xv) {
         if (!(v > 0.0))
             throw Error("gamfit: all observations must be positive",
-                        0, 0, "gamfit", "", "numkit:gamfit:notPositive");
+                        0, 0, "gamfit", "", "nk:gamfit:notPositive");
     }
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("gamfit: censoring length mismatch",
-                        0, 0, "gamfit", "", "numkit:gamfit:censLen");
+                        0, 0, "gamfit", "", "nk:gamfit:censLen");
         for (std::size_t i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("gamfit: freq length mismatch",
-                        0, 0, "gamfit", "", "numkit:gamfit:freqLen");
+                        0, 0, "gamfit", "", "nk:gamfit:freqLen");
         for (std::size_t i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("gamfit: freq must be non-negative",
-                            0, 0, "gamfit", "", "numkit:gamfit:freqNeg");
+                            0, 0, "gamfit", "", "nk:gamfit:freqNeg");
         }
     }
 
@@ -151,7 +151,7 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
     }
     if (!(nuw >= 2.0))
         throw Error("gamfit: need at least 2 uncensored observations",
-                    0, 0, "gamfit", "", "numkit:gamfit:tooFewUncens");
+                    0, 0, "gamfit", "", "nk:gamfit:tooFewUncens");
     const double mean_uw = sx / nuw;
     const double meanLog_uw = slx / nuw;
     const double s_init = std::log(mean_uw) - meanLog_uw;
@@ -237,29 +237,29 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("wblfit: need at least 2 observations",
-                    0, 0, "wblfit", "", "numkit:wblfit:tooFewObs");
+                    0, 0, "wblfit", "", "nk:wblfit:tooFewObs");
     for (double v : xv) {
         if (!(v > 0.0))
             throw Error("wblfit: all observations must be positive",
-                        0, 0, "wblfit", "", "numkit:wblfit:notPositive");
+                        0, 0, "wblfit", "", "nk:wblfit:notPositive");
     }
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("wblfit: censoring length mismatch",
-                        0, 0, "wblfit", "", "numkit:wblfit:censLen");
+                        0, 0, "wblfit", "", "nk:wblfit:censLen");
         for (std::size_t i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("wblfit: freq length mismatch",
-                        0, 0, "wblfit", "", "numkit:wblfit:freqLen");
+                        0, 0, "wblfit", "", "nk:wblfit:freqLen");
         for (std::size_t i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("wblfit: freq must be non-negative",
-                            0, 0, "wblfit", "", "numkit:wblfit:freqNeg");
+                            0, 0, "wblfit", "", "nk:wblfit:freqNeg");
         }
     }
 
@@ -400,11 +400,11 @@ Value betafit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("betafit: need at least 2 observations",
-                    0, 0, "betafit", "", "numkit:betafit:tooFewObs");
+                    0, 0, "betafit", "", "nk:betafit:tooFewObs");
     for (double v : xv) {
         if (!(v > 0.0 && v < 1.0))
             throw Error("betafit: all observations must be in (0, 1)",
-                        0, 0, "betafit", "", "numkit:betafit:outOfRange");
+                        0, 0, "betafit", "", "nk:betafit:outOfRange");
     }
     double sumX = 0.0, sum1mX = 0.0, sumLogX = 0.0, sumLog1mX = 0.0;
     for (double v : xv) {
@@ -467,11 +467,11 @@ Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("nbinfit: need at least 2 observations",
-                    0, 0, "nbinfit", "", "numkit:nbinfit:tooFewObs");
+                    0, 0, "nbinfit", "", "nk:nbinfit:tooFewObs");
     for (double v : xv) {
         if (v < 0.0 || std::fabs(v - std::round(v)) > 1e-9)
             throw Error("nbinfit: observations must be non-negative integers",
-                        0, 0, "nbinfit", "", "numkit:nbinfit:notInteger");
+                        0, 0, "nbinfit", "", "nk:nbinfit:notInteger");
     }
     double sum = 0.0;
     for (double v : xv) sum += v;
@@ -485,7 +485,7 @@ Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
     if (varX <= meanX)
         throw Error("nbinfit: sample is under-dispersed (var ≤ mean); "
                     "MLE undefined for negative binomial",
-                    0, 0, "nbinfit", "", "numkit:nbinfit:underDispersed");
+                    0, 0, "nbinfit", "", "nk:nbinfit:underDispersed");
     // MoM: r = μ² / (σ² - μ), p = μ / σ².
     double r = (meanX * meanX) / (varX - meanX);
     if (!(r > 0.0)) r = 1.0;
@@ -564,30 +564,30 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("evfit: need at least 2 observations",
-                    0, 0, "evfit", "", "numkit:evfit:tooFewObs");
+                    0, 0, "evfit", "", "nk:evfit:tooFewObs");
     for (double v : xv) {
         if (!std::isfinite(v))
             throw Error("evfit: observations must be finite",
-                        0, 0, "evfit", "", "numkit:evfit:notFinite");
+                        0, 0, "evfit", "", "nk:evfit:notFinite");
     }
     // Parse censoring (zeros if empty) and freq (ones if empty).
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("evfit: censoring must match data length",
-                        0, 0, "evfit", "", "numkit:evfit:censLen");
+                        0, 0, "evfit", "", "nk:evfit:censLen");
         for (std::size_t i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("evfit: freq must match data length",
-                        0, 0, "evfit", "", "numkit:evfit:freqLen");
+                        0, 0, "evfit", "", "nk:evfit:freqLen");
         for (std::size_t i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("evfit: freq must be non-negative",
-                            0, 0, "evfit", "", "numkit:evfit:freqNeg");
+                            0, 0, "evfit", "", "nk:evfit:freqNeg");
         }
     }
 
@@ -606,7 +606,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
     }
     if (sum_uw < 2.0)
         throw Error("evfit: need at least 2 uncensored observations",
-                    0, 0, "evfit", "", "numkit:evfit:tooFewUncens");
+                    0, 0, "evfit", "", "nk:evfit:tooFewUncens");
     const double mean_uw = sum_uwx / sum_uw;
     double var_uw = sum_uwxx / sum_uw - mean_uw * mean_uw;
     // Constant uncensored data is degenerate (no info about σ).
@@ -620,7 +620,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
         const bool has_cens_local = (sum_uw < sum_fw);
         if (!has_cens_local && freq_trivial)
             throw Error("evfit: zero variance (data constant)",
-                        0, 0, "evfit", "", "numkit:evfit:zeroVariance");
+                        0, 0, "evfit", "", "nk:evfit:zeroVariance");
         var_uw = 1.0;
     }
 
@@ -769,12 +769,12 @@ Value gpfit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("gpfit: need at least 2 observations",
-                    0, 0, "gpfit", "", "numkit:gpfit:tooFewObs");
+                    0, 0, "gpfit", "", "nk:gpfit:tooFewObs");
     for (double v : xv) {
         if (!std::isfinite(v) || v < 0.0)
             throw Error("gpfit: observations must be finite and ≥ 0 "
                         "(threshold θ = 0 assumed)",
-                        0, 0, "gpfit", "", "numkit:gpfit:invalidData");
+                        0, 0, "gpfit", "", "nk:gpfit:invalidData");
     }
 
     // ── Initial guess: PWM (Hosking-Wallis 1987, α-form) ──────────
@@ -1079,11 +1079,11 @@ Value gevfit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 3)
         throw Error("gevfit: need at least 3 observations",
-                    0, 0, "gevfit", "", "numkit:gevfit:tooFewObs");
+                    0, 0, "gevfit", "", "nk:gevfit:tooFewObs");
     for (double v : xv) {
         if (!std::isfinite(v))
             throw Error("gevfit: observations must be finite",
-                        0, 0, "gevfit", "", "numkit:gevfit:notFinite");
+                        0, 0, "gevfit", "", "nk:gevfit:notFinite");
     }
 
     // PWM initial guess (Hosking-Wallis-Wood 1985).
@@ -1338,4 +1338,4 @@ Value gevfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

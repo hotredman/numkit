@@ -347,20 +347,20 @@ TEST_P(WhoTest, WhosNoArgs)
 // implementation; tested here so the contract is pinned.
 TEST_P(WhoTest, WhoFileReportsStem)
 {
-    auto p = std::filesystem::temp_directory_path() / "numkit_whotest_who.txt";
+    auto p = std::filesystem::temp_directory_path() / "nk_whotest_who.txt";
     {
         std::ofstream o(p);
         o << "1 2 3\n4 5 6\n";
     }
     capturedOutput.clear();
     eval("who('-file', '" + p.string() + "');");
-    EXPECT_NE(capturedOutput.find("numkit_whotest_who"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("nk_whotest_who"), std::string::npos);
     std::filesystem::remove(p);
 }
 
 TEST_P(WhoTest, WhosFileEmitsRowWithBytes)
 {
-    auto p = std::filesystem::temp_directory_path() / "numkit_whotest_whos.txt";
+    auto p = std::filesystem::temp_directory_path() / "nk_whotest_whos.txt";
     {
         std::ofstream o(p);
         o << "1 2\n";
@@ -368,7 +368,7 @@ TEST_P(WhoTest, WhosFileEmitsRowWithBytes)
     capturedOutput.clear();
     eval("whos('-file', '" + p.string() + "');");
     // Header + one row containing the stem and "double" class.
-    EXPECT_NE(capturedOutput.find("numkit_whotest_whos"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("nk_whotest_whos"), std::string::npos);
     EXPECT_NE(capturedOutput.find("double"), std::string::npos);
     std::filesystem::remove(p);
 }
@@ -593,7 +593,7 @@ INSTANTIATE_DUAL(CommandNonRegressionTest);
 // version
 // ============================================================
 //
-// numkit has no SemVer — `version` returns the compile-time
+// nk has no SemVer — `version` returns the compile-time
 // build stamp as ISO-8601 "YYYY-MM-DD HH:MM:SS".
 
 class VersionTest : public DualEngineTest {};
@@ -648,23 +648,23 @@ TEST_P(LastwarnTest, ClearedStateIsEmpty)
 
 TEST_P(LastwarnTest, WarningSetsState)
 {
-    eval("warning('numkit:test:foo', 'something happened');");
+    eval("warning('nk:test:foo', 'something happened');");
     eval("[m, i] = lastwarn();");
     EXPECT_EQ(getVarPtr("m")->toString(), "something happened");
-    EXPECT_EQ(getVarPtr("i")->toString(), "numkit:test:foo");
+    EXPECT_EQ(getVarPtr("i")->toString(), "nk:test:foo");
 }
 
 TEST_P(LastwarnTest, ManualSetForm)
 {
-    eval("lastwarn('manual reset', 'numkit:reset');");
+    eval("lastwarn('manual reset', 'nk:reset');");
     eval("[m, i] = lastwarn();");
     EXPECT_EQ(getVarPtr("m")->toString(), "manual reset");
-    EXPECT_EQ(getVarPtr("i")->toString(), "numkit:reset");
+    EXPECT_EQ(getVarPtr("i")->toString(), "nk:reset");
 }
 
 TEST_P(LastwarnTest, ManualResetWithEmpty)
 {
-    eval("warning('numkit:test:bar', 'first');");
+    eval("warning('nk:test:bar', 'first');");
     eval("lastwarn('');");
     eval("[m, i] = lastwarn();");
     EXPECT_EQ(getVarPtr("m")->toString(), "");

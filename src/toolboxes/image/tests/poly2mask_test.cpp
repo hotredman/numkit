@@ -4,10 +4,10 @@
 // mask. Reference values from MATLAB R2025b, bit-exact via the
 // reverse-engineered half-open ray-cast rule.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Poly2maskTest : public ::testing::Test
 {

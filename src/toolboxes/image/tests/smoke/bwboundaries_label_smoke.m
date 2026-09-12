@@ -6,7 +6,7 @@ clear
 %   B : cell column of P-by-2 [row col] boundary traces.
 %   L : H-by-W label matrix (objects 1..N).
 %   N : number of objects.
-% numkit traces objects only (the 'noholes' behaviour), so L/N are exact
+% nk traces objects only (the 'noholes' behaviour), so L/N are exact
 % vs MATLAB for inputs WITHOUT holes.
 
 BW = false(5,5); BW(2:4,2:4) = true;            % one solid object

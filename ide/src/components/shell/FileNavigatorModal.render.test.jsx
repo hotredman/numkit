@@ -20,7 +20,7 @@ describe('FileNavigatorModal render smoke', () => {
         <FileNavigatorModal
           onClose={onClose}
           fsMode="virtual"
-          currentCwd="/numkit_ide/examples"
+          currentCwd="/nk_ide/examples"
           onSetCurrentFolder={onSetCurrentFolder}
         />
       );
@@ -52,7 +52,7 @@ describe('FileNavigatorModal render smoke', () => {
         <FileNavigatorModal
           onClose={vi.fn()}
           fsMode="virtual"
-          currentCwd="/numkit_ide/examples"
+          currentCwd="/nk_ide/examples"
         />
       );
       await Promise.resolve();

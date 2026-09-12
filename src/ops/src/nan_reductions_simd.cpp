@@ -11,7 +11,7 @@
 // pass. 4× unrolled accumulators preserve the same ILP pattern as the
 // existing binary-op SIMD loops.
 
-#include <numkit/ops/nan_reductions.hpp>
+#include <nk/ops/nan_reductions.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -23,7 +23,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -270,11 +270,11 @@ double NanSumSqDevScanLoop(const double *HWY_RESTRICT p, std::size_t n,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(NanSumScanLoop);
 HWY_EXPORT(NanSumCountScanLoop);
@@ -327,5 +327,5 @@ double nanVarianceTwoPass(const double *p, std::size_t n, int normFlag)
     return ss / denom;
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

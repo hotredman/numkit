@@ -12,7 +12,7 @@ import { WorkspacePanel } from './Workspace';
 beforeEach(() => {
   try {
     localStorage.clear();
-    localStorage.setItem('numkit.ide.workspace.view', 'list');
+    localStorage.setItem('nk.ide.workspace.view', 'list');
   } catch { /* none */ }
 });
 afterEach(cleanup);
@@ -35,11 +35,11 @@ describe('WorkspacePanel — toolbar column chooser', () => {
     const meanItem = [...document.querySelectorAll('.ctx-item')].find((b) => /\bMean\b/.test(b.textContent));
     fireEvent.click(meanItem);
     expect(heads(container)).toContain('Mean');
-    expect(JSON.parse(localStorage.getItem('numkit.ide.valuecols'))).toContain('mean');
+    expect(JSON.parse(localStorage.getItem('nk.ide.valuecols'))).toContain('mean');
   });
 
   it('cards view does not show the columns button', () => {
-    localStorage.setItem('numkit.ide.workspace.view', 'cards');
+    localStorage.setItem('nk.ide.workspace.view', 'cards');
     const { container } = render(<WorkspacePanel variables={vars} onOpen={() => {}} />);
     expect(container.querySelector('.ws-cols-btn')).toBeNull();
   });

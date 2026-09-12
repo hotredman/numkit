@@ -46,10 +46,10 @@ input; MATLAB accepts them (the three value-setops preserve the class).
 
 ## Repro
 ```matlab
-intersect('cabc','bdc')   % numkit: ERROR "Not a double array"; MATLAB: 'bc' (char)
-ismember('b','abcd')      % numkit: ERROR;                      MATLAB: 1 (logical)
-setdiff('abce','bd')      % numkit: ERROR;                      MATLAB: 'ace'
-union('ab','bc')          % numkit: ERROR;                      MATLAB: 'abc'
+intersect('cabc','bdc')   % nk: ERROR "Not a double array"; MATLAB: 'bc' (char)
+ismember('b','abcd')      % nk: ERROR;                      MATLAB: 1 (logical)
+setdiff('abce','bd')      % nk: ERROR;                      MATLAB: 'ace'
+union('ab','bc')          % nk: ERROR;                      MATLAB: 'abc'
 intersect(int8([3 1 2]),int8([2 4 1]))   % MATLAB: int8 [1 2]
 ```
 

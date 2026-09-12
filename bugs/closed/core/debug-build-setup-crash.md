@@ -18,10 +18,10 @@ green while the bug sat underneath.
 ## Repro
 
 ```
-cmake --build build/windows/release --target numkit_gtest   # Debug config
-build/windows/release/tests/gtest/Debug/numkit_gtest.exe --gtest_filter='TW_VM/BuiltinTest.Zeros/TW'
+cmake --build build/windows/release --target nk_gtest   # Debug config
+build/windows/release/tests/gtest/Debug/nk_gtest.exe --gtest_filter='TW_VM/BuiltinTest.Zeros/TW'
 # => SEH exception with code 0xc0000005 thrown in SetUp()
-build/windows/release/tests/gtest/Release/numkit_gtest.exe --gtest_filter='TW_VM/BuiltinTest.Zeros/TW'
+build/windows/release/tests/gtest/Release/nk_gtest.exe --gtest_filter='TW_VM/BuiltinTest.Zeros/TW'
 # => OK
 ```
 

@@ -2,12 +2,12 @@
 // REAL gallery manifest format (user sample 2026-09-12; canonical
 // marker @play, legacy alias %{#ui from the early prototype).
 
-#include <numkit/core/play_manifest.hpp>
+#include <nk/core/play_manifest.hpp>
 
 #include <gtest/gtest.h>
 #include <sstream>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 

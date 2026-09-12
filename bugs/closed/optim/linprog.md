@@ -13,7 +13,7 @@ not registered.
 ## Repro
 ```matlab
 linprog([1 1], [-1 0; 0 -1], [-1; -1])     % MATLAB: [1; 1]  (x1>=1, x2>=1)
-% numkit: Error — VM: undefined function 'linprog'
+% nk: Error — VM: undefined function 'linprog'
 ```
 
 ## Fix (2026-06-19)

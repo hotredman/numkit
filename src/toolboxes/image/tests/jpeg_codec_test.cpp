@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 #include "../src/io/jpeg_codec.hpp"
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::image;
+using namespace nk;
+using namespace nk::image;
 
 TEST(JpegCodecTest, Gray8RoundTripAndPeek) {
     const size_t H = 16, W = 16;

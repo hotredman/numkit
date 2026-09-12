@@ -1,11 +1,11 @@
 // toolboxes/wavelet/tests/meyeraux_test.cpp
 // meyeraux.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MeyerauxTest : public ::testing::Test
 {
@@ -38,7 +38,7 @@ TEST_F(MeyerauxTest, VectorOnSupport)
 
 TEST_F(MeyerauxTest, ClipsBelowZero)
 {
-    // Bug fix 2026-05-08: numkit used to apply the raw polynomial,
+    // Bug fix 2026-05-08: nk used to apply the raw polynomial,
     // returning 6.0625 for x=-0.5. MATLAB R2025b clips to 0.
     EXPECT_DOUBLE_EQ(evalScalar("meyeraux(-0.5)"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("meyeraux(-1.0)"), 0.0);
@@ -47,7 +47,7 @@ TEST_F(MeyerauxTest, ClipsBelowZero)
 
 TEST_F(MeyerauxTest, ClipsAboveOne)
 {
-    // Numkit used to return -208 for x=2 (raw polynomial). MATLAB clips to 1.
+    // NK used to return -208 for x=2 (raw polynomial). MATLAB clips to 1.
     EXPECT_DOUBLE_EQ(evalScalar("meyeraux(2)"),   1.0);
     EXPECT_DOUBLE_EQ(evalScalar("meyeraux(1.5)"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("meyeraux(100)"), 1.0);

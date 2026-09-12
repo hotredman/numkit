@@ -3,22 +3,22 @@
 // pinv / orth / null / subspace — implementations and engine adapters.
 // All four are SVD-based; migrated alongside the SVD kernel.
 
-#include <numkit/linalg/pseudo_subspace.hpp>
+#include <nk/linalg/pseudo_subspace.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/linalg/decompositions.hpp>   // svd_decompose / svd_values
+#include <nk/linalg/decompositions.hpp>   // svd_decompose / svd_values
 // Compute-only TU: Value substrate + Error, no engine. The pinv/orth/null/
 // subspace builtins (CallContext wrappers) live in pseudo_subspace_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -185,12 +185,12 @@ Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
         throw Error("subspace: inputs must be 2D matrices",
-                    0, 0, "subspace", "", "numkit:subspace:notMatrix");
+                    0, 0, "subspace", "", "nk:subspace:notMatrix");
     const std::size_t mA = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t mB = static_cast<std::size_t>(B.dims().dim(0));
     if (mA != mB)
         throw Error("subspace: inputs must have the same number of rows",
-                    0, 0, "subspace", "", "numkit:subspace:dimMismatch");
+                    0, 0, "subspace", "", "nk:subspace:dimMismatch");
 
     auto Qa = orth(A, -1.0, mr);
     auto Qb = orth(B, -1.0, mr);
@@ -228,4 +228,4 @@ Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

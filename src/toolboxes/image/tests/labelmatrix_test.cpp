@@ -5,10 +5,10 @@
 // column-major component-numbering convention that bwconncomp must
 // follow for parity (this cycle's fix to label_components).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CCStructTest : public ::testing::Test
 {

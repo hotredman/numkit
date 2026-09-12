@@ -1,16 +1,16 @@
 // toolboxes/wavelet/tests/dyad_public_api_test.cpp
 //
 // Direct C++ API guard for toolboxes/wavelet/src/dwt/dyad.cpp after the lift
-// from adapter-only to numkit::wavelet::{dyaddown, dyadup, wmaxlev}.
+// from adapter-only to nk::wavelet::{dyaddown, dyadup, wmaxlev}.
 // Reference values match the script-level dyaddown/dyadup/wmaxlev tests
 // (MATLAB R2025b).
 
-#include <numkit/wavelet/dwt/dyad.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/wavelet/dwt/dyad.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value dvar(Engine &e, const char *expr, const char *name)

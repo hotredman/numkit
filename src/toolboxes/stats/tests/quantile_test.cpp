@@ -2,11 +2,11 @@
 // Joint regression tests for quantile / prctile / iqr. Hardcoded
 // expected values captured from MATLAB R2025b probe.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class QuantileTest : public ::testing::Test
 {
@@ -70,7 +70,7 @@ TEST_F(QuantileTest, MethodApproximateFallsBackToMidpoint)
 TEST_F(QuantileTest, BadMethodErrors)
 {
     EXPECT_THROW(eval("quantile(v10, 0.25, 'Method', 'unknown');"),
-                 numkit::Error);
+                 nk::Error);
 }
 
 // ── 'all' / vecdim dispatch ───────────────────────────────────────────
@@ -159,11 +159,11 @@ TEST_F(QuantileTest, IqrPartialVecdimRejected)
 {
     // Partial vecdim is not yet supported (parity gap, documented).
     EXPECT_THROW(eval("A3 = repmat(A, [1 1 2]); iqr(A3, [1 2]);"),
-                 numkit::Error);
+                 nk::Error);
 }
 
 // MATLAB's 'Method' is 'exact' (default) / 'approximate'. 'exact' is the
-// linear-interpolation order-statistic method (numkit's default). Was
+// linear-interpolation order-statistic method (nk's default). Was
 // rejected before. vs MATLAB R2025b.
 TEST_F(QuantileTest, MethodExactAlias)
 {
@@ -172,5 +172,5 @@ TEST_F(QuantileTest, MethodExactAlias)
     // 'exact' == the default.
     EXPECT_DOUBLE_EQ(evalScalar("quantile(v10, 0.5, 'Method', 'exact')"),
                      evalScalar("quantile(v10, 0.5)"));
-    EXPECT_THROW(eval("quantile([1 2 3 4], 0.25, 'Method', 'bogus');"), numkit::Error);
+    EXPECT_THROW(eval("quantile([1 2 3 4], 0.25, 'Method', 'bogus');"), nk::Error);
 }

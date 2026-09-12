@@ -8,20 +8,20 @@
 // MATLAB R2025b's mil188qammod accepts M ∈ {16, 32, 64, 256}, each
 // with a hard-coded constellation table per the MIL-STD spec.
 //
-// KNOWN GAP: Only M = 16 implemented in numkit. M = 32 / 64 / 256
+// KNOWN GAP: Only M = 16 implemented in nk. M = 32 / 64 / 256
 // require the full MIL-STD-188-110 constellation tables (different
 // per-M point layouts and bit-mappings). Each is well-defined but
 // table-heavy; will get its own cycle.
 
-#include <numkit/comm/modulation/mil188.hpp>
+#include <nk/comm/modulation/mil188.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <complex>
 #include <limits>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 using Cd = std::complex<double>;
 
@@ -435,7 +435,7 @@ const Cd *constellationFor(int M, size_t &len_out)
         default:
             throw Error("mil188qam: M must be one of {16, 32, 64, 256}",
                         0, 0, "mil188qam", "",
-                        "numkit:mil188qam:UnsupportedM");
+                        "nk:mil188qam:UnsupportedM");
     }
 }
 
@@ -455,7 +455,7 @@ Value mil188qammod(const Value &x, int M, std::pmr::memory_resource *mr)
         if (xi < 0.0 || xi >= static_cast<double>(N))
             throw Error("mil188qammod: input out of range [0, M-1]",
                         0, 0, "mil188qammod", "",
-                        "numkit:mil188qammod:OutOfRange");
+                        "nk:mil188qammod:OutOfRange");
         o[i] = C[static_cast<size_t>(xi)];
     }
     return out;
@@ -488,4 +488,4 @@ Value mil188qamdemod(const Value &y, int M, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

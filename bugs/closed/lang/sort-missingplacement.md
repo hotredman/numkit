@@ -7,17 +7,17 @@
 
 ## Symptom
 `sort(X, ..., 'MissingPlacement', 'first'|'last')` was parsed but ignored —
-numkit always used the direction-dependent default ('auto'). So ascending +
+nk always used the direction-dependent default ('auto'). So ascending +
 `'first'` left NaN at the END (should be FIRST), and descending + `'last'`
 left it at the front.
 
 ## Repro (pre-fix)
 ```matlab
 sort([3 NaN 1 2], 'MissingPlacement', 'first')
-% numkit (pre-fix): 1 2 3 NaN     (NaN stayed last — WRONG)
+% nk (pre-fix): 1 2 3 NaN     (NaN stayed last — WRONG)
 % MATLAB:           NaN 1 2 3
 sort([3 NaN 1 2], 'descend', 'MissingPlacement', 'last')
-% numkit (pre-fix): NaN 3 2 1     MATLAB: 3 2 1 NaN
+% nk (pre-fix): NaN 3 2 1     MATLAB: 3 2 1 NaN
 ```
 The 'auto' default (NaN last for ascending, first for descending) was
 already correct and matches MATLAB.
@@ -37,5 +37,5 @@ correctness=OK) + gtest (SortFindTest.SortMissingPlacement, TW+VM) + smoke.
 
 ## References
 - `src/lang/src/arrays/matrix.cpp` (sort, sortComplex, sort_reg)
-- `src/lang/include/numkit/lang/arrays/matrix.hpp`
+- `src/lang/include/nk/lang/arrays/matrix.hpp`
 - MATLAB `doc sort` ('MissingPlacement')

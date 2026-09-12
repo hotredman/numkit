@@ -19,17 +19,17 @@
 // the mirrored neighbourhood preserves the Bayer pattern — this is
 // what MATLAB R2025b does, NOT imfilter's standard `symmetric`.
 
-#include <numkit/image/color/color.hpp>
+#include <nk/image/color/color.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -131,21 +131,21 @@ Value demosaic(const Value &I, const std::string &sensorAlignment,
     const auto &dims = I.dims();
     if (dims.ndims() < 2)
         throw Error("demosaic: I must be a 2-D matrix",
-                    0, 0, "demosaic", "", "numkit:demosaic:rank");
+                    0, 0, "demosaic", "", "nk:demosaic:rank");
     const size_t M = dims.dim(0);
     const size_t N = dims.dim(1);
     if (M < 2 || N < 2 || (M % 2) != 0 || (N % 2) != 0)
         throw Error("demosaic: image dims must both be even and ≥ 2",
-                    0, 0, "demosaic", "", "numkit:demosaic:invalidImageSize");
+                    0, 0, "demosaic", "", "nk:demosaic:invalidImageSize");
     if (I.numel() != M * N)
         throw Error("demosaic: I must be 2-D",
-                    0, 0, "demosaic", "", "numkit:demosaic:shape");
+                    0, 0, "demosaic", "", "nk:demosaic:shape");
 
     const ValueType T = I.type();
     if (T != ValueType::UINT8 && T != ValueType::UINT16 &&
         T != ValueType::UINT32)
         throw Error("demosaic: image must be uint8, uint16, or uint32",
-                    0, 0, "demosaic", "", "numkit:demosaic:type");
+                    0, 0, "demosaic", "", "nk:demosaic:type");
 
     // Sensor alignment → parity (r_par, c_par) of R pixel (1-indexed).
     // The four MATLAB patterns:
@@ -161,7 +161,7 @@ Value demosaic(const Value &I, const std::string &sensorAlignment,
     else
         throw Error("demosaic: sensorAlignment must be 'rggb', 'bggr', "
                     "'grbg', or 'gbrg'",
-                    0, 0, "demosaic", "", "numkit:demosaic:alignment");
+                    0, 0, "demosaic", "", "nk:demosaic:alignment");
 
     // Output clamp limit = class max. Empirically (probed against
     // MATLAB R2025b), BitsPerSample does NOT clamp — values above
@@ -220,4 +220,4 @@ Value demosaic(const Value &I, const std::string &sensorAlignment,
     return RGB;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

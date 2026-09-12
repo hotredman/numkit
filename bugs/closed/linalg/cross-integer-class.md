@@ -34,9 +34,9 @@
 array. MATLAB R2025b accepts integer cross products and preserves the integer
 class with saturating arithmetic.
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
-cross(int8([1 2 3]), int8([4 5 6]))            % numkit: ERROR "Not a double array"
+cross(int8([1 2 3]), int8([4 5 6]))            % nk: ERROR "Not a double array"
 %                                                MATLAB: int8 [-3 6 -3]
 cross(int8([100 100 0]), int8([0 100 100]))    % MATLAB: int8 [127 -127 127]
 %                                                (per-op saturation, not -128)
@@ -58,7 +58,7 @@ saturates per operation to match.
 ## Lenient niches (documented, NOT MATLAB parity)
 - **different integer classes** (`cross(int8, int16)`) and **integer +
   logical**: MATLAB ERRORS ("Integers can only be combined with integers of
-  the same class, or scalar doubles"); numkit computes in double. Rare; left
+  the same class, or scalar doubles"); nk computes in double. Rare; left
   lenient (cf. `dot`, `deconv` na>nb edge). Not fingerprinted.
 
 ## Guard

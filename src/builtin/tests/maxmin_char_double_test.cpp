@@ -5,11 +5,11 @@
 // (mode KEEPS char — that is correct and asserted separately.) Bit-exact
 // MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MaxMinCharDoubleTest : public ::testing::Test
 {
@@ -57,7 +57,7 @@ TEST_F(MaxMinCharDoubleTest, MatrixColumnwise)
 }
 
 // NOTE: the binary max('a','c') form is intentionally NOT asserted — MATLAB
-// ERRORS on it ("Invalid second argument"); numkit is lenient (returns double)
+// ERRORS on it ("Invalid second argument"); nk is lenient (returns double)
 // but that is not a MATLAB-matched form (see bugs/builtin/maxmin-char-double.md).
 
 // mode KEEPS the char class (NOT changed) — guards we didn't over-reach.

@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/digital_filtering/quantizers.hpp>
+#include <nk/signal/digital_filtering/quantizers.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void uencode_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("uencode: requires (u, N [, V [, 'signed'/'unsigned']])",
-                    0, 0, "uencode", "", "numkit:uencode:nargin");
+                    0, 0, "uencode", "", "nk:uencode:nargin");
     const int N = static_cast<int>(args[1].toScalar());
     double V = 1.0;
     if (args.size() >= 3 && !args[2].isEmpty()) V = args[2].toScalar();
@@ -46,7 +46,7 @@ void uencode_reg(Span<const Value> args, size_t /*nargout*/,
         if (s == "signed")        signedOut = true;
         else if (s == "unsigned") signedOut = false;
         else throw Error("uencode: 4th arg must be 'signed' or 'unsigned'",
-                          0, 0, "uencode", "", "numkit:uencode:Polarity");
+                          0, 0, "uencode", "", "nk:uencode:Polarity");
     }
     outs[0] = uencode(args[0], N, V, signedOut, ctx.engine->resource());
 }
@@ -56,7 +56,7 @@ void udecode_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("udecode: requires (u, N [, V [, 'saturate'/'wrap']])",
-                    0, 0, "udecode", "", "numkit:udecode:nargin");
+                    0, 0, "udecode", "", "nk:udecode:nargin");
     const int N = static_cast<int>(args[1].toScalar());
     double V = 1.0;
     if (args.size() >= 3 && !args[2].isEmpty()) V = args[2].toScalar();
@@ -68,11 +68,11 @@ void udecode_reg(Span<const Value> args, size_t /*nargout*/,
         if (s == "wrap")          wrap = true;
         else if (s == "saturate") wrap = false;
         else throw Error("udecode: 4th arg must be 'saturate' or 'wrap'",
-                          0, 0, "udecode", "", "numkit:udecode:BadOpt");
+                          0, 0, "udecode", "", "nk:udecode:BadOpt");
     }
     outs[0] = udecode(args[0], N, V, wrap, ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

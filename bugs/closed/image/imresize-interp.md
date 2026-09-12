@@ -15,25 +15,25 @@ antialiasing filter). `'nearest'` is correct.
 ## Repro
 ```matlab
 imresize([1 2; 3 4], 2, 'bilinear')
-% numkit: (1,1)=0.5625, (1,2)=0.9375, (4,4)=2.25
+% nk: (1,1)=0.5625, (1,2)=0.9375, (4,4)=2.25
 % MATLAB: (1,1)=1,      (1,2)=1.25,   (4,4)=4
 imresize([1 2; 3 4], 2, 'bicubic')
-% numkit (1,1)=0.5625   MATLAB (1,1)=0.71875
+% nk (1,1)=0.5625   MATLAB (1,1)=0.71875
 
 imresize([1 2 3 4 5 6], [1 3])           % downscale (default bicubic+antialias)
-% numkit:  [1.5      3.5  5.5]
+% nk:  [1.5      3.5  5.5]
 % MATLAB:  [1.44922  3.5  5.55078]
 ```
 
 ## Root cause
 Two compounding differences from MATLAB's `imresize`:
-1. **Boundary + grid (upscale):** numkit appears to zero-pad outside the image
+1. **Boundary + grid (upscale):** nk appears to zero-pad outside the image
    and use a different sample-grid origin, so corner/edge outputs are far off
    (`(1,1)=0.5625 = 9/16` ⇒ bilinear weights against a 0 neighbour). MATLAB
    maps output pixel *centres* back to input coordinates and clamps to the
    edge (replicate).
 2. **Antialiasing (downscale):** MATLAB applies a low-pass kernel whose width
-   scales with the reduction factor; numkit does plain interpolation, so the
+   scales with the reduction factor; nk does plain interpolation, so the
    interior matches but the edges differ.
 
 ## Fix (2026-06-18)

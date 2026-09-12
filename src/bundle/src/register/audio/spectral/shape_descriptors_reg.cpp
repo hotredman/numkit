@@ -9,12 +9,12 @@
 // Compute reconciled to the canonical mr-last API (matching the header) as
 // part of this split. Phase 2b — see project_layering_refactor memory.
 
-#include <numkit/audio/spectral/shape_descriptors.hpp>
+#include <nk/audio/spectral/shape_descriptors.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
-namespace numkit::audio {
+namespace nk::audio {
 namespace detail {
 
 // Per-fn registration adapters share the (x, f) argument shape.
@@ -24,7 +24,7 @@ namespace detail {
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#FN ": requires (x, fs) or (X, F)",                      \
-                        0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
+                        0, 0, #FN, "", "nk:" #FN ":nargin");                      \
         outs[0] = FN(args[0], args[1], ctx.engine->resource());                  \
     }
 
@@ -46,7 +46,7 @@ void spectralRolloffPoint_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("spectralRolloffPoint: requires (x, fs [, threshold])",
                     0, 0, "spectralRolloffPoint", "",
-                    "numkit:spectralRolloffPoint:nargin");
+                    "nk:spectralRolloffPoint:nargin");
     double pct = 0.95;
     if (args.size() >= 3) pct = args[2].toScalar();
     outs[0] = spectralRolloffPoint(args[0], args[1], pct,
@@ -58,11 +58,11 @@ void spectralFlux_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("spectralFlux: requires (x, fs [, p])",
-                    0, 0, "spectralFlux", "", "numkit:spectralFlux:nargin");
+                    0, 0, "spectralFlux", "", "nk:spectralFlux:nargin");
     double p = 2.0;
     if (args.size() >= 3) p = args[2].toScalar();
     outs[0] = spectralFlux(args[0], args[1], p, ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::audio
+} // namespace nk::audio

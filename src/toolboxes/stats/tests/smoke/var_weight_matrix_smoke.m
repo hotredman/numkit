@@ -1,7 +1,7 @@
 clear
 
 % var/std with a weight VECTOR on a MATRIX — DEEP-PROBE 2026-05-31.
-% Previously numkit threw: with a default dim it required the weight
+% Previously nk threw: with a default dim it required the weight
 % length to equal numel ("weight vector length must match number of
 % elements"), and with an explicit dim it threw "weight vector with
 % non-flat dim not yet supported". MATLAB applies the weight vector

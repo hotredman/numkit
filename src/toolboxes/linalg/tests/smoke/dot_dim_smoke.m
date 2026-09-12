@@ -1,6 +1,6 @@
 clear
 
-% dot(A, B, dim) — the dimension argument (DEEP-PROBE 2026-05-31). numkit
+% dot(A, B, dim) — the dimension argument (DEEP-PROBE 2026-05-31). nk
 % IGNORED the dim arg and always reduced along dim 1; MATLAB reduces along
 % the requested dim: dim 2 across rows (Hx1), dim 1 down columns (1xW). A
 % vector with explicit dim follows the general sum(conj(A).*B,dim) rule.

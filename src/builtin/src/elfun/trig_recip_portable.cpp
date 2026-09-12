@@ -2,21 +2,21 @@
 //
 // Reference scalar implementations of the reciprocal trig family
 // (sec / csc / cot / sech / csch / coth / secd / cscd / cotd and their
-// inverses). Compiled when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched
+// inverses). Compiled when NK_WITH_SIMD=OFF; the Highway-dispatched
 // variant lives in trig_recip_highway.cpp and matches this file
 // bit-for-bit on complex / scalar inputs (SIMD only helps real-vector).
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 constexpr double kDeg2Rad = 3.14159265358979323846 / 180.0;
@@ -219,4 +219,4 @@ Value acotd(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::atan(1.0 / v) * kRad2Deg; }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

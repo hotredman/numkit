@@ -8,11 +8,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 #include <utility>
 
-namespace numkit::image {
+namespace nk::image {
 
 /// Decode a PNG image from an in-memory byte buffer.
 /// @return H×W uint8/uint16 (gray), H×W×3 uint8/uint16 (RGB), or H×W×4 uint8/uint16 (RGBA).
@@ -35,4 +35,4 @@ bool peekPng(const std::uint8_t *data, std::size_t len,
              std::uint32_t &W, std::uint32_t &H,
              std::uint16_t &bitsPerSample, std::uint16_t &channels);
 
-} // namespace numkit::image
+} // namespace nk::image

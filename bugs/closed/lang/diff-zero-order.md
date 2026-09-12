@@ -6,16 +6,16 @@
 - **Found:** 2026-06-05 while fixing diff complex support (bug-fix loop, cycle 3)
 
 ## Symptom
-`diff(X, 0)` returns `X` unchanged (identity) in numkit. MATLAB rejects a
+`diff(X, 0)` returns `X` unchanged (identity) in nk. MATLAB rejects a
 zero (or non-positive / non-integer) difference order.
 
 ## Repro
 ```matlab
 diff([1 2 3], 0)
-% numkit: [1 2 3]   (identity)
+% nk: [1 2 3]   (identity)
 % MATLAB: Error — "Difference order N must be a positive integer scalar."
 diff([2+3i 7+1i], 0)
-% numkit: [2+3i 7+1i]
+% nk: [2+3i 7+1i]
 % MATLAB: same error
 ```
 

@@ -3,11 +3,11 @@
 // Unit tests for balance permutation phase.
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/balance.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/balance.hpp>
+#include <nk/value/value.hpp>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(BalancePermTest, IsolatedTriangularMatrixPermutation) {
     // A = [1 2 3; 0 4 5; 0 0 6] (upper triangular matrix with isolated eigenvalues)

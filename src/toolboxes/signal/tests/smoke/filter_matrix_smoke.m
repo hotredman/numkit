@@ -2,7 +2,7 @@ clear
 
 % filter() per-column on a matrix (2026-05-30): MATLAB filter(b,a,X)
 % filters along the first non-singleton dimension, resetting the delay
-% state between signals. numkit previously filtered the whole column-major
+% state between signals. nk previously filtered the whole column-major
 % buffer as ONE signal, leaking state across column boundaries. vs MATLAB
 % R2025b.
 

@@ -3,8 +3,8 @@
 #include "../src/io/mp3_codec.hpp"
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::audio;
+using namespace nk;
+using namespace nk::audio;
 
 TEST(Mp3CodecTest, MagicAndSniffing) {
     EXPECT_FALSE(isMp3Bytes(nullptr, 0));

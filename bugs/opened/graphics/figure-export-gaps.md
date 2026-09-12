@@ -1,14 +1,14 @@
 # graphics.export — deferred surface of saveas / exportgraphics / print
 
 - **Status:** 🔴 OPEN (tracking stub — portion 32 shipped the core path)
-- **Severity:** P3 (each item is a documented MATLAB behaviour numkit
+- **Severity:** P3 (each item is a documented MATLAB behaviour nk
   refuses with a clear error or renders in simplified form)
 - **Kind:** stub
 - **Found:** 2026-09-11, portion 32 close-out.
 
 ## What shipped (portion 32)
 
-Engine-side renderer (`src/figure/include/numkit/figure/figure_render.hpp`
+Engine-side renderer (`src/figure/include/nk/figure/figure_render.hpp`
 — display list + SVG and RGB-raster backends, 5×7 bitmap font) behind
 saveas / exportgraphics / print with the common argument forms (handle or
 figure-number target, format flag `-dpng`, `-r###` resolution, Name-Value
@@ -41,7 +41,7 @@ accept-and-ignore) writing .svg plus every image-toolbox raster format.
 clear;
 surf(peaks);
 saveas(gcf, 's.pdf');
-% numkit: error "format '.pdf' is not supported yet …" (filed above)
+% nk: error "format '.pdf' is not supported yet …" (filed above)
 % MATLAB R2025b: writes a PDF
 ```
 

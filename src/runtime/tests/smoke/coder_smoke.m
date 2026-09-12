@@ -1,10 +1,10 @@
 clear
 
 % coder / coder_run / system / runNative smoke — AOT codegen + process builtins.
-% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
+% Run: build/desktop-fast/apps/nk/Release/nk.exe \
 %      src/runtime/tests/smoke/coder_smoke.m
-% Reference: numkit codegen DESIGN.md §8/§9. coder_run needs a C++ compiler
-% (NUMKIT_CXX or the build-time default); runNative needs NUMKIT_INTERP.
+% Reference: nk codegen DESIGN.md §8/§9. coder_run needs a C++ compiler
+% (NK_CXX or the build-time default); runNative needs NK_INTERP.
 
 % --- coder: transpile a nullary scalar function to C++ ---
 src = 'function y = f(); y = 3.14; end';
@@ -25,7 +25,7 @@ end
 [s, o] = system('echo nk_system_smoke');
 fprintf('system: status=%d (e 0), out=%s (e nk_system_smoke)\n', s, strtrim(o));
 
-% --- runNative: run a .m via NUMKIT_INTERP (set it first) ---
+% --- runNative: run a .m via NK_INTERP (set it first) ---
 try
   [sn, on] = runNative('src\math\tests\smoke\sinpi_smoke.m');
   fprintf('runNative: status=%d (e 0), first line: %s\n', sn, strtrim(on(1:min(40,numel(on)))));

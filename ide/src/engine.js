@@ -192,7 +192,7 @@ let warnedStaleWasm = false;
 
 // ── Native Electron engine ─────────────────────────────────────────────────
 //
-// Used in Electron where `numkit_repl.exe` runs as a persistent child
+// Used in Electron where `nk_repl.exe` runs as a persistent child
 // process and all I/O goes through IPC (preload.js → main.js → pipe).
 //
 // This engine is fully autonomous — it does NOT depend on WASM, tempFS,
@@ -214,7 +214,7 @@ export function createNativeEngine(nfs) {
     type: 'native',
 
     // ── Initialisation ──────────────────────────────────────────────
-    init() { return 'Numkit IDE — Desktop Mode'; },
+    init() { return 'NK IDE — Desktop Mode'; },
 
     // ── Code execution ──────────────────────────────────────────────
     async execute(code) {
@@ -319,12 +319,12 @@ export async function createWasmEngine(createModule) {
   // WASM linear memory growth — performance.memory ONLY reports V8's
   // JS heap and hides WASM allocations entirely, which is the
   // diagnostic gap the round-2 heap badge had on its own. Dev mode
-  // additionally keeps the legacy `__numkitIdeModule` name for
+  // additionally keeps the legacy `__nkIdeModule` name for
   // hand-poking from devtools.
   if (typeof window !== 'undefined') {
-    window.numkit = window.numkit || {};
-    window.numkit.__module = Module;
-    if (import.meta.env?.DEV) window.__numkitIdeModule = Module;
+    window.nk = window.nk || {};
+    window.nk.__module = Module;
+    if (import.meta.env?.DEV) window.__nkIdeModule = Module;
   }
 
   return {
@@ -612,7 +612,7 @@ export async function createWasmEngine(createModule) {
       if (typeof Module.repl_register_fs !== 'function') {
         if (!warnedStaleWasm) {
           console.warn('[engine] WASM binary is stale — missing VFS bindings. '
-            + 'Rebuild the WASM module or hard-refresh to pick up the latest numkit_ide.{js,wasm}.');
+            + 'Rebuild the WASM module or hard-refresh to pick up the latest nk_ide.{js,wasm}.');
           warnedStaleWasm = true;
         }
         return;
@@ -621,7 +621,7 @@ export async function createWasmEngine(createModule) {
     },
 
     // Tell the engine which FS the current script came from — so
-    // csvread('foo.csv') with no explicit prefix and no NUMKIT_FS env var
+    // csvread('foo.csv') with no explicit prefix and no NK_FS env var
     // resolves relative to that FS. The optional 2nd arg passes the
     // script's containing directory so sibling .m files resolve without
     // addpath (helper.m next to caller.m).
@@ -655,7 +655,7 @@ export function createFallbackEngine() {
   const interp = createInterpreter();
   return {
     type: 'fallback',
-    init() { return 'Numkit IDE v2.5 — Demo Mode'; },
+    init() { return 'NK IDE v2.5 — Demo Mode'; },
 
     execute(code) {
       const result = interp.execute(code);
@@ -765,7 +765,7 @@ export function createFallbackEngine() {
 
 // ── Native REPL engine wrapper ─────────────────────────────────────────────
 //
-// Used in Electron when numkit_repl --ide-session is available.
+// Used in Electron when nk_repl --ide-session is available.
 // ALL code execution (REPL lines + Run button) goes through the persistent
 // native process so the workspace is shared and preserved between runs.
 //

@@ -16,5 +16,5 @@
     "ig",
     "dn"
   ],
-  "comment": "plot-family handle introspection vs MATLAB R2025b: documented defaults (LineWidth 0.5, MarkerSize 6, empty DisplayName), set/get round-trips, YData replacement, isgraphics/ishandle/isa(h,'handle'). class(h) differs by design (numkit reports the same matlab.graphics.* names but the fingerprint stays numeric). Multi-series form plot(x,y,x2,y2) is guarded in TW_VM/GraphicsHandleTest.MultiSeriesPlotReturnsHandleArray. Deferred: title/legend return handles, ZData on surface (bugs/opened/graphics/handle-surface-gaps.md)."
+  "comment": "plot-family handle introspection vs MATLAB R2025b: documented defaults (LineWidth 0.5, MarkerSize 6, empty DisplayName), set/get round-trips, YData replacement, isgraphics/ishandle/isa(h,'handle'). class(h) differs by design (nk reports the same matlab.graphics.* names but the fingerprint stays numeric). Multi-series form plot(x,y,x2,y2) is guarded in TW_VM/GraphicsHandleTest.MultiSeriesPlotReturnsHandleArray. Deferred: title/legend return handles, ZData on surface (bugs/opened/graphics/handle-surface-gaps.md)."
 }

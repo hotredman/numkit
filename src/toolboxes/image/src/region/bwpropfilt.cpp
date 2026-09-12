@@ -57,11 +57,11 @@
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 
-#include <numkit/image/region/region.hpp>
-#include <numkit/image/morph/morph.hpp>
+#include <nk/image/region/region.hpp>
+#include <nk/image/morph/morph.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 #include <cctype>
 
 #include <algorithm>
@@ -77,7 +77,7 @@
 #  define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::image {
+namespace nk::image {
 namespace {
 
 inline std::string lower_str(const std::string &s)
@@ -108,21 +108,21 @@ CCInfoBPF parse_cc(const Value &CC, const char *fn)
     CCInfoBPF info;
     if (!CC.isStruct() || CC.numel() != 1)
         throw Error(std::string(fn) + ": CC must be a 1×1 struct",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":notStruct");
+                    0, 0, fn, "", std::string("nk:") + fn + ":notStruct");
     const auto &el = CC.structArrayElem(0);
     auto need = [&](const char *name) -> const Value & {
         auto it = el.find(name);
         if (it == el.end())
             throw Error(std::string(fn) + ": CC missing '" + name + "'",
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":noField");
+                        std::string("nk:") + fn + ":noField");
         return it->second;
     };
     const Value &sz = need("ImageSize");
     if (sz.numel() < 2)
         throw Error(std::string(fn) + ": CC.ImageSize too short",
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":sizeDim");
+                    std::string("nk:") + fn + ":sizeDim");
     info.H = static_cast<int>(sz.elemAsDouble(0));
     info.W = static_cast<int>(sz.elemAsDouble(1));
     auto itConn = el.find("Connectivity");
@@ -595,19 +595,19 @@ compute_attribute(const std::vector<Comp> &comps,
     } else if (attrib_lower == "minintensity") {
         if (marker.isEmpty())
             throw Error("bwpropfilt: MinIntensity needs a marker image",
-                        0, 0, "bwpropfilt", "", "numkit:bwpropfilt:needMarker");
+                        0, 0, "bwpropfilt", "", "nk:bwpropfilt:needMarker");
         for (std::size_t i = 0; i < comps.size(); ++i)
             v[i] = attr_min_intensity(comps[i], marker);
     } else if (attrib_lower == "maxintensity") {
         if (marker.isEmpty())
             throw Error("bwpropfilt: MaxIntensity needs a marker image",
-                        0, 0, "bwpropfilt", "", "numkit:bwpropfilt:needMarker");
+                        0, 0, "bwpropfilt", "", "nk:bwpropfilt:needMarker");
         for (std::size_t i = 0; i < comps.size(); ++i)
             v[i] = attr_max_intensity(comps[i], marker);
     } else if (attrib_lower == "meanintensity") {
         if (marker.isEmpty())
             throw Error("bwpropfilt: MeanIntensity needs a marker image",
-                        0, 0, "bwpropfilt", "", "numkit:bwpropfilt:needMarker");
+                        0, 0, "bwpropfilt", "", "nk:bwpropfilt:needMarker");
         for (std::size_t i = 0; i < comps.size(); ++i)
             v[i] = attr_mean_intensity(comps[i], marker);
     } else {
@@ -617,7 +617,7 @@ compute_attribute(const std::vector<Comp> &comps,
                       "FilledArea, MajorAxisLength, MaxIntensity, "
                       "MeanIntensity, MinIntensity, MinorAxisLength, "
                       "Orientation, Perimeter, PerimeterOld, Solidity)",
-                    0, 0, "bwpropfilt", "", "numkit:bwpropfilt:badAttr");
+                    0, 0, "bwpropfilt", "", "nk:bwpropfilt:badAttr");
     }
     return v;
     (void)W;
@@ -739,4 +739,4 @@ Value bwpropfilt(const Value &BW, const Value &CC, const Value &marker,
     (void)marker; (void)keep_largest;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

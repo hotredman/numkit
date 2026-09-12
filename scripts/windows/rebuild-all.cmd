@@ -43,15 +43,15 @@ if "%WASM%"=="1" (
 
 echo.
 echo === gtest suite ===
-set TEST_EXE=%PROJECT_DIR%build\windows\release\tests\gtest\Release\numkit_gtest.exe
-if not exist "%TEST_EXE%" set TEST_EXE=%PROJECT_DIR%build\windows\release\tests\gtest\numkit_gtest.exe
+set TEST_EXE=%PROJECT_DIR%build\windows\release\tests\gtest\Release\nk_gtest.exe
+if not exist "%TEST_EXE%" set TEST_EXE=%PROJECT_DIR%build\windows\release\tests\gtest\nk_gtest.exe
 "%TEST_EXE%"
 if errorlevel 1 goto :fail
 
 if "%WASM%"=="1" (
     echo.
     echo === npm dist refresh ===
-    node "%PROJECT_DIR%packages\numkit\scripts\refresh-dist.js"
+    node "%PROJECT_DIR%packages\nk\scripts\refresh-dist.js"
     if errorlevel 1 goto :fail
 ) else (
     echo === npm dist refresh: skipped ^(no --wasm; dist mirrors the wasm build^)

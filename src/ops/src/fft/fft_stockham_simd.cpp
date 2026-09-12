@@ -27,7 +27,7 @@
 //     bandwidth might cost. Empirical crossover is at the dispatcher
 //     in fft_simd.cpp.
 
-#include <numkit/ops/fft/fft_kernels.hpp>
+#include <nk/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <cstring>
@@ -40,7 +40,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -154,12 +154,12 @@ void Stockham(Complex *x, Complex *scratch, std::size_t N, const Complex *W)
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::ops::detail {
+namespace nk::ops::detail {
 
 HWY_EXPORT(Stockham);
 
@@ -174,6 +174,6 @@ void fftStockhamDispatch(Complex *buf, std::size_t N, const Complex *W)
     HWY_DYNAMIC_DISPATCH(Stockham)(buf, scratch.data(), N, W);
 }
 
-} // namespace numkit::ops::detail
+} // namespace nk::ops::detail
 
 #endif // HWY_ONCE

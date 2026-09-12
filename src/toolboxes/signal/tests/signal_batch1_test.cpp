@@ -10,11 +10,11 @@
 //
 // All flagged "no major gap detected". Bit-identical MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SignalBatch1Test : public ::testing::Test
 {
@@ -73,7 +73,7 @@ TEST_F(SignalBatch1Test, Ac2Poly)
 
 TEST_F(SignalBatch1Test, Ac2Rc)
 {
-    // numkit's k(2) and R0 differ from MATLAB; only k(1) is bit-identical
+    // nk's k(2) and R0 differ from MATLAB; only k(1) is bit-identical
     eval("[k, R0] = ac2rc([2 1 0.5]);");
     EXPECT_NEAR(evalScalar("k(1)"), -0.5, 1e-9);
 }
@@ -93,7 +93,7 @@ TEST_F(SignalBatch1Test, AnalogPrototypes)
 // DEEP-PROBE 2026-05-31: lp2* TF form returns the numerator at its true
 // degree (#zeros + 1), matching MATLAB — NOT zero-padded to the denominator
 // length. The Butterworth prototype has no zeros, so lp2lp's numerator is
-// length 1 ([Wo^N]) and lp2bp's is length 5. Previously numkit returned a
+// length 1 ([Wo^N]) and lp2bp's is length 5. Previously nk returned a
 // padded numerator (length 5 / 9) with a leading 0, because tf2zp produced a
 // zero gain for the padded prototype numerator.
 TEST_F(SignalBatch1Test, Lp2lpNumeratorTrueDegree)

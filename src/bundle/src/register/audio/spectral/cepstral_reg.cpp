@@ -7,12 +7,12 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/audio/spectral/cepstral.hpp>
+#include <nk/audio/spectral/cepstral.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
-namespace numkit::audio {
+namespace nk::audio {
 namespace detail {
 
 void cepstralCoefficients_reg(Span<const Value> args, size_t /*nargout*/,
@@ -21,7 +21,7 @@ void cepstralCoefficients_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("cepstralCoefficients: requires (S [, NumCoeffs])",
                     0, 0, "cepstralCoefficients", "",
-                    "numkit:cepstralCoefficients:nargin");
+                    "nk:cepstralCoefficients:nargin");
     int nc = 13;
     if (args.size() >= 2) nc = static_cast<int>(args[1].toScalar());
     outs[0] = cepstralCoefficients(args[0], nc, ctx.engine->resource());
@@ -32,7 +32,7 @@ void mfcc_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("mfcc: requires (x, fs [, NumCoeffs])",
-                    0, 0, "mfcc", "", "numkit:mfcc:nargin");
+                    0, 0, "mfcc", "", "nk:mfcc:nargin");
     int nc = 13;
     if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
     auto [c, d, dd] = mfcc(args[0], args[1].toScalar(), nc,
@@ -47,7 +47,7 @@ void gtcc_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("gtcc: requires (x, fs [, NumCoeffs])",
-                    0, 0, "gtcc", "", "numkit:gtcc:nargin");
+                    0, 0, "gtcc", "", "nk:gtcc:nargin");
     int nc = 13;
     if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
     auto [c, d, dd] = gtcc(args[0], args[1].toScalar(), nc,
@@ -58,4 +58,4 @@ void gtcc_reg(Span<const Value> args, size_t nargout,
 }
 
 } // namespace detail
-} // namespace numkit::audio
+} // namespace nk::audio

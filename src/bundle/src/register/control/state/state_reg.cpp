@@ -7,19 +7,19 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/control/state/state.hpp>
+#include <nk/control/state/state.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
-namespace numkit::control {
+namespace nk::control {
 namespace detail {
 
 void ctrb_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("ctrb: requires (A, B) or (sys)",
-                    0, 0, "ctrb", "", "numkit:ctrb:nargin");
+                    0, 0, "ctrb", "", "nk:ctrb:nargin");
     auto *mr = c.engine->resource();
     if (a.size() == 1) {
         // Single-arg form: must be a sys struct.
@@ -33,7 +33,7 @@ void obsv_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("obsv: requires (A, C) or (sys)",
-                    0, 0, "obsv", "", "numkit:obsv:nargin");
+                    0, 0, "obsv", "", "nk:obsv:nargin");
     auto *mr = c.engine->resource();
     if (a.size() == 1) {
         o[0] = obsv_sys(a[0], mr);
@@ -46,7 +46,7 @@ void gram_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 2)
         throw Error("gram: requires (sys, type) where type is 'c' or 'o'",
-                    0, 0, "gram", "", "numkit:gram:nargin");
+                    0, 0, "gram", "", "nk:gram:nargin");
     o[0] = gram(a[0], a[1].toString(), c.engine->resource());
 }
 
@@ -54,11 +54,11 @@ void covar_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 2)
         throw Error("covar: requires (sys, W)",
-                    0, 0, "covar", "", "numkit:covar:nargin");
+                    0, 0, "covar", "", "nk:covar:nargin");
     auto r = covar(a[0], a[1], c.engine->resource());
     if (o.size() >= 1) o[0] = std::move(r.P);
     if (o.size() >= 2) o[1] = std::move(r.Q);
 }
 
 } // namespace detail
-} // namespace numkit::control
+} // namespace nk::control

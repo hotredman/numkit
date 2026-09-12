@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/io/io.hpp>
+#include <nk/image/io/io.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 #include "io/io_detail.hpp"
 #include "io/png_codec.hpp"
 
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -36,10 +36,10 @@ void imread_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("imread: requires a path string",
-                    0, 0, "imread", "", "numkit:imread:nargin");
+                    0, 0, "imread", "", "nk:imread:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imread: path must be a string",
-                    0, 0, "imread", "", "numkit:imread:type");
+                    0, 0, "imread", "", "nk:imread:type");
     const std::string path = args[0].toString();
 
     // Read the file through the engine's VFS prosloyka — the WASM engine
@@ -49,7 +49,7 @@ void imread_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     auto rp = ctx.engine->resolvePath(path);
     if (!rp.fs || !rp.fs->exists(rp.path))
         throw Error("imread: failed to load '" + path + "' — file not found",
-                    0, 0, "imread", "", "numkit:imread:load");
+                    0, 0, "imread", "", "nk:imread:load");
     // Binary-safe read (an image is raw bytes, not UTF-8 text).
     const std::string bytes = rp.fs->readFileBytes(rp.path);
     const bool tiff = isTiffBytes(bytes);
@@ -61,7 +61,7 @@ void imread_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         page = static_cast<std::uint32_t>(args[1].toScalar());
         if (!tiff)
             throw Error("imread: page index only supported for TIFF files",
-                        0, 0, "imread", "", "numkit:imread:notTiff");
+                        0, 0, "imread", "", "nk:imread:notTiff");
     }
 
     if (tiff) {
@@ -96,10 +96,10 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
 {
     if (args.size() < 2)
         throw Error("imwrite: requires (A, path)",
-                    0, 0, "imwrite", "", "numkit:imwrite:nargin");
+                    0, 0, "imwrite", "", "nk:imwrite:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("imwrite: path must be a string",
-                    0, 0, "imwrite", "", "numkit:imwrite:type");
+                    0, 0, "imwrite", "", "nk:imwrite:type");
 
     const std::string path = args[1].toString();
     const std::string ext = lowerExt(path);
@@ -124,7 +124,7 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
         for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
             if (!args[i].isChar() && !args[i].isString())
                 throw Error("imwrite TIFF: NV name must be a string",
-                            0, 0, "imwrite", "", "numkit:imwrite:badNVName");
+                            0, 0, "imwrite", "", "nk:imwrite:badNVName");
             std::string key = args[i].toString();
             std::string lkey;
             lkey.reserve(key.size());
@@ -141,7 +141,7 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
                 appendMode = (lo == "append");
             } else {
                 throw Error("imwrite TIFF: unknown NV key '" + key + "'",
-                            0, 0, "imwrite", "", "numkit:imwrite:badNVKey");
+                            0, 0, "imwrite", "", "nk:imwrite:badNVKey");
             }
         }
         // Encode to bytes and write through the VFS prosloyka. For append
@@ -150,7 +150,7 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
         auto rp = ctx.engine->resolvePath(path);
         if (!rp.fs)
             throw Error("imwrite: no filesystem for '" + path + "'",
-                        0, 0, "imwrite", "", "numkit:imwrite:write");
+                        0, 0, "imwrite", "", "nk:imwrite:write");
         std::vector<std::uint8_t> existing;
         const std::vector<std::uint8_t> *exptr = nullptr;
         if (appendMode && rp.fs->exists(rp.path)) {
@@ -168,7 +168,7 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
     auto rp = ctx.engine->resolvePath(path);
     if (!rp.fs)
         throw Error("imwrite: no filesystem for '" + path + "'",
-                    0, 0, "imwrite", "", "numkit:imwrite:write");
+                    0, 0, "imwrite", "", "nk:imwrite:write");
     const std::string bytes = imwriteToBytes(args[0], ext, ctx.engine->resource());
     rp.fs->writeFileBytes(rp.path, bytes);
 }
@@ -178,21 +178,21 @@ void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("imfinfo: requires a path string",
-                    0, 0, "imfinfo", "", "numkit:imfinfo:nargin");
+                    0, 0, "imfinfo", "", "nk:imfinfo:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imfinfo: path must be a string",
-                    0, 0, "imfinfo", "", "numkit:imfinfo:type");
+                    0, 0, "imfinfo", "", "nk:imfinfo:type");
     const std::string path = args[0].toString();
 
     // Read through the VFS prosloyka (virtual or real FS); never fopen.
     auto rp = ctx.engine->resolvePath(path);
     if (!rp.fs || !rp.fs->exists(rp.path))
         throw Error("imfinfo: failed to read '" + path + "' — file not found",
-                    0, 0, "imfinfo", "", "numkit:imfinfo:read");
+                    0, 0, "imfinfo", "", "nk:imfinfo:read");
     const std::string bytes = rp.fs->readFileBytes(rp.path);
     outs[0] = imfinfoFromBytes(bytes, path, ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

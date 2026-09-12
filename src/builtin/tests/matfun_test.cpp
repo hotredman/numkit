@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <numkit/builtin/matfun.hpp>
-#include <numkit/bundle/standard_library.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/builtin/matfun.hpp>
+#include <nk/bundle/standard_library.hpp>
+#include <nk/core/engine.hpp>
 
-using namespace numkit;
+using namespace nk;
 
 class MatfunTest : public ::testing::Test {
 protected:

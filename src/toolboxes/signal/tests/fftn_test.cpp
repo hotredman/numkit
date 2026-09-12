@@ -6,14 +6,14 @@
 // (2-D delegating to fft2-equivalent, 3-D pages, sz override, round-trip
 // identity) rather than re-testing the FFT kernel itself.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class FftnTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void   SetUp() override {  }
     double eval_scalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };

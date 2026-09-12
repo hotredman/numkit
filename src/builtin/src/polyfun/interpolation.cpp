@@ -3,13 +3,13 @@
 // 1-D / 2-D / 3-D interpolation. polyfit / polyval moved to
 // math/elementary/polynomials.cpp; trapz to math/integration/integration.cpp.
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 
 #include "interp_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ── Internal algorithm helpers ────────────────────────────────────────
 
@@ -41,7 +41,7 @@ Value interp2(const Value &V, const Value &Xq, const Value &Yq, const std::strin
 {
     if (V.dims().is3D() || V.dims().ndim() > 2)
         throw Error("interp2: V must be a 2D matrix",
-                     0, 0, "interp2", "", "numkit:interp2:rank");
+                     0, 0, "interp2", "", "nk:interp2:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     ScratchArena scratch(mr);
@@ -67,7 +67,7 @@ Value interp3(const Value &V, const Value &Xq, const Value &Yq, const Value &Zq,
 {
     if (!V.dims().is3D())
         throw Error("interp3: V must be a 3D array",
-                     0, 0, "interp3", "", "numkit:interp3:rank");
+                     0, 0, "interp3", "", "nk:interp3:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
@@ -98,10 +98,10 @@ Value spline(const Value &x, const Value &y, const Value &xq, std::pmr::memory_r
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("spline: x and y must have same length",
-                     0, 0, "spline", "", "numkit:spline:lengthMismatch");
+                     0, 0, "spline", "", "nk:spline:lengthMismatch");
     if (n < 2)
         throw Error("spline: need at least 2 data points",
-                     0, 0, "spline", "", "numkit:spline:tooFewPoints");
+                     0, 0, "spline", "", "nk:spline:tooFewPoints");
 
     ScratchArena scratch(mr);
     auto yq = interpSpline(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel(), &scratch);
@@ -114,10 +114,10 @@ Value pchip(const Value &x, const Value &y, const Value &xq, std::pmr::memory_re
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("pchip: x and y must have same length",
-                     0, 0, "pchip", "", "numkit:pchip:lengthMismatch");
+                     0, 0, "pchip", "", "nk:pchip:lengthMismatch");
     if (n < 2)
         throw Error("pchip: need at least 2 data points",
-                     0, 0, "pchip", "", "numkit:pchip:tooFewPoints");
+                     0, 0, "pchip", "", "nk:pchip:tooFewPoints");
 
     ScratchArena scratch(mr);
     auto yq = interpPchip(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel(), &scratch);
@@ -134,10 +134,10 @@ Value makima(const Value &x, const Value &y, const Value &xq,
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("makima: x and y must have same length",
-                     0, 0, "makima", "", "numkit:makima:lengthMismatch");
+                     0, 0, "makima", "", "nk:makima:lengthMismatch");
     if (n < 2)
         throw Error("makima: need at least 2 data points",
-                     0, 0, "makima", "", "numkit:makima:tooFewPoints");
+                     0, 0, "makima", "", "nk:makima:tooFewPoints");
 
     ScratchArena scratch(mr);
     auto yq = interpMakima(x.doubleData(), y.doubleData(), n,
@@ -154,16 +154,16 @@ Value mkpp(const Value &breaks, const Value &coefs, std::pmr::memory_resource *m
 {
     if (breaks.numel() < 2)
         throw Error("mkpp: breaks must have at least 2 entries",
-                     0, 0, "mkpp", "", "numkit:mkpp:breaks");
+                     0, 0, "mkpp", "", "nk:mkpp:breaks");
     const size_t L = breaks.numel() - 1;  // pieces
     if (coefs.dims().ndim() > 2)
         throw Error("mkpp: only 2-D coefs (pieces × order) supported",
-                     0, 0, "mkpp", "", "numkit:mkpp:rank");
+                     0, 0, "mkpp", "", "nk:mkpp:rank");
     const size_t pieces = coefs.dims().rows();
     const size_t order  = coefs.dims().cols();
     if (pieces != L)
         throw Error("mkpp: rows(coefs) must equal numel(breaks) - 1",
-                     0, 0, "mkpp", "", "numkit:mkpp:shape");
+                     0, 0, "mkpp", "", "nk:mkpp:shape");
 
     auto pp = Value::structure(mr);
     pp.field("form")   = Value::fromString("pp", mr);
@@ -179,7 +179,7 @@ Value ppval(const Value &pp, const Value &x, std::pmr::memory_resource *mr)
 {
     if (!pp.isStruct() || !pp.hasField("breaks") || !pp.hasField("coefs"))
         throw Error("ppval: first argument must be a pp struct",
-                     0, 0, "ppval", "", "numkit:ppval:notPp");
+                     0, 0, "ppval", "", "nk:ppval:notPp");
     const Value &breaks = pp.field("breaks");
     const Value &coefs  = pp.field("coefs");
     const size_t L      = breaks.numel() - 1;
@@ -216,4 +216,4 @@ Value ppval(const Value &pp, const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

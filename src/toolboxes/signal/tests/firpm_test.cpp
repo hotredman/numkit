@@ -6,14 +6,14 @@
 // detection at band edges, multiple-exchange alternation merge,
 // barycentric Lagrange interpolation, inverse-DCT-I reconstruction).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class FirpmTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void   SetUp() override {  }
     double eval_scalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };
@@ -77,7 +77,7 @@ TEST_F(FirpmTest, MultibandWeightedN40)
 }
 
 // Order N=0/1/2 — MATLAB throws "Filter order must be 3 or more";
-// numkit must match the same lower bound.
+// nk must match the same lower bound.
 TEST_F(FirpmTest, OrderTooSmallThrows)
 {
     EXPECT_THROW(engine.eval("firpm(2, [0 1], [1 1]);"), std::exception);

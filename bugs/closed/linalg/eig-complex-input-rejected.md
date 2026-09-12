@@ -18,7 +18,7 @@ decomposition normally.
 clear;
 [V, D] = eig(complex([1 2; 3 4]));
 disp(diag(D))
-% numkit:  Error: Not a double array (in call to 'eig')
+% nk:  Error: Not a double array (in call to 'eig')
 % MATLAB R2025b: -0.372281 and 5.37228
 ```
 

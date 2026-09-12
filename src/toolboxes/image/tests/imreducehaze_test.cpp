@@ -5,14 +5,14 @@
 // with MATLAB R2025b on probed inputs because we reuse the same
 // helpers (imerode, rgb2gray, mat2gray, stretchlim, imadjust,
 // imguidedfilter). The approxdcp path diverges by ~15-30 uint8
-// because (a) numkit's imhist uses slightly different bucket
-// boundaries than MATLAB and (b) numkit's imguidedfilter doesn't
+// because (a) nk's imhist uses slightly different bucket
+// boundaries than MATLAB and (b) nk's imguidedfilter doesn't
 // expose the Fast-Guided-Filter subsample optimization.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImReduceHazeTest : public ::testing::Test
 {

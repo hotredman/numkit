@@ -3,13 +3,13 @@
 // CallContext register half of qmc/qmc.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/qmc/qmc.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/qmc/qmc.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ void haltonset_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("haltonset: requires (dim[, 'Skip', s, 'Leap', l])",
-                    0, 0, "haltonset", "", "numkit:haltonset:nargin");
+                    0, 0, "haltonset", "", "nk:haltonset:nargin");
     const int d = static_cast<int>(args[0].toScalar());
     // MATLAB's default Skip is 0 — the trivial origin [0…0] is the first
     // returned point. 'Skip', 1 starts at index 1 = [0.5, 1/3, …].
@@ -51,11 +51,11 @@ void net_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("net: requires (stream, n)",
-                    0, 0, "net", "", "numkit:net:nargin");
+                    0, 0, "net", "", "nk:net:nargin");
     const long long n = static_cast<long long>(args[1].toScalar());
     outs[0] = net(args[0], n, ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

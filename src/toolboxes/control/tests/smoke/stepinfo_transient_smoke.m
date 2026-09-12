@@ -1,6 +1,6 @@
 clear
 
-% stepinfo now returns MATLAB R2025b's full 9-field struct. numkit previously
+% stepinfo now returns MATLAB R2025b's full 9-field struct. nk previously
 % returned only 8 fields -- the TransientTime field (the 2nd field, between
 % RiseTime and SettlingTime) was missing.
 %

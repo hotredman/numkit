@@ -1,7 +1,7 @@
 clear
 
 % imhistmatchn — N-D variant of imhistmatch. Single histogram across
-% all elements (volume semantics). Aliased to imhistmatch in numkit.
+% all elements (volume semantics). Aliased to imhistmatch in nk.
 
 % --- 2-D: same as imhistmatch ---
 fprintf('--- imhistmatchn (2-D) ---\n');

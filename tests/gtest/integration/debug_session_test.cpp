@@ -1,10 +1,10 @@
 // tests/diagnostics/debug_session_test.cpp
 // Tests for DebugSession: pause/resume, eval in context, stepping
-#include <numkit/core/debug_session.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/debug_session.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 // ============================================================
 // Fixture

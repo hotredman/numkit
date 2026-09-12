@@ -3,20 +3,20 @@
 // Miscellaneous linalg utilities: rref + planerot.
 // Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/linalg_extras.cpp.
 
-#include <numkit/linalg/misc.hpp>
+#include <nk/linalg/misc.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The rref/planerot
 // builtins (CallContext wrappers) live in misc_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -40,7 +40,7 @@ rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *
 {
     if (A.dims().is3D())
         throw Error("rref: input must be 2D",
-                    0, 0, "rref", "", "numkit:rref:Not2D");
+                    0, 0, "rref", "", "nk:rref:Not2D");
 
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
@@ -54,7 +54,7 @@ rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *
     ScratchVec<double> B(M * N, &scratch);
     if (A.isComplex())
         throw Error("rref: complex input not supported in v1",
-                    0, 0, "rref", "", "numkit:rref:NoComplex");
+                    0, 0, "rref", "", "nk:rref:NoComplex");
     std::copy(A.doubleData(), A.doubleData() + M * N, B.begin());
 
     double tol = tol_user;
@@ -121,10 +121,10 @@ planerot(const Value &xy, std::pmr::memory_resource *mr)
 {
     if (xy.dims().is3D() || xy.numel() != 2)
         throw Error("planerot: input must be a 2-element vector",
-                    0, 0, "planerot", "", "numkit:planerot:BadShape");
+                    0, 0, "planerot", "", "nk:planerot:BadShape");
     if (xy.isComplex())
         throw Error("planerot: complex input not supported",
-                    0, 0, "planerot", "", "numkit:planerot:NoComplex");
+                    0, 0, "planerot", "", "nk:planerot:NoComplex");
 
     const double x = xy.elemAsDouble(0);
     const double y = xy.elemAsDouble(1);
@@ -156,4 +156,4 @@ planerot(const Value &xy, std::pmr::memory_resource *mr)
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

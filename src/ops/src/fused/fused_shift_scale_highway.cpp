@@ -9,8 +9,8 @@
 // (x-c)*(1/d) would round 1/d first and diverge from (x-c)/d. NaN/Inf flow
 // through the plain IEEE ops exactly as per-op (no fmin/fmax involved).
 
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <cstddef>
 
@@ -20,7 +20,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -48,11 +48,11 @@ void ShiftScaleDivImpl(const double *x, double sub, double div,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(ShiftScaleMulImpl);
 HWY_EXPORT(ShiftScaleDivImpl);
@@ -73,5 +73,5 @@ void fusedShiftScaleDiv(const double *x, double sub, double div,
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

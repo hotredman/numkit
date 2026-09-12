@@ -16,10 +16,10 @@
 // by sorting with stable order (lexicographic by current symbol
 // index), which reproduces MATLAB R2025b on the standard probe set.
 
-#include <numkit/comm/source/huffman.hpp>
+#include <nk/comm/source/huffman.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -56,10 +56,10 @@ huffmandict(const Value &symbols, const Value &probs,
     const size_t K = symbols.numel();
     if (K == 0)
         throw Error("huffmandict: symbols must be non-empty",
-                    0, 0, "huffmandict", "", "numkit:huffmandict:Empty");
+                    0, 0, "huffmandict", "", "nk:huffmandict:Empty");
     if (probs.numel() != K)
         throw Error("huffmandict: probs must match length of symbols",
-                    0, 0, "huffmandict", "", "numkit:huffmandict:LenMismatch");
+                    0, 0, "huffmandict", "", "nk:huffmandict:LenMismatch");
 
     // Validate probs.
     double sum = 0.0;
@@ -68,13 +68,13 @@ huffmandict(const Value &symbols, const Value &probs,
         if (!(p >= 0.0 && p <= 1.0))
             throw Error("huffmandict: probabilities must lie in [0, 1]",
                         0, 0, "huffmandict", "",
-                        "numkit:huffmandict:InvalidProb");
+                        "nk:huffmandict:InvalidProb");
         sum += p;
     }
     if (std::abs(sum - 1.0) > std::sqrt(2.220446049250313e-16))
         throw Error("huffmandict: probabilities must sum to 1",
                     0, 0, "huffmandict", "",
-                    "numkit:huffmandict:InvalidProbSum");
+                    "nk:huffmandict:InvalidProbSum");
 
     // Edge case: a single symbol gets a single-bit "0" code.
     if (K == 1) {
@@ -150,7 +150,7 @@ DictView readDict(const Value &dict)
 {
     if (dict.dims().cols() != 2)
         throw Error("huffman codec: dict must be K-by-2 cell",
-                    0, 0, "huffman", "", "numkit:huffman:DictShape");
+                    0, 0, "huffman", "", "nk:huffman:DictShape");
     const size_t K = dict.dims().rows();
     DictView dv;
     dv.K = K;
@@ -167,7 +167,7 @@ DictView readDict(const Value &dict)
             const double v = codeV.elemAsDouble(b);
             if (v != 0.0 && v != 1.0)
                 throw Error("huffman codec: dict codes must contain 0/1",
-                            0, 0, "huffman", "", "numkit:huffman:DictBits");
+                            0, 0, "huffman", "", "nk:huffman:DictBits");
             dv.codes[k][b] = static_cast<uint8_t>(v);
         }
     }
@@ -234,7 +234,7 @@ Value huffmanenco(const Value &sig, const Value &dict,
         if (k < 0)
             throw Error("huffmanenco: symbol not in dict",
                         0, 0, "huffmanenco", "",
-                        "numkit:huffmanenco:UnknownSym");
+                        "nk:huffmanenco:UnknownSym");
         total_bits += dv.codes[k].size();
     }
 
@@ -272,13 +272,13 @@ Value huffmandeco(const Value &bits, const Value &dict,
         if (v != 0.0 && v != 1.0)
             throw Error("huffmandeco: input bits must be 0 or 1",
                         0, 0, "huffmandeco", "",
-                        "numkit:huffmandeco:NonBit");
+                        "nk:huffmandeco:NonBit");
         const int next = (v == 0.0) ? tree.nodes[cur].left
                                     : tree.nodes[cur].right;
         if (next < 0)
             throw Error("huffmandeco: bit pattern does not match dict",
                         0, 0, "huffmandeco", "",
-                        "numkit:huffmandeco:NoMatch");
+                        "nk:huffmandeco:NoMatch");
         cur = next;
         if (tree.nodes[cur].sym >= 0) {
             emitted.push_back(dv.syms[tree.nodes[cur].sym]);
@@ -288,7 +288,7 @@ Value huffmandeco(const Value &bits, const Value &dict,
     if (cur != 0)
         throw Error("huffmandeco: trailing bits not a complete code",
                     0, 0, "huffmandeco", "",
-                    "numkit:huffmandeco:Incomplete");
+                    "nk:huffmandeco:Incomplete");
 
     const bool row = isRowOriented(bits);
     const size_t M = emitted.size();
@@ -298,4 +298,4 @@ Value huffmandeco(const Value &bits, const Value &dict,
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

@@ -3,29 +3,29 @@
 // Page-wise linalg ops on 3-D arrays. All wrappers iterate over
 // pages and dispatch to the 2-D variant.
 
-#include <numkit/linalg/page_ops.hpp>
+#include <nk/linalg/page_ops.hpp>
 
-#include <numkit/linalg/decompositions.hpp>   // chol/lu/qr/svd
-#include <numkit/linalg/eig.hpp>              // eig_symmetric / eig_general_VD / eig_values / eig_general_values
-#include <numkit/linalg/norms.hpp>            // norm_value / norm_inf / norm_fro
-#include <numkit/linalg/properties.hpp>       // inv
-#include <numkit/linalg/pseudo_subspace.hpp>  // pinv
-#include <numkit/linalg/solvers.hpp>          // linsolve / lsqminnorm
-#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
+#include <nk/linalg/decompositions.hpp>   // chol/lu/qr/svd
+#include <nk/linalg/eig.hpp>              // eig_symmetric / eig_general_VD / eig_values / eig_general_values
+#include <nk/linalg/norms.hpp>            // norm_value / norm_inf / norm_fro
+#include <nk/linalg/properties.hpp>       // inv
+#include <nk/linalg/pseudo_subspace.hpp>  // pinv
+#include <nk/linalg/solvers.hpp>          // linsolve / lsqminnorm
+#include <nk/ops/la_solve.hpp>   // nk::ops::la_solve
 
 // Compute-only TU: Value substrate + Error, no engine. The page* builtins
 // (CallContext wrappers) live in page_ops_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <string>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -55,7 +55,7 @@ pageShape(const Value &A, const char *who)
     const int nd = A.dims().ndim();
     if (nd < 2 || nd > 3)
         throw Error(std::string(who) + ": input must be 2-D or 3-D",
-                    0, 0, who, "", std::string("numkit:") + who + ":badDim");
+                    0, 0, who, "", std::string("nk:") + who + ":badDim");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t p = (nd == 2) ? 1 : static_cast<std::size_t>(A.dims().dim(2));
@@ -82,7 +82,7 @@ Value pageinv(const Value &A, std::pmr::memory_resource *mr)
     auto [m, n, pages] = pageShape(A, "pageinv");
     if (m != n)
         throw Error("pageinv: each page must be square",
-                    0, 0, "pageinv", "", "numkit:pageinv:notSquare");
+                    0, 0, "pageinv", "", "nk:pageinv:notSquare");
     auto out = makePageOutput(m, n, pages, A.dims().ndim() == 3, mr);
     if (m == 0) return out;
 
@@ -96,11 +96,11 @@ Value pageinv(const Value &A, std::pmr::memory_resource *mr)
     for (std::size_t p = 0; p < pages; ++p) {
         std::copy(src + p * stride, src + (p + 1) * stride, A_buf.begin());
         fillIdentity(I_buf.data(), n);
-        if (!numkit::ops::la_solve(A_buf.data(), m, n,
+        if (!nk::ops::la_solve(A_buf.data(), m, n,
                                                 I_buf.data(), n,
                                                 dst + p * stride, &scratch))
             throw Error("pageinv: page is singular",
-                        0, 0, "pageinv", "", "numkit:pageinv:singular");
+                        0, 0, "pageinv", "", "nk:pageinv:singular");
     }
     return out;
 }
@@ -114,7 +114,7 @@ Value pageeig_values(const Value &A, std::pmr::memory_resource *mr)
     auto [m, n, pages] = pageShape(A, "pageeig");
     if (m != n)
         throw Error("pageeig: each page must be square",
-                    0, 0, "pageeig", "", "numkit:pageeig:notSquare");
+                    0, 0, "pageeig", "", "nk:pageeig:notSquare");
 
     if (A.dims().ndim() == 2) {
         // Reuse 2-D dispatch — symmetric → real eigvals; non-sym → general.
@@ -131,7 +131,7 @@ Value pageeig_values(const Value &A, std::pmr::memory_resource *mr)
         catch (const Error &) { evs = eig_general_values(pg, mr); }
         if (evs.isComplex())
             throw Error("pageeig: page has complex eigenvalues (deferred)",
-                        0, 0, "pageeig", "", "numkit:pageeig:complex");
+                        0, 0, "pageeig", "", "nk:pageeig:complex");
         std::copy(evs.doubleData(), evs.doubleData() + n, od + p * n);
     }
     return out;
@@ -143,7 +143,7 @@ pageeig_VD(const Value &A, std::pmr::memory_resource *mr)
     auto [m, n, pages] = pageShape(A, "pageeig");
     if (m != n)
         throw Error("pageeig: each page must be square",
-                    0, 0, "pageeig", "", "numkit:pageeig:notSquare");
+                    0, 0, "pageeig", "", "nk:pageeig:notSquare");
 
     if (A.dims().ndim() == 2) {
         try { return eig_symmetric(A, mr); }
@@ -290,7 +290,7 @@ void checkPagePair(const Value &A, const Value &B, const char *who,
     const int ndb = B.dims().ndim();
     if (nda < 2 || nda > 3 || ndb < 2 || ndb > 3)
         throw Error(std::string(who) + ": inputs must be 2-D or 3-D",
-                    0, 0, who, "", std::string("numkit:") + who + ":badDim");
+                    0, 0, who, "", std::string("nk:") + who + ":badDim");
     const std::size_t pa = (nda == 2) ? 1 : static_cast<std::size_t>(A.dims().dim(2));
     const std::size_t pb = (ndb == 2) ? 1 : static_cast<std::size_t>(B.dims().dim(2));
     if (pa == pb)            pages = pa;
@@ -298,7 +298,7 @@ void checkPagePair(const Value &A, const Value &B, const char *who,
     else if (pb == 1)        pages = pa;
     else
         throw Error(std::string(who) + ": page counts of A and B must match (or broadcast)",
-                    0, 0, who, "", std::string("numkit:") + who + ":pageMismatch");
+                    0, 0, who, "", std::string("nk:") + who + ":pageMismatch");
 }
 
 Value pageOfA(const Value &A, std::size_t p, std::size_t m, std::size_t n,
@@ -321,7 +321,7 @@ Value pagemldivide(const Value &A, const Value &B, std::pmr::memory_resource *mr
     const std::size_t nB = static_cast<std::size_t>(B.dims().dim(1));
     if (mA != mB)
         throw Error("pagemldivide: row counts of A and B must match",
-                    0, 0, "pagemldivide", "", "numkit:pagemldivide:badRows");
+                    0, 0, "pagemldivide", "", "nk:pagemldivide:badRows");
 
     const bool any3d = A.dims().ndim() == 3 || B.dims().ndim() == 3;
     auto out = any3d
@@ -351,7 +351,7 @@ Value pagemrdivide(const Value &A, const Value &B, std::pmr::memory_resource *mr
     const std::size_t nB = static_cast<std::size_t>(B.dims().dim(1));
     if (nA != nB)
         throw Error("pagemrdivide: column counts of A and B must match",
-                    0, 0, "pagemrdivide", "", "numkit:pagemrdivide:badCols");
+                    0, 0, "pagemrdivide", "", "nk:pagemrdivide:badCols");
 
     const bool any3d = A.dims().ndim() == 3 || B.dims().ndim() == 3;
     auto out = any3d
@@ -403,7 +403,7 @@ Value pagelsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_u
     const std::size_t nB = static_cast<std::size_t>(B.dims().dim(1));
     if (mA != mB)
         throw Error("pagelsqminnorm: row counts of A and B must match",
-                    0, 0, "pagelsqminnorm", "", "numkit:pagelsqminnorm:badRows");
+                    0, 0, "pagelsqminnorm", "", "nk:pagelsqminnorm:badRows");
 
     const bool any3d = A.dims().ndim() == 3 || B.dims().ndim() == 3;
     auto out = any3d
@@ -425,4 +425,4 @@ Value pagelsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_u
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

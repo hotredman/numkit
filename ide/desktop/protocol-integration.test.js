@@ -1,7 +1,7 @@
 // ide/desktop/protocol-integration.test.js
 //
 // Integration tests for the native REPL pipe protocol.
-// These tests spawn the real numkit_repl binary and verify protocol
+// These tests spawn the real nk_repl binary and verify protocol
 // correctness end-to-end.
 //
 // Skip these if the binary is not found (CI without native build).
@@ -18,13 +18,13 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '../..');
 
 function findBinary() {
   const candidates = [
-    path.join(REPO_ROOT, 'build/windows/release/apps/numkit/Release/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/windows/release/apps/numkit/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/linux/release/apps/numkit/numkit_repl'),
-    path.join(REPO_ROOT, 'build/desktop-fast/apps/numkit/Release/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/desktop-fast/apps/numkit/numkit_repl'),
-    path.join(REPO_ROOT, 'build/desktop/apps/numkit/Release/numkit_repl.exe'),
-    path.join(REPO_ROOT, 'build/desktop/apps/numkit/numkit_repl'),
+    path.join(REPO_ROOT, 'build/windows/release/apps/nk/Release/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/windows/release/apps/nk/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/linux/release/apps/nk/nk_repl'),
+    path.join(REPO_ROOT, 'build/desktop-fast/apps/nk/Release/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/desktop-fast/apps/nk/nk_repl'),
+    path.join(REPO_ROOT, 'build/desktop/apps/nk/Release/nk_repl.exe'),
+    path.join(REPO_ROOT, 'build/desktop/apps/nk/nk_repl'),
   ];
   return candidates.find(p => fs.existsSync(p)) ?? null;
 }

@@ -7,12 +7,12 @@
 // Scripts call them flat via the bare-name resolver (the retired
 // compat.* alias layer used to duplicate every registration).
 
-#include <numkit/stats/library.hpp>
+#include <nk/stats/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::stats::detail {
+namespace nk::stats::detail {
 // descriptive/descriptive.cpp (Phase 7b — moved from toolboxes/builtin)
 void var_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void std_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -427,9 +427,9 @@ void lhsnorm_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // copulas/copulas.cpp
 void copulapdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void copulacdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-} // namespace numkit::stats::detail
+} // namespace nk::stats::detail
 
-namespace numkit {
+namespace nk {
 
 // Defined in resample/resample.cpp — registers bootstrp's VM-continuation
 // driver (state-machine callbacks).
@@ -486,7 +486,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "datastats", &stats::detail::datastats_reg);
     reg("descriptive", "ksdensity", &stats::detail::ksdensity_reg);
     // MATLAB R2023b+ added `kde` as a name-value-style alias for
-    // ksdensity. The numkit ksdensity adapter already accepts the
+    // ksdensity. The nk ksdensity adapter already accepts the
     // positional + name-value calling conventions, so a direct alias
     // works for v1.
     reg("descriptive", "kde",       &stats::detail::ksdensity_reg);
@@ -814,4 +814,4 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "copulacdf", &stats::detail::copulacdf_reg);
 }
 
-} // namespace numkit
+} // namespace nk

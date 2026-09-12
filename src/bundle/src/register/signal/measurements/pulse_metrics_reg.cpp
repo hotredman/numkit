@@ -3,14 +3,14 @@
 // CallContext register half of measurements/pulse_metrics.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/measurements/pulse_metrics.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/measurements/pulse_metrics.hpp>
 #include "measurements/pulse_metrics_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -32,7 +32,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;         \
         outs[0] = fn(args[0], fs, ctx.engine->resource());                      \
     }
@@ -42,7 +42,7 @@ void statelevels_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("statelevels: requires 1 argument",
-                     0, 0, "statelevels", "", "numkit:statelevels:nargin");
+                     0, 0, "statelevels", "", "nk:statelevels:nargin");
     outs[0] = statelevels(args[0], ctx.engine->resource());
 }
 
@@ -51,7 +51,7 @@ void settlingtime_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("settlingtime: requires at least 1 argument",
-                     0, 0, "settlingtime", "", "numkit:settlingtime:nargin");
+                     0, 0, "settlingtime", "", "nk:settlingtime:nargin");
     const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     double tol = 0.02;
     if (args.size() >= 3 && !args[2].isEmpty()) tol = args[2].toScalar();
@@ -83,4 +83,4 @@ NK_PULSE_REG(dutycycle,   dutycycle)
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

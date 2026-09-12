@@ -1,9 +1,9 @@
 // toolboxes/image/src/region/region.cpp
 
-#include <numkit/image/region/region.hpp>
+#include <nk/image/region/region.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
 
 #include <algorithm>
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -192,21 +192,21 @@ CCInfo parse_cc(const Value &CC, const char *fn)
     if (!CC.isStruct() || CC.numel() != 1)
         throw Error(std::string(fn) + ": CC must be a 1×1 struct from "
                     "bwconncomp",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":notStruct");
+                    0, 0, fn, "", std::string("nk:") + fn + ":notStruct");
     const auto &el = CC.structArrayElem(0);
     auto need = [&](const char *name) -> const Value & {
         auto it = el.find(name);
         if (it == el.end())
             throw Error(std::string(fn) + ": CC missing field '"
                         + name + "'", 0, 0, fn, "",
-                        std::string("numkit:") + fn + ":noField");
+                        std::string("nk:") + fn + ":noField");
         return it->second;
     };
     const Value &sz = need("ImageSize");
     if (sz.numel() < 2)
         throw Error(std::string(fn) + ": CC.ImageSize must have >= 2 dims",
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":sizeDim");
+                    std::string("nk:") + fn + ":sizeDim");
     info.H = static_cast<std::size_t>(sz.elemAsDouble(0));
     info.W = static_cast<std::size_t>(sz.elemAsDouble(1));
     const Value &nob = need("NumObjects");
@@ -280,7 +280,7 @@ Value cc2bw(const Value &CC, const Value &objects_to_keep,
                 throw Error("cc2bw: ObjectsToKeep logical vector length "
                             "must equal NumObjects",
                             0, 0, "cc2bw", "",
-                            "numkit:cc2bw:logicalLen");
+                            "nk:cc2bw:logicalLen");
             for (std::size_t i = 0; i < K; ++i)
                 keep[i] = objects_to_keep.elemAsDouble(i) != 0.0 ? 1 : 0;
         } else {
@@ -291,13 +291,13 @@ Value cc2bw(const Value &CC, const Value &objects_to_keep,
                     throw Error("cc2bw: ObjectsToKeep must be positive "
                                 "integers or a logical vector",
                                 0, 0, "cc2bw", "",
-                                "numkit:cc2bw:badIdx");
+                                "nk:cc2bw:badIdx");
                 const std::size_t idx = static_cast<std::size_t>(v);
                 if (idx > K)
                     throw Error("cc2bw: ObjectsToKeep index exceeds "
                                 "NumObjects",
                                 0, 0, "cc2bw", "",
-                                "numkit:cc2bw:idxRange");
+                                "nk:cc2bw:idxRange");
                 keep[idx - 1] = 1;
             }
         }
@@ -640,7 +640,7 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
     // Reject unknown / unimplemented property names with a clear error instead
     // of silently dropping them (the silent drop surfaces later as a confusing
     // "non-existent field" on the result struct). Properties MATLAB ships but
-    // numkit does not implement yet (Solidity, ConvexArea, EulerNumber,
+    // nk does not implement yet (Solidity, ConvexArea, EulerNumber,
     // FilledArea, Circularity, Extrema, ConvexHull, …) land here too. See
     // bugs/image/regionprops-perimeter.
     {
@@ -663,7 +663,7 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
                 throw Error("regionprops: property '" + q +
                                 "' is not supported in this revision",
                             0, 0, "regionprops", "",
-                            "numkit:regionprops:badProperty");
+                            "nk:regionprops:badProperty");
         }
     }
 
@@ -969,7 +969,7 @@ Value bwdist(const Value &BW, std::pmr::memory_resource *mr)
     std::vector<double> f(H * W, 0.0);
     for (size_t r = 0; r < H; ++r)
         for (size_t c = 0; c < W; ++c) {
-            // numkit storage is column-major: idx = c*H + r.
+            // nk storage is column-major: idx = c*H + r.
             const double v = BW.elemAsDouble(c * H + r);
             f[r * W + c] = (v != 0.0) ? 0.0 : INF;
         }
@@ -1036,7 +1036,7 @@ Value fchcode(const Value &bound, std::pmr::memory_resource *mr)
 {
     if (bound.dims().cols() != 2)
         throw Error("fchcode: bound must be K-by-2",
-                    0, 0, "fchcode", "", "numkit:fchcode:size");
+                    0, 0, "fchcode", "", "nk:fchcode:size");
     size_t K = bound.dims().rows();
 
     // Direction map matching Octave (rows = dr+2, cols = dc+2):
@@ -1223,13 +1223,13 @@ Value bweuler(const Value &BW, int conn, std::pmr::memory_resource *mr)
                                      1,  2, 0, -1, 0, -1, -1, 0};
     if (conn != 4 && conn != 8)
         throw Error("bweuler: connectivity must be 4 or 8",
-                    0, 0, "bweuler", "", "numkit:bweuler:conn");
+                    0, 0, "bweuler", "", "nk:bweuler:conn");
     const int *lut = (conn == 4) ? lut4 : lut8;
 
     const auto &d = BW.dims();
     if (d.is3D())
         throw Error("bweuler: BW must have 2 dimensions",
-                    0, 0, "bweuler", "", "numkit:bweuler:dims");
+                    0, 0, "bweuler", "", "nk:bweuler:dims");
 
     const int M = static_cast<int>(d.rows());
     const int N = static_cast<int>(d.cols());
@@ -1259,4 +1259,4 @@ Value bweuler(const Value &BW, int conn, std::pmr::memory_resource *mr)
     return Value::scalar(static_cast<double>(sum) / 4.0, mr);
 }
 
-} // namespace numkit::image
+} // namespace nk::image

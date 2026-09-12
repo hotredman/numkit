@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: graphics primitive. 2D line plot. Emits figure data via side effect; numkit does not expose MATLAB-style graphics handles. Spec verifies the function runs."
+  "comment": "Sig: graphics primitive. 2D line plot. Emits figure data via side effect; nk does not expose MATLAB-style graphics handles. Spec verifies the function runs."
 }

@@ -7,12 +7,12 @@
 // intensity is lower (no transcendental), so the DRAM plateau shows
 // up sooner.
 
-#include <numkit/builtin/ops.hpp>
-#include <numkit/builtin/elfun.hpp>   // mod
-#include <numkit/ops/binary_ops.hpp>
+#include <nk/builtin/ops.hpp>
+#include <nk/builtin/elfun.hpp>   // mod
+#include <nk/ops/binary_ops.hpp>
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -20,9 +20,9 @@
 
 namespace {
 
-numkit::Value makeReal(size_t n, uint32_t seed)
+nk::Value makeReal(size_t n, uint32_t seed)
 {
-    using namespace numkit;
+    using namespace nk;
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
@@ -36,7 +36,7 @@ numkit::Value makeReal(size_t n, uint32_t seed)
 template <typename Fn>
 void runBinaryBench(benchmark::State &state, Fn fn)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     Value a = makeReal(n, 1);
     Value b = makeReal(n, 2);
@@ -55,23 +55,23 @@ void runBinaryBench(benchmark::State &state, Fn fn)
 
 } // namespace
 
-static void BM_Plus(benchmark::State &s)  { runBinaryBench(s, numkit::builtin::plus);  }
-static void BM_Times(benchmark::State &s) { runBinaryBench(s, numkit::builtin::times); }
+static void BM_Plus(benchmark::State &s)  { runBinaryBench(s, nk::builtin::plus);  }
+static void BM_Times(benchmark::State &s) { runBinaryBench(s, nk::builtin::times); }
 
 BENCHMARK(BM_Plus)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Times)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 
 // Remaining SIMD-backed binary ops on the same memory-bound shape: minus /
 // rdivide / mod (ops::*Loop) and the six comparisons (ops::*Fast).
-static void BM_Minus(benchmark::State &s)   { runBinaryBench(s, numkit::builtin::minus);   }
-static void BM_Rdivide(benchmark::State &s) { runBinaryBench(s, numkit::builtin::rdivide); }
-static void BM_Mod(benchmark::State &s)     { runBinaryBench(s, numkit::builtin::mod);     }
-static void BM_Lt(benchmark::State &s)      { runBinaryBench(s, numkit::builtin::lt); }
-static void BM_Gt(benchmark::State &s)      { runBinaryBench(s, numkit::builtin::gt); }
-static void BM_Le(benchmark::State &s)      { runBinaryBench(s, numkit::builtin::le); }
-static void BM_Ge(benchmark::State &s)      { runBinaryBench(s, numkit::builtin::ge); }
-static void BM_Eq(benchmark::State &s)      { runBinaryBench(s, numkit::builtin::eq); }
-static void BM_Ne(benchmark::State &s)      { runBinaryBench(s, numkit::builtin::ne); }
+static void BM_Minus(benchmark::State &s)   { runBinaryBench(s, nk::builtin::minus);   }
+static void BM_Rdivide(benchmark::State &s) { runBinaryBench(s, nk::builtin::rdivide); }
+static void BM_Mod(benchmark::State &s)     { runBinaryBench(s, nk::builtin::mod);     }
+static void BM_Lt(benchmark::State &s)      { runBinaryBench(s, nk::builtin::lt); }
+static void BM_Gt(benchmark::State &s)      { runBinaryBench(s, nk::builtin::gt); }
+static void BM_Le(benchmark::State &s)      { runBinaryBench(s, nk::builtin::le); }
+static void BM_Ge(benchmark::State &s)      { runBinaryBench(s, nk::builtin::ge); }
+static void BM_Eq(benchmark::State &s)      { runBinaryBench(s, nk::builtin::eq); }
+static void BM_Ne(benchmark::State &s)      { runBinaryBench(s, nk::builtin::ne); }
 
 BENCHMARK(BM_Minus)  ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Rdivide)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
@@ -92,18 +92,18 @@ BENCHMARK(BM_Ne)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchm
 // path is BM_Plus above; subtract these two from it to see where
 // the rest goes.
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 // Forward-declare from toolboxes/builtin/src/backends/binary_ops_loops.hpp.
-// Linked from the same numkit library; bypasses the public
+// Linked from the same nk library; bypasses the public
 // plus()/elementwiseDouble() wrapping so we measure only the kernel.
 void plusLoop(const double *a, const double *b, double *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
 // Pure mr: how long does it take to ask the engine allocator
 // for a fresh N-element heap double? No data writes.
 static void BM_PlusAlloc(benchmark::State &state)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : state) {
@@ -119,7 +119,7 @@ static void BM_PlusAlloc(benchmark::State &state)
 // off in steady state.
 static void BM_PlusKernel(benchmark::State &state)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     Value a = makeReal(n, 1);
     Value b = makeReal(n, 2);

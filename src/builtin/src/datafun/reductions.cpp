@@ -8,17 +8,17 @@
 // files under math/elementary/. Random generators (rand/randn) live in
 // math/random/rng.cpp.
 
-#include <numkit/builtin/elmat.hpp>       // reshape (for 'all')
-#include <numkit/builtin/elfun.hpp>      // exp / log adapters
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/elfun.hpp>       // abs adapter
-#include <numkit/builtin/elfun.hpp>   // sin / cos adapters
+#include <nk/builtin/elmat.hpp>       // reshape (for 'all')
+#include <nk/builtin/elfun.hpp>      // exp / log adapters
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/elfun.hpp>       // abs adapter
+#include <nk/builtin/elfun.hpp>   // sin / cos adapters
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
 #include "var_reduction.hpp"  // for sumScan + addInto
 #include "../elfun/_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads
 
@@ -31,7 +31,7 @@
 
 #include "reductions_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Reductions (single-return) — sum / prod / mean
@@ -45,7 +45,7 @@ Value sum(const Value &x, std::pmr::memory_resource *mr)
 Value sum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim <= 0) return sum(x, mr);
-    const int d = numkit::ops::resolveDim(x, dim, "sum");
+    const int d = nk::ops::resolveDim(x, dim, "sum");
 
     // Phase P6 followup: 2D dim=2 column-pass row reduction. The
     // applyAlongDim path gathers each row into a scratch buffer with a
@@ -68,7 +68,7 @@ Value sum(const Value &x, int dim, std::pmr::memory_resource *mr)
     }
 
     // Generic dim path (1D, 3D, dim=1, dim=3) — slice through scratch.
-    return numkit::ops::applyAlongDim(x, d,
+    return nk::ops::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             double acc = 0.0;
             for (size_t i = 0; i < n; ++i) acc += slice[i];
@@ -84,8 +84,8 @@ Value prod(const Value &x, std::pmr::memory_resource *mr)
 Value prod(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim <= 0) return prod(x, mr);
-    const int d = numkit::ops::resolveDim(x, dim, "prod");
-    return numkit::ops::applyAlongDim(x, d,
+    const int d = nk::ops::resolveDim(x, dim, "prod");
+    return nk::ops::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             double acc = 1.0;
             for (size_t i = 0; i < n; ++i) acc *= slice[i];
@@ -101,8 +101,8 @@ Value mean(const Value &x, std::pmr::memory_resource *mr)
 Value mean(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim <= 0) return mean(x, mr);
-    const int d = numkit::ops::resolveDim(x, dim, "mean");
-    return numkit::ops::applyAlongDim(x, d,
+    const int d = nk::ops::resolveDim(x, dim, "mean");
+    return nk::ops::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             double acc = 0.0;
             for (size_t i = 0; i < n; ++i) acc += slice[i];
@@ -133,7 +133,7 @@ std::tuple<Value, Value> min(const Value &x, std::pmr::memory_resource *mr)
 std::tuple<Value, Value> max(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim <= 0) return max(x, mr);
-    const int d = numkit::ops::resolveDim(x, dim, "max");
+    const int d = nk::ops::resolveDim(x, dim, "max");
     return dispatchMinMaxAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
@@ -141,7 +141,7 @@ std::tuple<Value, Value> maxOmitNan(const Value &x, int dim, std::pmr::memory_re
 {
     if (dim <= 0)
         return dispatchMinMaxNanAll<true>(x, [](auto v, auto best) { return v > best; }, mr, "max");
-    const int d = numkit::ops::resolveDim(x, dim, "max");
+    const int d = nk::ops::resolveDim(x, dim, "max");
     return dispatchMinMaxNanAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
@@ -149,14 +149,14 @@ std::tuple<Value, Value> minOmitNan(const Value &x, int dim, std::pmr::memory_re
 {
     if (dim <= 0)
         return dispatchMinMaxNanAll<false>(x, [](auto v, auto best) { return v < best; }, mr, "min");
-    const int d = numkit::ops::resolveDim(x, dim, "min");
+    const int d = nk::ops::resolveDim(x, dim, "min");
     return dispatchMinMaxNanAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
 std::tuple<Value, Value> min(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (dim <= 0) return min(x, mr);
-    const int d = numkit::ops::resolveDim(x, dim, "min");
+    const int d = nk::ops::resolveDim(x, dim, "min");
     return dispatchMinMaxAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
@@ -283,4 +283,4 @@ Value logspace(double a, double b, size_t n, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

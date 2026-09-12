@@ -17,7 +17,7 @@
 
 pm/fm needed a **correct length-N `hilbert`** — they surfaced and required
 bugs/signal/hilbert-nonpow2 (the old hilbert zero-padded to nextPow2, ~8 %
-errors). am/ssb use numkit's `butter`+`filtfilt`: `butter`/`filter` are
+errors). am/ssb use nk's `butter`+`filtfilt`: `butter`/`filter` are
 bit-exact with MATLAB; `filtfilt` matches in the **interior** (mid-signal
 to ~3e-10) and differs ~3e-6 near the **edges** (filtfilt edge conditions —
 a separate minor item). Parity OK vs MATLAB R2025b (`pmdemod.json`,
@@ -28,12 +28,12 @@ a separate minor item). Parity OK vs MATLAB R2025b (`pmdemod.json`,
 (Σ_{within symbol k} angle(y[n]·conj(y[n-1])) > 0)`, summing the per-sample
 phase increments over the symbol's interior pairs. Because the decision uses
 phase *increments* it is invariant to a constant phase rotation and robust
-to noise (`ini_phase` only sets the returned final-phase state). numkit's
+to noise (`ini_phase` only sets the returned final-phase state). nk's
 `mskmod` is bit-exact with MATLAB, and this rule reproduces MATLAB R2025b
 `mskdemod` exactly (verified on 20-bit random clean + noisy: full match,
 including the last bit, which uses the within-symbol pairs rather than a
 boundary-to-boundary difference). Returns `[z, phaseout]`, bits in the input
-orientation. **Non-differential** `'nondiff'` path **deferred** — numkit's
+orientation. **Non-differential** `'nondiff'` path **deferred** — nk's
 `mskmod` has no non-diff path either, so it cannot round-trip; rejected with
 a clear error. Guards: `mskdemod_test.cpp`, `known_bugs_test.cpp`
 (`MskDemodExists`, promoted live); smoke `mskdemod_smoke.m`; parity

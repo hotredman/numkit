@@ -5,11 +5,11 @@
 // MATLAB R2025b returns the unique values in the SAME class; the ia/ic index
 // outputs stay double. Values + classes below are bit-exact MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class UniqueTypeClassTest : public ::testing::Test
 {

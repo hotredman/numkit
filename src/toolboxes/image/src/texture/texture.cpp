@@ -2,11 +2,11 @@
 //
 // Texture Analysis — graycomatrix + graycoprops.
 
-#include <numkit/image/texture/texture.hpp>
+#include <nk/image/texture/texture.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 #include "texture_detail.hpp"
 
 #include <algorithm>
@@ -15,7 +15,7 @@
 #include <cstring>
 #include <memory_resource>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -31,18 +31,18 @@ Value graycomatrix(const Value &I, int numLevels, int offR, int offC, double gLo
 {
     if (numLevels < 2)
         throw Error("graycomatrix: NumLevels must be >= 2",
-                    0, 0, "graycomatrix", "", "numkit:graycomatrix:badLevels");
+                    0, 0, "graycomatrix", "", "nk:graycomatrix:badLevels");
 
     const auto &d = I.dims();
     if (d.is3D())
         throw Error("graycomatrix: 2-D grayscale input only",
-                    0, 0, "graycomatrix", "", "numkit:graycomatrix:unsupportedShape");
+                    0, 0, "graycomatrix", "", "nk:graycomatrix:unsupportedShape");
     const std::size_t R = d.rows();
     const std::size_t C = d.cols();
 
     if (gLow >= gHigh)
         throw Error("graycomatrix: GrayLimits[1] must exceed GrayLimits[0]",
-                    0, 0, "graycomatrix", "", "numkit:graycomatrix:badLimits");
+                    0, 0, "graycomatrix", "", "nk:graycomatrix:badLimits");
 
     // Pre-quantise the image into level indices in [0, numLevels-1].
     // MATLAB clamps out-of-range to the closest end-bin.
@@ -94,7 +94,7 @@ Value graycoprops(const Value &G, std::pmr::memory_resource *mr)
     const auto &d = G.dims();
     if (d.rows() != d.cols() || d.rows() == 0)
         throw Error("graycoprops: GLCM must be square and non-empty",
-                    0, 0, "graycoprops", "", "numkit:graycoprops:badShape");
+                    0, 0, "graycoprops", "", "nk:graycoprops:badShape");
     const std::size_t L = d.rows();
 
     // Normalise to a joint probability.
@@ -102,7 +102,7 @@ Value graycoprops(const Value &G, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < L * L; ++i) total += G.elemAsDouble(i);
     if (total <= 0.0)
         throw Error("graycoprops: GLCM has zero total mass",
-                    0, 0, "graycoprops", "", "numkit:graycoprops:zeroSum");
+                    0, 0, "graycoprops", "", "nk:graycoprops:zeroSum");
 
     // p(i, j) — already accessible via G.elemAsDouble(i + j*L) / total.
     // Compute marginal means / variances (1-based "intensity values"
@@ -153,4 +153,4 @@ Value graycoprops(const Value &G, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

@@ -14,7 +14,7 @@ registered.
 ## Repro
 ```matlab
 fmincon(@(x) x(1)^2+x(2)^2, [1 1], [],[],[],[], [0 0],[2 2])  % MATLAB: [0; 0]
-% numkit: Error — VM: undefined function 'fmincon'
+% nk: Error — VM: undefined function 'fmincon'
 ```
 
 ## Fix (2026-06-19)

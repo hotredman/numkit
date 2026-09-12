@@ -16,12 +16,12 @@ clear;
 fs = 1000; t = (0:1/fs:1-1/fs)';
 x = chirp(t, 10, 1, 40);          % frequency sweeps 10 -> 40 Hz
 ifr = instfreq(x, fs);
-% numkit: ifr(1) = -66.58,  ifr(end) = -126.5     (negative garbage)
+% nk: ifr(1) = -66.58,  ifr(end) = -126.5     (negative garbage)
 % MATLAB: ifr(1) =  13.96,  ifr(end) =   38.46    (tracks the sweep)
 
 fs=100; tt=(0:1/fs:1-1/fs)'; y=cos(2*pi*10*tt)+0.5*cos(2*pi*25*tt);
 mean(instbw(y,fs))
-% numkit: 4.9074    MATLAB: 31.4126
+% nk: 4.9074    MATLAB: 31.4126
 ```
 (`snr`/`sinad`/`thd`/`sfdr` were checked alongside and are CORRECT — a real
 3rd-harmonic gives thd = -20 dB on both engines; only pure-tone noise-floor
@@ -31,13 +31,13 @@ values differ at float level, which is expected.)
 Unknown — the analytic-signal phase-derivative path appears wrong (sign /
 scaling / unwrap). `src/toolboxes/signal/src/.../instfreq*` (time_frequency or
 measurements). The default `instfreq` method is the spectrogram-based
-first conditional spectral moment; numkit may be using the Hilbert
+first conditional spectral moment; nk may be using the Hilbert
 phase-derivative incorrectly, or with the wrong fs scaling.
 
 ## Recheck after the hilbert non-pow2 fix (2026-06-19)
 The chirp repro length is 1000 (non-pow2), so I re-ran it after fixing
 bugs/signal/hilbert-nonpow2. The values **changed** (ifr(1) went −66.58 →
-−19.12) but are **still negative / wrong** — so numkit's `instfreq` IS on
+−19.12) but are **still negative / wrong** — so nk's `instfreq` IS on
 the Hilbert phase-derivative path (it moved with the hilbert fix), but it
 has its own sign/scaling defect AND, more fundamentally, MATLAB's
 **default** `instfreq(x,fs)` is the spectral-moment TFD method, not the
@@ -50,7 +50,7 @@ the work. Substantial — not the quick win the hilbert recheck hoped for.
 
 ## Progress 2026-09-06 (portion 21): 'hilbert' method FIXED exactly; tfmoment reverse-engineered
 
-- The stale "conjugate hilbert" comment was wrong: numkit's hilbert
+- The stale "conjugate hilbert" comment was wrong: nk's hilbert
   MATCHES MATLAB (probed at signal edge and deep interior, phase delta
   +0.1885 identical). The real defect was the leftover NEGATION of the
   phase delta — correct positive frequencies came out negative.

@@ -4,11 +4,11 @@
 // (MATLAB R2025b promotes to double; quotient AND remainder are always double,
 // never the integer class). Offline regression guard, hardcoded expecteds.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DeconvIntegerInputTest : public ::testing::Test
 {
@@ -73,8 +73,8 @@ TEST_F(DeconvIntegerInputTest, DivisorLongerDouble)
     EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 1.0);
 }
 
-// numkit-lenient extension: MATLAB ERRORS on the na>nb branch with INTEGER
-// input ("Inputs must be floats" — superiorfloat quirk). numkit promotes
+// nk-lenient extension: MATLAB ERRORS on the na>nb branch with INTEGER
+// input ("Inputs must be floats" — superiorfloat quirk). nk promotes
 // before the branch, so it stays lenient and returns double. This guards
 // that deliberate lenient choice (it is NOT MATLAB parity — see the md).
 TEST_F(DeconvIntegerInputTest, DivisorLongerIntegerIsLenient)

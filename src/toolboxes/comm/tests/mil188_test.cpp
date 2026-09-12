@@ -3,10 +3,10 @@
 // Regression guard for mil188qammod / mil188qamdemod
 // (MIL-STD-188-110 QAM, currently M=16 only).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Mil188Test : public ::testing::Test
 {

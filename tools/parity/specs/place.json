@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "Sig: K = place(A, B, p). Re-closed 2026-05-09 -- prior defer was wrong; numkit returns K=[1 2] matching MATLAB on probe."
+  "comment": "Sig: K = place(A, B, p). Re-closed 2026-05-09 -- prior defer was wrong; nk returns K=[1 2] matching MATLAB on probe."
 }

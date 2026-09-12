@@ -15,13 +15,13 @@ whole array to complex.
 ## Repro
 ```matlab
 log([-1 1])
-% numkit: [NaN 0]         (real)
+% nk: [NaN 0]         (real)
 % MATLAB: [0+pi*i 0]      (complex)
 log10([-100 100])
-% numkit: [NaN 2]
+% nk: [NaN 2]
 % MATLAB: [2+1.36438i 2]
 log2([-8 8])
-% numkit: [NaN 3]
+% nk: [NaN 3]
 % MATLAB: [3+4.53236i 3]
 log(-1)   % scalar already worked: 0+pi*i
 ```

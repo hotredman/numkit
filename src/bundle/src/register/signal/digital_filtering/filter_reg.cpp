@@ -6,15 +6,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/digital_filtering/filter.hpp>
+#include <nk/signal/digital_filtering/filter.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/helpers.hpp>
 #include "digital_filtering/filter_detail.hpp"
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -28,7 +28,7 @@
 #include <cstring>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -36,7 +36,7 @@ void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 3)
         throw Error("filter: requires 3 arguments",
-                     0, 0, "filter", "", "numkit:filter:nargin");
+                     0, 0, "filter", "", "nk:filter:nargin");
     // Fast path: plain filter(b,a,x) with one output.
     auto *mr = ctx.engine->resource();
     const bool hasZi = (args.size() >= 4 && !args[3].isEmpty()
@@ -61,7 +61,7 @@ void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         const Complex a0c = ac[0];
         if (a0c == Complex(0.0, 0.0))
             throw Error("filter: a(1) must be nonzero",
-                         0, 0, "filter", "", "numkit:filter:zeroLead");
+                         0, 0, "filter", "", "nk:filter:zeroLead");
         for (size_t i = 0; i < nb; ++i) bc[i] /= a0c;
         for (size_t i = 0; i < na; ++i) ac[i] /= a0c;
         const size_t nfiltC = std::max(nb, na);
@@ -107,7 +107,7 @@ void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw Error("filter: a(1) must be nonzero",
-                     0, 0, "filter", "", "numkit:filter:zeroLead");
+                     0, 0, "filter", "", "nk:filter:zeroLead");
     ScratchArena scratch(mr);
     auto bn = ScratchVec<double>(nb, &scratch);
     auto an = ScratchVec<double>(na, &scratch);
@@ -163,10 +163,10 @@ void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 3)
         throw Error("filtfilt: requires 3 arguments",
-                     0, 0, "filtfilt", "", "numkit:filtfilt:nargin");
+                     0, 0, "filtfilt", "", "nk:filtfilt:nargin");
     outs[0] = filtfilt(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

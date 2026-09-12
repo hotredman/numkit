@@ -14,20 +14,20 @@
 // centred codebook entries across the training range) or a vector
 // (used directly, sorted ascending).
 //
-// Plotting form (4-arg) deferred -- numkit doesn't ship plot().
+// Plotting form (4-arg) deferred -- nk doesn't ship plot().
 
-#include <numkit/comm/source/lloyds.hpp>
-#include <numkit/comm/source/quantiz.hpp>
+#include <nk/comm/source/lloyds.hpp>
+#include <nk/comm/source/quantiz.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -57,14 +57,14 @@ lloyds(const Value &training_set, const Value &ini_codebook,
     readVector(training_set, training);
     if (training.empty())
         throw Error("lloyds: training set must be non-empty",
-                    0, 0, "lloyds", "", "numkit:lloyds:EmptyTRAINING_SET");
+                    0, 0, "lloyds", "", "nk:lloyds:EmptyTRAINING_SET");
     const double min_train =
         *std::min_element(training.begin(), training.end());
     const double max_train =
         *std::max_element(training.begin(), training.end());
     if (max_train <= min_train)
         throw Error("lloyds: training set must span a positive range",
-                    0, 0, "lloyds", "", "numkit:lloyds:InvalidTRAINING_SET");
+                    0, 0, "lloyds", "", "nk:lloyds:InvalidTRAINING_SET");
 
     // Build initial codebook.
     std::vector<double> codebook;
@@ -74,7 +74,7 @@ lloyds(const Value &training_set, const Value &ini_codebook,
         if (K < 1)
             throw Error("lloyds: ini_codebook count must be positive",
                         0, 0, "lloyds", "",
-                        "numkit:lloyds:NonPositiveINI_CODEBOOK");
+                        "nk:lloyds:NonPositiveINI_CODEBOOK");
         const double step = (max_train - min_train) / static_cast<double>(K);
         codebook.resize(static_cast<size_t>(K));
         for (long i = 0; i < K; ++i) {
@@ -88,7 +88,7 @@ lloyds(const Value &training_set, const Value &ini_codebook,
     const size_t K = codebook.size();
     if (K < 1)
         throw Error("lloyds: ini_codebook must have at least 1 entry",
-                    0, 0, "lloyds", "", "numkit:lloyds:InvalidINI_CODEBOOK");
+                    0, 0, "lloyds", "", "nk:lloyds:InvalidINI_CODEBOOK");
 
     if (tol <= 0.0) tol = 1e-7;
 
@@ -192,4 +192,4 @@ lloyds(const Value &training_set, const Value &ini_codebook,
             distor, rel_distor};
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

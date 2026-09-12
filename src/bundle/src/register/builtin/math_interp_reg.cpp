@@ -3,17 +3,17 @@
 // CallContext register half of math/interp/interp.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
 #include "polyfun/interp_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,8 +25,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("interp1: requires at least 3 arguments",
-                     0, 0, "interp1", "", "numkit:interp1:nargin");
+                     0, 0, "interp1", "", "nk:interp1:nargin");
     // Method may be a char ('linear') OR a string ("linear") — MATLAB
     // accepts both. Previously only isChar() was honored, so a double-quoted
     // method was silently ignored and fell back to linear.
@@ -56,7 +56,7 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                 mode = Interp1Extrap::Method;
             else
                 throw Error("interp1: unknown extrapolation option '" + e.toString() + "'",
-                             0, 0, "interp1", "", "numkit:interp1:badExtrap");
+                             0, 0, "interp1", "", "nk:interp1:badExtrap");
         } else {
             mode = Interp1Extrap::Const;
             fill = e.toScalar();
@@ -78,10 +78,10 @@ Value splinePp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("spline: x and y must have same length",
-                     0, 0, "spline", "", "numkit:spline:lengthMismatch");
+                     0, 0, "spline", "", "nk:spline:lengthMismatch");
     if (n < 2)
         throw Error("spline: need at least 2 data points",
-                     0, 0, "spline", "", "numkit:spline:tooFewPoints");
+                     0, 0, "spline", "", "nk:spline:tooFewPoints");
 
     ScratchArena scratch(mr);
     const double *xd = x.doubleData();
@@ -130,10 +130,10 @@ Value pchipPp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("pchip: x and y must have same length",
-                     0, 0, "pchip", "", "numkit:pchip:lengthMismatch");
+                     0, 0, "pchip", "", "nk:pchip:lengthMismatch");
     if (n < 2)
         throw Error("pchip: need at least 2 data points",
-                     0, 0, "pchip", "", "numkit:pchip:tooFewPoints");
+                     0, 0, "pchip", "", "nk:pchip:tooFewPoints");
 
     ScratchArena scratch(mr);
     const double *xd = x.doubleData();
@@ -201,10 +201,10 @@ Value makimaPp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("makima: x and y must have same length",
-                     0, 0, "makima", "", "numkit:makima:lengthMismatch");
+                     0, 0, "makima", "", "nk:makima:lengthMismatch");
     if (n < 2)
         throw Error("makima: need at least 2 data points",
-                     0, 0, "makima", "", "numkit:makima:tooFewPoints");
+                     0, 0, "makima", "", "nk:makima:tooFewPoints");
 
     ScratchArena scratch(mr);
     const double *xd = x.doubleData();
@@ -269,7 +269,7 @@ void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     if (args.size() < 3)
         throw Error("spline: requires (x, y) or (x, y, xq)",
-                     0, 0, "spline", "", "numkit:spline:nargin");
+                     0, 0, "spline", "", "nk:spline:nargin");
     outs[0] = spline(args[0], args[1], args[2], mr);
 }
 
@@ -277,7 +277,7 @@ void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("interp2: requires at least 3 arguments",
-                     0, 0, "interp2", "", "numkit:interp2:nargin");
+                     0, 0, "interp2", "", "nk:interp2:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
@@ -297,14 +297,14 @@ void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         return;
     }
     throw Error("interp2: invalid argument count or types",
-                 0, 0, "interp2", "", "numkit:interp2:nargin");
+                 0, 0, "interp2", "", "nk:interp2:nargin");
 }
 
 void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
         throw Error("interp3: requires at least 4 arguments",
-                     0, 0, "interp3", "", "numkit:interp3:nargin");
+                     0, 0, "interp3", "", "nk:interp3:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
@@ -324,7 +324,7 @@ void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         return;
     }
     throw Error("interp3: invalid argument count or types",
-                 0, 0, "interp3", "", "numkit:interp3:nargin");
+                 0, 0, "interp3", "", "nk:interp3:nargin");
 }
 
 void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -337,7 +337,7 @@ void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     }
     if (args.size() < 3)
         throw Error("pchip: requires (x, y) or (x, y, xq)",
-                     0, 0, "pchip", "", "numkit:pchip:nargin");
+                     0, 0, "pchip", "", "nk:pchip:nargin");
     outs[0] = pchip(args[0], args[1], args[2], mr);
 }
 
@@ -351,7 +351,7 @@ void makima_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     if (args.size() < 3)
         throw Error("makima: requires (x, y) or (x, y, xq)",
-                     0, 0, "makima", "", "numkit:makima:nargin");
+                     0, 0, "makima", "", "nk:makima:nargin");
     outs[0] = makima(args[0], args[1], args[2], mr);
 }
 
@@ -370,7 +370,7 @@ void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("interpn: requires at least 2 arguments",
-                     0, 0, "interpn", "", "numkit:interpn:nargin");
+                     0, 0, "interpn", "", "nk:interpn:nargin");
 
     auto isData     = [](const Value &v) { return !v.isChar() && !v.isString(); };
     auto isMultiDim = [](const Value &v) {
@@ -407,7 +407,7 @@ void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
         return;
     }
     throw Error("interpn: 4+-D inputs are not yet supported",
-                 0, 0, "interpn", "", "numkit:interpn:rank");
+                 0, 0, "interpn", "", "nk:interpn:rank");
 }
 
 // polyfit_reg / polyval_reg → math/elementary/polynomials.cpp
@@ -417,7 +417,7 @@ void mkpp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("mkpp: requires (breaks, coefs)",
-                     0, 0, "mkpp", "", "numkit:mkpp:nargin");
+                     0, 0, "mkpp", "", "nk:mkpp:nargin");
     outs[0] = mkpp(args[0], args[1], ctx.engine->resource());
 }
 
@@ -425,7 +425,7 @@ void ppval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("ppval: requires (pp, x)",
-                     0, 0, "ppval", "", "numkit:ppval:nargin");
+                     0, 0, "ppval", "", "nk:ppval:nargin");
     outs[0] = ppval(args[0], args[1], ctx.engine->resource());
 }
 
@@ -433,11 +433,11 @@ void unmkpp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("unmkpp: requires 1 argument",
-                     0, 0, "unmkpp", "", "numkit:unmkpp:nargin");
+                     0, 0, "unmkpp", "", "nk:unmkpp:nargin");
     const Value &pp = args[0];
     if (!pp.isStruct() || !pp.hasField("breaks") || !pp.hasField("coefs"))
         throw Error("unmkpp: input must be a pp struct",
-                     0, 0, "unmkpp", "", "numkit:unmkpp:notPp");
+                     0, 0, "unmkpp", "", "nk:unmkpp:notPp");
     outs[0] = pp.field("breaks");
     if (nargout > 1) outs[1] = pp.field("coefs");
     if (nargout > 2) outs[2] = pp.hasField("pieces") ? pp.field("pieces")
@@ -450,4 +450,4 @@ void unmkpp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

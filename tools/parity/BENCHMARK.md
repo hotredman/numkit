@@ -1,6 +1,6 @@
-# Numkit benchmark
+# NK benchmark
 
-**Performance map** for numkit — per-function wall-clock vs MATLAB R2025b
+**Performance map** for nk — per-function wall-clock vs MATLAB R2025b
 and Octave, at a **small** and a **large** input. Implementation status and
 correctness live in [PROGRESS.md](PROGRESS.md); this file is about *speed
 only* and mirrors PROGRESS.md's sections so every function appears here too.
@@ -17,14 +17,14 @@ one stay **blank = not yet benched**.
   (N = side length, N×N).
 - a few transforms pick a clean size (e.g. `fft` rounds N to a power of two).
 
-**Columns:** `nk small/large (ms)` = numkit mean per-call time; `ML× s/l`
-and `OC× s/l` = MATLAB_ms / numkit_ms and Octave_ms / numkit_ms
-(**>1× = numkit faster**). Blank ratio = that reference engine not measured.
+**Columns:** `nk small/large (ms)` = nk mean per-call time; `ML× s/l`
+and `OC× s/l` = MATLAB_ms / nk_ms and Octave_ms / nk_ms
+(**>1× = nk faster**). Blank ratio = that reference engine not measured.
 
 > **Reading the two sizes.** At the small size, per-call interpreter
-> overhead still shows (MATLAB's is large, numkit's tiny → ratios flatter
-> numkit). At the large size the kernel dominates → that is the honest
-> throughput number, where numkit's single-thread Highway-SIMD kernels are
+> overhead still shows (MATLAB's is large, nk's tiny → ratios flatter
+> nk). At the large size the kernel dominates → that is the honest
+> throughput number, where nk's single-thread Highway-SIMD kernels are
 > usually **slower** than MATLAB's multithreaded ones. The C++
 > micro-benchmarks under `benchmarks/` and `toolboxes/*/benchmarks/` remain the
 > deepest perf source.
@@ -2951,7 +2951,7 @@ locations until physical migration lands.
 
 **Namespace:** `stats.dist.*` — 115 ✅ + 0 ⚠️ / 130+ = 88%
 
-Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
+Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `nk::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
 
 | function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|

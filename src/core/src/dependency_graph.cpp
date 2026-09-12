@@ -1,8 +1,8 @@
-#include <numkit/core/dependency_graph.hpp>
+#include <nk/core/dependency_graph.hpp>
 
 #include <algorithm>
 
-namespace numkit {
+namespace nk {
 
 namespace {
 
@@ -273,4 +273,4 @@ std::vector<size_t> DependencyGraph::dirtySetFor(const std::string &var) const
     return out;
 }
 
-}  // namespace numkit
+}  // namespace nk

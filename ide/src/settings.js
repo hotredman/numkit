@@ -1,8 +1,8 @@
 /**
  * settings.js — IDE-wide settings store.
  *
- * Stores the paths to the external tools (numkit interpreter and
- * numkit_codegen code-generator) that the IDE can invoke via Electron
+ * Stores the paths to the external tools (nk interpreter and
+ * nk_codegen code-generator) that the IDE can invoke via Electron
  * IPC. Values are persisted in localStorage under a single JSON key.
  *
  * Intentionally separate from ui-state.js so settings survive a
@@ -12,10 +12,10 @@
  * Usage:
  *   import { loadSettings, saveSettings, DEFAULT_SETTINGS } from './settings';
  *   const s = loadSettings();
- *   saveSettings({ ...s, codegenPath: '/usr/local/bin/numkit_codegen' });
+ *   saveSettings({ ...s, codegenPath: '/usr/local/bin/nk_codegen' });
  */
 
-const SETTINGS_KEY = 'numkit.ide.settings';
+const SETTINGS_KEY = 'nk.ide.settings';
 const SETTINGS_VERSION = 1;
 
 /**
@@ -24,9 +24,9 @@ const SETTINGS_VERSION = 1;
  * bare executable name without a directory prefix.
  */
 export const DEFAULT_SETTINGS = Object.freeze({
-  interpreterPath: '', // path to numkit_repl / numkit_repl.exe
-  codegenPath:     '', // path to numkit_codegen / numkit_codegen.exe
-  cxxPath:         '', // NUMKIT_CXX override; '' = leave env var unchanged
+  interpreterPath: '', // path to nk_repl / nk_repl.exe
+  codegenPath:     '', // path to nk_codegen / nk_codegen.exe
+  cxxPath:         '', // NK_CXX override; '' = leave env var unchanged
   plotAspectRatio: '16:9',
 });
 
@@ -61,7 +61,7 @@ export function saveSettings(settings) {
       JSON.stringify(nextSettings),
     );
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('numkitSettingsChanged', { detail: nextSettings }));
+      window.dispatchEvent(new CustomEvent('nkSettingsChanged', { detail: nextSettings }));
     }
   } catch (_) {
     // Quota exceeded or storage disabled — silent; we'd rather skip

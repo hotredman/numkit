@@ -1,21 +1,21 @@
 // toolboxes/builtin/src/lang/operators/backends/compare_portable.cpp
 //
 // Scalar reference for the comparison fast path. Compiled when
-// NUMKIT_WITH_SIMD=OFF. Same dispatch contract as the Highway variant —
+// NK_WITH_SIMD=OFF. Same dispatch contract as the Highway variant —
 // returns LOGICAL output for pure DOUBLE × DOUBLE inputs (or DOUBLE
 // scalar broadcast), otherwise returns an unset Value so the generic
 // `compareImpl` in binary_ops.cpp handles it.
 
-#include <numkit/ops/compare.hpp>
-#include <numkit/ops/value_factory.hpp>
+#include <nk/ops/compare.hpp>
+#include <nk/ops/value_factory.hpp>
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::ops {
+namespace nk::ops {
 namespace {
 
 bool isDoubleish(const Value &v)
@@ -75,4 +75,4 @@ Value gtFast(const Value &a, const Value &b) { return dispatchFast(a, b, [](doub
 Value leFast(const Value &a, const Value &b) { return dispatchFast(a, b, [](double x, double y){ return x <= y; }); }
 Value geFast(const Value &a, const Value &b) { return dispatchFast(a, b, [](double x, double y){ return x >= y; }); }
 
-} // namespace numkit::ops
+} // namespace nk::ops

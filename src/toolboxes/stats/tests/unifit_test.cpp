@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/unifit_test.cpp
 // unifit.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class UnifitTest : public ::testing::Test
 {
@@ -52,8 +52,8 @@ TEST_F(UnifitTest, SingleElement)
 
 TEST_F(UnifitTest, EmptyInputReturnsNaN)
 {
-    // Convention difference vs MATLAB: numkit returns NaN; MATLAB
-    // returns empty arrays. We follow numkit's *fit family convention.
+    // Convention difference vs MATLAB: nk returns NaN; MATLAB
+    // returns empty arrays. We follow nk's *fit family convention.
     eval("[a, b, aci, bci] = unifit([]);");
     EXPECT_TRUE(std::isnan(evalScalar("a")));
     EXPECT_TRUE(std::isnan(evalScalar("b")));

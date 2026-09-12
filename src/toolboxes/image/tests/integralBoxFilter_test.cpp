@@ -3,13 +3,13 @@
 // Regression guard for image/integralBoxFilter.
 // Fingerprints from MATLAB R2025b on magic(8) integral image.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class IntegralBoxFilterTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override
     {
                 engine.eval("A = magic(8);");
@@ -106,7 +106,7 @@ TEST_F(IntegralBoxFilterTest, UnknownNVKeyThrows)
 class IntegralBoxFilter3Test : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override
     {
                 engine.eval("V = reshape(1:125, 5, 5, 5);");

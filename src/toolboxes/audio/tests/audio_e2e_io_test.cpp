@@ -1,12 +1,12 @@
 // toolboxes/audio/tests/audio_e2e_io_test.cpp
 #include <gtest/gtest.h>
-#include <numkit/bundle/standard_library.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/fs/vfs.hpp>
+#include <nk/bundle/standard_library.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/fs/vfs.hpp>
 #include <filesystem>
 #include <vector>
 
-using namespace numkit;
+using namespace nk;
 
 class AudioE2EIoTest : public ::testing::Test {
 protected:

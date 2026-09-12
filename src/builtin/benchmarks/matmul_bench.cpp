@@ -4,10 +4,10 @@
 // input matrices are built once per benchmark-size and re-used across
 // iterations.
 
-#include <numkit/builtin/ops.hpp>
+#include <nk/builtin/ops.hpp>
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -15,9 +15,9 @@
 
 namespace {
 
-numkit::Value makeSquare(size_t n)
+nk::Value makeSquare(size_t n)
 {
-    using namespace numkit;
+    using namespace nk;
     std::mt19937 rng(17);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
@@ -32,14 +32,14 @@ numkit::Value makeSquare(size_t n)
 
 static void BM_Mtimes_Square(benchmark::State &state)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     Value A = makeSquare(n);
     Value B = makeSquare(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value C = numkit::builtin::mtimes(A, B, mr);
+        Value C = nk::builtin::mtimes(A, B, mr);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -66,14 +66,14 @@ BENCHMARK(BM_Mtimes_Square)
 //   --benchmark_filter=BM_Mtimes_Large --benchmark_min_time=0.5s
 static void BM_Mtimes_Large(benchmark::State &state)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     Value A = makeSquare(n);
     Value B = makeSquare(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value C = numkit::builtin::mtimes(A, B, mr);
+        Value C = nk::builtin::mtimes(A, B, mr);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

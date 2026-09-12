@@ -6,10 +6,10 @@
 // Notable: we deliberately replicate MATLAB's filtRadius(1)-norm bug
 // for hy on anisotropic σ (the W5 case) per the "MATLAB wins" rule.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GradientweightTest : public ::testing::Test
 {

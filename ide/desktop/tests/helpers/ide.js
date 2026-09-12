@@ -1,4 +1,4 @@
-// helpers/ide.js — Page Object for the Numkit IDE renderer window.
+// helpers/ide.js — Page Object for the NK IDE renderer window.
 //
 // Wraps the raw Playwright Page with named locators + small action
 // helpers so individual specs read as intent, not selector soup. When
@@ -73,7 +73,7 @@ export class IdePage {
   /**
    * Wait until the IDE has finished booting: WASM loaded, tempFS
    * registered, the editor textarea is in the DOM and responsive.
-   * We key on a Console pane log line (`Numkit IDE v3 — build …`)
+   * We key on a Console pane log line (`NK IDE v3 — build …`)
    * because it's the last init step before user interaction is safe.
    */
   async waitForReady() {
@@ -81,9 +81,9 @@ export class IdePage {
     // resolves in App.jsx — so its presence is a reliable readiness
     // gate without hard-coding a timeout.
     await this.editor.waitFor({ state: 'visible', timeout: 30_000 });
-    // The console banner ("Numkit IDE v3 …") is the last thing the
+    // The console banner ("NK IDE v3 …") is the last thing the
     // engine writes during init; once it's there, runCode is safe.
-    await expect(this.consoleOutput).toContainText(/Numkit IDE v3/i, { timeout: 15_000 });
+    await expect(this.consoleOutput).toContainText(/NK IDE v3/i, { timeout: 15_000 });
   }
 
   /**

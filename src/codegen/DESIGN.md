@@ -1,4 +1,4 @@
-# numkit codegen — design
+# nk codegen — design
 
 Status: **design + early implementation** (branch `feat/codegen`).
 This document records the load-bearing decisions; the rationale lives
@@ -6,7 +6,7 @@ here so it is not lost in chat history.
 
 ## 1. Goal
 
-Speed up numkit execution by **transpiling numkit code to C++ and
+Speed up nk execution by **transpiling nk code to C++ and
 compiling it with an external compiler (AOT)** — *not* by building a
 JIT. We reuse the existing runtime: the emitted C++ calls the same
 `Value`, builtins, and `libs` the interpreter uses.
@@ -15,22 +15,22 @@ Why transpile rather than JIT: emitting C++ that calls the existing
 runtime is an order of magnitude less work than an LLVM/JIT backend
 (no IR, no codegen backend; the C++ compiler does the optimisation),
 the output is debuggable, and it produces a real deployable artifact
-(a MATLAB-Coder-style "compile my numkit program to a native lib").
+(a MATLAB-Coder-style "compile my nk program to a native lib").
 
 Target deployment (BOTH are goals — clarified 2026-06):
 - **Standalone AOT** — compile a call tree from an entry point into a
-  native library/binary; no interpreter in that artifact. A `numkit build`
+  native library/binary; no interpreter in that artifact. A `nk build`
   driver is the product shape (§8 M4). Programs that call uncompiled
   library functions compile via the Value-ABI bridge (§6a).
 - **Tiered acceleration** — compile hot functions and load them back into
-  a LIVE numkit session (interpreter stays; hot paths go native). This is
+  a LIVE nk session (interpreter stays; hot paths go native). This is
   "codegen-as-plugin": the compiled artifact is loaded through the plugin
   mechanism (§6b).
 
 Both share the runtime C-ABI (§6a/§6b). That C-ABI is ALSO the foundation
 for two **in-scope sibling goals** (not codegen per se, but the same hub):
-host **embedding** (C/Python/Rust/JS-via-WASM drive numkit) and a
-**plugin system** (numkit loads third-party native extensions). The C-ABI
+host **embedding** (C/Python/Rust/JS-via-WASM drive nk) and a
+**plugin system** (nk loads third-party native extensions). The C-ABI
 work therefore serves codegen-tiered + embedding + plugins at once.
 
 ## 2. The spine is type inference, not the emitter
@@ -95,7 +95,7 @@ Managing ~2400 builtins:
 
 Transfer rules are **extracted and validated against the real
 implementation** (differential extraction): generate sample inputs of
-the abstract types, run the actual numkit/MATLAB implementation, check
+the abstract types, run the actual nk/MATLAB implementation, check
 the observed `class`/`size`/`isreal` matches the rule's prediction.
 Rules are pinned to ground truth, not guessed. (This already caught
 that `linspace` errors on integer endpoints.)
@@ -103,7 +103,7 @@ that `linspace` errors on integer endpoints.)
 ## 5. Value representation — tiers
 
 Chosen by the inferred type; bridges between tiers are cheap because
-they reuse numkit's own `DataBuffer` (PMR-backed, COW, dims).
+they reuse nk's own `DataBuffer` (PMR-backed, COW, dims).
 
 | inferred type | C++ representation | note |
 |---|---|---|
@@ -166,10 +166,10 @@ rounding/branch, which the soundness contract forbids (refuse or bridge,
 never miscompile).
 
 **Scalar / elementwise math** lowers natively when it is total on ℝ and
-bit-identical to numkit's own scalar implementation: the `unaryMathStd`
+bit-identical to nk's own scalar implementation: the `unaryMathStd`
 (sin/cos/tan/atan/sinh/cosh/tanh/exp/expm1/floor/ceil/round/fix/abs/asinh/
 erf/erfc/**gammaln**) and `binaryMathStd` (atan2/hypot/**rem**) maps, plus
-the no-`std`-fn scalar scalings **deg2rad/rad2deg** (numkit's exact
+the no-`std`-fn scalar scalings **deg2rad/rad2deg** (nk's exact
 constant inlined). `mod` is intentionally left bridged — it is the
 Dynamic-tier exemplar across the test suite and scalar `mod` is correct
 via the bridge.
@@ -208,7 +208,7 @@ AOT v1.
 The bridge makes §6's points 1–2 concrete: how compiled code calls an
 **uncompiled** builtin/library function (`fft`, `sort`, `adapthisteq`, …)
 and how a **Dynamic** value lives. It is the realisation of the §5 Dynamic
-tier: *a Dynamic value IS a `numkit::Value`, and an operation it can't
+tier: *a Dynamic value IS a `nk::Value`, and an operation it can't
 unbox dispatches to the runtime.* It is NOT a new wall — it is the slow,
 always-correct fallback beside the unboxed fast path.
 
@@ -216,16 +216,16 @@ always-correct fallback beside the unboxed fast path.
 - **self-contained** (today): no bridge. An uncompiled builtin / Dynamic
   value is REFUSED. The artifact depends only on the C++ stdlib — what
   makes the e2e gate trivial and hot kernels deployable standalone.
-- **bridged** (opt-in): the artifact `#include`s numkit headers and links
-  `libnumkit`. An uncompiled builtin / Dynamic op lowers to a runtime call.
+- **bridged** (opt-in): the artifact `#include`s nk headers and links
+  `libnk`. An uncompiled builtin / Dynamic op lowers to a runtime call.
   Pay this only when the program needs library functions.
   Mode is a flag; self-contained stays the default for the hot-kernel path.
-  (Equivalently: the artifact links numkit iff any bridge call was emitted.)
+  (Equivalently: the artifact links nk iff any bridge call was emitted.)
 
 **The clean boundary — a separate bridge runtime with an OPAQUE C ABI.**
-The generated artifact must NOT depend on numkit's C++ Value layout or its
+The generated artifact must NOT depend on nk's C++ Value layout or its
 transitive dependency graph. So the bridge is its own shared library,
-`nk_codegen_rt`, which internally owns numkit (`Value` + a `StandardEngine`)
+`nk_codegen_rt`, which internally owns nk (`Value` + a `StandardEngine`)
 and exposes a minimal, stable, opaque C ABI:
 
 ```c
@@ -243,18 +243,18 @@ void   nk_retain(nk_val);  void nk_release(nk_val);
 Grounded on the runtime's existing name-dispatch (`callFunctionHandleMulti`
 / `feval`); the `StandardEngine` that holds the builtin registry is a
 function-local static INSIDE `nk_codegen_rt` — encapsulated, not a global
-the generated code touches. A handle is a heap `numkit::Value*` cast to
+the generated code touches. A handle is a heap `nk::Value*` cast to
 `nk_val`; boxing a scalar/array copies in; results are owned handles.
 
-**Generated code stays clean** — it #includes no numkit header. The codegen
+**Generated code stays clean** — it #includes no nk header. The codegen
 PRELUDE provides a tiny RAII wrapper `nk_rt::val` over `nk_val`
 (auto-`nk_release` in its destructor, plus box/call/unbox helpers), so the
 emitted body is leak-free and ergonomic and the bridged artifact links only
 `nk_codegen_rt` via the C ABI.
 
-Why this over "use `numkit::Value` directly + link `libnumkit`": the opaque
+Why this over "use `nk::Value` directly + link `libnk`": the opaque
 C ABI is the minimal stable FFI boundary — the artifact is decoupled from
-numkit's header, binary layout, and dep graph (no hand-rolled transitive
+nk's header, binary layout, and dep graph (no hand-rolled transitive
 static-lib capture); the engine is an implementation detail; lifetimes are
 RAII. One import lib, one C ABI.
 
@@ -289,7 +289,7 @@ mode is gone; uncompiled builtins are refused (self-contained), still
 correct. The bridge only ENABLES more programs; it never changes a typed
 value's semantics. Correctness ⊥ the bridge.
 
-**Build / link.** `nk_codegen_rt` is built by CMake (which resolves numkit +
+**Build / link.** `nk_codegen_rt` is built by CMake (which resolves nk +
 Highway/matio/zlib normally). A bridged artifact links ONLY
 `nk_codegen_rt` (one import lib) via the C ABI — a short, stable link line,
 so the e2e is robust again. Skip the e2e cleanly if `nk_codegen_rt` was not
@@ -337,14 +337,14 @@ args (A3), and a boxed param/return ABI.**
 ## 6b. Embedding C-ABI + plugin system
 
 The value-marshaling C-ABI of §6a is not codegen-specific — it is **the
-numkit runtime C boundary**, serving THREE roles over one interface
+nk runtime C boundary**, serving THREE roles over one interface
 (marshal `Value`s across a stable C boundary + dispatch by name):
-1. **embedding** — a host (C / Python / Rust / JS-via-WASM) drives numkit;
+1. **embedding** — a host (C / Python / Rust / JS-via-WASM) drives nk;
 2. **codegen bridge** — a compiled artifact calls the runtime (§6a);
-3. **plugins** — numkit calls externally-supplied functions.
+3. **plugins** — nk calls externally-supplied functions.
 
 So the bridge runtime is promoted to a proper runtime C-ABI (working name
-`numkit` C-API; today's `nk_codegen_rt` is its first slice). One boundary,
+`nk` C-API; today's `nk_codegen_rt` is its first slice). One boundary,
 name dispatch — NOT a C-ABI per toolbox, NOT for internal C++ layers.
 
 **Surface.** engine lifecycle (or a default) + `nk_eval(code)` +
@@ -367,14 +367,14 @@ the PMR/allocator stays consistent. box -> owned handle; release frees.
   was built against (`nk_plugin_abi_version()`);
 - registers functions of the stable C signature
   `void fn(const nk_val* args, size_t nargs, size_t nargout, nk_val* outs, nk_error*)`.
-numkit `dlopen`/`LoadLibrary`s it, version-checks, and adds its functions
+nk `dlopen`/`LoadLibrary`s it, version-checks, and adds its functions
 to the builtin name-dispatch — so they are callable identically from MATLAB
 code, the embedding API, and the codegen bridge. **ABI versioning is then a
 hard commitment**: the C-ABI is frozen + versioned; plugins ship against a
 version and are rejected on mismatch.
 
 **codegen-as-plugin (the payoff / tiered mode).** A codegen artifact that
-also exports `nk_plugin_register` IS a plugin: numkit loads its own
+also exports `nk_plugin_register` IS a plugin: nk loads its own
 AOT-compiled functions and swaps them in for the interpreter on hot paths
 — exactly §6/§7's tiered mode. Plugins are the loading mechanism for
 codegen output.
@@ -509,8 +509,8 @@ inferred field types, a constructor, and methods called **monomorphically**
 - **M0** — measure the prize. **DONE.** biquad scalar recurrence,
   Arrow Lake / desktop-fast Release / N=131072, ns/sample:
   transpiler-faithful unboxed-with-Value-I/O **1.56** | raw-array native
-  1.59 | MATLAB JIT loop 2.70 | numkit filter() 5.85 | MATLAB filter()
-  7.22 | **numkit VM loop 151.4** | TreeWalker 336.6. Verdict: the
+  1.59 | MATLAB JIT loop 2.70 | nk filter() 5.85 | MATLAB filter()
+  7.22 | **nk VM loop 151.4** | TreeWalker 336.6. Verdict: the
   transpiled output is **~97× the VM** and **~1.7× faster than MATLAB's
   JIT** — transpile-to-C++ overshoots the JIT target, not just closes
   the gap. The Value-container array tier is **free** (1.56 vs 1.59 raw,
@@ -543,9 +543,9 @@ inferred field types, a constructor, and methods called **monomorphically**
   end-to-end (biquad), call the runtime for the rest, compile, measure.
 - **M3** — broaden: transfer-function DB for the hot ~50-100, shape
   inference, complex/more dtypes, more control flow.
-- **M4** — product: `numkit build` (AOT a project); optionally an
-  emscripten→wasm target. ✅ FIRST CUT: `numkit_codegen` CLI
-  (apps/numkit_codegen) + a testable driver core (driver.{hpp,cpp}:
+- **M4** — product: `nk build` (AOT a project); optionally an
+  emscripten→wasm target. ✅ FIRST CUT: `nk_codegen` CLI
+  (apps/nk_codegen) + a testable driver core (driver.{hpp,cpp}:
   `parseTypeSpec` MATLAB-Coder `-args` style + `transpileSource`). Emits the
   C++ TU (self-contained or `--bridge`); `--entry`/`--args`/`-o`. Compilation
   of the emitted TU is the user's toolchain (the e2e tests cover the bridged
@@ -556,16 +556,16 @@ inferred field types, a constructor, and methods called **monomorphically**
 `src/codegen` is an **L2 analysis/codegen pass**, architectural sibling
 of `src/scriptgraph`: pure C++ over a parsed AST, core-coupled
 (parser/AST), **registers no engine builtin**. Compiled into
-`numkit_toolboxes_obj`; tests into `numkit_gtest`.
+`nk_toolboxes_obj`; tests into `nk_gtest`.
 
 The runtime layer (`src/runtime`, also L2) **exposes** the codegen driver
-to numkit code via the `coder` / `coder_run` builtins (and `system` /
+to nk code via the `coder` / `coder_run` builtins (and `system` /
 `runNative` for native process spawn) — see
 `bundle/src/register/lang/coder_reg.cpp`. This does NOT violate
 "codegen registers no builtin": codegen stays a pure library with no
 engine coupling; the bundle-side `_reg` adapter is what binds it into the
 engine (the layering guard `tools/check_layering.py` forbids `runtime`
-from including `<numkit/codegen/...>`, so the adapter lives in `bundle`
+from including `<nk/codegen/...>`, so the adapter lives in `bundle`
 — the L3 integration layer where every `*_reg.cpp` already lives). `coder`
 (transpile only) is pure C++ and works under WASM — the browser IDE's
 "generate C++ for demonstration" reaches it via the `generateCpp`
@@ -573,8 +573,8 @@ embind in `wasm/src/repl_bindings.cpp`. `coder_run` / `system` /
 `runNative` spawn a native process and are native-only (they throw under
 Emscripten); the desktop IDE drives them via Electron `child_process`.
 The AOT compile harness resolves the C++ compiler at runtime: env
-`NUMKIT_CXX` first (settable from numkit code via `setenv`), build-time
-`NUMKIT_CODEGEN_AOT_CXX` fallback.
+`NK_CXX` first (settable from nk code via `setenv`), build-time
+`NK_CODEGEN_AOT_CXX` fallback.
 
 ## 10. Reliability architecture
 
@@ -652,8 +652,8 @@ buffer cannot grow):
   `std::out_of_range`, never UB. This matches the **interpreter**, which also
   errors on a negative dim/index (codegen's contract is the interpreter, not
   MATLAB directly). A fractional dim truncates toward zero, as the interpreter
-  does. NOTE: both numkit layers diverge from MATLAB here — MATLAB clamps a
-  negative dim to 0 (`zeros(-1,3)`→`0×3`) and errors on a fractional dim; numkit
+  does. NOTE: both nk layers diverge from MATLAB here — MATLAB clamps a
+  negative dim to 0 (`zeros(-1,3)`→`0×3`) and errors on a fractional dim; nk
   (interpreter + codegen) errors on negative and truncates fractional. That is
   an *interpreter-level* gap (the interpreter bad-allocs on negative — arguably a
   core bug), tracked separately; codegen faithfully matches the interpreter.
@@ -884,10 +884,10 @@ cover it.
   `sin(A)`, …. Rank discipline: no implicit 1-D↔2-D broadcast; N-D refused.
 - **Ops-kernel lowering tier (`ops` owns the kernels; codegen takes them).**
   OPT-IN `OpsKernelOptions` (parallel to `BridgeOptions`): a heavy array op with
-  a matching `numkit::ops::` kernel emits that call + links the `nk_ops_kernels`
+  a matching `nk::ops::` kernel emits that call + links the `nk_ops_kernels`
   SHARED facade (one import lib + DLL, modeled on `nk_codegen_rt`); the inline
   loop stays the self-contained default + the deletable fallback (litmus). The
-  public facade is `numkit/ops/kernels.hpp` (`NK_OPS_API`). Routed: **matmul**
+  public facade is `nk/ops/kernels.hpp` (`NK_OPS_API`). Routed: **matmul**
   (`matmulDouble` SIMD MulAdd / `matmulComplex` portable), **elementwise binary**
   (`plus/minus/times/rdivideDouble`), **transcendentals** (`sin/cos/tan/atan/
   sinh/cosh/tanh/exp/asinh/expm1Double` → the existing SIMD `fusedTransAffine`).

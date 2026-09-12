@@ -65,7 +65,7 @@ test.describe('WebGL 3-D — export + theme', () => {
       'import compat.*;\n'
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
     );
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)

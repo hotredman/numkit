@@ -76,7 +76,7 @@ TEST_P(LtiIntrospectionTest, PzmapTzero)
     EXPECT_NEAR(evalScalar("tzero(tf([1 1], [1 3 2]))"), -1.0, 1e-9);
 }
 
-// ── margin: 1/(s(s+1)^2) has Gm=2 at Wcg=1 (numkit grid interp ~0.1%) ────
+// ── margin: 1/(s(s+1)^2) has Gm=2 at Wcg=1 (nk grid interp ~0.1%) ────
 TEST_P(LtiIntrospectionTest, Margin)
 {
     eval("[Gm, Pm, Wcg, Wcp] = margin(tf(1, [1 2 1 0]));");

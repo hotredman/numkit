@@ -8,15 +8,15 @@
 // (`'InputType','bit'`) is documented as deferred -- requires
 // bit-grouping by log2(M) which we'll add when called for.
 
-#include <numkit/comm/modulation/generic_qam.hpp>
+#include <nk/comm/modulation/generic_qam.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <complex>
 #include <limits>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 using Cd = std::complex<double>;
 
@@ -33,7 +33,7 @@ Value genqammod(const Value &x, const Value &constellation,
     const size_t M = constellation.numel();
     if (M == 0)
         throw Error("genqammod: constellation must be non-empty",
-                    0, 0, "genqammod", "", "numkit:genqammod:EmptyConst");
+                    0, 0, "genqammod", "", "nk:genqammod:EmptyConst");
 
     const auto &d = x.dims();
     const size_t H = d.rows();
@@ -54,7 +54,7 @@ Value genqammod(const Value &x, const Value &constellation,
             if (xi < 0.0 || xi >= static_cast<double>(M))
                 throw Error("genqammod: index out of range [0, M-1]",
                             0, 0, "genqammod", "",
-                            "numkit:genqammod:OutOfRange");
+                            "nk:genqammod:OutOfRange");
             const size_t k = static_cast<size_t>(xi);
             o[i] = constellation.complexData()[k];
         }
@@ -65,7 +65,7 @@ Value genqammod(const Value &x, const Value &constellation,
             if (xi < 0.0 || xi >= static_cast<double>(M))
                 throw Error("genqammod: index out of range [0, M-1]",
                             0, 0, "genqammod", "",
-                            "numkit:genqammod:OutOfRange");
+                            "nk:genqammod:OutOfRange");
             const size_t k = static_cast<size_t>(xi);
             o[i] = constellation.elemAsDouble(k);
         }
@@ -79,7 +79,7 @@ Value genqamdemod(const Value &y, const Value &constellation,
     const size_t M = constellation.numel();
     if (M == 0)
         throw Error("genqamdemod: constellation must be non-empty",
-                    0, 0, "genqamdemod", "", "numkit:genqamdemod:EmptyConst");
+                    0, 0, "genqamdemod", "", "nk:genqamdemod:EmptyConst");
 
     const auto &d = y.dims();
     const size_t H = d.rows();
@@ -111,4 +111,4 @@ Value genqamdemod(const Value &y, const Value &constellation,
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

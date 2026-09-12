@@ -6,7 +6,7 @@
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom
-Requesting a property numkit doesn't implement (e.g. `'Perimeter'`)
+Requesting a property nk doesn't implement (e.g. `'Perimeter'`)
 **does not error** — `regionprops` returns a struct that simply lacks the
 field. The user only discovers this when a later `.Perimeter` access fails
 with a confusing "non-existent field" error. MATLAB computes the property.
@@ -15,7 +15,7 @@ with a confusing "non-existent field" error. MATLAB computes the property.
 ```matlab
 s = regionprops(logical(ones(3,3)), 'Perimeter');
 s.Perimeter
-% numkit: Error — Reference to non-existent field 'Perimeter'
+% nk: Error — Reference to non-existent field 'Perimeter'
 %         (the regionprops call itself did NOT throw)
 % MATLAB: s.Perimeter = 7.476000   (boundary distance, corner-weighted)
 ```
@@ -43,7 +43,7 @@ Both parts done:
   trace start/direction. Single-pixel → 0; outer boundary only (holes not
   traced — MATLAB likewise warns Perimeter is for hole-free regions).
 
-Verified numkit == MATLAB R2025b exactly: 3×3 solid 7.476, 4×4 solid 11.396,
+Verified nk == MATLAB R2025b exactly: 3×3 solid 7.476, 4×4 solid 11.396,
 plus 5.624, eye(4) diagonal 8.436. (Parity harness reports N/A for regionprops —
 pre-existing, same class as histcounts; confirmed by a direct MATLAB run.)
 Guards: `src/toolboxes/image/tests/image_batch3_test.cpp`

@@ -1,16 +1,16 @@
 // toolboxes/wavelet/tests/qmf_wrev_public_api_test.cpp
 //
 // Direct C++ API guard for toolboxes/wavelet/src/filter/qmf.cpp after the lift
-// from adapter-only to numkit::wavelet::{wrev, qmf}. Calls the public
+// from adapter-only to nk::wavelet::{wrev, qmf}. Calls the public
 // functions directly; reference values match the script-level
 // wrev_test.cpp / qmf_test.cpp guards (MATLAB R2025b).
 
-#include <numkit/wavelet/filter/qmf.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/wavelet/filter/qmf.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value qvar(Engine &e, const char *expr, const char *name)

@@ -3,10 +3,10 @@
 // Regression guard for modulate (Phase 4.12). Bit-equal MATLAB R2025b
 // on the 4 supported modes (am, amdsb-tc, fm, pm).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ModulateTest : public ::testing::Test
 {

@@ -2,10 +2,10 @@
 //
 // Regression guard for builtin::svd (Phase 1 -- one-sided Jacobi).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SvdTest : public ::testing::Test
 {

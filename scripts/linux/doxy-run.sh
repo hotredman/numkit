@@ -50,7 +50,7 @@ fi
 
 echo
 echo "========================================================"
-echo "  Numkit Doxygen Documentation Local Server"
+echo "  NK Doxygen Documentation Local Server"
 echo "  URL:     http://localhost:$PORT/"
 echo "  Serving: $DOCS_HTML_DIR"
 echo "========================================================"

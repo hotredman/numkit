@@ -16,8 +16,8 @@ fidelity-pass suite never saw it.
 ```matlab
 clear;
 [~, w] = freqs([1], [1 sqrt(2) 1]);
-% numkit (Debug build, pre-fix): process aborts, "vector subscript out of range"
-% numkit (Release, pre-fix): correct w (the read is multiplied by t == 0)
+% nk (Debug build, pre-fix): process aborts, "vector subscript out of range"
+% nk (Release, pre-fix): correct w (the read is multiplied by t == 0)
 % MATLAB R2025b: w = 0.1 .. 10 (200 points)
 ```
 

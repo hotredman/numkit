@@ -5,7 +5,7 @@ clear
 % [0,1]; the result is the quantile x such that cdf(x) = p. It is computed by
 % Newton's method on the kernel-smoothed cdf/pdf (seeded by linear inverse-
 % interpolation of a 100-point grid cdf), matching MATLAB R2025b to ~1e-10.
-% numkit previously threw "icdf is not yet supported".
+% nk previously threw "icdf is not yet supported".
 
 x = [1 2 2.5 3 3.5 4 5 6 7 9]';
 

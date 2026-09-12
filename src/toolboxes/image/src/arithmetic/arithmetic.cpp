@@ -3,17 +3,17 @@
 // Image arithmetic. Saturating element-wise operations for integer
 // classes; pass-through for floating types. Output class = X's class.
 
-#include <numkit/image/arithmetic/arithmetic.hpp>
+#include <nk/image/arithmetic/arithmetic.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -90,7 +90,7 @@ Value binop(const Value &x, const Value &y, Op op, std::pmr::memory_resource *mr
         }
         default:
             throw Error("imarith: unsupported image class", 0, 0, "imarith", "",
-                        "numkit:imarith:badtype");
+                        "nk:imarith:badtype");
     }
     return out;
 }
@@ -135,7 +135,7 @@ Value unop(const Value &x, Op op, std::pmr::memory_resource *mr) {
         }
         default:
             throw Error("imarith: unsupported image class", 0, 0, "imarith", "",
-                        "numkit:imarith:badtype");
+                        "nk:imarith:badtype");
     }
     return out;
 }
@@ -192,7 +192,7 @@ Value imlincomb(const std::vector<double> &coefs, const std::vector<Value> &imag
     if (coefs.size() != images.size() && coefs.size() != images.size() + 1)
         throw Error("imlincomb: number of coefficients must equal number of images "
                     "(optional one extra for the additive constant)",
-                    0, 0, "imlincomb", "", "numkit:imlincomb:nargin");
+                    0, 0, "imlincomb", "", "nk:imlincomb:nargin");
     if (images.empty()) return Value::scalar(0.0, mr);
 
     const Value &x0 = images[0];
@@ -210,7 +210,7 @@ Value imlincomb(const std::vector<double> &coefs, const std::vector<Value> &imag
         const double ck = coefs[k];
         if (xk.numel() != n)
             throw Error("imlincomb: all images must have the same size",
-                        0, 0, "imlincomb", "", "numkit:imlincomb:size");
+                        0, 0, "imlincomb", "", "nk:imlincomb:size");
         for (size_t i = 0; i < n; ++i) acc[i] += ck * xk.elemAsDouble(i);
     }
     for (size_t i = 0; i < n; ++i) acc[i] += bias;
@@ -241,7 +241,7 @@ Value imlincomb(const std::vector<double> &coefs, const std::vector<Value> &imag
         }
         default:
             throw Error("imlincomb: unsupported output class",
-                        0, 0, "imlincomb", "", "numkit:imlincomb:badtype");
+                        0, 0, "imlincomb", "", "nk:imlincomb:badtype");
     }
     return out;
 }
@@ -254,7 +254,7 @@ Value imapplymatrix(const Value &M, const Value &x, ValueType output_class, std:
     const size_t Mcols = M.dims().cols();
     if (Mcols != pages)
         throw Error("imapplymatrix: matrix columns must match the third dimension of X",
-                    0, 0, "imapplymatrix", "", "numkit:imapplymatrix:size");
+                    0, 0, "imapplymatrix", "", "nk:imapplymatrix:size");
 
     const size_t H = dx.rows();
     const size_t W = dx.cols();
@@ -276,7 +276,7 @@ Value imapplymatrix(const Value &M, const Value &x, ValueType output_class, std:
             case ValueType::INT16:   out.int16DataMut()[outIdx]   = satCast<int16_t>(v); break;
             default:
                 throw Error("imapplymatrix: unsupported output class",
-                            0, 0, "imapplymatrix", "", "numkit:imapplymatrix:badtype");
+                            0, 0, "imapplymatrix", "", "nk:imapplymatrix:badtype");
         }
     };
 
@@ -290,4 +290,4 @@ Value imapplymatrix(const Value &M, const Value &x, ValueType output_class, std:
     return out;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

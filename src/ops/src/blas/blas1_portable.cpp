@@ -1,7 +1,7 @@
-#include <numkit/ops/blas1.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/blas1.hpp>
+#include <nk/ops/parallel_for.hpp>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 void axpy(std::size_t n, double alpha, const double *x, double *y)
 {
@@ -10,11 +10,11 @@ void axpy(std::size_t n, double alpha, const double *x, double *y)
     // We can use a simple threshold for parallel_for
     constexpr std::size_t kParallelThreshold = 256 * 1024;
     
-    numkit::detail::parallel_for(n, kParallelThreshold, [=](std::size_t start, std::size_t end) {
+    nk::detail::parallel_for(n, kParallelThreshold, [=](std::size_t start, std::size_t end) {
         for (std::size_t i = start; i < end; ++i) {
             y[i] += alpha * x[i];
         }
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

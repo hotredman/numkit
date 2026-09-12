@@ -5,8 +5,8 @@
 // FMA + a clamp per element, single streaming pass. min/max replicate
 // std::fmin/fmax NaN semantics so the result matches the per-op fallback.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -17,7 +17,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -79,11 +79,11 @@ void AffineClampMinOuterImpl(const double *x, double p0, double p1, bool divide,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(AffineClampImpl);
 HWY_EXPORT(AffineClampMinOuterImpl);
@@ -92,7 +92,7 @@ void fusedAffineClamp(const double *x, double scale, double offset,
                       double lo, double hi, double *out, std::size_t n) {
     if (n == 0) return;
     // Each chunk is a disjoint output slice; no-op (sequential) unless
-    // NUMKIT_WITH_THREADS and n is large.
+    // NK_WITH_THREADS and n is large.
     detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(AffineClampImpl)(x + s, scale, offset, /*divide=*/false,
                                               lo, hi, out + s, e - s);
@@ -129,5 +129,5 @@ void fusedAffineClampMinOuterShiftDiv(const double *x, double sub, double div,
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

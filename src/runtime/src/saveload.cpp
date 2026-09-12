@@ -5,19 +5,19 @@
 // (saveload_mat.cpp) based on flags and the filename's extension —
 // matching MATLAB's defaults (binary .mat unless `-ascii` is given).
 
-#include <numkit/runtime/saveload.hpp>
+#include <nk/runtime/saveload.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/environment.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/environment.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/core/types.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <string>
 #include <vector>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 // ── Backends ─────────────────────────────────────────────────────────
 
@@ -160,4 +160,4 @@ void load_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 
 } // namespace detail
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

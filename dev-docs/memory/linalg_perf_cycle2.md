@@ -18,13 +18,13 @@ history. All rules from cycle 1 remain in force, in particular:
 
 ## Measured baseline (2026-08-06, commit 5235d3aa)
 
-Raw outputs: `results/2026-08-06_p7_numkit_bench.txt`,
+Raw outputs: `results/2026-08-06_p7_nk_bench.txt`,
 `results/2026-08-06_matlab_r2025b_x86_64.txt`. Machine: 24-core x86_64
 @ 3.07 GHz, L3 36.8 MB, MSVC 2022 Release, MATLAB R2025b (MKL, 24 threads).
 
 Key facts driving this cycle:
 
-- numkit real GEMM is flat at ~35-36 GFLOPS from n=512 to n=2048.
+- nk real GEMM is flat at ~35-36 GFLOPS from n=512 to n=2048.
   Single-core AVX2 FMA peak on this machine is ~49 GFLOPS, so the
   microkernel itself runs at ~73% of single-core peak — good. But 24 cores
   should give 300+ GFLOPS; MATLAB/MKL reaches 609. Conclusion: the
@@ -74,7 +74,7 @@ bug entry with profile data if the target is proven unreachable on AVX2.
 Rewrite `bench_linalg.m` timing to use `timeit` (or explicit warmup +
 median of ≥ 5 runs) as cycle 1 originally required. Re-run the full MATLAB
 baseline headlessly, commit the new raw output alongside the old one, and
-regenerate the README comparison table. The n=64 "NumKit 3.6× faster
+regenerate the README comparison table. The n=64 "NK 3.6× faster
 PASSED" row and the n=128 "13.4×" row are warmup artifacts and must not
 survive this item.
 

@@ -3,15 +3,15 @@
 // Unit tests for complex SVD (svd), complex rank (rank), and complex pseudo-inverse (pinv).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/linalg/properties.hpp>
-#include <numkit/linalg/pseudo_subspace.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/linalg/properties.hpp>
+#include <nk/linalg/pseudo_subspace.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(ComplexSvdTest, SvdComplex2x2) {
     // B = [1+1i 2; 3 4-1i]

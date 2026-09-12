@@ -38,8 +38,8 @@ max/min in the SAME integer class.
 
 ## Repro
 ```matlab
-cummax(int8([3 1 2 5 4]))   % numkit: ERROR "Not a double array"; MATLAB: int8 [3 3 3 5 5]
-cummin(int8([3 1 2 5 4]))   % numkit: ERROR;                      MATLAB: int8 [3 1 1 1 1]
+cummax(int8([3 1 2 5 4]))   % nk: ERROR "Not a double array"; MATLAB: int8 [3 3 3 5 5]
+cummin(int8([3 1 2 5 4]))   % nk: ERROR;                      MATLAB: int8 [3 1 1 1 1]
 ```
 
 ## Root cause

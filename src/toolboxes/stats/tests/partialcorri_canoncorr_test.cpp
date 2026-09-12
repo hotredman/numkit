@@ -4,12 +4,12 @@
 //   partialcorri — semi-partial correlation, control varies per X col
 //   canoncorr    — canonical correlation analysis
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class PCCTest : public ::testing::Test
 {

@@ -281,7 +281,7 @@ and preview ↔ modal coherence).
       survive every prop tick. Built grid lines on **all six** cube
       faces and let the render tick toggle visibility per-frame
       via dot(camera.position, faceNormal). e2e
-      `3d-grid-camera.spec.js` (4 cases) + `data-numkit-3d` canvas
+      `3d-grid-camera.spec.js` (4 cases) + `data-nk-3d` canvas
       hook for inspection.
 
 - [x] **`imshow` — display image (grayscale + RGB).** Builtin in
@@ -367,7 +367,7 @@ These don't have shipping pressure. Each is a separate investment.
       today only as a README placeholder. Shipped 2026-05-10. e2e
       `geoplot.spec.js` (4 cases).
 - [x] **`animatedline` cluster** (`animatedline`, `addpoints`,
-      `clearpoints`, `getpoints`, `drawnow`). numkit doesn't model
+      `clearpoints`, `getpoints`, `drawnow`). nk doesn't model
       graphics handles, so the cluster targets the most-recent
       animated dataset on the current axes (`AxesState::animatedDatasetIdx`).
       `animatedline` returns a 1-based scalar handle for script

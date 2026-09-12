@@ -14,11 +14,11 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include <numkit/image/geom/geom.hpp>
+#include <nk/image/geom/geom.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 #include "geom/geom_detail.hpp"
 
 #include <algorithm>
@@ -34,14 +34,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("image geom: expected a string argument",
-                    0, 0, "geom", "", "numkit:image:geom:type");
+                    0, 0, "geom", "", "nk:image:geom:type");
     return v.toString();
 }
 
@@ -50,7 +50,7 @@ void imresize_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imresize: requires (A, scale_or_size [, method])",
-                    0, 0, "imresize", "", "numkit:imresize:nargin");
+                    0, 0, "imresize", "", "nk:imresize:nargin");
     auto *mr = ctx.engine->resource();
     std::string method = "bicubic";   // MATLAB default
     if (args.size() >= 3 && !args[2].isEmpty()) method = argString(args[2]);
@@ -63,7 +63,7 @@ void imresize_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     } else {
         throw Error("imresize: 2nd arg must be a scalar scale "
                     "or a 2-element [outH outW]",
-                    0, 0, "imresize", "", "numkit:imresize:size");
+                    0, 0, "imresize", "", "nk:imresize:size");
     }
 }
 
@@ -72,10 +72,10 @@ void imcrop_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imcrop: requires (A, [xmin ymin width height])",
-                    0, 0, "imcrop", "", "numkit:imcrop:nargin");
+                    0, 0, "imcrop", "", "nk:imcrop:nargin");
     if (args[1].numel() < 4)
         throw Error("imcrop: rect must have 4 elements",
-                    0, 0, "imcrop", "", "numkit:imcrop:rect");
+                    0, 0, "imcrop", "", "nk:imcrop:rect");
     outs[0] = imcrop(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), args[1].elemAsDouble(2), args[1].elemAsDouble(3), ctx.engine->resource());
 }
 
@@ -84,7 +84,7 @@ void imcrop3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imcrop3: requires (V, cuboid)",
-                    0, 0, "imcrop3", "", "numkit:imcrop3:nargin");
+                    0, 0, "imcrop3", "", "nk:imcrop3:nargin");
     outs[0] = imcrop3(args[0], args[1], ctx.engine->resource());
 }
 
@@ -93,7 +93,7 @@ void imrotate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imrotate: requires (A, angle [, method [, bbox]])",
-                    0, 0, "imrotate", "", "numkit:imrotate:nargin");
+                    0, 0, "imrotate", "", "nk:imrotate:nargin");
     // MATLAB R2025b default method is 'nearest' (not bilinear), and the
     // 3rd argument may be EITHER a method or a bbox keyword:
     //   imrotate(A, angle, method [, bbox])   or   imrotate(A, angle, bbox)
@@ -119,10 +119,10 @@ void imtranslate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 {
     if (args.size() < 2)
         throw Error("imtranslate: requires (A, [dx dy])",
-                    0, 0, "imtranslate", "", "numkit:imtranslate:nargin");
+                    0, 0, "imtranslate", "", "nk:imtranslate:nargin");
     if (args[1].numel() < 2)
         throw Error("imtranslate: vector must have 2 elements",
-                    0, 0, "imtranslate", "", "numkit:imtranslate:vec");
+                    0, 0, "imtranslate", "", "nk:imtranslate:vec");
     outs[0] = imtranslate(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), ctx.engine->resource());
 }
 
@@ -131,7 +131,7 @@ void axes2pix_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("axes2pix: requires (n, extent, axesCoord)",
-                    0, 0, "axes2pix", "", "numkit:axes2pix:nargin");
+                    0, 0, "axes2pix", "", "nk:axes2pix:nargin");
     const double n = args[0].toScalar();
     outs[0] = axes2pix(n, args[1], args[2], ctx.engine->resource());
 }
@@ -141,7 +141,7 @@ void impyramid_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("impyramid: requires (A, type)", 0, 0, "impyramid", "",
-                    "numkit:impyramid:nargin");
+                    "nk:impyramid:nargin");
     const std::string type = argString(args[1]);
     outs[0] = impyramid(args[0], type, ctx.engine->resource());
 }
@@ -176,7 +176,7 @@ Rot3 rodrigues(double Wx, double Wy, double Wz, double theta)
     const double n = std::sqrt(Wx*Wx + Wy*Wy + Wz*Wz);
     if (n < 1e-15)
         throw Error("imrotate3: rotation axis must be non-zero",
-                    0, 0, "imrotate3", "", "numkit:imrotate3:axis");
+                    0, 0, "imrotate3", "", "nk:imrotate3:axis");
     const double ux = Wx / n, uy = Wy / n, uz = Wz / n;
     const double c = std::cos(theta), s = std::sin(theta), t = 1.0 - c;
     Rot3 R;
@@ -278,13 +278,13 @@ Value imrotate3(const Value &V, double angle_deg,
     const auto &dims = V.dims();
     if (dims.ndims() < 2)
         throw Error("imrotate3: V must be a 3-D volume",
-                    0, 0, "imrotate3", "", "numkit:imrotate3:rank");
+                    0, 0, "imrotate3", "", "nk:imrotate3:rank");
     const size_t H = dims.dim(0);
     const size_t W = dims.dim(1);
     const size_t D = (dims.ndims() >= 3) ? dims.dim(2) : 1;
     if (V.numel() != H * W * D)
         throw Error("imrotate3: V must be a 3-D numeric volume",
-                    0, 0, "imrotate3", "", "numkit:imrotate3:shape");
+                    0, 0, "imrotate3", "", "nk:imrotate3:shape");
 
     const ValueType T = V.type();
     const double theta = angle_deg * M_PI / 180.0;
@@ -309,7 +309,7 @@ Value imrotate3(const Value &V, double angle_deg,
         outD = std::max(size_t(1), size_t(std::ceil(snap(ze))));
     } else {
         throw Error("imrotate3: bbox must be 'loose' or 'crop'",
-                    0, 0, "imrotate3", "", "numkit:imrotate3:bbox");
+                    0, 0, "imrotate3", "", "nk:imrotate3:bbox");
     }
 
     Value B = (outD == 1) ? Value::matrix(outH, outW, T, mr)
@@ -329,7 +329,7 @@ Value imrotate3(const Value &V, double angle_deg,
     else if (method == "cubic"   || method == "Cubic")   code = 2;
     else
         throw Error("imrotate3: method must be 'nearest', 'linear', or 'cubic'",
-                    0, 0, "imrotate3", "", "numkit:imrotate3:method");
+                    0, 0, "imrotate3", "", "nk:imrotate3:method");
 
     for (size_t p = 1; p <= outD; ++p) {
         const double dzo = double(p) - czOut;
@@ -366,7 +366,7 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 1)
         throw Error("imresize3: requires (V, scale_or_size [, method] [, NV])",
-                    0, 0, "imresize3", "", "numkit:imresize3:nargin");
+                    0, 0, "imresize3", "", "nk:imresize3:nargin");
     auto *mr = ctx.engine->resource();
     const Value &V = args[0];
 
@@ -395,7 +395,7 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         } else {
             throw Error("imresize3: 2nd arg must be scalar scale or "
                         "[numrows numcols numplanes]",
-                        0, 0, "imresize3", "", "numkit:imresize3:size");
+                        0, 0, "imresize3", "", "nk:imresize3:size");
         }
         i = 2;
     }
@@ -424,7 +424,7 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         } else if (name == "OutputSize" || name == "outputsize") {
             if (val.numel() != 3)
                 throw Error("imresize3: OutputSize must be a 3-element vector",
-                            0, 0, "imresize3", "", "numkit:imresize3:size");
+                            0, 0, "imresize3", "", "nk:imresize3:size");
             haveSize3 = true;
             outRows = static_cast<size_t>(val.elemAsDouble(0));
             outCols = static_cast<size_t>(val.elemAsDouble(1));
@@ -439,12 +439,12 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             } else {
                 throw Error("imresize3: Scale must be a positive number "
                             "or a 3-element vector",
-                            0, 0, "imresize3", "", "numkit:imresize3:scaleNV");
+                            0, 0, "imresize3", "", "nk:imresize3:scaleNV");
             }
         } else {
             throw Error("imresize3: unknown name-value parameter '"
                         + name + "'",
-                        0, 0, "imresize3", "", "numkit:imresize3:nv");
+                        0, 0, "imresize3", "", "nk:imresize3:nv");
         }
         i += 2;
     }
@@ -463,11 +463,11 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         } else {
             throw Error("imresize3: must specify scale, size, or "
                         "Scale/OutputSize NV",
-                        0, 0, "imresize3", "", "numkit:imresize3:noSize");
+                        0, 0, "imresize3", "", "nk:imresize3:noSize");
         }
         if (!(sR > 0 && sC > 0 && sD > 0))
             throw Error("imresize3: scale factors must be > 0",
-                        0, 0, "imresize3", "", "numkit:imresize3:scale");
+                        0, 0, "imresize3", "", "nk:imresize3:scale");
         outRows = static_cast<size_t>(std::round(sR * double(inR)));
         outCols = static_cast<size_t>(std::round(sC * double(inC)));
         outDeps = static_cast<size_t>(std::round(sD * double(inD)));
@@ -507,12 +507,12 @@ void imrotate3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("imrotate3: requires (V, angle, W [, method [, bbox]])",
-                    0, 0, "imrotate3", "", "numkit:imrotate3:nargin");
+                    0, 0, "imrotate3", "", "nk:imrotate3:nargin");
     auto *mr = ctx.engine->resource();
     const double angle = args[1].toScalar();
     if (args[2].numel() != 3)
         throw Error("imrotate3: axis W must be a 3-element vector",
-                    0, 0, "imrotate3", "", "numkit:imrotate3:axis");
+                    0, 0, "imrotate3", "", "nk:imrotate3:axis");
     const double Wx = args[2].elemAsDouble(0);
     const double Wy = args[2].elemAsDouble(1);
     const double Wz = args[2].elemAsDouble(2);
@@ -536,7 +536,7 @@ void imrotate3_reg(Span<const Value> args, size_t /*nargout*/,
             fill = val.toScalar();
         } else {
             throw Error("imrotate3: unknown name-value parameter '" + name + "'",
-                        0, 0, "imrotate3", "", "numkit:imrotate3:nv");
+                        0, 0, "imrotate3", "", "nk:imrotate3:nv");
         }
         i += 2;
     }
@@ -545,4 +545,4 @@ void imrotate3_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

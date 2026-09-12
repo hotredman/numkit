@@ -4,31 +4,31 @@
 // Migrated from toolboxes/builtin/src/language/arrays/{matrix,linalg_extras}.cpp.
 //
 // rank_of / cond_2norm / normest call the SVD kernel from
-// numkit/linalg/decompositions.hpp. inv / rcond use the la_solve
+// nk/linalg/decompositions.hpp. inv / rcond use the la_solve
 // kernel still living in toolboxes/builtin.
 
-#include <numkit/linalg/properties.hpp>
+#include <nk/linalg/properties.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
-#include <numkit/linalg/decompositions.hpp>       // svd_values
-#include <numkit/linalg/eig.hpp>                  // condeig uses eig_symmetric / eig_general_VD
-#include <numkit/linalg/norms.hpp>                // cond_pnorm uses norm_*
+#include <nk/ops/la_solve.hpp>   // nk::ops::la_solve
+#include <nk/linalg/decompositions.hpp>       // svd_values
+#include <nk/linalg/eig.hpp>                  // condeig uses eig_symmetric / eig_general_VD
+#include <nk/linalg/norms.hpp>                // cond_pnorm uses norm_*
 
 // Compute-only TU: Value substrate + Error, no engine. The inv/trace/det/
 // rank/cond/normest/rcond/condest/condeig builtins (CallContext wrappers)
 // live in properties_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -39,7 +39,7 @@ bool laSolveWrap(const double *A_buf, std::size_t m, std::size_t n,
                  const double *B_buf, std::size_t nrhs, double *outX,
                  std::pmr::memory_resource *mr)
 {
-    return numkit::ops::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
+    return nk::ops::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
 }
 
 // Default tolerance for rank-cutoff: max(m,n) * eps(sigma_max).
@@ -70,12 +70,12 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("inv: input must be a 2D matrix",
-                    0, 0, "inv", "", "numkit:inv:notMatrix");
+                    0, 0, "inv", "", "nk:inv:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("inv: matrix must be square",
-                    0, 0, "inv", "", "numkit:inv:notSquare");
+                    0, 0, "inv", "", "nk:inv:notSquare");
     if (m == 0)
         return Value::matrix(0, 0, A.type(), mr);
 
@@ -84,9 +84,9 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
         ScratchVec<detail::Complex> I_buf(n * n, 0.0, &scratch);
         for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = detail::Complex(1.0, 0.0);
         Value out = Value::complexMatrix(n, n, mr);
-        if (!numkit::ops::la_solve(A.complexData(), n, n, I_buf.data(), n, out.complexDataMut(), mr))
+        if (!nk::ops::la_solve(A.complexData(), n, n, I_buf.data(), n, out.complexDataMut(), mr))
             throw Error("inv: matrix is singular to working precision",
-                        0, 0, "inv", "", "numkit:inv:singular");
+                        0, 0, "inv", "", "nk:inv:singular");
         return detail::narrow_if_real(out, mr);
     }
 
@@ -94,9 +94,9 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = 1.0;
 
     Value out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!numkit::ops::la_solve(A.doubleData(), n, n, I_buf.data(), n, out.doubleDataMut(), mr))
+    if (!nk::ops::la_solve(A.doubleData(), n, n, I_buf.data(), n, out.doubleDataMut(), mr))
         throw Error("inv: matrix is singular to working precision",
-                    0, 0, "inv", "", "numkit:inv:singular");
+                    0, 0, "inv", "", "nk:inv:singular");
     return out;
 }
 
@@ -104,7 +104,7 @@ Value trace(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("trace: input must be a 2D matrix",
-                    0, 0, "trace", "", "numkit:trace:notMatrix");
+                    0, 0, "trace", "", "nk:trace:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t k = std::min(m, n);
@@ -116,7 +116,7 @@ Value trace(const Value &A, std::pmr::memory_resource *mr)
         const Complex *p = A.complexData();
         for (std::size_t i = 0; i < k; ++i)
             s += p[i + i * m];
-        return numkit::narrowComplex(Value::complexScalar(s, mr), mr);
+        return nk::narrowComplex(Value::complexScalar(s, mr), mr);
     }
     double s = 0.0;
     const double *p = A.doubleData();
@@ -129,12 +129,12 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("det: input must be a 2D matrix",
-                    0, 0, "det", "", "numkit:det:notMatrix");
+                    0, 0, "det", "", "nk:det:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("det: matrix must be square",
-                    0, 0, "det", "", "numkit:det:notSquare");
+                    0, 0, "det", "", "nk:det:notSquare");
     if (m == 0)
         return Value::scalar(1.0, mr);
 
@@ -143,7 +143,7 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
         ScratchVec<detail::Complex> A_buf(m * n, &scratch);
         std::copy(A.complexData(), A.complexData() + m * n, A_buf.begin());
         ScratchVec<std::int32_t> piv(n, &scratch);
-        if (!numkit::ops::lu_factor_inplace(A_buf.data(), n, piv.data(), n, n))
+        if (!nk::ops::lu_factor_inplace(A_buf.data(), n, piv.data(), n, n))
             return Value::scalar(0.0, mr);
 
         int sign = 1;
@@ -162,7 +162,7 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
     ScratchVec<double> A_buf(m * n, &scratch);
     std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
     ScratchVec<std::int32_t> piv(n, &scratch);
-    if (!numkit::ops::lu_factor_inplace(A_buf.data(), n, piv.data(), n, n))
+    if (!nk::ops::lu_factor_inplace(A_buf.data(), n, piv.data(), n, n))
         return Value::scalar(0.0, mr);
 
     int sign = 1;
@@ -216,12 +216,12 @@ Value cond_pnorm(const Value &A, int p_kind, std::pmr::memory_resource *mr)
 
     if (A.dims().ndim() != 2)
         throw Error("cond: input must be a 2D matrix",
-                    0, 0, "cond", "", "numkit:cond:notMatrix");
+                    0, 0, "cond", "", "nk:cond:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("cond: matrix must be square for non-2-norm forms",
-                    0, 0, "cond", "", "numkit:cond:notSquare");
+                    0, 0, "cond", "", "nk:cond:notSquare");
     if (m == 0)
         return Value::scalar(0.0, mr);
 
@@ -232,7 +232,7 @@ Value cond_pnorm(const Value &A, int p_kind, std::pmr::memory_resource *mr)
         case 4: return norm_fro(X, mr).toScalar();
         default:
             throw Error("cond: p must be 1, 2, Inf, or 'fro'",
-                        0, 0, "cond", "", "numkit:cond:badP");
+                        0, 0, "cond", "", "nk:cond:badP");
         }
     };
 
@@ -270,17 +270,17 @@ Value rcond(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("rcond: input must be 2D",
-                    0, 0, "rcond", "", "numkit:rcond:Not2D");
+                    0, 0, "rcond", "", "nk:rcond:Not2D");
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
     if (M != N)
         throw Error("rcond: matrix must be square",
-                    0, 0, "rcond", "", "numkit:rcond:NotSquare");
+                    0, 0, "rcond", "", "nk:rcond:NotSquare");
     if (M == 0)
         return Value::scalar(std::numeric_limits<double>::infinity(), mr);
     if (A.isComplex())
         throw Error("rcond: complex input not supported in v1",
-                    0, 0, "rcond", "", "numkit:rcond:NoComplex");
+                    0, 0, "rcond", "", "nk:rcond:NoComplex");
 
     const double anorm = matrix_one_norm(A.doubleData(), M, N);
     if (anorm == 0.0) return Value::scalar(0.0, mr);
@@ -309,12 +309,12 @@ Value condest(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("condest: input must be 2D",
-                    0, 0, "condest", "", "numkit:condest:Not2D");
+                    0, 0, "condest", "", "nk:condest:Not2D");
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
     if (M != N)
         throw Error("condest: matrix must be square",
-                    0, 0, "condest", "", "numkit:condest:NotSquare");
+                    0, 0, "condest", "", "nk:condest:NotSquare");
     if (M == 0)
         return Value::scalar(0.0, mr);
 
@@ -353,12 +353,12 @@ Value condeig(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("condeig: input must be a 2D matrix",
-                    0, 0, "condeig", "", "numkit:condeig:notMatrix");
+                    0, 0, "condeig", "", "nk:condeig:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("condeig: matrix must be square",
-                    0, 0, "condeig", "", "numkit:condeig:notSquare");
+                    0, 0, "condeig", "", "nk:condeig:notSquare");
     if (n == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
@@ -396,10 +396,10 @@ Value condeig(const Value &A, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = 1.0;
 
     ScratchVec<double> Vinv(n * n, &scratch);
-    if (!numkit::ops::la_solve(V_buf.data(), n, n, I_buf.data(), n,
+    if (!nk::ops::la_solve(V_buf.data(), n, n, I_buf.data(), n,
                                             Vinv.data(), &scratch))
         throw Error("condeig: right eigenvector matrix is singular",
-                    0, 0, "condeig", "", "numkit:condeig:singular");
+                    0, 0, "condeig", "", "nk:condeig:singular");
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *s = out.doubleDataMut();
@@ -438,4 +438,4 @@ Value condeig(const Value &A, std::pmr::memory_resource *mr)
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

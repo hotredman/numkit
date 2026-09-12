@@ -15,10 +15,10 @@ statement: no output, no error, `ans = []` echoed. MATLAB prints the string.
 ```matlab
 clear;
 disp 'abc'
-% numkit: (nothing; ans = [])
+% nk: (nothing; ans = [])
 % MATLAB: abc
 disp 'hello world'
-% numkit: (nothing)
+% nk: (nothing)
 % MATLAB: hello world
 ```
 

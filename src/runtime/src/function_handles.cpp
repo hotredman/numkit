@@ -11,16 +11,16 @@
 // only the owning translation unit / layer differs. registerFunctionHandles is
 // composed by installRuntimeLibrary (runtime.cpp), which
 // bundle/installStandardLibrary calls.
-#include <numkit/runtime/runtime.hpp>
+#include <nk/runtime/runtime.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
 
 #include <stdexcept>
 #include <string>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 void registerFunctionHandles(Engine &engine)
 {
@@ -99,4 +99,4 @@ void registerFunctionHandles(Engine &engine)
                             });
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

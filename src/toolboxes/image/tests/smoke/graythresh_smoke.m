@@ -1,7 +1,7 @@
 clear
 
 % graythresh — global Otsu threshold, normalised to [0,1]. DEEP-PROBE c182.
-% numkit built the histogram with default_nbins (64 bins for floating-point,
+% nk built the histogram with default_nbins (64 bins for floating-point,
 % 65536 for uint16), but MATLAB graythresh ALWAYS uses NPTS=256 bins. So the
 % level was off for float/uint16 inputs (double in [0,1] gave 0.507937 vs
 % MATLAB 0.513725). Now uses 256 bins like MATLAB. uint8 (already 256) is

@@ -7,13 +7,13 @@
 > delete this file — the todo list holds open work only.
 
 **Problem.** All random builtins draw from a single **process-global** generator
-`numkit::builtin::sharedEngine()`, serialised by `numkit::builtin::rngMutex()`.
+`nk::builtin::sharedEngine()`, serialised by `nk::builtin::rngMutex()`.
 Typical shape (e.g. `binornd`, `normrnd`, `rand`, `randn`, `randi`, `randperm`,
 `datasample`, `bootstrp`, channel/fading noise in comm, …):
 
 ```cpp
-auto &gen = ::numkit::builtin::sharedEngine();
-auto &mtx = ::numkit::builtin::rngMutex();
+auto &gen = ::nk::builtin::sharedEngine();
+auto &mtx = ::nk::builtin::rngMutex();
 ...
 std::lock_guard<std::mutex> lk(mtx);
 for (size_t i = 0; i < cnt; ++i) od[i] = dist(gen);
@@ -42,7 +42,7 @@ reaching for `sharedEngine()`. Keep MATLAB `rng(seed)` semantics per engine.
 This changes seeding/reproducibility semantics, so it needs explicit sign-off +
 parity re-validation, NOT a mechanical pass.
 
-**Affected.** `numkit::builtin::sharedEngine` / `rngMutex` (RNG infra,
+**Affected.** `nk::builtin::sharedEngine` / `rngMutex` (RNG infra,
 relocated to `ops/rng.{hpp,cpp}` in the layering refactor) and every `*rnd` /
 sampling / noise builtin across stats, builtin and comm
 (`grep -rl "sharedEngine()"`). Original authorship: pre-layering

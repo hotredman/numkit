@@ -1,4 +1,4 @@
-# numkit repo notes for AI coding agents (AGENTS.md)
+# nk repo notes for AI coding agents (AGENTS.md)
 
 ## STOP — read first
 
@@ -21,7 +21,7 @@ surface to the user**. Do not silently work on top of someone else's work.
   (Legacy aliases `desktop-fast` and `browser` remain supported).
 - Build dir = `build/<os>/<type>/` per source root (e.g. `build/windows/release`, `build/linux/release`, `build/wasm/release`).
 - Test runner: `scripts/windows/tests-run.cmd` (Windows) or `scripts/linux/tests-run.sh` (Linux),
-  which automatically build incrementally and run `numkit_gtest`.
+  which automatically build incrementally and run `nk_gtest`.
 - WASM: `scripts/windows/engine-build.cmd --wasm` or `scripts/linux/engine-build.sh --wasm` with emsdk env sourced; rebuild the IDE web bundle via `scripts/windows/web-build.cmd` or `scripts/linux/web-build.sh` (see `scripts/README.md`).
 
 ## Commits
@@ -35,7 +35,7 @@ surface to the user**. Do not silently work on top of someone else's work.
 - `main` is the integration branch. Never force-push.
 - **Push policy** (user rule, 2026-09-01): the agent pushes ONLY to
   `origin` (git.megahard.ru). The public GitHub mirror
-  (`github` remote, hotredman/numkit) is pushed manually by the user
+  (`github` remote, hotredman/nk) is pushed manually by the user
   via `scripts/windows/code-publish.cmd` (or `scripts/linux/code-publish.sh`) — the agent never pushes to it.
 
 ## Documentation map (`dev-docs/`)
@@ -80,7 +80,7 @@ fallback (compiler fast paths), the bare name (`registerFunction("", ...)`).
 `registerFunction("compat", ...)` anywhere (the implicit-import engine
 machinery that served compat is gone too). Never add new uses.
 
-Every public function in `src/toolboxes/<ns>/include/numkit/<ns>/**` follows
+Every public function in `src/toolboxes/<ns>/include/nk/<ns>/**` follows
 [dev-docs/handbook/library_api.md](dev-docs/handbook/library_api.md) — the authoritative API
 ruleset (argument order, native scalar types vs `const Value &` vs
 `Span<const double>`, `FnHandle` callbacks, no `Engine *` in public
@@ -109,8 +109,8 @@ full run (or before a publish), the command is:
 
 - Hand-runnable `.m` smokes live in `src/toolboxes/<name>/tests/smoke/*_smoke.m`
   (one per public function or related cluster). Run via
-  `build/windows/release/apps/numkit/Release/numkit_repl.exe <path>`
-  (or on Linux `build/linux/release/apps/numkit/numkit_repl <path>`).
+  `build/windows/release/apps/nk/Release/nk_repl.exe <path>`
+  (or on Linux `build/linux/release/apps/nk/nk_repl <path>`).
 - **Every smoke MUST start with `clear` on the very first line**, then the
   body. This ensures no leftover workspace state from a prior run leaks
   into the test. No `import compat.*` — builtins are globally registered
@@ -158,14 +158,14 @@ spec comment.
 Offline regression guard with hardcoded expected values. Pattern (used
 across src/toolboxes/stats, tests/math, src/toolboxes/signal):
 ```cpp
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class HaartTest : public ::testing::Test {
 public:
-    numkit::StandardEngine engine;
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::StandardEngine engine;
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
@@ -176,16 +176,16 @@ TEST_F(HaartTest, Level1Vector) {
 }
 ```
 Wire via `src/toolboxes/<lib>/tests/CMakeLists.txt` (create if missing — pattern
-`target_sources(numkit_gtest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/...)`).
-Tests must pass under `numkit_gtest.exe`. At least one TEST_F per
+`target_sources(nk_gtest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/...)`).
+Tests must pass under `nk_gtest.exe`. At least one TEST_F per
 documented branch.
 
 ### 4. Smoke `.m` — `src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`
 Hand-runnable demo. **Every smoke MUST start with `clear` on the first
 line**, then the body. Use `fprintf` to print
 expected values inline ("expect ~..."). Run via
-`build/windows/release/apps/numkit/Release/numkit_repl.exe src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`
-(or on Linux `build/linux/release/apps/numkit/numkit_repl <path>`).
+`build/windows/release/apps/nk/Release/nk_repl.exe src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`
+(or on Linux `build/linux/release/apps/nk/nk_repl <path>`).
 
 Three real bugs in cycles 65-75 were caught only by parity cross-check —
 hand-written smokes had passed all three. Don't trust your own
@@ -217,7 +217,7 @@ Three triggers, three kinds:
 
 **Every bug you find gets TWO things:**
 
-1. its own `bugs/opened/<namespace>/<fn>.md` with a self-contained repro (numkit
+1. its own `bugs/opened/<namespace>/<fn>.md` with a self-contained repro (nk
    output vs MATLAB R2025b) so any session can act on it cold; and
 2. a matching **`DISABLED_` gtest** in that namespace's `known_bugs_test.cpp`
    (`src/toolboxes/<ns>/tests/` for a toolbox; `src/bundle/tests/` for the
@@ -237,13 +237,13 @@ a benchmark, not a `DISABLED_` gtest), `crutch` (a workaround bridge in the
 code, marked for removal when its underlying defect closes — no gtest, use
 `**Guard:** deferred`), `cleanup` (legacy / stale / dead code to clean —
 no gtest, use `**Guard:** deferred`). Don't conflate them — a missing
-function is not a bug. **`perf` threshold:** numkit is single-threaded vs
+function is not a bug. **`perf` threshold:** nk is single-threaded vs
 MATLAB's multithreaded MKL/FFTW, so flag only ≥3× (or 1.5–3× with a FIXABLE
 cause, or ANY ratio if worse big-O); <1.5× is noise. See bugs/README.md.
 
 See [bugs/README.md](bugs/README.md) for the template + Kind legend. Before closing
 a session run `python tools/bugs_audit.py` (protocol: guards ↔ bugs linkage);
-before a release add `--guards <numkit_gtest.exe>` (every DISABLED_ guard must fail).
+before a release add `--guards <nk_gtest.exe>` (every DISABLED_ guard must fail).
 When you fix a bug, remove the test's `DISABLED_` prefix, flip the md status
 to ✅ FIXED with the commit hash, and `git mv` the md from
 `bugs/opened/<namespace>/` to `bugs/closed/<namespace>/` (structure
@@ -275,7 +275,7 @@ Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste r
   `import compat.*` lines in old snippets are inert: unknown flags are
   ignored and the import statement still parses).
 - Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
-- Include the exact function call and comment the expected MATLAB vs NumKit output.
+- Include the exact function call and comment the expected MATLAB vs NK output.
 - **No fieldtest/corpus references in the Repro.** A bug found in real-world
   corpus code is distilled to a minimal inline snippet FIRST — the bug file
   must survive `rm -rf fieldtest/corpus` (the corpus is disposable by design;

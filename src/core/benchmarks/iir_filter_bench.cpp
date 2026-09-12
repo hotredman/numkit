@@ -7,22 +7,22 @@
 // execution path:
 //
 //   BM_Biquad_NativeCpp          - hand-written C++ loop (the speed-of-light)
-//   BM_Biquad_NumkitFilter       - numkit filter() builtin (C++ kernel, via eval)
-//   BM_Biquad_NumkitLoop_VM      - the same loop in M-code on the bytecode VM
-//   BM_Biquad_NumkitLoop_TreeWalker - ... on the TreeWalker
+//   BM_Biquad_NKFilter       - nk filter() builtin (C++ kernel, via eval)
+//   BM_Biquad_NKLoop_VM      - the same loop in M-code on the bytecode VM
+//   BM_Biquad_NKLoop_TreeWalker - ... on the TreeWalker
 //
 // All four produce identical output. ns/sample = 1e9 / items_per_second
 // (read the items_per_second column). Snapshot 2026-06-17, bench preset,
 // N = 131072, after loop opts #1 (indexed scalar fast-path) + #2 (MULADD
 // fusion):  native ~1.6 | filter() ~5.5 | VM-loop ~148 | TreeWalker ~321
 // ns/sample (VM-loop was ~185 before #1+#2). Reference: MATLAB R2025b JIT loop
-// ~4.0, MATLAB filter() ~7.8 -- numkit's filter() (5.5) beats MATLAB's; the VM
+// ~4.0, MATLAB filter() ~7.8 -- nk's filter() (5.5) beats MATLAB's; the VM
 // loop is ~37x its JIT, the residual interpreter-vs-JIT gap that only a loop JIT
 // would close. The M-loop body is dispatch-bound (~15 opcodes/sample); the
 // empty for-loop is ~2 ns/iteration, so the loop machinery is not the cost.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -75,9 +75,9 @@ const char *kLoop =
     "  x2=x1; x1=xn; y2=y1; y1=yn;"
     "end";
 
-void runLoop(benchmark::State &state, numkit::Engine::Backend backend)
+void runLoop(benchmark::State &state, nk::Engine::Backend backend)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval(kSetup);
     for (auto _ : state)
@@ -85,21 +85,21 @@ void runLoop(benchmark::State &state, numkit::Engine::Backend backend)
     state.SetItemsProcessed(std::int64_t(state.iterations()) * kN);
 }
 
-void BM_Biquad_NumkitLoop_VM(benchmark::State &state)
+void BM_Biquad_NKLoop_VM(benchmark::State &state)
 {
-    runLoop(state, numkit::Engine::Backend::VM);
+    runLoop(state, nk::Engine::Backend::VM);
 }
-BENCHMARK(BM_Biquad_NumkitLoop_VM);
+BENCHMARK(BM_Biquad_NKLoop_VM);
 
-void BM_Biquad_NumkitLoop_TreeWalker(benchmark::State &state)
+void BM_Biquad_NKLoop_TreeWalker(benchmark::State &state)
 {
-    runLoop(state, numkit::Engine::Backend::TreeWalker);
+    runLoop(state, nk::Engine::Backend::TreeWalker);
 }
-BENCHMARK(BM_Biquad_NumkitLoop_TreeWalker);
+BENCHMARK(BM_Biquad_NKLoop_TreeWalker);
 
-void BM_Biquad_NumkitFilter(benchmark::State &state)
+void BM_Biquad_NKFilter(benchmark::State &state)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     // filter() available via bare-name resolver
     e.eval(kSetup);
     e.eval("b=[0.0675 0.1349 0.0675]; a=[1 -1.1430 0.4128];");
@@ -107,6 +107,6 @@ void BM_Biquad_NumkitFilter(benchmark::State &state)
         e.eval("yf = filter(b,a,x);");
     state.SetItemsProcessed(std::int64_t(state.iterations()) * kN);
 }
-BENCHMARK(BM_Biquad_NumkitFilter);
+BENCHMARK(BM_Biquad_NKFilter);
 
 } // namespace

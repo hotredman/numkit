@@ -3,10 +3,10 @@
 // Regression guard for signal/buffer (Phase 4.1 of audio extension sweep).
 // Bit-equal MATLAB R2025b on all 6 documented variants.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class BufferTest : public ::testing::Test
 {

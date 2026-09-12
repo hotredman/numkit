@@ -3,17 +3,17 @@
 // CallContext register half of language/arrays/nd_manip.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elmat.hpp>  // reshape, horzcat, vertcat
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elmat.hpp>  // reshape, horzcat, vertcat
+#include <nk/builtin/elmat.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,8 +25,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -48,7 +48,7 @@ void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("permute: requires (A, perm)",
-                     0, 0, "permute", "", "numkit:permute:nargin");
+                     0, 0, "permute", "", "nk:permute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
@@ -60,7 +60,7 @@ void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ipermute: requires (A, perm)",
-                     0, 0, "ipermute", "", "numkit:ipermute:nargin");
+                     0, 0, "ipermute", "", "nk:ipermute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
@@ -72,7 +72,7 @@ void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("squeeze: requires 1 argument",
-                     0, 0, "squeeze", "", "numkit:squeeze:nargin");
+                     0, 0, "squeeze", "", "nk:squeeze:nargin");
     outs[0] = squeeze(args[0], ctx.engine->resource());
 }
 
@@ -81,7 +81,7 @@ void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("cat: requires (dim, A, ...)",
-                     0, 0, "cat", "", "numkit:cat:nargin");
+                     0, 0, "cat", "", "nk:cat:nargin");
     const int dim = static_cast<int>(args[0].toScalar());
     // Pass &args[1] as the start of the values array.
     outs[0] = cat(dim, args.subspan(1), ctx.engine->resource());
@@ -98,7 +98,7 @@ void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("shiftdim: requires 1 or 2 arguments",
-                     0, 0, "shiftdim", "", "numkit:shiftdim:nargin");
+                     0, 0, "shiftdim", "", "nk:shiftdim:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const int n = static_cast<int>(args[1].toScalar());
@@ -114,4 +114,4 @@ void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -42,7 +42,7 @@ char class, with a double index for the 2nd output.
 ## Repro
 ```matlab
 sort('dcba')
-% numkit: ERROR "Not a double array (in call to 'sort')"
+% nk: ERROR "Not a double array (in call to 'sort')"
 % MATLAB: 'abcd'   (class char)
 
 [S, I] = sort('dcba')

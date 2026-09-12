@@ -6,18 +6,18 @@
 // honour MATLAB's whos-parity rule for shadowed built-ins, so regressions
 // here silently change the debug UI.
 
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
+#include <nk/core/types.hpp>
 
 #include <gtest/gtest.h>
 
 #include <filesystem>
 #include <fstream>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 
@@ -384,7 +384,7 @@ TEST(CompilerRegisterAlloc, MFileLoaderTooLargeThrowsLoudly)
     // (resolveMFile_) must surface register exhaustion, not silently register
     // TW-only and then look like an "undefined function" on the VM backend.
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_regtest_mfile";
+    fs::path dir = fs::temp_directory_path() / "nk_regtest_mfile";
     fs::create_directories(dir);
     fs::path mf = dir / "hugemfile.m"; // file name == function name (MATLAB rule)
     {
@@ -417,7 +417,7 @@ TEST(CompilerRegisterAlloc, MFileWithSyntaxErrorReportsLoudly)
     // misleading "undefined function". Matches MATLAB (first path match's error
     // is reported).
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_regtest_badmfile";
+    fs::path dir = fs::temp_directory_path() / "nk_regtest_badmfile";
     fs::create_directories(dir);
     fs::path mf = dir / "brokenfn.m";
     {

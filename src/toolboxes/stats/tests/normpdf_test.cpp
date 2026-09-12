@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/normpdf_test.cpp
 // normpdf. Reference values from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class NormpdfTest : public ::testing::Test
 {

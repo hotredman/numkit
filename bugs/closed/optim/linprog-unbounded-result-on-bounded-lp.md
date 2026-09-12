@@ -8,7 +8,7 @@
 ## Symptom
 
 The KKT-regularized solve (portion 11's −1e-12·I fix) diverges on this
-bounded LP: numkit returns x with x3 ≈ −7.1e8 (lower bound is 2!) and
+bounded LP: nk returns x with x3 ≈ −7.1e8 (lower bound is 2!) and
 objVal ≈ −3.3e9; MATLAB finds the true optimum.
 
 ## Repro
@@ -21,7 +21,7 @@ Aeq = [4 -3 8 -1; 4 0 -1 4]; beq = [20; 18];
 lb = [1 0 2 0]; ub = [Inf Inf 10 Inf];
 [x, objVal] = linprog(c, A, b, Aeq, beq, lb, ub);
 % MATLAB R2025b:  objVal = -1.2,  x = [1.8 0 2 3.2]
-% numkit:         objVal = -3.3e9, x = [1.1e9 0 -7.1e8 -1.3e9]  (violates lb!)
+% nk:         objVal = -3.3e9, x = [1.1e9 0 -7.1e8 -1.3e9]  (violates lb!)
 ```
 
 ## Root cause

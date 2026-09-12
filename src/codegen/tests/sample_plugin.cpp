@@ -1,4 +1,4 @@
-// sample_plugin.cpp — a minimal numkit plugin (DESIGN.md §6b), built as a
+// sample_plugin.cpp — a minimal nk plugin (DESIGN.md §6b), built as a
 // standalone shared library and loaded at runtime by the plugin e2e test.
 //
 // It links against NOTHING from the host: it includes only nk_plugin.h and

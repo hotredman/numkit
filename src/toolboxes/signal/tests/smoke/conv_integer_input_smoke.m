@@ -2,7 +2,7 @@ clear
 
 % bugs/signal/conv-integer-input.md — conv accepts integer/logical input.
 % MATLAB R2025b promotes to double; the convolution result is ALWAYS double
-% (never the integer class, unlike kron/cross). Previously numkit threw
+% (never the integer class, unlike kron/cross). Previously nk threw
 % "Not a double array" on any integer or logical operand.
 
 cf = conv(int8([1 2 3]), int8([1 1]));

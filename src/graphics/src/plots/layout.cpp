@@ -1,11 +1,11 @@
-// numkit/graphics — layout.cpp
+// nk/graphics — layout.cpp
 //
 // graphics.layout.* builders (figure / subplot / axes / labels / limits / legend / ticks / colormap), carved out of plots.cpp. Core-free bodies (GraphicsContext); shared
 // JSON/parse helpers come from plot_internal.hpp.
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
-#include <numkit/graphics/graphics_handle.hpp>
+#include <nk/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_handle.hpp>
 
 #include <algorithm>
 #include <array>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildLayoutPlots(std::vector<PlotEntry> &table)
 {
@@ -791,7 +791,7 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
     // synchronised pan/zoom. MATLAB:
     //   linkaxes(h)            — link on x and y (alias for 'xy')
     //   linkaxes(h, 'x'|'y'|'xy'|'off')
-    // numkit doesn't model graphics handles, so we ignore the first
+    // nk doesn't model graphics handles, so we ignore the first
     // argument and link every subplot cell in the current figure
     // unconditionally. The mode is stored on the FigureState and
     // applied by the SubplotGrid renderer.
@@ -1044,7 +1044,7 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
     reg("layout", "axes",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             // MATLAB axes(...) with no output makes the (new) axes
-            // current. numkit has one axes per non-subplot figure, so
+            // current. nk has one axes per non-subplot figure, so
             // this reduces to ensuring it exists (Position etc. no-op).
             gc.fm.currentAxes();
             outs[0] = Value();
@@ -1108,7 +1108,7 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
     //   clearpoints(h);
     //   [x, y] = getpoints(h);
     //   drawnow;                   — flush
-    // numkit doesn't model graphics handles, so animatedline-cluster
+    // nk doesn't model graphics handles, so animatedline-cluster
     // calls target the most recent animated dataset on the current
     // axes (axes::animatedDatasetIdx). animatedline returns an
     // opaque scalar (1-based index) for script compat, but every
@@ -1308,4 +1308,4 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
     reg("layout", "get", noop_ret1);
 }
 
-}  // namespace numkit
+}  // namespace nk

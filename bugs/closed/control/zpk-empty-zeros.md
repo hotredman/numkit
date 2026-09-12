@@ -15,13 +15,13 @@ specific to the empty-zero (`z = []`) branch of `zp2tf`.
 ```matlab
 [n, d] = tfdata(zpk([], [-1 -2], 2), 'v');
 % MATLAB: n = [0 0 2],  d = [1 3 2]      (2 / ((s+1)(s+2)))
-% numkit: n = [0 0 0],  d = [1 3 2]      (gain 2 dropped → zero system)
+% nk: n = [0 0 0],  d = [1 3 2]      (gain 2 dropped → zero system)
 
 [n, d] = tfdata(zpk([], [-1 -2 -3], 1), 'v');
-% MATLAB: n = [0 0 0 1];  numkit: n = [0 0 0 0]
+% MATLAB: n = [0 0 0 1];  nk: n = [0 0 0 0]
 
 % Control: a finite zero converts fine —
-[n, d] = tfdata(zpk(-5, [-1 -2 -3], 1), 'v');   % numkit n = [0 0 1 5]  (correct)
+[n, d] = tfdata(zpk(-5, [-1 -2 -3], 1), 'v');   % nk n = [0 0 1 5]  (correct)
 ```
 
 ## Root cause (hypothesis)
@@ -58,5 +58,5 @@ Verified vs MATLAB R2025b (parity `zpk_empty_zeros.json` → OK):
 - `tools/parity/specs/zpk_empty_zeros.json`
 - guard: `known_bugs_test.cpp` (`ZpkEmptyZerosGain`)
 - found via bugs/control/allmargin.md (zpk input path)
-- deeper cause (not fixed here): `numkit::math::poly([])` returns `[]` not `[1]`
+- deeper cause (not fixed here): `nk::math::poly([])` returns `[]` not `[1]`
 - MATLAB `doc zpk`, `doc zp2tf`

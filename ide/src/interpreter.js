@@ -395,7 +395,7 @@ export function createInterpreter() {
       }
       if (cleanLine === "help") {
         output.push(
-          "Numkit Help Topics:\n\n" +
+          "NK Help Topics:\n\n" +
           "  Fundamentals:\n" +
           "    elmat         - Elementary matrices and matrix manipulation.\n" +
           "    elfun         - Elementary math functions.\n" +

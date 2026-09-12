@@ -7,7 +7,7 @@
 
 ## Symptom
 `allmargin(sys)` — return ALL gain/phase/delay margins and the stability
-flag as one struct — is not registered. numkit ships `margin` (the single
+flag as one struct — is not registered. nk ships `margin` (the single
 gain+phase margin pair) and `bode`/`sigma`, but not the comprehensive
 `allmargin` struct.
 
@@ -15,11 +15,11 @@ gain+phase margin pair) and `bode`/`sigma`, but not the comprehensive
 ```matlab
 S = allmargin(tf(1, [1 6 11 6]));   % 1/((s+1)(s+2)(s+3))
 % MATLAB: S.GainMargin = 60, S.GMFrequency = sqrt(11) = 3.31663, S.Stable = 1
-% numkit: Error — VM: undefined function 'allmargin'
+% nk: Error — VM: undefined function 'allmargin'
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::control::allmargin` (`analyze/hinfnorm`-sibling in
+Implemented `nk::control::allmargin` (`analyze/hinfnorm`-sibling in
 `analyze.cpp`) returning the 7-field struct (`GainMargin`, `GMFrequency`,
 `PhaseMargin`, `PMFrequency`, `DelayMargin`, `DMFrequency` row vectors +
 `Stable` logical).
@@ -51,7 +51,7 @@ promoted live); smoke `allmargin_smoke.m`.
 
 ## References
 - `src/toolboxes/control/src/analyze/analyze.cpp` (`allmargin`, exact
-  `evalG`/`bisectRoot`), `.../include/numkit/control/analyze/analyze.hpp`,
+  `evalG`/`bisectRoot`), `.../include/nk/control/analyze/analyze.hpp`,
   `src/bundle/src/register/control/analyze/analyze_reg.cpp` (`allmargin_reg`).
 - `tools/parity/specs/allmargin.json`.
 - related: control/zpk-empty-zeros.md (found here), margin (the single-margin

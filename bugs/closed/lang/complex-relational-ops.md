@@ -1,4 +1,4 @@
-# lang.< > <= >= — relational ops on complex must compare REAL parts (MATLAB semantics), numkit refuses
+# lang.< > <= >= — relational ops on complex must compare REAL parts (MATLAB semantics), nk refuses
 
 - **Status:** ✅ FIXED (2026-08-30)
 - **Severity:** P1 wrong result (errors where MATLAB returns a value)
@@ -16,16 +16,16 @@ the **real parts** and returns a logical — even for a nonzero imaginary part.
 ```matlab
 clear;
 x = complex(1,0); disp(x < 2)
-% numkit: Error: Operator '<' is not supported for complex operands
+% nk: Error: Operator '<' is not supported for complex operands
 % MATLAB: 1
 disp((0+1i) < 2)
-% numkit: same error
+% nk: same error
 % MATLAB: 1        (real(0+1i)=0 < 2)
 ```
 
 Real-world trigger: AHP.m normalises an eigenvector; `eig` returns a
 complex-typed matrix (zero or tiny imaginary parts) and the subsequent
-comparison chain dies in numkit while MATLAB runs the script to completion.
+comparison chain dies in nk while MATLAB runs the script to completion.
 
 ## Root cause
 
@@ -58,4 +58,4 @@ all four shapes (scalar-scalar, scalar-array, array-scalar, array-array).
 Verified: the 7-case MATLAB R2025b probe matches exactly; guard
 `ComplexRelationalComparesRealPart` live and green on both engines; parity
 spec `lt_complex` OK vs MATLAB (also fixed the parity runner's stale
-numkit.exe path, broken since the binary rename).
+nk.exe path, broken since the binary rename).

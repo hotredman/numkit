@@ -3,10 +3,10 @@
 // Regression guard for imfuse — composite two images for visual
 // comparison. Reference values from MATLAB R2025b, bit-exact (tol=0).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImfuseTest : public ::testing::Test
 {

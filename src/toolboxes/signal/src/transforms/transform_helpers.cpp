@@ -2,20 +2,20 @@
 //
 // nextpow2 / fftshift / ifftshift. Split from library.cpp.
 
-#include <numkit/signal/transforms/transform_helpers.hpp>
+#include <nk/signal/transforms/transform_helpers.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "../dsp_helpers.hpp"  // Complex typedef
-#include <numkit/ops/helpers.hpp>         // createLike
+#include <nk/ops/helpers.hpp>         // createLike
 
 #include <cmath>
 #include <complex>
 #include <cstring>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -169,4 +169,4 @@ Value ifftshift(const Value &x, int dim, std::pmr::memory_resource *mr)
     return cyclicShiftOneDim(x, dim, -1, mr);
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

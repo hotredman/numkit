@@ -6,18 +6,18 @@
 
 add_subdirectory(src)  # exports AUDIOLIB_SOURCES via PARENT_SCOPE
 
-list(APPEND NUMKIT_LIBS_SOURCES ${AUDIOLIB_SOURCES})
-list(APPEND NUMKIT_LIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+list(APPEND NK_LIBS_SOURCES ${AUDIOLIB_SOURCES})
+list(APPEND NK_LIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-list(APPEND NUMKIT_LIBS_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/library.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/scale/freq_scales.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/spectral/shape_descriptors.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/spectral/melspec_delta.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/spectral/cepstral.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/audio/features/pitch_harmonics.hpp
+list(APPEND NK_LIBS_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/audio/library.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/audio/scale/freq_scales.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/audio/spectral/shape_descriptors.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/audio/spectral/melspec_delta.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/audio/spectral/cepstral.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/audio/features/pitch_harmonics.hpp
 )
 
-set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)
-set(NUMKIT_LIBS_HEADERS      ${NUMKIT_LIBS_HEADERS}      PARENT_SCOPE)
-set(NUMKIT_LIBS_INCLUDE_DIRS ${NUMKIT_LIBS_INCLUDE_DIRS} PARENT_SCOPE)
+set(NK_LIBS_SOURCES      ${NK_LIBS_SOURCES}      PARENT_SCOPE)
+set(NK_LIBS_HEADERS      ${NK_LIBS_HEADERS}      PARENT_SCOPE)
+set(NK_LIBS_INCLUDE_DIRS ${NK_LIBS_INCLUDE_DIRS} PARENT_SCOPE)

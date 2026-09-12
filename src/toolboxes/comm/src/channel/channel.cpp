@@ -1,13 +1,13 @@
 // toolboxes/comm/src/channel/channel.cpp
 
-#include <numkit/comm/channel/channel.hpp>
+#include <nk/comm/channel/channel.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>     // betaincinv
-#include <numkit/ops/rng_context.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>     // betaincinv
+#include <nk/ops/rng_context.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -24,7 +24,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -63,7 +63,7 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op) {
 
 } // anonymous
 
-Value awgn(::numkit::ops::RngContext &rng, const Value &x, double snr_db, double sigpower_db,
+Value awgn(::nk::ops::RngContext &rng, const Value &x, double snr_db, double sigpower_db,
            std::pmr::memory_resource *mr)
 {
     const bool is_complex = (x.type() == ValueType::COMPLEX);
@@ -98,7 +98,7 @@ Value awgn(::numkit::ops::RngContext &rng, const Value &x, double snr_db, double
     return out;
 }
 
-Value wgn(::numkit::ops::RngContext &rng, int m, int n, double p, const std::string &type,
+Value wgn(::nk::ops::RngContext &rng, int m, int n, double p, const std::string &type,
           bool complex_out, std::pmr::memory_resource *mr)
 {
     double power_lin = 0.0;
@@ -125,10 +125,10 @@ Value wgn(::numkit::ops::RngContext &rng, int m, int n, double p, const std::str
     return out;
 }
 
-Value bsc(::numkit::ops::RngContext &rng, const Value &x, double p, std::pmr::memory_resource *mr) {
+Value bsc(::nk::ops::RngContext &rng, const Value &x, double p, std::pmr::memory_resource *mr) {
     if (p < 0.0 || p > 1.0)
         throw Error("bsc: p must be in [0, 1]", 0, 0, "bsc", "",
-                    "numkit:bsc:badp");
+                    "nk:bsc:badp");
     auto &gen = rng;
     std::uniform_real_distribution<double> ud(0.0, 1.0);
 
@@ -356,7 +356,7 @@ static double betaincinv_scalar(std::pmr::memory_resource *mr,
     Value pV = Value::scalar(p, mr);
     Value aV = Value::scalar(a, mr);
     Value bV = Value::scalar(b, mr);
-    return ::numkit::builtin::betaincinv(pV, aV, bV, mr).toScalar();
+    return ::nk::builtin::betaincinv(pV, aV, bV, mr).toScalar();
 }
 
 std::tuple<Value, Value>
@@ -365,13 +365,13 @@ berconfint(double numErrs, double numBits, double level,
 {
     if (!(numBits > 0.0))
         throw Error("berconfint: numBits must be positive",
-                    0, 0, "berconfint", "", "numkit:berconfint:nbits");
+                    0, 0, "berconfint", "", "nk:berconfint:nbits");
     if (numErrs < 0.0 || numErrs > numBits)
         throw Error("berconfint: numErrs must satisfy 0 ≤ numErrs ≤ numBits",
-                    0, 0, "berconfint", "", "numkit:berconfint:nerrs");
+                    0, 0, "berconfint", "", "nk:berconfint:nerrs");
     if (!(level > 0.0 && level < 1.0))
         throw Error("berconfint: level must lie in (0, 1)",
-                    0, 0, "berconfint", "", "numkit:berconfint:level");
+                    0, 0, "berconfint", "", "nk:berconfint:level");
 
     const double k = numErrs;
     const double n = numBits;
@@ -411,4 +411,4 @@ Value convertSNR(const Value &snr_in,
     });
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

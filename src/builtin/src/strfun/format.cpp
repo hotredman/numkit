@@ -1,17 +1,17 @@
 // toolboxes/builtin/src/datatypes/strings/format.cpp
 
-#include <numkit/builtin/strfun.hpp>
+#include <nk/builtin/strfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <sstream>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -356,4 +356,4 @@ Value sprintf(const Value &fmt, Span<const Value> args, std::pmr::memory_resourc
     return Value::fromString(result, p);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

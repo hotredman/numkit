@@ -1,14 +1,14 @@
 // toolboxes/comm/tests/apsk_test.cpp
 //
 // Regression guard for apskmod / apskdemod (multi-ring constellation).
-// All tests use explicit identity SymbolMapping = 0..N-1 (numkit's
+// All tests use explicit identity SymbolMapping = 0..N-1 (nk's
 // default); MATLAB's default 'gray' mapping is deferred and tests
 // passing it through MATLAB use the same identity mapping for parity.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ApskTest : public ::testing::Test
 {

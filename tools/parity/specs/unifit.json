@@ -10,5 +10,5 @@
     "a_a",   "b_a",   "aci_a(1)",   "bci_a(2)",
     "a_one", "b_one", "aci_one(1)", "bci_one(2)"
   ],
-  "comment": "Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1). Single-element x: ACI=BCI=[x x] (zero-width). Empty input: numkit returns NaN; MATLAB returns empty arrays — convention difference, not in fingerprint."
+  "comment": "Sig: [a, b, aci, bci] = unifit(x[, alpha]). MLE for U(a,b): a=min, b=max. CI extension delta = (b-a)·(α^(-1/n) − 1). Single-element x: ACI=BCI=[x x] (zero-width). Empty input: nk returns NaN; MATLAB returns empty arrays — convention difference, not in fingerprint."
 }

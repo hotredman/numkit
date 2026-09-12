@@ -28,9 +28,9 @@
 
 ## Repro
 ```matlab
-gamma(-1)    % numkit: NaN;  MATLAB: Inf
-gamma(-2)    % numkit: NaN;  MATLAB: Inf
-gamma(-Inf)  % numkit: NaN;  MATLAB: Inf
+gamma(-1)    % nk: NaN;  MATLAB: Inf
+gamma(-2)    % nk: NaN;  MATLAB: Inf
+gamma(-Inf)  % nk: NaN;  MATLAB: Inf
 gamma(0)     % Inf on both;  gamma(-0.5) = -3.5449 on both
 ```
 
@@ -40,10 +40,10 @@ negative integers is NaN (not the +Inf MATLAB reports for the poles).
 
 ## Related (NOT fixed — separate / murky)
 - `psi(0)` returns NaN; MATLAB returns -Inf (digamma pole). And `psi` of a
-  NEGATIVE argument: MATLAB ERRORS ("X must be nonnegative") while numkit
+  NEGATIVE argument: MATLAB ERRORS ("X must be nonnegative") while nk
   returns NaN — so psi's domain handling differs in two ways. Left for a
   separate cycle (the negative-domain error semantics need their own decision).
-- `gammaln(-1)`: MATLAB ERRORS ("Input must be nonnegative"); numkit returns
+- `gammaln(-1)`: MATLAB ERRORS ("Input must be nonnegative"); nk returns
   Inf (lenient). Separate.
 
 ## References

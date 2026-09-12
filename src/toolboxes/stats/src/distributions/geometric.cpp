@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/geometric.cpp
 
-#include <numkit/stats/distributions/geometric.hpp>
+#include <nk/stats/distributions/geometric.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -16,7 +16,7 @@
 
 #include "geometric_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value geopdf(const Value &k, double p, std::pmr::memory_resource *mr)
@@ -68,7 +68,7 @@ Value geoinv(const Value &q, double p, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value geornd(::numkit::ops::RngContext &rng, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value geornd(::nk::ops::RngContext &rng, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -90,4 +90,4 @@ std::tuple<double, double> geostat(double p)
     return std::make_tuple(q / p, q / (p * p));
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

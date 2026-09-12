@@ -25,12 +25,12 @@ input, so the trigger is one Ctrl+V away.
 
 ```matlab
 y = sin(sin( ... sin(1) ... ));   % 500 levels
-% numkit (before fix): process exits -1073741571 (0xC00000FD), no output
+% nk (before fix): process exits -1073741571 (0xC00000FD), no output
 % expected:           a clean parse diagnostic (nesting limit) or correct execution
 %
 % MATLAB R2025b reports its own parser-level error past its (unprobed)
 % nesting threshold — the contract violated here is "diagnostic, never a
-% crash", which numkit honours everywhere else (codegen §10 soundness).
+% crash", which nk honours everywhere else (codegen §10 soundness).
 ```
 
 ## Root cause
@@ -64,8 +64,8 @@ Debug**; depth ≤ 200 still executes.
 
 ## References
 
-- `src/core/include/numkit/core/stack_guard.hpp`, `src/core/src/stack_guard.cpp`
-- `src/core/include/numkit/core/parser.hpp` (`NestingGuard`)
+- `src/core/include/nk/core/stack_guard.hpp`, `src/core/src/stack_guard.cpp`
+- `src/core/include/nk/core/parser.hpp` (`NestingGuard`)
 - `src/core/tests/parser_test.cpp`, `src/core/tests/stack_guard_test.cpp`,
   `tests/gtest/integration/error_diagnostics_test.cpp`
 - `dev-docs/memory/stack_safety.md` (design + anti-kludge rationale),

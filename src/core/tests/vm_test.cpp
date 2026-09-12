@@ -3,16 +3,16 @@
 // Tests for Bytecode Compiler + VM
 // Phase 1: scalar arithmetic, variables, display
 
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/vm.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/vm.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class VMTest : public ::testing::Test
 {

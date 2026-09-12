@@ -4,10 +4,10 @@
 // frequency domain. Bit-equal MATLAB R2025b at 1e-8 (DOUBLE) /
 // 1e-6 (SINGLE).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImgaborfiltTest : public ::testing::Test
 {

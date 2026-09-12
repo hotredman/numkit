@@ -8,14 +8,14 @@
 // power-band integrations yield rad/s. When fs is supplied, freqs run
 // [0, fs/2] and integrations yield Hz.
 
-#include <numkit/signal/spectral_analysis/spectral_metrics.hpp>
-#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/signal/transforms/hilbert.hpp>
-#include <numkit/signal/windows/windows.hpp>
+#include <nk/signal/spectral_analysis/spectral_metrics.hpp>
+#include <nk/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/signal/transforms/hilbert.hpp>
+#include <nk/signal/windows/windows.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <complex>
@@ -30,7 +30,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -228,7 +228,7 @@ obw(const Value &x, const Value &fs, double p, std::pmr::memory_resource *mr)
     if (N < 2) return zeros();
 
     // MATLAB obw uses a rectangular-windowed periodogram at nfft = N (no
-    // zero-padding). numkit's `periodogram` helper is radix-2 only, so compute
+    // zero-padding). nk's `periodogram` helper is radix-2 only, so compute
     // the length-N DFT through the general fft (Bluestein for non-pow2 N) and
     // form the one-sided PSD here: Pxx[k] = (2 if folded)·|X[k]|² / (fs·N),
     // which obeys Σ Pxx·df = mean(x²) (rectangular window power = N).
@@ -604,7 +604,7 @@ Value instfreq(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
     //   IF = fs/(2*pi) * diff(unwrap(angle(hilbert(x))))
     // Wrapping each consecutive phase delta into (-pi, pi] is exactly
     // what unwrap does on the local difference. (An old comment claimed
-    // numkit's hilbert returns the CONJUGATE analytic signal and
+    // nk's hilbert returns the CONJUGATE analytic signal and
     // negated the delta — stale: hilbert matches MATLAB now, and the
     // negation turned correct positive frequencies negative.)
     auto out = Value::matrix(n - 1, 1, ValueType::DOUBLE, mr);
@@ -645,4 +645,4 @@ Value instbw(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

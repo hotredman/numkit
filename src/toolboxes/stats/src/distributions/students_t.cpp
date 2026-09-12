@@ -3,13 +3,13 @@
 // Student's t-distribution. Composes betainc / betaincinv for cdf /
 // icdf; rnd uses Z / sqrt(X/ν) with Z ~ N(0,1), X ~ χ²(ν).
 
-#include <numkit/stats/distributions/students_t.hpp>
+#include <nk/stats/distributions/students_t.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -25,7 +25,7 @@
 
 #include "students_t_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr)
@@ -60,7 +60,7 @@ Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr)
     Value z = elementwise(x, [=](double xi){ return nu / (nu + xi * xi); }, mr);
     Value a = Value::scalar(0.5 * nu, mr);
     Value b = Value::scalar(0.5, mr);
-    Value Iz = ::numkit::builtin::betainc(z, a, b, mr);
+    Value Iz = ::nk::builtin::betainc(z, a, b, mr);
 
     // Walk x and Iz in parallel, picking branch by sign of x.
     auto out = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
@@ -116,7 +116,7 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
     }, mr);
     Value a = Value::scalar(0.5 * nu, mr);
     Value b = Value::scalar(0.5, mr);
-    Value zv = ::numkit::builtin::betaincinv(qv, a, b, mr);
+    Value zv = ::nk::builtin::betaincinv(qv, a, b, mr);
 
     auto out = Value::matrix(p.dims().rows(), p.dims().cols(), ValueType::DOUBLE, mr);
     if (p.dims().is3D())
@@ -136,7 +136,7 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value trnd(::numkit::ops::RngContext &rng, double nu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value trnd(::nk::ops::RngContext &rng, double nu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -204,7 +204,7 @@ std::tuple<double, double> nctstat(double nu, double delta)
     return {m, v};
 }
 
-Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, std::size_t rows, std::size_t cols,
+Value nctrnd(::nk::ops::RngContext &rng, double nu, double delta, std::size_t rows, std::size_t cols,
              std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
@@ -222,4 +222,4 @@ Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, std::size_
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

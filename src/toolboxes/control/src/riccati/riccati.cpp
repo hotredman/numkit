@@ -26,18 +26,18 @@
 // Engine-free compute TU: Value substrate + Error + math::roots only.
 // The care / dare builtins (CallContext wrappers) live in riccati_reg.cpp.
 
-#include <numkit/control/riccati/riccati.hpp>
-#include <numkit/control/internal/numerics.hpp>
+#include <nk/control/riccati/riccati.hpp>
+#include <nk/control/internal/numerics.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/builtin/polyfun.hpp>   // numkit::builtin::roots
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/builtin/polyfun.hpp>   // nk::builtin::roots
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -167,7 +167,7 @@ Value closedLoopEig(const Mat &A, const Mat &B, const Mat &G,
     auto cp = charPoly(Acl, n);          // [1, c1, …, cn]
     Value row = Value::matrix(1, cp.size(), ValueType::DOUBLE, mr);
     if (!cp.empty()) std::copy(cp.begin(), cp.end(), row.doubleDataMut());
-    return numkit::builtin::roots(row, mr);
+    return nk::builtin::roots(row, mr);
 }
 
 void checkShapes(const Value &A, const Value &B, const Value &Q,
@@ -175,18 +175,18 @@ void checkShapes(const Value &A, const Value &B, const Value &Q,
                  size_t &n, size_t &m) {
     if (A.dims().rows() != A.dims().cols())
         throw Error(std::string(name) + ": A must be square",
-                    0, 0, name, "", "numkit:care:A");
+                    0, 0, name, "", "nk:care:A");
     n = A.dims().rows();
     m = B.dims().cols();
     if (B.dims().rows() != n)
         throw Error(std::string(name) + ": B must have the same row count as A",
-                    0, 0, name, "", "numkit:care:B");
+                    0, 0, name, "", "nk:care:B");
     if (Q.dims().rows() != n || Q.dims().cols() != n)
         throw Error(std::string(name) + ": Q must be n×n",
-                    0, 0, name, "", "numkit:care:Q");
+                    0, 0, name, "", "nk:care:Q");
     if (R.dims().rows() != m || R.dims().cols() != m)
         throw Error(std::string(name) + ": R must be m×m (m = columns of B)",
-                    0, 0, name, "", "numkit:care:R");
+                    0, 0, name, "", "nk:care:R");
 }
 
 } // anonymous
@@ -205,7 +205,7 @@ RiccatiResult care(const Value &Av, const Value &Bv, const Value &Qv,
     Mat Ri;
     if (!inverse(R, m, Ri))
         throw Error("care: R must be nonsingular",
-                    0, 0, "care", "", "numkit:care:Rsingular");
+                    0, 0, "care", "", "nk:care:Rsingular");
 
     // G_BR = B·R⁻¹·Bᵀ   (n×n)
     Mat Bt = transpose(B, n, m);
@@ -227,12 +227,12 @@ RiccatiResult care(const Value &Av, const Value &Bv, const Value &Qv,
     Mat S;
     if (!matsign(H, k, S))
         throw Error("care: Hamiltonian sign iteration failed (singular embedding)",
-                    0, 0, "care", "", "numkit:care:sign");
+                    0, 0, "care", "", "nk:care:sign");
 
     Mat X;
     if (!subspaceToX(S, n, X))
         throw Error("care: stable-subspace solve is singular",
-                    0, 0, "care", "", "numkit:care:subspace");
+                    0, 0, "care", "", "nk:care:subspace");
 
     // Gain G = R⁻¹·Bᵀ·X   (m×n)
     Mat BtX = matmul(Bt, m, n, X, n, n);       // m×n
@@ -259,13 +259,13 @@ RiccatiResult dare(const Value &Av, const Value &Bv, const Value &Qv,
     Mat Ri;
     if (!inverse(R, m, Ri))
         throw Error("dare: R must be nonsingular",
-                    0, 0, "dare", "", "numkit:dare:Rsingular");
+                    0, 0, "dare", "", "nk:dare:Rsingular");
 
     Mat Ai;
     if (!inverse(A, n, Ai))
         throw Error("dare: A must be nonsingular for the symplectic form "
                     "(singular-A path needs a QZ solver, not yet implemented)",
-                    0, 0, "dare", "", "numkit:dare:Asingular");
+                    0, 0, "dare", "", "nk:dare:Asingular");
 
     // G_BR = B·R⁻¹·Bᵀ   (n×n);  AiT = A⁻ᵀ
     Mat Bt = transpose(B, n, m);
@@ -295,18 +295,18 @@ RiccatiResult dare(const Value &Av, const Value &Bv, const Value &Qv,
     Mat SpIinv;
     if (!inverse(SpI, k, SpIinv))
         throw Error("dare: Cayley transform singular (Sp has an eigenvalue at −1)",
-                    0, 0, "dare", "", "numkit:dare:cayley");
+                    0, 0, "dare", "", "nk:dare:cayley");
     Mat C = matmul(SmI, k, k, SpIinv, k, k);
 
     Mat S;
     if (!matsign(C, k, S))
         throw Error("dare: symplectic sign iteration failed (singular embedding)",
-                    0, 0, "dare", "", "numkit:dare:sign");
+                    0, 0, "dare", "", "nk:dare:sign");
 
     Mat X;
     if (!subspaceToX(S, n, X))
         throw Error("dare: stable-subspace solve is singular",
-                    0, 0, "dare", "", "numkit:dare:subspace");
+                    0, 0, "dare", "", "nk:dare:subspace");
 
     // Gain G = (R + Bᵀ·X·B)⁻¹·(Bᵀ·X·A)   (m×n)
     Mat XB  = matmul(X, n, n, B, n, m);        // n×m
@@ -317,7 +317,7 @@ RiccatiResult dare(const Value &Av, const Value &Bv, const Value &Qv,
     Mat BtXA = matmul(BtX, m, n, A, n, n);     // m×n
     if (!solveInPlace(M, BtXA, m, n))
         throw Error("dare: gain solve singular (R + BᵀXB not invertible)",
-                    0, 0, "dare", "", "numkit:dare:gain");
+                    0, 0, "dare", "", "nk:dare:gain");
     Mat &G = BtXA;                             // now holds the gain, m×n
 
     RiccatiResult out;
@@ -327,4 +327,4 @@ RiccatiResult dare(const Value &Av, const Value &Bv, const Value &Qv,
     return out;
 }
 
-} // namespace numkit::control
+} // namespace nk::control

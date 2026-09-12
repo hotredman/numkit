@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "Sig: tsa(x, fs, tPulse[, M]) -- MATLAB pulse-time form (numkit also supports legacy tsa(x, fs, rpm, fs_rpm) when arg count >= 4). Bit-identical with MATLAB R2025b on probed input (100 samples)."
+  "comment": "Sig: tsa(x, fs, tPulse[, M]) -- MATLAB pulse-time form (nk also supports legacy tsa(x, fs, rpm, fs_rpm) when arg count >= 4). Bit-identical with MATLAB R2025b on probed input (100 samples)."
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""build_bugs_site.py — builds a standalone Docsify site for NumKit Bugs & Parity Catalog."""
+"""build_bugs_site.py — builds a standalone Docsify site for NK Bugs & Parity Catalog."""
 
 import os
 import re
@@ -22,9 +22,9 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NumKit Defect &amp; Parity Catalog</title>
+  <title>NK Defect &amp; Parity Catalog</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-  <meta name="description" content="Structured defect catalog and MATLAB parity tracking for NumKit.">
+  <meta name="description" content="Structured defect catalog and MATLAB parity tracking for NK.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
   
   <!-- Modern Dark/Light Theme -->
@@ -232,7 +232,7 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
   </style>
 </head>
 <body>
-  <div id="app">Loading NumKit Defect Catalog...</div>
+  <div id="app">Loading NK Defect Catalog...</div>
   
   <button class="theme-toggle-btn" id="themeToggle" title="Toggle Dark/Light Mode">🌓</button>
 
@@ -396,9 +396,9 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
     }
 
     window.$docsify = {
-      name: 'NumKit Bugs &amp; Parity',
-      logo: 'assets/numkit-logo-dark.svg',
-      repo: 'https://github.com/hotredman/numkit',
+      name: 'NK Bugs &amp; Parity',
+      logo: 'assets/nk-logo-dark.svg',
+      repo: 'https://github.com/hotredman/nk',
       loadSidebar: true,
       loadNavbar: true,
       subMaxLevel: 2,
@@ -443,19 +443,19 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
     const lightLink = document.getElementById('theme-light');
     const toggleBtn = document.getElementById('themeToggle');
 
-    let currentTheme = localStorage.getItem('numkit_docs_theme') || 'dark';
+    let currentTheme = localStorage.getItem('nk_docs_theme') || 'dark';
     function applyTheme(theme) {
       const logoImg = document.querySelector('.app-name-link img');
       if (theme === 'light') {
         darkLink.setAttribute('disabled', 'true');
         lightLink.removeAttribute('disabled');
-        if (logoImg) logoImg.src = 'assets/numkit-logo-light.svg';
+        if (logoImg) logoImg.src = 'assets/nk-logo-light.svg';
       } else {
         lightLink.setAttribute('disabled', 'true');
         darkLink.removeAttribute('disabled');
-        if (logoImg) logoImg.src = 'assets/numkit-logo-dark.svg';
+        if (logoImg) logoImg.src = 'assets/nk-logo-dark.svg';
       }
-      localStorage.setItem('numkit_docs_theme', theme);
+      localStorage.setItem('nk_docs_theme', theme);
     }
     applyTheme(currentTheme);
 
@@ -529,7 +529,7 @@ def render_badge(sev):
 
 def build_site(out_dir):
     out_dir = Path(out_dir).resolve()
-    print(f"Building NumKit Bugs Docsify site in: {out_dir}")
+    print(f"Building NK Bugs Docsify site in: {out_dir}")
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -546,10 +546,10 @@ def build_site(out_dir):
     # 2. Copy brand assets (logos)
     assets_dir = out_dir / 'assets'
     assets_dir.mkdir(parents=True, exist_ok=True)
-    if (BRAND_SRC / 'numkit-logo-dark.svg').exists():
-        shutil.copy2(BRAND_SRC / 'numkit-logo-dark.svg', assets_dir / 'numkit-logo-dark.svg')
-    if (BRAND_SRC / 'numkit-logo-light.svg').exists():
-        shutil.copy2(BRAND_SRC / 'numkit-logo-light.svg', assets_dir / 'numkit-logo-light.svg')
+    if (BRAND_SRC / 'nk-logo-dark.svg').exists():
+        shutil.copy2(BRAND_SRC / 'nk-logo-dark.svg', assets_dir / 'nk-logo-dark.svg')
+    if (BRAND_SRC / 'nk-logo-light.svg').exists():
+        shutil.copy2(BRAND_SRC / 'nk-logo-light.svg', assets_dir / 'nk-logo-light.svg')
 
     # 3. Parse opened and closed bugs
     opened_list = []
@@ -589,8 +589,8 @@ def build_site(out_dir):
         f"* [❌ **Missing Functions ({missing_count})**](missing/README.md)",
         "",
         "---",
-        "* [🐙 **GitHub Repository**](https://github.com/hotredman/numkit)",
-        "* [📚 **Doxygen C++ Docs**](https://hotredman.github.io/numkit-doxy/)"
+        "* [🐙 **GitHub Repository**](https://github.com/hotredman/nk)",
+        "* [📚 **Doxygen C++ Docs**](https://hotredman.github.io/nk-doxy/)"
     ]
     (out_dir / '_sidebar.md').write_text('\n'.join(root_sidebar), encoding='utf-8')
 
@@ -656,7 +656,7 @@ def build_site(out_dir):
 
     missing_readme = [
         f"# ❌ Missing Functions Backlog ({missing_count})\n",
-        "> The complete catalog of MATLAB R2025b functions and toolboxes not yet implemented in NumKit, categorized by domain.\n",
+        "> The complete catalog of MATLAB R2025b functions and toolboxes not yet implemented in NK, categorized by domain.\n",
         missing_body
     ]
     (out_dir / 'missing' / 'README.md').write_text('\n'.join(missing_readme), encoding='utf-8')
@@ -666,15 +666,15 @@ def build_site(out_dir):
         f"* [🔴 Open ({total_opened})](opened/README.md)",
         f"* [✅ Closed ({total_closed})](closed/README.md)",
         f"* [❌ Missing ({missing_count})](missing/README.md)",
-        "* [🐙 GitHub](https://github.com/hotredman/numkit)",
-        "* [📚 Doxygen](https://hotredman.github.io/numkit-doxy/)"
+        "* [🐙 GitHub](https://github.com/hotredman/nk)",
+        "* [📚 Doxygen](https://hotredman.github.io/nk-doxy/)"
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
     # 10. Generate MAIN README.md (Dashboard with Top-5 items & short clean headers)
     main_readme = []
-    main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Catalog\n")
-    main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
+    main_readme.append("# 🐞 NK Defect & MATLAB Parity Catalog\n")
+    main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NK** (MATLAB/Octave-compatible C++ runtime).\n")
 
     # Open Bugs Table (Latest 5)
     main_readme.append("## 🔴 Open Defects\n")
@@ -749,7 +749,7 @@ def build_site(out_dir):
     print(f"[OK] Generated Docsify site: {total_opened} open, {total_closed} closed, {missing_count} missing.")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Build NumKit Bugs Docsify site.')
+    parser = argparse.ArgumentParser(description='Build NK Bugs Docsify site.')
     parser.add_argument('--output', '-o', default=str(ROOT / 'build' / 'bugs'), help='Output directory')
     args = parser.parse_args()
     build_site(args.output)

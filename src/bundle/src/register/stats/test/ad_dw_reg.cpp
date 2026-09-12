@@ -3,18 +3,18 @@
 // CallContext register half of test/ad_dw.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
-#include <numkit/stats/distributions/beta.hpp>
-#include <numkit/stats/distributions/normal.hpp>
-#include <numkit/stats/test/hypothesis.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
+#include <nk/stats/distributions/beta.hpp>
+#include <nk/stats/distributions/normal.hpp>
+#include <nk/stats/test/hypothesis.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "test/ad_dw_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -35,7 +35,7 @@ void adtest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("adtest: requires (x [, alpha])",
-                    0, 0, "adtest", "", "numkit:adtest:nargin");
+                    0, 0, "adtest", "", "nk:adtest:nargin");
     double alpha = 0.05;
     if (args.size() >= 2 && !args[1].isEmpty())
         alpha = args[1].toScalar();
@@ -51,7 +51,7 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("dwtest: requires (residuals, design)",
-                    0, 0, "dwtest", "", "numkit:dwtest:nargin");
+                    0, 0, "dwtest", "", "nk:dwtest:nargin");
     auto *mr = ctx.engine->resource();
 
     auto toLowerAscii = [](std::string s) {
@@ -66,7 +66,7 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
     for (size_t i = 2; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("dwtest: expected option name (string)",
-                        0, 0, "dwtest", "", "numkit:dwtest:badOption");
+                        0, 0, "dwtest", "", "nk:dwtest:badOption");
         const std::string key = toLowerAscii(args[i].toString());
         const std::string val = toLowerAscii(args[i + 1].toString());
         if (key == "tail") {
@@ -74,20 +74,20 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
             else if (val == "right") tail = 1;
             else if (val == "left")  tail = 2;
             else throw Error("dwtest: Tail must be 'both', 'right' or 'left'",
-                             0, 0, "dwtest", "", "numkit:dwtest:badOption");
+                             0, 0, "dwtest", "", "nk:dwtest:badOption");
         } else if (key == "method") {
             if (val == "exact")            exact = true;
             else if (val == "approximate") exact = false;
             else throw Error("dwtest: Method must be 'exact' or 'approximate'",
-                             0, 0, "dwtest", "", "numkit:dwtest:badOption");
+                             0, 0, "dwtest", "", "nk:dwtest:badOption");
         } else {
             throw Error("dwtest: unsupported option '" + key + "'",
-                        0, 0, "dwtest", "", "numkit:dwtest:badOption");
+                        0, 0, "dwtest", "", "nk:dwtest:badOption");
         }
     }
     if ((args.size() - 2) % 2 != 0)
         throw Error("dwtest: option name without value",
-                    0, 0, "dwtest", "", "numkit:dwtest:badOption");
+                    0, 0, "dwtest", "", "nk:dwtest:badOption");
 
     double dw = 0.0;
     const double pLeft = dwStatAndPLeft(args[0], args[1], exact, dw, mr);
@@ -101,4 +101,4 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -1,10 +1,10 @@
 // toolboxes/audio/tests/pitch_harmonics_test.cpp
 // Regression guard for Audio Cycle E (FINAL): pitch + harmonicRatio.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class PitchHarmonicsTest : public ::testing::Test
 {
@@ -141,7 +141,7 @@ TEST_F(PitchHarmonicsTest, PitchLHS220HzSineFirstFrames)
 // Alwan, Interspeech 2011). It is a
 // faithful paper implementation, intentionally NOT bit-matched to
 // MATLAB's SRH (whose internal pipeline is undocumented). These values
-// are a regression anchor for numkit's paper-SRH, not a MATLAB-parity
+// are a regression anchor for nk's paper-SRH, not a MATLAB-parity
 // check. SRH is a speech pitch tracker; on a pure sine (no glottal
 // harmonic structure) its output is degenerate but deterministic.
 TEST_F(PitchHarmonicsTest, PitchSRH220HzSineRegression)

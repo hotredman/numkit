@@ -4,23 +4,23 @@
 // Migrated from toolboxes/builtin/src/language/arrays/{matrix,predicates}.cpp.
 //
 // `norm_value` for the matrix 2-norm routes through the SVD kernel
-// in numkit/linalg/decompositions.hpp.
+// in nk/linalg/decompositions.hpp.
 
-#include <numkit/linalg/norms.hpp>
+#include <nk/linalg/norms.hpp>
 
-#include <numkit/linalg/decompositions.hpp> // svd_values
+#include <nk/linalg/decompositions.hpp> // svd_values
 // Compute-only TU: Value substrate + Error, no engine. The norm/vecnorm
 // builtins (CallContext wrappers) live in norms_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <limits>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -67,7 +67,7 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
     // Matrix forms.
     if (x.dims().ndim() != 2)
         throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "numkit:norm:badShape");
+                    0, 0, "norm", "", "nk:norm:badShape");
     const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
 
@@ -77,7 +77,7 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
         if (x.isComplex())
             throw Error("norm: complex matrix 2-norm not yet supported "
                         "(needs complex SVD); use 'fro' or a vector norm",
-                        0, 0, "norm", "", "numkit:norm:complexSpectral");
+                        0, 0, "norm", "", "nk:norm:complexSpectral");
         auto sv = svd_values(x, mr);
         if (sv.numel() == 0) return Value::scalar(0.0, mr);
         return Value::scalar(sv.doubleData()[0], mr);
@@ -92,7 +92,7 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
         return Value::scalar(mx, mr);
     }
     throw Error("norm: matrix p-norms only support 1, 2, inf, 'fro'",
-                0, 0, "norm", "", "numkit:norm:badP");
+                0, 0, "norm", "", "nk:norm:badP");
 }
 
 Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
@@ -108,7 +108,7 @@ Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
     // Matrix inf-norm: max row sum.
     if (x.dims().ndim() != 2)
         throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "numkit:norm:badShape");
+                    0, 0, "norm", "", "nk:norm:badShape");
     const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
     double mx = 0.0;
@@ -140,7 +140,7 @@ Value vecnorm(const Value &A, double p, int dim, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("vecnorm: 3-D arrays not supported",
-                    0, 0, "vecnorm", "", "numkit:vecnorm:3D");
+                    0, 0, "vecnorm", "", "nk:vecnorm:3D");
     const size_t R = A.dims().rows();
     const size_t C = A.dims().cols();
 
@@ -152,7 +152,7 @@ Value vecnorm(const Value &A, double p, int dim, std::pmr::memory_resource *mr)
     }
     if (dim != 1 && dim != 2)
         throw Error("vecnorm: dim must be 1 or 2",
-                    0, 0, "vecnorm", "", "numkit:vecnorm:BadDim");
+                    0, 0, "vecnorm", "", "nk:vecnorm:BadDim");
 
     auto p_norm = [&](auto getAbs, size_t n) -> double {
         if (n == 0) return 0.0;
@@ -224,4 +224,4 @@ Value vecnorm(const Value &A, double p, int dim, std::pmr::memory_resource *mr)
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

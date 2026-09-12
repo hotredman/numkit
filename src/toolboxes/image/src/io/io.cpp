@@ -3,9 +3,9 @@
 // In-tree Image I/O: imread, imwrite, imfinfo routing exclusively to
 // autonomous zero-dependency C++20 codecs (PNG, JPEG, BMP, TGA, PNM, TIFF).
 
-#include <numkit/image/io/io.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/image/io/io.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "io_detail.hpp"
 #include "bmp_codec.hpp"
@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -84,7 +84,7 @@ Value imreadFromBytes(const std::string &bytes, std::pmr::memory_resource *mr) {
 
     if (len == 0) {
         throw Error("imread: empty image buffer",
-                    0, 0, "imread", "", "numkit:imread:empty");
+                    0, 0, "imread", "", "nk:imread:empty");
     }
 
     std::string fmt = detectFormatBytes(bytes);
@@ -115,7 +115,7 @@ Value imreadFromBytes(const std::string &bytes, std::pmr::memory_resource *mr) {
     try { return readTga(data, len, mr); } catch (...) {}
 
     throw Error("imread: failed to decode image — unsupported or unknown format",
-                0, 0, "imread", "", "numkit:imread:unknownFormat");
+                0, 0, "imread", "", "nk:imread:unknownFormat");
 }
 
 // Public/native entry: read file then decode from bytes.
@@ -123,7 +123,7 @@ Value imread(const std::string &path, std::pmr::memory_resource *mr) {
     std::ifstream f(path, std::ios::binary);
     if (!f) {
         throw Error("imread: failed to load '" + path + "' — can't open",
-                    0, 0, "imread", "", "numkit:imread:load");
+                    0, 0, "imread", "", "nk:imread:load");
     }
     std::string bytes((std::istreambuf_iterator<char>(f)),
                       std::istreambuf_iterator<char>());
@@ -156,7 +156,7 @@ std::string imwriteToBytes(const Value &A, const std::string &ext,
 
     throw Error("imwrite: unsupported extension '" + ext +
                 "' (supported: .png, .jpg, .bmp, .tga, .pnm, .tif)",
-                0, 0, "imwrite", "", "numkit:imwrite:ext");
+                0, 0, "imwrite", "", "nk:imwrite:ext");
 }
 
 // Public/native entry: encode then write file.
@@ -170,12 +170,12 @@ void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource 
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
     if (!f) {
         throw Error("imwrite: cannot open '" + path + "' for write",
-                    0, 0, "imwrite", "", "numkit:imwrite:write");
+                    0, 0, "imwrite", "", "nk:imwrite:write");
     }
     f.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
     if (!f) {
         throw Error("imwrite: failed to write '" + path + "'",
-                    0, 0, "imwrite", "", "numkit:imwrite:write");
+                    0, 0, "imwrite", "", "nk:imwrite:write");
     }
 }
 
@@ -210,7 +210,7 @@ Value imfinfoFromBytes(const std::string &bytes, const std::string &filename,
 
     if (!ok) {
         throw Error("imfinfo: failed to parse header for '" + filename + "'",
-                    0, 0, "imfinfo", "", "numkit:imfinfo:read");
+                    0, 0, "imfinfo", "", "nk:imfinfo:read");
     }
 
     Value s = Value::structure(mr);
@@ -230,11 +230,11 @@ Value imfinfo(const std::string &path, std::pmr::memory_resource *mr) {
     std::ifstream f(path, std::ios::binary);
     if (!f) {
         throw Error("imfinfo: failed to read '" + path + "' — can't open",
-                    0, 0, "imfinfo", "", "numkit:imfinfo:read");
+                    0, 0, "imfinfo", "", "nk:imfinfo:read");
     }
     std::string bytes((std::istreambuf_iterator<char>(f)),
                       std::istreambuf_iterator<char>());
     return imfinfoFromBytes(bytes, path, mr);
 }
 
-} // namespace numkit::image
+} // namespace nk::image

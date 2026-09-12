@@ -5,10 +5,10 @@
 // R2025b on magic(5) across mean/max/median/sum kernels, [3 3] and
 // [2 3] neighbourhoods, double/uint8 classes, and 'indexed' mode.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class NlfilterTest : public ::testing::Test
 {

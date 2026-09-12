@@ -3,10 +3,10 @@
 // Regression guard for cycle 5 signal utilities: seqperiod /
 // zerocrossrate / cusum.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SigUtilsTest : public ::testing::Test
 {

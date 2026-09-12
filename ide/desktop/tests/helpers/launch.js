@@ -2,9 +2,9 @@
 //
 // Each test that calls launchIde() gets a fresh Electron instance with
 // an isolated user-data directory under the OS temp dir. We DO NOT
-// touch the user's real %APPDATA%/numkit-ide-desktop store — every
+// touch the user's real %APPDATA%/nk-ide-desktop store — every
 // test starts from a blank IndexedDB tempFS, blank UI persistence
-// (numkit.ide.* localStorage keys are scoped to that user-data dir).
+// (nk.ide.* localStorage keys are scoped to that user-data dir).
 //
 // On test teardown, closeIde() shuts the app down and rm -rfs the
 // temp dir. Failures during teardown are logged but don't fail the
@@ -26,7 +26,7 @@ function assertDistBuilt() {
   const indexHtml = path.join(DESKTOP_ROOT, 'dist', 'index.html');
   if (!fs.existsSync(indexHtml)) {
     throw new Error(
-      `Numkit IDE dist not built: ${indexHtml} missing.\n`
+      `NK IDE dist not built: ${indexHtml} missing.\n`
       + `Run \`desktop-build.bat\` from the project root before \`npm test\`.`
     );
   }
@@ -39,7 +39,7 @@ function assertDistBuilt() {
 export async function launchIde(opts = {}) {
   assertDistBuilt();
 
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'numkit-ide-test-'));
+  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nk-ide-test-'));
 
   const app = await _electron.launch({
     args: [

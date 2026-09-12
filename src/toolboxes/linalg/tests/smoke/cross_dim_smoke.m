@@ -1,6 +1,6 @@
 clear
 
-% cross(A, B, dim) — the dimension argument (DEEP-PROBE 2026-05-31). numkit
+% cross(A, B, dim) — the dimension argument (DEEP-PROBE 2026-05-31). nk
 % IGNORED dim and always crossed along the FIRST length-3 dimension; for a
 % 3x3 (ambiguous) input it picked dim 1 regardless of the requested dim.
 % MATLAB crosses the length-3 vectors running along `dim`. vs MATLAB R2025b.

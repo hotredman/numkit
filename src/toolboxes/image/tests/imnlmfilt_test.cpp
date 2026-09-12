@@ -4,10 +4,10 @@
 // (Buades-Coll-Morel 2005). MATLAB R2025b parity at 1e-4
 // (boundary positions; centre matches at 1e-9).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImnlmfiltTest : public ::testing::Test
 {

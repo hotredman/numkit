@@ -3,11 +3,11 @@
 // Backfill gtest for toolboxes/wavelet/src/filter/qmf.cpp::wrev.
 // Reference values captured from MATLAB R2025b probe.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WrevTest : public ::testing::Test
 {
@@ -72,7 +72,7 @@ TEST_F(WrevTest, RoundtripReverseTwice)
 TEST_F(WrevTest, MatrixIsFlipud)
 {
     // For matrices, MATLAB returns flipud (per-column reverse), NOT a
-    // full numel-element reverse. Previously numkit returned [6 5 4; 3 2 1].
+    // full numel-element reverse. Previously nk returned [6 5 4; 3 2 1].
     eval("y = wrev([1 2 3; 4 5 6]);");
     EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 2u);
     EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 3u);
@@ -85,7 +85,7 @@ TEST_F(WrevTest, MatrixIsFlipud)
 
 TEST_F(WrevTest, ComplexPreservesImaginary)
 {
-    // Previously numkit dropped imaginary parts by going through
+    // Previously nk dropped imaginary parts by going through
     // elemAsDouble + doubleDataMut.
     eval("z = wrev([1+2i, 3-1i, -4+0.5i]);");
     EXPECT_DOUBLE_EQ(evalScalar("real(z(1))"), -4.0);

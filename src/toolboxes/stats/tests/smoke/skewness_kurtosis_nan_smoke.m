@@ -2,7 +2,7 @@ clear
 
 % skewness / kurtosis NaN omission (2026-05-30): MATLAB treats NaN as
 % missing and removes it per column before computing the moment.
-% numkit previously NaN-poisoned. vs MATLAB R2025b.
+% nk previously NaN-poisoned. vs MATLAB R2025b.
 
 Mn = [1 5; 2 NaN; 3 7; 4 100];
 

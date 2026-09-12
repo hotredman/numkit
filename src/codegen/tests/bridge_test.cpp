@@ -1,7 +1,7 @@
 // codegen/tests/bridge_test.cpp
 //
 // Value-ABI bridge ① (DESIGN.md §6a): the opaque C ABI dispatches to real
-// numkit builtins by name, with box/unbox round-tripping scalars and arrays.
+// nk builtins by name, with box/unbox round-tripping scalars and arrays.
 // Exercises the C ABI directly (the generated code will use it via the
 // prelude RAII wrapper, brick ②).
 
@@ -231,7 +231,7 @@ TEST(Bridge, TruthScalarAndArray)
     nk_release(z);
 }
 
-// A numkit error in a value op (dimension mismatch) is TRANSLATED via nk_error,
+// A nk error in a value op (dimension mismatch) is TRANSLATED via nk_error,
 // never thrown across the C boundary; the call returns null and is leak-free.
 TEST(Bridge, BinOpErrorTranslatedNoLeak)
 {
@@ -358,7 +358,7 @@ TEST(Bridge, BoxArrayNdRoundTrip)
 
 // ---- Plugin / extension ABI (DESIGN.md §6b) --------------------------------
 // A plugin PROVIDES functions with the nk_fn signature (the mirror of
-// nk_call). Once registered, they resolve from numkit source / nk_call /
+// nk_call). Once registered, they resolve from nk source / nk_call /
 // embedding exactly like a builtin — proving the register -> resolve ->
 // dispatch loop with no core change (uses Engine::registerFunction).
 
@@ -493,7 +493,7 @@ TEST(Plugin, LoadNonPluginDllReportsMissingEntryPoints)
 }
 
 // ---- Embedding (DESIGN.md §6b) ---------------------------------------------
-// nk_eval runs numkit source in the runtime's persistent workspace — the host
+// nk_eval runs nk source in the runtime's persistent workspace — the host
 // embedding entry point.
 
 TEST(Embed, EvalExpression)
@@ -537,7 +537,7 @@ TEST(Embed, EvalErrorTranslated)
     EXPECT_NE(err.message[0], '\0');
 }
 
-// A plugin function is callable from evaluated numkit source, not just nk_call
+// A plugin function is callable from evaluated nk source, not just nk_call
 // — closing the loop: load a plugin, then USE it from a script.
 TEST(Embed, EvalCallsPluginFunction)
 {

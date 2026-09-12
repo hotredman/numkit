@@ -30,7 +30,7 @@
 //    acosh,atanh,log1p}_affine  f(<inner>) → fusedTransAffine. Complex-promoting f
 //    decline on the offending range: log* on inner<0, log1p on <-1, acosh on <1,
 //    {asin,acos,atanh} on |inner|>1 (per-op produces the complex result). tan
-//    mirrors numkit's TanVec + per-block 1e6 fallback (always-real).
+//    mirrors nk's TanVec + per-block 1e6 fallback (always-real).
 //   {sqrt,floor,ceil,exp,…}_div  f(x./d) / f((x-c)./d) → fused{Unary,Trans}ShiftDiv
 //     (div is a distinct rounding from scale*x+offset → dedicated kernels)
 //   sq_div / abs_div / affine_clamp_div[_min_outer]  (<div-arg>).^2 / abs(...) /
@@ -40,17 +40,17 @@
 // each rule's match closure stays a few lines; the execute closures share the
 // runtime type/shape guard via bindAffineProduct.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/fusion_rule.hpp>
-#include <numkit/core/ast.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/helpers.hpp>   // numkit::ops::createLike
+#include <nk/core/engine.hpp>
+#include <nk/core/fusion_rule.hpp>
+#include <nk/core/ast.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/helpers.hpp>   // nk::ops::createLike
 
 #include <optional>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 namespace {
 
@@ -908,12 +908,12 @@ bool affineAnyNegative(const double *x, double scale, double offset,
 
 bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
                      std::pmr::memory_resource *mr, InnerKind kind,
-                     numkit::ops::UnaryAffineFn fn) {
+                     nk::ops::UnaryAffineFn fn) {
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
     if (bindInner(ops, n, kind, scale, offset, x)) {
         const std::size_t N = x->numel();
-        if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
+        if (fn == nk::ops::UnaryAffineFn::Sqrt &&
             affineAnyNegative(x->doubleData(), scale, offset, N))
             return false;  // negative real → complex per-op path
         out = ops::createLike(*x, ValueType::DOUBLE, mr);
@@ -922,14 +922,14 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
         return true;
     }
     // complex array: sqrt → whole-complex std::sqrt (total, no domain decline);
-    // floor/ceil/fix/round → component-wise (numkit's per-op complex rounding).
+    // floor/ceil/fix/round → component-wise (nk's per-op complex rounding).
     {
         Complex cscale, coffset;
         bool affine = false;
         const Value *cx = nullptr;
         if (bindInnerCx(ops, n, kind, cscale, coffset, affine, cx)) {
             out = ops::createLike(*cx, ValueType::COMPLEX, mr);
-            if (fn == numkit::ops::UnaryAffineFn::Sqrt)
+            if (fn == nk::ops::UnaryAffineFn::Sqrt)
                 ops::fusedSqrtAffineCx(cx->complexData(), cscale, coffset, affine,
                                        out.complexDataMut(), cx->numel());
             else
@@ -944,12 +944,12 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
 
 // f((x-sub)/div) for f ∈ {sqrt, floor, ceil}. sqrt declines on a negative inner.
 bool execUnaryDiv(const Value *ops, std::size_t n, Value &out,
-                  std::pmr::memory_resource *mr, numkit::ops::UnaryAffineFn fn) {
+                  std::pmr::memory_resource *mr, nk::ops::UnaryAffineFn fn) {
     double sub = 0.0, div = 0.0;
     const Value *x = nullptr;
     if (bindDivInner(ops, n, sub, div, x)) {
         const std::size_t N = x->numel();
-        if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
+        if (fn == nk::ops::UnaryAffineFn::Sqrt &&
             shiftDivAnyNegative(x->doubleData(), sub, div, N))
             return false;
         out = ops::createLike(*x, ValueType::DOUBLE, mr);
@@ -962,7 +962,7 @@ bool execUnaryDiv(const Value *ops, std::size_t n, Value &out,
         const Value *cx = nullptr;
         if (bindDivInnerCx(ops, n, csub, cdiv, cx)) {
             out = ops::createLike(*cx, ValueType::COMPLEX, mr);
-            if (fn == numkit::ops::UnaryAffineFn::Sqrt)
+            if (fn == nk::ops::UnaryAffineFn::Sqrt)
                 ops::fusedSqrtShiftDivCx(cx->complexData(), csub, cdiv,
                                          out.complexDataMut(), cx->numel());
             else
@@ -1228,15 +1228,15 @@ bool execSoftThreshold(const Value *ops, std::size_t n, Value &out,
 // ---- transcendental-affine:  f(<inner>) ---------------------------------
 // Always-real f (exp/expm1/sin/cos/tan/tanh/sinh/cosh/atan/asinh) fuse
 // unconditionally; the complex-promoting f decline on the offending range so the
-// per-op (complex) path runs. The kernel mirrors numkit's transcendental loop
+// per-op (complex) path runs. The kernel mirrors nk's transcendental loop
 // for bit-exactness (see fused_trans_affine_highway.cpp).
 
 // True if scalar v is OUTSIDE f's real domain (→ MATLAB complex). Mirrors
-// numkit's promotion predicates exactly (same comparisons on the same value, so
+// nk's promotion predicates exactly (same comparisons on the same value, so
 // the decline boundary aligns with where the per-op path goes complex). NaN
 // fails every comparison → stays "in domain" → f(NaN)=NaN, matching per-op.
-bool transOutsideRealDomain(numkit::ops::TransAffineFn fn, double v) {
-    using TF = numkit::ops::TransAffineFn;
+bool transOutsideRealDomain(nk::ops::TransAffineFn fn, double v) {
+    using TF = nk::ops::TransAffineFn;
     switch (fn) {
         case TF::Log: case TF::Log2: case TF::Log10: return v < 0.0;
         case TF::Log1p:  return v < -1.0;
@@ -1248,8 +1248,8 @@ bool transOutsideRealDomain(numkit::ops::TransAffineFn fn, double v) {
 
 // Whether f promotes to complex anywhere — a fast skip so the common always-real
 // transcendentals never scan the array.
-bool transDomainRestricted(numkit::ops::TransAffineFn fn) {
-    using TF = numkit::ops::TransAffineFn;
+bool transDomainRestricted(nk::ops::TransAffineFn fn) {
+    using TF = nk::ops::TransAffineFn;
     switch (fn) {
         case TF::Log: case TF::Log2: case TF::Log10:
         case TF::Log1p: case TF::Acosh:
@@ -1259,7 +1259,7 @@ bool transDomainRestricted(numkit::ops::TransAffineFn fn) {
 }
 
 // Any scale*x[i]+offset outside f's real domain (the affine the kernel computes).
-bool affineAnyOutsideDomain(numkit::ops::TransAffineFn fn, double scale,
+bool affineAnyOutsideDomain(nk::ops::TransAffineFn fn, double scale,
                             double offset, const double *x, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i)
         if (transOutsideRealDomain(fn, scale * x[i] + offset)) return true;
@@ -1267,7 +1267,7 @@ bool affineAnyOutsideDomain(numkit::ops::TransAffineFn fn, double scale,
 }
 
 // Any (x[i]-sub)/div outside f's real domain.
-bool shiftDivAnyOutsideDomain(numkit::ops::TransAffineFn fn, double sub,
+bool shiftDivAnyOutsideDomain(nk::ops::TransAffineFn fn, double sub,
                               double div, const double *x, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i)
         if (transOutsideRealDomain(fn, (x[i] - sub) / div)) return true;
@@ -1276,7 +1276,7 @@ bool shiftDivAnyOutsideDomain(numkit::ops::TransAffineFn fn, double sub,
 
 bool execTransAffine(const Value *ops, std::size_t n, Value &out,
                      std::pmr::memory_resource *mr, InnerKind kind,
-                     numkit::ops::TransAffineFn fn) {
+                     nk::ops::TransAffineFn fn) {
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
     if (bindInner(ops, n, kind, scale, offset, x)) {
@@ -1307,7 +1307,7 @@ bool execTransAffine(const Value *ops, std::size_t n, Value &out,
 // f((x-sub)/div) for a transcendental f. log/log2/log10 decline on a negative
 // inner (MATLAB complex). Mirrors fusedTransAffine's bit-exactness.
 bool execTransDiv(const Value *ops, std::size_t n, Value &out,
-                  std::pmr::memory_resource *mr, numkit::ops::TransAffineFn fn) {
+                  std::pmr::memory_resource *mr, nk::ops::TransAffineFn fn) {
     double sub = 0.0, div = 0.0;
     const Value *x = nullptr;
     if (bindDivInner(ops, n, sub, div, x)) {
@@ -1342,7 +1342,7 @@ void addNarrowing(Engine &engine, FusionRule rule)
     rule.execute = [inner](const Value *ops, std::size_t n, Value &out,
                            std::pmr::memory_resource *mr) -> bool {
         if (!inner(ops, n, out, mr)) return false;
-        out = numkit::narrowComplex(std::move(out), mr);
+        out = nk::narrowComplex(std::move(out), mr);
         return true;
     };
     engine.addFusionRule(std::move(rule));
@@ -1491,7 +1491,7 @@ void registerFusionRules(Engine &engine) {
     // unary-affine f(<inner>): one rule per (function, inner spelling). The
     // function-id and inner kind are baked into the captured closures, so every
     // affine spelling (a.*x±b, a.*x, x±c) of the argument fuses.
-    using UF = numkit::ops::UnaryAffineFn;
+    using UF = nk::ops::UnaryAffineFn;
     auto addUnaryAffine = [&engine](const char *name, const char *fname, UF fn) {
         for (InnerKind kind : kAllInnerKinds) {
             FusionRule r;
@@ -1580,7 +1580,7 @@ void registerFusionRules(Engine &engine) {
     addNarrowing(engine, std::move(softThreshold));
 
     // transcendental-affine f(<inner>), f ∈ {exp, expm1} (always-real).
-    using TF = numkit::ops::TransAffineFn;
+    using TF = nk::ops::TransAffineFn;
     auto addTransAffine = [&engine](const char *name, const char *fname, TF fn) {
         for (InnerKind kind : kAllInnerKinds) {
             FusionRule r;
@@ -1653,4 +1653,4 @@ void registerFusionRules(Engine &engine) {
     addTransDiv("tan_div",   "tan",   TF::Tan);
 }
 
-} // namespace numkit
+} // namespace nk

@@ -3,15 +3,15 @@
 // CallContext register half of descriptive/crosstab.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/stats/distributions/chi2.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/stats/distributions/chi2.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "descriptive/crosstab_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -32,7 +32,7 @@ void crosstab_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("crosstab: requires (x [, y])",
-                    0, 0, "crosstab", "", "numkit:crosstab:nargin");
+                    0, 0, "crosstab", "", "nk:crosstab:nargin");
     auto *mr = ctx.engine->resource();
     const Value &y_opt = (args.size() >= 2) ? args[1] : Value::Empty;
     auto [T, chi2, p] = crosstab(args[0], y_opt, mr);
@@ -67,4 +67,4 @@ void crosstab_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

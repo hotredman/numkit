@@ -11,7 +11,7 @@ For an all-pole prototype (empty z, e.g. buttap), zp2sos emitted the
 second-order sections in the OPPOSITE order to MATLAB. The probed rule
 (buttap N=4/6, cheb1/cheb2/ellip N=4): sections by ASCENDING pole-pair
 radius |p|, ties by ascending |Re(p)| — buttap's equal-radius pairs put
-the pair nearest the imaginary axis first. numkit picked max-|p| first.
+the pair nearest the imaginary axis first. nk picked max-|p| first.
 
 ## Repro
 
@@ -20,7 +20,7 @@ clear;
 [~, p, k] = buttap(4);
 sos = zp2sos(zeros(0,0), p, k);
 % MATLAB R2025b:  sos = [0 0 1 1 0.7654 1; 0 0 1 1 1.8478 1]
-% numkit (pre-fix):    [0 0 1 1 1.8478 1; 0 0 1 1 0.7654 1]
+% nk (pre-fix):    [0 0 1 1 1.8478 1; 0 0 1 1 0.7654 1]
 ```
 
 ## Root cause
@@ -28,7 +28,7 @@ sos = zp2sos(zeros(0,0), p, k);
 popPair (conversions.cpp) picked the max-|p| root first, emitting the
 highest-radius pole pair as section 1 — the opposite of MATLAB's
 ascending order. NOTE: the first probe attribution was inverted (the
-"MATLAB" lines were numkit output) — the clean separated dual run
+"MATLAB" lines were nk output) — the clean separated dual run
 established MATLAB = LOW-frequency pair first; expected values in guards
 always come from a separated probe.
 

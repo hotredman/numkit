@@ -616,7 +616,7 @@ TEST_P(BuiltinTest, Dec2BaseBase2Dec)
 
 TEST_P(BuiltinTest, Rat)
 {
-    // After the spec-extension (2026-05-09) numkit's `rat()` returns
+    // After the spec-extension (2026-05-09) nk's `rat()` returns
     // MATLAB R2025b's nested continued-fraction string format using the
     // regularized expansion (round() not floor()), e.g. 0.5 → '1 + 1/(-2)'
     // (NOT the simple-CF '0 + 1/(2)'). See toolboxes/builtin/tests/rat_test.cpp
@@ -1765,7 +1765,7 @@ TEST_P(BuiltinTest, Mat2str)
 }
 
 // mat2str on CHAR: a quoted char literal (vs MATLAB R2025b). Previously
-// numkit rendered numeric codes (mat2str('abc') -> "[97 98 99]").
+// nk rendered numeric codes (mat2str('abc') -> "[97 98 99]").
 // DEEP-PROBE 2026-05-31.
 TEST_P(BuiltinTest, Mat2strChar)
 {
@@ -1798,7 +1798,7 @@ TEST_P(BuiltinTest, Mat2strComplex)
     EXPECT_EQ(getVarPtr("c5")->toString(), "1");
     // Each element is formatted INDEPENDENTLY: a zero-imag element inside an
     // otherwise-complex array prints as a bare real (no "+0i"). Previously
-    // numkit appended "+0i" to every element whenever ANY element was complex.
+    // nk appended "+0i" to every element whenever ANY element was complex.
     // vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
     eval("c6 = mat2str([complex(1,1) complex(5,0)]);");
     EXPECT_EQ(getVarPtr("c6")->toString(), "[1+1i 5]");   // NOT "[1+1i 5+0i]"
@@ -2141,7 +2141,7 @@ TEST_P(BuiltinTest, Mod)
 }
 
 // mod/rem on integer types keep the integer class (a double operand is
-// promoted to the integer class). numkit previously returned double / threw
+// promoted to the integer class). nk previously returned double / threw
 // on integer arrays. DEEP-PROBE 2026-05-30.
 TEST_P(BuiltinTest, ModRemIntegerClass)
 {
@@ -2685,7 +2685,7 @@ TEST_P(DisplayTest, ShowOutput)
 }
 
 // fprintf returns the byte count (MATLAB's `count` output). Counts pinned
-// against MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit previously returned
+// against MATLAB R2025b. DEEP-PROBE 2026-05-31: nk previously returned
 // nothing, so `k = fprintf(...)` left k undefined.
 TEST_P(DisplayTest, FprintfReturnsByteCount)
 {

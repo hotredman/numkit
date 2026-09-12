@@ -1,4 +1,4 @@
-# lang.run — running a nullary function FILE must invoke it (MATLAB `run` semantics); numkit defines it silently
+# lang.run — running a nullary function FILE must invoke it (MATLAB `run` semantics); nk defines it silently
 
 - **Status:** ✅ FIXED (2026-08-30)
 - **Severity:** P1 wrong result (silent no-op: empty output, exit 0)
@@ -9,8 +9,8 @@
 
 ## Symptom
 
-`numkit file.m` where file.m is `function Name … end` with NO required
-inputs: numkit defines the function and exits silently (exit 0, empty
+`nk file.m` where file.m is `function Name … end` with NO required
+inputs: nk defines the function and exits silently (exit 0, empty
 stdout). MATLAB's `run('file.m')` **invokes** the nullary function — the
 test suites print `Test Passed`.
 
@@ -21,7 +21,7 @@ test suites print `Test Passed`.
 %   function hello_ft
 %   disp(42)
 %   end
-numkit hello_ft.m     % numkit: (no output, exit 0)
+nk hello_ft.m     % nk: (no output, exit 0)
 matlab -batch "run('hello_ft.m')"   % MATLAB: 42
 ```
 
@@ -40,7 +40,7 @@ it by name.
 
 In the file-run path (CLI + `run` builtin): after parsing, if the program
 is a single nullary FUNCTION_DEF (no required parameters), invoke it after
-definition. (MATLAB errors for function files WITH required args — numkit
+definition. (MATLAB errors for function files WITH required args — nk
 should match that too rather than silently doing nothing.)
 
 ## References
@@ -53,10 +53,10 @@ the mfile-resolver fixture).
 ## Resolution (2026-08-30)
 
 One semantic, three call sites, one shared helper:
-`numkit::runtime::primaryFunctionOfFile(src)` (header-only,
+`nk::runtime::primaryFunctionOfFile(src)` (header-only,
 runtime/function_file.hpp) detects a function file and extracts the
 PRIMARY function's name; the `run` builtin (runtime/eval.cpp), the native
-CLI runScript (apps/numkit/main.cpp) and the WASM CLI (cli.js — JS mirror
+CLI runScript (apps/nk/main.cpp) and the WASM CLI (cli.js — JS mirror
 of the same scan) now EXECUTE that function after the file evaluates.
 Required-inputs function files are also invoked and fail with the natural
 argument error — exactly MATLAB's class (corpus-verified:

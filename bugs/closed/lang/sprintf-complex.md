@@ -33,8 +33,8 @@ MATLAB formats the real part.
 
 ## Repro
 ```matlab
-sprintf('%g', 1+2i)            % numkit: ERROR "Cannot convert complex ..."; MATLAB: '1'
-sprintf('%d ', [1+2i 3+4i])    % numkit: ERROR "Not a double array";        MATLAB: '1 3 '
+sprintf('%g', 1+2i)            % nk: ERROR "Cannot convert complex ..."; MATLAB: '1'
+sprintf('%d ', [1+2i 3+4i])    % nk: ERROR "Not a double array";        MATLAB: '1 3 '
 sprintf('%.2f', 3.5-1.5i)      % MATLAB: '3.50'
 ```
 

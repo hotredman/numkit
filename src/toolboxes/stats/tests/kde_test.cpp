@@ -4,12 +4,12 @@
 // v1 is a direct adapter alias; this test confirms the alias resolves
 // and that the underlying ksdensity machinery still works through it.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class KdeTest : public ::testing::Test
 {

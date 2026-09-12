@@ -15,11 +15,11 @@
 // (24 verified, 2 deferred — bwconncomp struct field access + deltaE
 // output dims).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImageBatch3Test : public ::testing::Test
 {
@@ -49,7 +49,7 @@ TEST_F(ImageBatch3Test, BwAnalysis2)
 
 // bwboundaries 2nd/3rd outputs [B,L,N]: label matrix + object count.
 // 2026-05-31: only B was returned; L/N threw 'undefined function L'.
-// numkit is noholes-mode, so L/N match MATLAB for hole-free inputs. vs R2025b.
+// nk is noholes-mode, so L/N match MATLAB for hole-free inputs. vs R2025b.
 TEST_F(ImageBatch3Test, BwboundariesLabelOutputs)
 {
     eval("BW = false(5,5); BW(2:4,2:4) = true;");   // solid block, one object
@@ -136,7 +136,7 @@ TEST_F(ImageBatch3Test, Histogram)
 
 // imadjust with an explicitly-passed empty [] for the in/out range means
 // MATLAB's default [0 1] (identity, NO stretch) — distinct from the ABSENT
-// 1-arg form imadjust(I), which auto-stretches via stretchlim. numkit
+// 1-arg form imadjust(I), which auto-stretches via stretchlim. nk
 // previously treated empty [] like the absent case, contrast-stretching
 // imadjust(I,[],[]). DEEP-PROBE c169.
 TEST_F(ImageBatch3Test, ImadjustEmptyRangeIsIdentity)

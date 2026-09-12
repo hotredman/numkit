@@ -3,16 +3,16 @@
 // CallContext register half of distributions/uniform.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/uniform.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/uniform.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/uniform_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -41,7 +41,7 @@ inline double argB(Span<const Value> args, size_t i) {
 void unifpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("unifpdf: requires (x[, a, b])", 0, 0, "unifpdf", "", "numkit:unifpdf:nargin");
+        throw Error("unifpdf: requires (x[, a, b])", 0, 0, "unifpdf", "", "nk:unifpdf:nargin");
     outs[0] = unifpdf(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
@@ -50,7 +50,7 @@ void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
     if (stripped.empty())
-        throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "numkit:unifcdf:nargin");
+        throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "nk:unifcdf:nargin");
     Value v = unifcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -59,14 +59,14 @@ void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void unifinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("unifinv: requires (p[, a, b])", 0, 0, "unifinv", "", "numkit:unifinv:nargin");
+        throw Error("unifinv: requires (p[, a, b])", 0, 0, "unifinv", "", "nk:unifinv:nargin");
     outs[0] = unifinv(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
 void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("unifrnd: requires (a, b[, sz...])", 0, 0, "unifrnd", "", "numkit:unifrnd:nargin");
+        throw Error("unifrnd: requires (a, b[, sz...])", 0, 0, "unifrnd", "", "nk:unifrnd:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     size_t rows, cols;
@@ -82,4 +82,4 @@ void unifstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

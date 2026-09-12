@@ -2,19 +2,19 @@
 //
 // qz — Generalized Schur decomposition [AA, BB, Q, Z] = qz(A, B).
 
-#include <numkit/linalg/qz.hpp>
+#include <nk/linalg/qz.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -89,12 +89,12 @@ std::tuple<Value, Value, Value, Value> qz(const Value &A, const Value &B,
                                            std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
-        throw Error("qz: A and B must be 2D matrices", 0, 0, "qz", "", "numkit:qz:notMatrix");
+        throw Error("qz: A and B must be 2D matrices", 0, 0, "qz", "", "nk:qz:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)) ||
         static_cast<std::size_t>(B.dims().dim(0)) != n ||
         static_cast<std::size_t>(B.dims().dim(1)) != n)
-        throw Error("qz: A and B must be square matrices of the same size", 0, 0, "qz", "", "numkit:qz:badDims");
+        throw Error("qz: A and B must be square matrices of the same size", 0, 0, "qz", "", "nk:qz:badDims");
 
     if (n == 0) {
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -233,7 +233,7 @@ std::tuple<Value, Value, Value, Value> qz(const Value &A, const Value &B,
     }
 
     if (!converged && n > 1) {
-        throw Error("qz: QZ iteration failed to converge", 0, 0, "qz", "", "numkit:qz:noConverge");
+        throw Error("qz: QZ iteration failed to converge", 0, 0, "qz", "", "nk:qz:noConverge");
     }
 
     // Zero out small subdiagonals in Ac and Bc
@@ -261,4 +261,4 @@ std::tuple<Value, Value, Value, Value> qz(const Value &A, const Value &B,
             detail::narrow_if_real(Z_out, mr)};
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

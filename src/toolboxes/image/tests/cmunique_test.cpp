@@ -4,10 +4,10 @@
 // entries. Reference values verified bit-equal MATLAB R2025b on four
 // signatures: (X, MAP) double X, (X, MAP) uint8 X, (RGB), (I).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CmuniqueTest : public ::testing::Test
 {

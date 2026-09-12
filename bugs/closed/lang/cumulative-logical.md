@@ -41,11 +41,11 @@ logical (treating it as 0/1) for all four.
 ## Repro
 ```matlab
 cumsum(logical([1 0 1 1]))
-% numkit: ERROR "Not a double array (in call to 'cumsum')"
+% nk: ERROR "Not a double array (in call to 'cumsum')"
 % MATLAB: [1 1 2 3]   (class double)
 
 cummax(logical([0 1 0 1]))
-% numkit: ERROR "Not a double array (in call to 'cummax')"
+% nk: ERROR "Not a double array (in call to 'cummax')"
 % MATLAB: [0 1 1 1]   (class LOGICAL — preserved)
 
 cumprod(logical([1 1 0 1]))   % MATLAB: [1 1 0 0] double

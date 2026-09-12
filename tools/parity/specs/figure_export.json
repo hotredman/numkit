@@ -11,5 +11,5 @@
     "e3",
     "e4"
   ],
-  "comment": "saveas/exportgraphics/print vs MATLAB R2025b — CONTRACT level (file created: numel(dir(path))==1), not byte equality: raster content is numkit's own software renderer (portion 32; SVG vector, PNG via the image toolbox encoder). exist(path,'file') is NOT used as the probe: it mis-reports inside functions on numkit today (bugs/opened/runtime/exist-file-function-scope.md). Deferred formats (.pdf/.eps/.fig) throw with a gap reference — bugs/opened/graphics/figure-export-gaps.md."
+  "comment": "saveas/exportgraphics/print vs MATLAB R2025b — CONTRACT level (file created: numel(dir(path))==1), not byte equality: raster content is nk's own software renderer (portion 32; SVG vector, PNG via the image toolbox encoder). exist(path,'file') is NOT used as the probe: it mis-reports inside functions on nk today (bugs/opened/runtime/exist-file-function-scope.md). Deferred formats (.pdf/.eps/.fig) throw with a gap reference — bugs/opened/graphics/figure-export-gaps.md."
 }

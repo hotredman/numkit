@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/filter_implementation/conversions_extras.hpp>
+#include <nk/signal/filter_implementation/conversions_extras.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void sos2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("sos2tf: requires at least 1 argument (sos)",
-                     0, 0, "sos2tf", "", "numkit:sos2tf:nargin");
+                     0, 0, "sos2tf", "", "nk:sos2tf:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     auto [b, a] = sos2tf(args[0], g, ctx.engine->resource());
     outs[0] = std::move(b);
@@ -44,7 +44,7 @@ void sos2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("sos2zp: requires at least 1 argument (sos)",
-                     0, 0, "sos2zp", "", "numkit:sos2zp:nargin");
+                     0, 0, "sos2zp", "", "nk:sos2zp:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     auto [z, p, gain] = sos2zp(args[0], g, ctx.engine->resource());
     outs[0] = std::move(z);
@@ -56,7 +56,7 @@ void tf2zpk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("tf2zpk: requires (b, a)",
-                     0, 0, "tf2zpk", "", "numkit:tf2zpk:nargin");
+                     0, 0, "tf2zpk", "", "nk:tf2zpk:nargin");
     auto [z, p, gain] = tf2zpk(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
@@ -67,7 +67,7 @@ void tf2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 2)
         throw Error("tf2ss: requires (b, a)",
-                     0, 0, "tf2ss", "", "numkit:tf2ss:nargin");
+                     0, 0, "tf2ss", "", "nk:tf2ss:nargin");
     auto [A, B, C, D] = tf2ss(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
@@ -79,7 +79,7 @@ void ss2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 4)
         throw Error("ss2tf: requires (A, B, C, D)",
-                     0, 0, "ss2tf", "", "numkit:ss2tf:nargin");
+                     0, 0, "ss2tf", "", "nk:ss2tf:nargin");
     const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
     auto [b, a] = ss2tf(args[0], args[1], args[2], D, ctx.engine->resource());
     outs[0] = std::move(b);
@@ -90,7 +90,7 @@ void ss2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 4)
         throw Error("ss2zp: requires (A, B, C, D)",
-                     0, 0, "ss2zp", "", "numkit:ss2zp:nargin");
+                     0, 0, "ss2zp", "", "nk:ss2zp:nargin");
     const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
     auto [z, p, gain] = ss2zp(args[0], args[1], args[2], D, ctx.engine->resource());
     outs[0] = std::move(z);
@@ -102,7 +102,7 @@ void zp2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 3)
         throw Error("zp2ss: requires (z, p, k)",
-                     0, 0, "zp2ss", "", "numkit:zp2ss:nargin");
+                     0, 0, "zp2ss", "", "nk:zp2ss:nargin");
     auto [A, B, C, D] = zp2ss(args[0], args[1], args[2].toScalar(), ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
@@ -114,7 +114,7 @@ void sos2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("sos2ss: requires at least 1 argument (sos)",
-                     0, 0, "sos2ss", "", "numkit:sos2ss:nargin");
+                     0, 0, "sos2ss", "", "nk:sos2ss:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     auto [A, B, C, D] = sos2ss(args[0], g, ctx.engine->resource());
     outs[0] = std::move(A);
@@ -127,7 +127,7 @@ void ss2sos_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 4)
         throw Error("ss2sos: requires (A, B, C, D)",
-                     0, 0, "ss2sos", "", "numkit:ss2sos:nargin");
+                     0, 0, "ss2sos", "", "nk:ss2sos:nargin");
     const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
     outs[0] = ss2sos(args[0], args[1], args[2], D, ctx.engine->resource());
 }
@@ -137,7 +137,7 @@ void ctf2zp_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("ctf2zp: requires (NUM [, DEN [, SV]])",
-                    0, 0, "ctf2zp", "", "numkit:ctf2zp:nargin");
+                    0, 0, "ctf2zp", "", "nk:ctf2zp:nargin");
     auto *mr = ctx.engine->resource();
     Value DEN = (args.size() >= 2) ? args[1] : Value::scalar(1.0, mr);
     const Value &SV = (args.size() >= 3) ? args[2] : Value::Empty;
@@ -153,10 +153,10 @@ void scaleFilterSections_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("scaleFilterSections: requires (CTFNum, SV)",
                     0, 0, "scaleFilterSections", "",
-                    "numkit:scaleFilterSections:nargin");
+                    "nk:scaleFilterSections:nargin");
     outs[0] = scaleFilterSections(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

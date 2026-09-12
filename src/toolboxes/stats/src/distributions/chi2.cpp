@@ -3,13 +3,13 @@
 // Chi-squared distribution. Composes the existing gammainc /
 // gammaincinv on (k/2, x/2) for cdf / icdf.
 
-#include <numkit/stats/distributions/chi2.hpp>
+#include <nk/stats/distributions/chi2.hpp>
 
-#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/builtin/specfun.hpp> // gammainc, gammaincinv
+#include <nk/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <nk/builtin/specfun.hpp> // gammainc, gammaincinv
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -24,7 +24,7 @@
 
 #include "chi2_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr)
@@ -52,10 +52,10 @@ Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr)
     if (k <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // F(x; k) = gammainc(x/2, k/2) (regularized lower).
-    // numkit::builtin::gammainc takes Values for x and a — call elementwise.
+    // nk::builtin::gammainc takes Values for x and a — call elementwise.
     auto out = elementwise(x, [](double xi){ return std::max(0.0, 0.5 * xi); }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
-    return ::numkit::builtin::gammainc(out, ar, mr);
+    return ::nk::builtin::gammainc(out, ar, mr);
 }
 
 Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
@@ -70,12 +70,12 @@ Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
                                             : std::numeric_limits<double>::quiet_NaN();
         }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
-    Value q = ::numkit::builtin::gammaincinv(p, ar, mr);
+    Value q = ::nk::builtin::gammaincinv(p, ar, mr);
     // x = 2 * gammaincinv(p, k/2)
     return elementwise(q, [](double v){ return 2.0 * v; }, mr);
 }
 
-Value chi2rnd(::numkit::ops::RngContext &rng, double k, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value chi2rnd(::nk::ops::RngContext &rng, double k, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -98,4 +98,4 @@ std::tuple<double, double> chi2stat(double k)
     return std::make_tuple(k, 2.0 * k);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -12,5 +12,5 @@
     "imag(kc(1))", "real(kc(3))", "double(numel(kc))",
     "real(km(1,1))", "imag(km(1,1))", "imag(km(1,2))"
   ],
-  "comment": "Sig: r = kron(...). Spec-extension batch 2026-05-09. COMPLEX: ordinary Kronecker product with complex element products (no conjugation): kron([1i 2],[1 1])=[1i 1i 2 2]; kron([1+1i;2],[1 1i])=[1+1i -1+1i; 2 2i]. numkit previously rejected COMPLEX ('not supported') -- added 2026-05-29."
+  "comment": "Sig: r = kron(...). Spec-extension batch 2026-05-09. COMPLEX: ordinary Kronecker product with complex element products (no conjugation): kron([1i 2],[1 1])=[1i 1i 2 2]; kron([1+1i;2],[1 1i])=[1+1i -1+1i; 2 2i]. nk previously rejected COMPLEX ('not supported') -- added 2026-05-29."
 }

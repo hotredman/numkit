@@ -1,7 +1,7 @@
 // tests/signal_core_test.cpp
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class SignalCoreTest : public ::testing::Test
 {
@@ -253,7 +253,7 @@ TEST_F(SignalCoreTest, FftshiftOddLength)
 {
     // MATLAB R2025b: fftshift([1 2 3 4 5]) = [4 5 1 2 3]
     // (shift = ceil(N/2) = 3, first 3 elements move to back).
-    // Bug fix 2026-05-08: numkit previously used floor(N/2) which
+    // Bug fix 2026-05-08: nk previously used floor(N/2) which
     // is what MATLAB calls ifftshift — the two were swapped.
     eval("y = fftshift([1 2 3 4 5]);");
     EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 4.0);

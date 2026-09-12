@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "N/A (definite): MATLAB R2025b DEPRECATED ricianchan() in favour of comm.RicianChannel system object. Numkit retains ricianchan as a convenience helper. Definite N/A."
+  "comment": "N/A (definite): MATLAB R2025b DEPRECATED ricianchan() in favour of comm.RicianChannel system object. NK retains ricianchan as a convenience helper. Definite N/A."
 }

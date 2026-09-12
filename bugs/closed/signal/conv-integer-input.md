@@ -31,13 +31,13 @@ logical array. MATLAB R2025b accepts integer/logical input, promoting to
 double and returning a double result (every shape: 'full' / 'same' /
 'valid').
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
-conv(int8([1 2 3]), int8([1 1]))   % numkit: ERROR "Not a double array"
+conv(int8([1 2 3]), int8([1 1]))   % nk: ERROR "Not a double array"
 %                                    MATLAB: double [1 3 5 3]
-conv(int8([1 2 3]), [1 1])         % numkit: ERROR
+conv(int8([1 2 3]), [1 1])         % nk: ERROR
 %                                    MATLAB: double [1 3 5 3]
-conv(logical([1 0 1]), [1 1])      % numkit: ERROR
+conv(logical([1 0 1]), [1 1])      % nk: ERROR
 %                                    MATLAB: double [1 1 1 1]
 ```
 
@@ -53,7 +53,7 @@ fixed): `polyval` and `deconv` likewise throw on integer input (MATLAB →
 double); `cross` throws on integer input (MATLAB preserves the integer
 class with intermediate per-product saturation — a harder fix);
 `accumarray` rejects integer vals (MATLAB → double). `dot` is the reverse —
-numkit is lenient (returns double) where MATLAB errors ("A and B must be
+nk is lenient (returns double) where MATLAB errors ("A and B must be
 single or double").
 
 ## Guard

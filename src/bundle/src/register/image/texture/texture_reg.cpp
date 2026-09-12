@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/texture/texture.hpp>
+#include <nk/image/texture/texture.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 #include "texture/texture_detail.hpp"
 
 #include <algorithm>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -43,7 +43,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("graycomatrix: requires (I[, NV-pairs])",
-                     0, 0, "graycomatrix", "", "numkit:graycomatrix:nargin");
+                     0, 0, "graycomatrix", "", "nk:graycomatrix:nargin");
 
     const Value &I = args[0];
 
@@ -59,7 +59,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!args[i].isChar())
             throw Error("graycomatrix: NV-pair name must be a string",
                          0, 0, "graycomatrix", "",
-                         "numkit:graycomatrix:badNVName");
+                         "nk:graycomatrix:badNVName");
         const std::string key = args[i].toString();
         const Value &v        = args[i + 1];
         if (eqIgnoreCase(key, "NumLevels"))   numLevels = static_cast<int>(v.toScalar());
@@ -67,7 +67,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
             if (v.numel() < 2)
                 throw Error("graycomatrix: Offset must be 2-element",
                              0, 0, "graycomatrix", "",
-                             "numkit:graycomatrix:badOffset");
+                             "nk:graycomatrix:badOffset");
             offR = static_cast<int>(v.elemAsDouble(0));
             offC = static_cast<int>(v.elemAsDouble(1));
         }
@@ -81,7 +81,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
             else if (v.numel() < 2)
                 throw Error("graycomatrix: GrayLimits must be 2-element",
                              0, 0, "graycomatrix", "",
-                             "numkit:graycomatrix:badLimits");
+                             "nk:graycomatrix:badLimits");
             else {
                 gLow  = v.elemAsDouble(0);
                 gHigh = v.elemAsDouble(1);
@@ -94,7 +94,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
         else
             throw Error("graycomatrix: unknown NV-pair key '" + key + "'",
                          0, 0, "graycomatrix", "",
-                         "numkit:graycomatrix:badNVKey");
+                         "nk:graycomatrix:badNVKey");
     }
     if (!limitsSet) default_gray_limits(I, gLow, gHigh);
 
@@ -106,10 +106,10 @@ void graycoprops_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("graycoprops: requires (G)",
-                     0, 0, "graycoprops", "", "numkit:graycoprops:nargin");
+                     0, 0, "graycoprops", "", "nk:graycoprops:nargin");
     outs[0] = graycoprops(args[0], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

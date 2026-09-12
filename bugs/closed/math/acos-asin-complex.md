@@ -14,13 +14,13 @@ the outliers.
 ## Repro
 ```matlab
 acos(2)
-% numkit: NaN
+% nk: NaN
 % MATLAB: 0 + 1.3170i
 asin(2)
-% numkit: NaN
+% nk: NaN
 % MATLAB: 1.5708 - 1.3170i
-atanh(2)   % numkit == MATLAB == 0.5493 + 1.5708i   (already complex)
-acosh(0.5) % numkit == MATLAB == 0 + 1.0472i        (already complex)
+atanh(2)   % nk == MATLAB == 0.5493 + 1.5708i   (already complex)
+acosh(0.5) % nk == MATLAB == 0 + 1.0472i        (already complex)
 ```
 
 ## Root cause

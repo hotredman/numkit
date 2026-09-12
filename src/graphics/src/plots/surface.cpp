@@ -1,10 +1,10 @@
-// numkit/graphics — surface.cpp
+// nk/graphics — surface.cpp
 //
 // graphics.surface.* builders (surf / mesh / slice / isosurface / coneplot / streamtube / waterfall / lighting), carved out of plots.cpp. Core-free bodies (GraphicsContext); shared
 // JSON/parse helpers come from plot_internal.hpp.
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildSurfacePlots(std::vector<PlotEntry> &table)
 {
@@ -1528,4 +1528,4 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
         });
 }
 
-}  // namespace numkit
+}  // namespace nk

@@ -9,7 +9,7 @@
 The 2-D multilevel wavelet decomposition family is not registered:
 `wavedec2` (decompose an image), `detcoef2` (extract horizontal/vertical/
 diagonal detail coefficients), and `appcoef2` (extract / reconstruct the
-approximation). numkit ships the **1-D** counterparts
+approximation). nk ships the **1-D** counterparts
 (`wavedec`/`detcoef`/`appcoef`) and the single-level 2-D `dwt2`, but not the
 multilevel 2-D bookkeeping.
 
@@ -19,7 +19,7 @@ multilevel 2-D bookkeeping.
 % MATLAB: numel(c)=16, s(1,1)=2, c(1)=7
 H = detcoef2('h', c, s, 1);     % MATLAB: 2x2, H(1,1)=-1
 A = appcoef2(c, s, 'db1', 1);   % MATLAB: 2x2, A(1,1)=7
-% numkit (each): Error — VM: undefined function 'wavedec2'/'detcoef2'/'appcoef2'
+% nk (each): Error — VM: undefined function 'wavedec2'/'detcoef2'/'appcoef2'
 ```
 
 ## Root cause
@@ -56,7 +56,7 @@ round-trip. Parity `wavedec2.json` → OK.
 
 ## References
 - `src/toolboxes/wavelet/src/dwt/multilevel2.cpp`,
-  `include/numkit/wavelet/dwt/multilevel2.hpp`,
+  `include/nk/wavelet/dwt/multilevel2.hpp`,
   `src/bundle/src/register/wavelet/dwt/multilevel2_reg.cpp` (+ library reg)
 - `tools/parity/specs/wavedec2.json`,
   `src/toolboxes/wavelet/tests/wavedec2_test.cpp` (7 cases),

@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include <numkit/ops/deflate.hpp>
+#include <nk/ops/deflate.hpp>
 
-namespace numkit::image {
+namespace nk::image {
 
 using ops::crc32;
 using ops::adler32;
@@ -18,4 +18,4 @@ using ops::deflateRaw;
 using ops::zlibDecompress;
 using ops::zlibCompress;
 
-} // namespace numkit::image
+} // namespace nk::image

@@ -1,6 +1,6 @@
 clear
 
-% ifft(X, ..., 'symmetric') (DEEP-PROBE 2026-05-31). Previously numkit threw
+% ifft(X, ..., 'symmetric') (DEEP-PROBE 2026-05-31). Previously nk threw
 % "Cannot convert char to scalar" because it parsed 'symmetric' as the FFT
 % length N. MATLAB treats X as conjugate-symmetric (lower half authoritative,
 % conj-mirror to the upper half, DC/Nyquist forced real) and returns an

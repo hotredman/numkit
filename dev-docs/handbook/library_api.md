@@ -1,15 +1,15 @@
-# numkit `toolboxes/*` — Public API Conventions
+# nk `toolboxes/*` — Public API Conventions
 
 These rules govern every **public** function declared in a
-`toolboxes/<ns>/include/numkit/<ns>/**/*.hpp` header.
+`toolboxes/<ns>/include/nk/<ns>/**/*.hpp` header.
 
 **Why this document exists.** `toolboxes/` is a real C++ numerical library,
 not just a backend for the interpreter. An external caller must be able
 to write
 
 ```cpp
-auto y = numkit::signal::firpm(30, {0, 0.4, 0.5, 1}, {1, 1, 0, 0});
-auto r = numkit::optim::fzero(myCallback, /*x0=*/1.0);
+auto y = nk::signal::firpm(30, {0, 0.4, 0.5, 1}, {1, 1, 0, 0});
+auto r = nk::optim::fzero(myCallback, /*x0=*/1.0);
 ```
 
 without dragging in an `Engine`, without raw pointer pairs, and without
@@ -20,7 +20,7 @@ carries. That ergonomic bar drives every rule below.
 (`namespace detail`, anonymous namespaces, `.cpp`-local functions) are
 exempt — see [§21](#21-internal-helpers-are-exempt).
 
-**API stability.** The `toolboxes/` C++ API is **unstable until numkit 1.0** —
+**API stability.** The `toolboxes/` C++ API is **unstable until nk 1.0** —
 public signatures may change without a deprecation cycle. After 1.0,
 changes to a public signature follow semantic versioning with a
 documented deprecation period.
@@ -64,19 +64,19 @@ returns a `table`, `cvpartition` returns a `cvpartition`), mark `❌`
 in PROGRESS.md with the note "needs <class>". Free functions that
 operate on numeric / cell / struct arrays remain fully in scope.
 
-Internal C++ classes inside numkit (`Engine`, `Value`, scratch arenas)
+Internal C++ classes inside nk (`Engine`, `Value`, scratch arenas)
 and **plain aggregate result structs** returned by parity functions
 (`RobustfitResult`, `GlmfitResult`, `NlinfitResult`, etc.) are fine —
 they are not MATLAB-exposed OOP.
 
-Rationale: numkit's value type is a tagged variant. Adding
+Rationale: nk's value type is a tagged variant. Adding
 MATLAB-OOP would multiply the dispatch surface, fragment the
 calling convention, and require dragging the Engine into class
 state — see §13.
 
 ## 1. Replicate the MATLAB API in full
 
-If a function exists in MATLAB, the numkit implementation must reproduce
+If a function exists in MATLAB, the nk implementation must reproduce
 its **entire observable API** — every calling signature, every optional
 and name-value argument, every output, all documented defaults, and the
 documented edge-case behavior — matching **MATLAB R2025b**. When MATLAB
@@ -114,7 +114,7 @@ behavior. Cover every branch; do **not** attempt the cartesian product
 of all argument combinations.
 
 **Compare against MATLAB output on every distinct argument set.** The
-goal is: numkit's implementation behaves the same as MATLAB's
+goal is: nk's implementation behaves the same as MATLAB's
 implementation for the same inputs. Concretely:
 
   1. Every signature `fn(a)`, `fn(a, b)`, `fn(a, b, 'opt', val)` is a
@@ -156,7 +156,7 @@ no cited source is incomplete.
 Error behavior is part of the API — §1 parity covers it. A public
 function reports a misuse or domain error the same way MATLAB does:
 
-- **Throw `numkit::Error`** — never return an error code, never set an
+- **Throw `nk::Error`** — never return an error code, never set an
   out-flag. Errors propagate as exceptions.
 - **Use a MATLAB-style identifier** `m:<fn>:<Reason>`, e.g.
   `m:polyscale:BadScale`. The `<Reason>` tag mirrors MATLAB's own error
@@ -312,8 +312,8 @@ arity → one parameter.**
 
 Any function that calls back into user-supplied code (`fzero`,
 `integral`, `fminsearch`, `cellfun`, `structfun`, `bootstrp`,
-`arrayfun`, …) takes a `numkit::FnHandle`, defined in
-[`core/fn_handle.hpp`](../core/include/numkit/core/fn_handle.hpp):
+`arrayfun`, …) takes a `nk::FnHandle`, defined in
+[`core/fn_handle.hpp`](../core/include/nk/core/fn_handle.hpp):
 
 ```cpp
 using FnHandle = function_ref<void(Span<const Value>           args,
@@ -336,7 +336,7 @@ using FnHandle = function_ref<void(Span<const Value>           args,
 C++ caller:
 
 ```cpp
-auto root = numkit::optim::fzero(
+auto root = nk::optim::fzero(
     [](Span<const Value> args, Span<Value> outs,
        std::pmr::memory_resource *mr) {
         double x = args[0].toScalar();
@@ -455,7 +455,7 @@ work — rely on them, don't reinvent:
 
 Public Doxygen comments are generated into the published HTML API
 reference — the product's public face. "MATLAB" is a registered
-trademark of The MathWorks, Inc., and numkit is a commercial product;
+trademark of The MathWorks, Inc., and nk is a commercial product;
 treat trademark use in *published* docs with care.
 
 - **Do not narrate behavior through MATLAB.** A `@brief` / `@details`
@@ -543,7 +543,7 @@ adding a new format implementation.
 `adapthisteq` (the §7-§21 pilot, landed in commit `93b205cc`) is the
 reference implementation to copy the *shape* of:
 
-- [`toolboxes/image/include/numkit/image/contrast/contrast.hpp`](../toolboxes/image/include/numkit/image/contrast/contrast.hpp)
+- [`toolboxes/image/include/nk/image/contrast/contrast.hpp`](../toolboxes/image/include/nk/image/contrast/contrast.hpp)
   — `const Value &` input, an `AdaptHistEqOptions` struct (§14), `mr`
   last, full Doxygen.
 - [`toolboxes/image/src/contrast/contrast.cpp`](../toolboxes/image/src/contrast/contrast.cpp)
@@ -557,7 +557,7 @@ reference implementation to copy the *shape* of:
   — hand-runnable smoke.
 
 For the `FnHandle` callback pattern (§12), see the worked example in the
-header of [`core/fn_handle.hpp`](../core/include/numkit/core/fn_handle.hpp).
+header of [`core/fn_handle.hpp`](../core/include/nk/core/fn_handle.hpp).
 
 ---
 
@@ -597,7 +597,7 @@ Value num2str(const Value &x, const Value &precisionOrFormat);
 
 // ❌ error reported via return code / out-flag
 int foo(const Value &x, Value *out);
-// ✅ throw numkit::Error with a m:<fn>:<Reason> identifier
+// ✅ throw nk::Error with a m:<fn>:<Reason> identifier
 
 // ❌ 8+ positional args, no struct
 Value foo(int, int, double, int, std::string, double, std::string);
@@ -639,7 +639,7 @@ public function added or changed:
           expected values taken from MATLAB R2025b.
 - [ ] §4  Clean-room — no MATLAB source consulted.
 - [ ] §5  Implementation header cites original references.
-- [ ] §6  Errors throw numkit::Error with a m:<fn>:<Reason> identifier;
+- [ ] §6  Errors throw nk::Error with a m:<fn>:<Reason> identifier;
           each @throws has an EXPECT_THROW case.
 - [ ] §7-§17  Signature follows the parameter decision tree
           (mr last, native scalars, FnHandle, no Engine*, overload
@@ -662,9 +662,9 @@ constraints, one `@param` per parameter (including
 `@return` with output shape, `@throws` for invalid inputs, and `@see`
 cross-references to related functions.
 
-- **L2 compute headers** (`src/builtin/include/numkit/builtin/*.hpp`,
+- **L2 compute headers** (`src/builtin/include/nk/builtin/*.hpp`,
   `src/toolboxes/*/include/...`) are 100% engine-free: no
-  `<numkit/core/engine.hpp>` / `<numkit/core/types.hpp>` includes, no
+  `<nk/core/engine.hpp>` / `<nk/core/types.hpp>` includes, no
   `Engine&` / `CallContext&` parameters, no `register_*` declarations —
   they depend only on L0 (`value`), L0.5 (`ops`) and the standard library.
 - **L3 registration** (`register_<category>(Engine&)`, `*_reg(...)` wrappers,

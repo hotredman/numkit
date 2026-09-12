@@ -7,17 +7,17 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/modulation/apsk.hpp>
+#include <nk/comm/modulation/apsk.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cstddef>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 namespace {
@@ -50,7 +50,7 @@ void apskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("apskmod: requires (x, M, radii [, phaseoffset [, mapping]])",
-                    0, 0, "apskmod", "", "numkit:apskmod:nargin");
+                    0, 0, "apskmod", "", "nk:apskmod:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto Mv = valueToScratchSizes(args[1], &scratch);
@@ -68,7 +68,7 @@ void apskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("apskdemod: requires (y, M, radii [, phaseoffset [, mapping]])",
-                    0, 0, "apskdemod", "", "numkit:apskdemod:nargin");
+                    0, 0, "apskdemod", "", "nk:apskdemod:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto Mv = valueToScratchSizes(args[1], &scratch);
@@ -82,4 +82,4 @@ void apskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::comm
+} // namespace nk::comm

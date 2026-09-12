@@ -4,11 +4,11 @@
 // statelevels; transitions detected via crossings of the lower / upper
 // state boundaries (10% / 90% by default).
 
-#include <numkit/signal/measurements/pulse_metrics.hpp>
+#include <nk/signal/measurements/pulse_metrics.hpp>
 #include "pulse_metrics_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -473,7 +473,7 @@ void pulseRiseFall(Span<const Value> args, std::size_t nargout, Span<Value> outs
 {
     if (args.empty())
         throw Error(std::string(fnname) + ": requires at least 1 argument",
-                     0, 0, fnname, "", std::string("numkit:") + fnname + ":nargin");
+                     0, 0, fnname, "", std::string("nk:") + fnname + ":nargin");
     const Value &fsv = (args.size() >= 2) ? args[1] : Value::Empty;
     auto v = readVec(args[0]);
     auto lh = stateLevelsCalc(v.data(), v.size());
@@ -503,4 +503,4 @@ void pulseRiseFall(Span<const Value> args, std::size_t nargout, Span<Value> outs
     if (nargout > 4) outs[4] = Value::scalar(UL, mr);
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

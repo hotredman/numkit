@@ -8,28 +8,28 @@
 // State-space poles are computed via the Faddeev–LeVerrier expansion
 // of det(sI − A) (already used by ss2tf in toolboxes/control/conversion);
 // the resulting characteristic polynomial is then handed to
-// numkit::builtin::roots. State-space *zeros* fall back to converting to a
+// nk::builtin::roots. State-space *zeros* fall back to converting to a
 // transfer function via toolboxes/signal's ss2tf and taking roots(num) —
 // works for SISO systems, which is what `zero(sys)` is most useful
 // for in a function-form environment.
 
-#include <numkit/control/props/props.hpp>
-#include <numkit/control/internal/numerics.hpp>
-#include <numkit/control/conversion/conversion.hpp>
+#include <nk/control/props/props.hpp>
+#include <nk/control/internal/numerics.hpp>
+#include <nk/control/conversion/conversion.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The is*/order/pole/
 // zero/damp/pzmap/tzero builtins (CallContext wrappers) live in props_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -84,20 +84,20 @@ Value rowFromCoeffs(const std::vector<double> &v, std::pmr::memory_resource *mr)
 // Helper: poles as a column Value, regardless of input form.
 Value polesOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return numkit::builtin::roots(sys.field("den"), mr);
+        return nk::builtin::roots(sys.field("den"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("p");
     if (hasKind(sys, "ss")) {
         auto cp = charPoly(sys.field("A"));
-        return numkit::builtin::roots(rowFromCoeffs(cp, mr), mr);
+        return nk::builtin::roots(rowFromCoeffs(cp, mr), mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
-                0, 0, "lti", "", "numkit:lti:kind");
+                0, 0, "lti", "", "nk:lti:kind");
 }
 
 Value zerosOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return numkit::builtin::roots(sys.field("num"), mr);
+        return nk::builtin::roots(sys.field("num"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("z");
     if (hasKind(sys, "ss")) {
@@ -115,13 +115,13 @@ Value zerosOf(const Value &sys, std::pmr::memory_resource *mr) {
             throw Error("zero(sys): MIMO state-space transmission zeros "
                         "require a generalised eigenvalue (QZ) solver; "
                         "not yet implemented in this build.",
-                        0, 0, "zero", "", "numkit:zero:miso");
+                        0, 0, "zero", "", "nk:zero:miso");
         }
         auto [num, den] = ss2tf(A, B, C, D, /*iu=*/1, mr);
-        return numkit::builtin::roots(num, mr);
+        return nk::builtin::roots(num, mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
-                0, 0, "lti", "", "numkit:lti:kind");
+                0, 0, "lti", "", "nk:lti:kind");
 }
 
 } // anonymous
@@ -246,8 +246,8 @@ Value tzero(const Value &sys, std::pmr::memory_resource *mr)
     if (siso.toScalar() == 0.0)
         throw Error("tzero: only SISO systems supported in this build "
                     "(MIMO transmission zeros need a generalized eigenproblem)",
-                    0, 0, "tzero", "", "numkit:tzero:miso");
+                    0, 0, "tzero", "", "nk:tzero:miso");
     return zerosOf(sys, mr);
 }
 
-} // namespace numkit::control
+} // namespace nk::control

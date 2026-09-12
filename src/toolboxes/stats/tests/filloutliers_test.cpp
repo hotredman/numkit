@@ -2,10 +2,10 @@
 //
 // Regression guard for filloutliers — outlier detection + replacement.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FillOutliersTest : public ::testing::Test
 {

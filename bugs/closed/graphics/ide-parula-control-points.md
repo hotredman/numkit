@@ -23,7 +23,7 @@ a spline in MATLAB, not piecewise-linear over those stops).
 clear;
 cm = parula(256);
 disp(cm(129));        % MATLAB R2025b: 0.0770 0.7468 0.7224
-% numkit IDE before fix: rgb(42,185,134) = 0.1657 0.7240 0.5265
+% nk IDE before fix: rgb(42,185,134) = 0.1657 0.7240 0.5265
 ```
 
 ## Fix (portion 35)

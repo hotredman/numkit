@@ -13,12 +13,12 @@ magnitudes. Notably `vecnorm` on the same input works — only `norm` is broken.
 ## Repro
 ```matlab
 norm([3+4i 0])
-% numkit: Error — Not a double array
+% nk: Error — Not a double array
 % MATLAB: 5
 norm([3+4i 0], 'fro')
-% numkit: Error — Not a double array
+% nk: Error — Not a double array
 % MATLAB: 5
-vecnorm([3+4i 0])      % numkit == MATLAB == 5  (already correct)
+vecnorm([3+4i 0])      % nk == MATLAB == 5  (already correct)
 ```
 
 ## Root cause
@@ -31,7 +31,7 @@ scalar paths never got that branch.
 Give `norm_value`/`norm_fro` the same complex handling as `vecnorm`: when the
 input is COMPLEX, use element magnitudes for the vector p-norm / Frobenius
 norm, and for the matrix 2-norm route the complex matrix through the SVD
-(numkit's svd already accepts complex). Small — reuse the `vecnorm` `getAbs`
+(nk's svd already accepts complex). Small — reuse the `vecnorm` `getAbs`
 pattern. Validate vs MATLAB on complex vectors (1/2/Inf/'fro') and matrices.
 
 ## References
@@ -46,7 +46,7 @@ pattern. Validate vs MATLAB on complex vectors (1/2/Inf/'fro') and matrices.
   norm by element magnitude `|z|`, matching MATLAB.
 - **Deferred:** the complex *matrix* 2-norm (spectral / largest singular
   value) needs a complex SVD, which is still unimplemented — it now throws a
-  clear `numkit:norm:complexSpectral` error instead of the cryptic "Not a
+  clear `nk:norm:complexSpectral` error instead of the cryptic "Not a
   double array". Tracked under bugs/linalg/complex-matrix-unsupported.md.
 - Live guard: `src/toolboxes/linalg/tests/norm_complex_test.cpp` (6 cases incl. a
   real-input regression + the spectral-throws guard). Parity:

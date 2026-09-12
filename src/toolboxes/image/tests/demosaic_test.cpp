@@ -2,10 +2,10 @@
 //
 // Regression guard for demosaic — MHC 2004 Bayer demosaicing.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DemosaicTest : public ::testing::Test
 {

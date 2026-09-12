@@ -4,15 +4,15 @@
 //   mtimes / uminus / uplus / power / mpower
 // All  — bit-identical MATLAB R2025b
 // on probed inputs.
-// Known sub-gap: numkit's mpower(matrix, n) (i.e. M^n) not
+// Known sub-gap: nk's mpower(matrix, n) (i.e. M^n) not
 // implemented — only scalar^scalar tested.
 // mpower.md.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ArithBatchTest : public ::testing::Test
 {

@@ -7,16 +7,16 @@
 //
 // Cluster: clear / import / assignin / inputname / who / whos / exist / clearvars.
 // (clc / which stay in toolboxes/builtin — path/meta, not workspace runtime.)
-#include <numkit/runtime/runtime.hpp>
+#include <nk/runtime/runtime.hpp>
 
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/environment.hpp>
-#include <numkit/fs/vfs.hpp>          // FileStat (exist / who -file / whos -file)
-#include <numkit/value/scratch.hpp>   // ScratchArena / ScratchVec (who / whos)
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/value_type.hpp> // mtypeName (whos)
+#include <nk/core/callback_builtin.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/environment.hpp>
+#include <nk/fs/vfs.hpp>          // FileStat (exist / who -file / whos -file)
+#include <nk/value/scratch.hpp>   // ScratchArena / ScratchVec (who / whos)
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/value_type.hpp> // mtypeName (whos)
 
 #include <algorithm>
 #include <cstdint>
@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 // save / load (workspace persistence) — impl + matio v5 .mat backend live
 // in workspace/saveload.cpp (+ saveload_mat.cpp). Their reg adapters are
@@ -467,7 +467,7 @@ void registerWorkspaceRuntime(Engine &engine)
 
                                 if (typeFilter == "class") {
                                     // No user-defined classdef yet (no class system in
-                                    // numkit::Engine). Returning 0 matches MATLAB's
+                                    // nk::Engine). Returning 0 matches MATLAB's
                                     // behaviour for unknown class names — scripts that
                                     // probe for a class get a benign "no" rather than
                                     // a fatal "unsupported".
@@ -570,4 +570,4 @@ void registerWorkspaceRuntime(Engine &engine)
     engine.registerFunction("load", &detail::load_reg);
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

@@ -3,11 +3,11 @@
 // One DISABLED_ test per OPEN bug in bugs/image/*.md. Disabled until fixed;
 // remove `DISABLED_` to turn into a live regression guard. MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImageKnownBug : public ::testing::Test
 {
@@ -75,7 +75,7 @@ TEST_F(ImageKnownBug, Corner)
 
 // bugs/image/adapthisteq-mapping.md — CLAHE brightness regression FIXED
 // (MATLAB clip-count ceil/round + step-redistribution + rayleigh/exp vmax
-// scaling). numkit now matches MATLAB R2025b to within a few gray levels on a
+// scaling). nk now matches MATLAB R2025b to within a few gray levels on a
 // deterministic textured 64x64 image (J(32,32)=125 vs 128, min 19 vs 20, max
 // 235 exact). The residual ≤~3 levels is inter-tile bilinear rounding
 // (bit-exact region port deferred); the tolerances guard against re-regression.

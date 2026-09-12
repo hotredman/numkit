@@ -6,14 +6,14 @@
 // reuse intfilt (a sinc-with-Hamming-window FIR) and the existing
 // filter() / upsample() / downsample() primitives.
 
-#include <numkit/signal/multirate/extras.hpp>
+#include <nk/signal/multirate/extras.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/signal/digital_filtering/filter.hpp>
-#include <numkit/signal/filter_design/filter_design.hpp>   // firls
-#include <numkit/signal/multirate/multirate.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/signal/digital_filtering/filter.hpp>
+#include <nk/signal/filter_design/filter_design.hpp>   // firls
+#include <nk/signal/multirate/multirate.hpp>
 
 #include "../dsp_helpers.hpp"   // fftRadix2, fillFftTwiddles, nextPow2, Complex
 
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -49,13 +49,13 @@ Value intfilt(size_t r, size_t n, double alpha, std::pmr::memory_resource *mr)
 {
     if (r < 1)
         throw Error("intfilt: r must be >= 1",
-                     0, 0, "intfilt", "", "numkit:intfilt:badR");
+                     0, 0, "intfilt", "", "nk:intfilt:badR");
     if (n < 1)
         throw Error("intfilt: n must be >= 1",
-                     0, 0, "intfilt", "", "numkit:intfilt:badN");
+                     0, 0, "intfilt", "", "nk:intfilt:badN");
     if (!(alpha > 0.0) || !(alpha <= 1.0))
         throw Error("intfilt: alpha must be in (0, 1]",
-                     0, 0, "intfilt", "", "numkit:intfilt:badAlpha");
+                     0, 0, "intfilt", "", "nk:intfilt:badAlpha");
 
     // MATLAB intfilt(R, L, freqmult): a bandlimited interpolation FIR of
     // length 2*R*L-1, designed by LEAST SQUARES (firls) over a piecewise
@@ -84,7 +84,7 @@ Value intfilt(size_t r, size_t n, double alpha, std::pmr::memory_resource *mr)
         }
         if (F.back() > 0.5) F.back() = 0.5;
     }
-    // numkit's firls normalises frequency to Nyquist = 1 → scale F by 2.
+    // nk's firls normalises frequency to Nyquist = 1 → scale F by 2.
     Value Fv = Value::matrix(1, F.size(), ValueType::DOUBLE, mr);
     Value Mv = Value::matrix(1, M.size(), ValueType::DOUBLE, mr);
     double *fd = Fv.doubleDataMut();
@@ -103,7 +103,7 @@ Value upfirdn(const Value &x, const Value &h, size_t p, size_t q, std::pmr::memo
 {
     if (p < 1 || q < 1)
         throw Error("upfirdn: p and q must be >= 1",
-                     0, 0, "upfirdn", "", "numkit:upfirdn:badPQ");
+                     0, 0, "upfirdn", "", "nk:upfirdn:badPQ");
     const size_t Lx = x.numel();
     const size_t Lh = h.numel();
     if (Lx == 0 || Lh == 0) return sameOrientReal(x, 0, mr);
@@ -226,4 +226,4 @@ Value fftfilt(const Value &b, const Value &x, size_t nfft, std::pmr::memory_reso
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

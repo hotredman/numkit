@@ -4,8 +4,8 @@
 #include <cmath>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::audio;
+using namespace nk;
+using namespace nk::audio;
 
 TEST(WavCodecTest, MagicAndSniffing) {
     EXPECT_FALSE(isWavBytes(nullptr, 0));
@@ -27,7 +27,7 @@ TEST(WavCodecTest, Pcm16MonoAndStereoRoundTrip) {
         p[1 * N + i] = 0.5 * std::sin(2.0 * 3.1415926535 * 880.0 * i / Fs);
     }
 
-    auto bytes = writeWavToBytes(y, Fs, 16, "Sine Test", "NumKit", "Unit Test");
+    auto bytes = writeWavToBytes(y, Fs, 16, "Sine Test", "NK", "Unit Test");
     EXPECT_GT(bytes.size(), 44u);
 
     // Peek metadata
@@ -38,7 +38,7 @@ TEST(WavCodecTest, Pcm16MonoAndStereoRoundTrip) {
     EXPECT_EQ(info.bitsPerSample, 16u);
     EXPECT_EQ(info.totalSamples, N);
     EXPECT_EQ(info.title, "Sine Test");
-    EXPECT_EQ(info.artist, "NumKit");
+    EXPECT_EQ(info.artist, "NK");
 
     // Read full audio
     AudioData decoded = readWav(bytes.data(), bytes.size());

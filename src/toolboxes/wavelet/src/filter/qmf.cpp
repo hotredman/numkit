@@ -2,14 +2,14 @@
 //
 // Wavelet filter helpers: qmf, wrev.
 
-#include <numkit/wavelet/filter/qmf.hpp>
+#include <nk/wavelet/filter/qmf.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The wrev / qmf
 // builtins (CallContext wrappers) live in filter/qmf_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -100,4 +100,4 @@ Value qmf(const Value &x, int p, std::pmr::memory_resource *mr)
     return y;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

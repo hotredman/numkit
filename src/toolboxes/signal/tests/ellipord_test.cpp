@@ -2,10 +2,10 @@
 //
 // Regression guard for ellipord (Phase 4.6). Bit-equal MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class EllipordTest : public ::testing::Test
 {

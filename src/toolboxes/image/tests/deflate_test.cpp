@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-using namespace numkit::image;
+using namespace nk::image;
 
 TEST(DeflateTest, Crc32AndAdler32KnownVectors) {
     const std::string text = "123456789";
@@ -32,7 +32,7 @@ TEST(DeflateTest, EmptyRoundTrip) {
 }
 
 TEST(DeflateTest, SmallStringRoundTrip) {
-    std::string s = "Hello world! This is Numkit autonomous C++ image compression test.";
+    std::string s = "Hello world! This is NK autonomous C++ image compression test.";
     const auto *ptr = reinterpret_cast<const uint8_t*>(s.data());
     
     // Raw Deflate

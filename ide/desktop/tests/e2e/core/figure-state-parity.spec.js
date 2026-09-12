@@ -165,7 +165,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    await expect(ide.figureWindow.locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureWindow.locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
   });
 
@@ -258,10 +258,10 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
   test('preview canvas == modal canvas for 3-D plot (both WebGL)', async ({ ide, page }) => {
     await ide.runScript('import compat.*;\nsurf([1 2 3; 2 3 4; 3 4 5]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     await ide.figureCards.first().click();
-    await expect(ide.figureWindow.locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureWindow.locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
   });
 
@@ -278,7 +278,7 @@ test.describe('Script ↔ preview ↔ modal parity', () => {
     // No legend block in the preview SVG (CompositePlot's internal
     // legend short-circuits when the script didn't ask).
     const previewLegend = await ide.figureCards.first()
-      .locator('svg .fw-legend, svg [data-numkit-legend]').count();
+      .locator('svg .fw-legend, svg [data-nk-legend]').count();
     expect(previewLegend).toBe(0);
 
     // No legend toolbar button in the modal (suppressed when

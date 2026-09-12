@@ -1,9 +1,9 @@
 // toolboxes/comm/src/modulation/qam.cpp
 
-#include <numkit/comm/modulation/qam.hpp>
+#include <nk/comm/modulation/qam.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -65,7 +65,7 @@ Value pammod(const Value &x, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pammod: M must be ≥ 2", 0, 0, "pammod", "",
-                    "numkit:pammod:badM");
+                    "nk:pammod:badM");
     Value out = alloc_complex_like(mr, x);   // PAM is real-valued but
     // MATLAB still returns complex when ini_phase ≠ 0; for simplicity always
     // return complex.
@@ -88,7 +88,7 @@ Value pamdemod(const Value &y, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pamdemod: M must be ≥ 2", 0, 0, "pamdemod", "",
-                    "numkit:pamdemod:badM");
+                    "nk:pamdemod:badM");
     Value out = alloc_double_like(mr, y);
     const size_t N = y.numel();
     if (N == 0) return out;
@@ -118,7 +118,7 @@ Value qammod(const Value &x, int M, const std::string &symbol_order,
 {
     if (M < 4)
         throw Error("qammod: M must be ≥ 4", 0, 0, "qammod", "",
-                    "numkit:qammod:badM");
+                    "nk:qammod:badM");
     auto [KI, KQ] = qam_grid(M);
 
     // Pre-compute scaling for unit average power.
@@ -155,7 +155,7 @@ Value qamdemod(const Value &y, int M, const std::string &symbol_order,
 {
     if (M < 4)
         throw Error("qamdemod: M must be ≥ 4", 0, 0, "qamdemod", "",
-                    "numkit:qamdemod:badM");
+                    "nk:qamdemod:badM");
     auto [KI, KQ] = qam_grid(M);
 
     double scale = 1.0;
@@ -217,4 +217,4 @@ Value modnorm(const Value &ref, const std::string &type, double target,
     return Value::scalar(std::sqrt(target / pk), mr);
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

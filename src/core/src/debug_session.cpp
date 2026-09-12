@@ -16,15 +16,15 @@
 //   x = <expr>   — writes through to the frame register if x is a frame
 //                  var, otherwise lands in the overlay.
 //
-#include <numkit/core/debug_session.hpp>
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/debug_session.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
 #include <unordered_set>
 
-namespace numkit {
+namespace nk {
 
 DebugSession::DebugSession(Engine &engine)
     : engine_(engine)
@@ -69,7 +69,7 @@ ExecStatus DebugSession::start(const std::string &code)
         // surfaced as a clean session error rather than a null dereference.
         if (!engine_.vm_)
             throw Error("debugger requires the VM backend", 0, 0, "",
-                        "", "numkit:debug:requiresVM");
+                        "", "nk:debug:requiresVM");
 
         Lexer lexer(code);
         auto tokens = lexer.tokenize();
@@ -596,4 +596,4 @@ std::string DebugSession::takeOutput()
     return out;
 }
 
-} // namespace numkit
+} // namespace nk

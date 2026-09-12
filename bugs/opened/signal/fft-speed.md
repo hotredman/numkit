@@ -11,7 +11,7 @@
 
 ## Measurement (µs per call, Arrow Lake / AVX2 / MSVC)
 
-| N | numkit real | MATLAB real | numkit cplx | MATLAB cplx |
+| N | nk real | MATLAB real | nk cplx | MATLAB cplx |
 |---|---|---|---|---|
 | 4096 | 15.5 | 9.1 (1.7×) | 29.7 | 9.6 (3.1×) |
 | 16384 | 99.7 | 25.1 (4.0×) | 182 | 49.9 (3.6×) |
@@ -23,7 +23,7 @@ A Highway/SIMD FFT already exists (`backends/fft_r2_soa_simd.cpp`,
 `fft_r4_soa_simd.cpp`, AoS r2/r4, + a Highway twist in the rfft path). The
 gap is structural:
 1. **Single-threaded** — MATLAB uses multithreaded FFTW (the dominant factor
-   at large N). numkit's fft has no `parallel_for`/threads.
+   at large N). nk's fft has no `parallel_for`/threads.
 2. **MSVC codegen cliff** on odd-log2 sizes (N=16384 → 4×). Under clang-cl
    the same code is ~2.4× faster at N=32768 and matches/beats MSVC on 8/9
    sizes (measured, see memory).

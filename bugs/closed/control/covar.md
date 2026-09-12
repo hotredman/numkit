@@ -13,11 +13,11 @@ white noise of intensity `W` — is not registered.
 ```matlab
 P = covar(ss(-1, 1, 1, 0), 1);
 % MATLAB: P = 0.5
-% numkit: Error — VM: undefined function 'covar'
+% nk: Error — VM: undefined function 'covar'
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::control::covar` (`state.cpp`, reuses `pullABC` +
+Implemented `nk::control::covar` (`state.cpp`, reuses `pullABC` +
 `lyap`/`dlyap`). `[P, Q] = covar(sys, W)`:
 - **state covariance** `Q` solves the gramian Lyapunov equation with the
   noise-shaped input — continuous `A Q + Q Aᵀ + B W Bᵀ = 0` (via `lyap`),
@@ -39,7 +39,7 @@ live); smoke `covar_smoke.m`.
 
 ## References
 - `src/toolboxes/control/src/state/state.cpp` (`covar`),
-  `.../include/numkit/control/state/state.hpp` (`CovarResult`),
+  `.../include/nk/control/state/state.hpp` (`CovarResult`),
   `src/bundle/src/register/control/state/state_reg.cpp` (`covar_reg`).
 - `tools/parity/specs/covar.json`.
 - shipped + reused: `lyap`/`dlyap`/`gram`/`pullABC`

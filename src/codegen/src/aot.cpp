@@ -1,8 +1,8 @@
 // codegen/src/aot.cpp — see aot.hpp.
 
-#include <numkit/codegen/aot.hpp>
+#include <nk/codegen/aot.hpp>
 
-#include <numkit/codegen/aot_config.hpp>
+#include <nk/codegen/aot_config.hpp>
 
 #include <cstdlib>
 #include <cstdio>
@@ -10,7 +10,7 @@
 #include <sstream>
 #include <string>
 
-namespace numkit::codegen::aot {
+namespace nk::codegen::aot {
 
 namespace {
 
@@ -46,31 +46,31 @@ bool fileExists(const std::string &path)
     return static_cast<bool>(is);
 }
 
-// The C++ compiler used at runtime. An env override (NUMKIT_CXX) wins over the
-// build-time-captured compiler (NUMKIT_CODEGEN_AOT_CXX): a user (or the IDE)
-// can `setenv('NUMKIT_CXX', ...)` to redirect AOT compilation to a different
+// The C++ compiler used at runtime. An env override (NK_CXX) wins over the
+// build-time-captured compiler (NK_CODEGEN_AOT_CXX): a user (or the IDE)
+// can `setenv('NK_CXX', ...)` to redirect AOT compilation to a different
 // toolchain without reconfiguring CMake. An env-overridden compiler is treated
 // as self-sufficient (no vcvars shell) — the build-time MSVC+vcvars path only
 // applies when the build-time compiler is in use. Returns empty when neither
 // is set, in which case compileImpl reports Unavailable (as before).
 std::string resolveCxx()
 {
-    if (const char *env = std::getenv("NUMKIT_CXX"))
+    if (const char *env = std::getenv("NK_CXX"))
         if (env[0] != '\0')
             return env;
-    return NUMKIT_CODEGEN_AOT_CXX;
+    return NK_CODEGEN_AOT_CXX;
 }
 
 // True when the build-time compiler is MSVC AND the user did not override it
 // (an env-overridden compiler is always driven directly, never via vcvars).
 bool useMsvcVcvars(const std::string &cxx)
 {
-    return NUMKIT_CODEGEN_AOT_IS_MSVC != 0 && cxx == NUMKIT_CODEGEN_AOT_CXX;
+    return NK_CODEGEN_AOT_IS_MSVC != 0 && cxx == NK_CODEGEN_AOT_CXX;
 }
 
 } // namespace
 
-bool available() { return NUMKIT_CODEGEN_AOT_AVAILABLE != 0; }
+bool available() { return NK_CODEGEN_AOT_AVAILABLE != 0; }
 
 namespace {
 
@@ -109,7 +109,7 @@ CompileResult compileImpl(const std::string &cppSource, const std::string &outPa
         for (const auto &d : opts.includeDirs) inc += " /I\"" + toNative(d) + "\"";
         for (const auto &d : opts.defines) def += " /D" + d;
         for (const auto &l : opts.linkLibs) libs += " \"" + toNative(l) + "\"";
-        b += "call \"" + toNative(NUMKIT_CODEGEN_AOT_VCVARS) + "\" >nul 2>&1\r\n";
+        b += "call \"" + toNative(NK_CODEGEN_AOT_VCVARS) + "\" >nul 2>&1\r\n";
         b += std::string("cl /nologo /O2 /EHsc /std:c++17 ") + (sharedLib ? "/LD " : "") + inc
              + def + " \"" + toNative(src) + "\" /Fe:\"" + toNative(outPath) + "\" /Fo:\""
              + toNative(outPath) + ".obj\"" + (libs.empty() ? "" : " /link" + libs) + "\r\n";
@@ -172,7 +172,7 @@ RunResult runExecutable(const std::string &exePath)
     (void)exePath;
     r.log = "aot: runExecutable is not available under Emscripten — a native "
             "process cannot be spawned from a WASM module. Use the desktop IDE "
-            "or the native `numkit` CLI for compile-and-run.";
+            "or the native `nk` CLI for compile-and-run.";
     return r;
 #else
     if (exePath.empty() || !fileExists(exePath)) {
@@ -212,4 +212,4 @@ RunResult runExecutable(const std::string &exePath)
 #endif
 }
 
-} // namespace numkit::codegen::aot
+} // namespace nk::codegen::aot

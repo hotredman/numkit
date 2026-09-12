@@ -9,16 +9,16 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/coding/blockcoding.hpp>
+#include <nk/comm/coding/blockcoding.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void gen2par_reg(Span<const Value> args, size_t /*nargout*/,
@@ -26,7 +26,7 @@ void gen2par_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("gen2par: requires a generator or parity-check matrix",
-                    0, 0, "gen2par", "", "numkit:gen2par:nargin");
+                    0, 0, "gen2par", "", "nk:gen2par:nargin");
     outs[0] = gen2par(args[0], ctx.engine->resource());
 }
 
@@ -35,7 +35,7 @@ void syndtable_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("syndtable: requires a parity-check matrix H",
-                    0, 0, "syndtable", "", "numkit:syndtable:nargin");
+                    0, 0, "syndtable", "", "nk:syndtable:nargin");
     outs[0] = syndtable(args[0], ctx.engine->resource());
 }
 
@@ -44,7 +44,7 @@ void hammgen_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("hammgen: requires M (number of parity bits)",
-                    0, 0, "hammgen", "", "numkit:hammgen:nargin");
+                    0, 0, "hammgen", "", "nk:hammgen:nargin");
     const long long m = static_cast<long long>(args[0].toScalar());
     const Value &prim = (args.size() >= 2) ? args[1] : Value::Empty;
     HammgenResult res = hammgen(m, prim, ctx.engine->resource());
@@ -61,7 +61,7 @@ void cyclpoly_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("cyclpoly: requires (N, K[, opt])",
-                    0, 0, "cyclpoly", "", "numkit:cyclpoly:nargin");
+                    0, 0, "cyclpoly", "", "nk:cyclpoly:nargin");
     const long long n = static_cast<long long>(args[0].toScalar());
     const long long k = static_cast<long long>(args[1].toScalar());
     const std::string opt =
@@ -75,7 +75,7 @@ void cyclgen_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("cyclgen: requires (N, genpoly[, opt])",
-                    0, 0, "cyclgen", "", "numkit:cyclgen:nargin");
+                    0, 0, "cyclgen", "", "nk:cyclgen:nargin");
     const long long n = static_cast<long long>(args[0].toScalar());
     const std::string opt =
         (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
@@ -92,7 +92,7 @@ void encode_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("encode: requires (msg, N, K[, method[, opt]])",
-                    0, 0, "encode", "", "numkit:encode:nargin");
+                    0, 0, "encode", "", "nk:encode:nargin");
     const long long n = static_cast<long long>(args[1].toScalar());
     const long long k = static_cast<long long>(args[2].toScalar());
     const std::string method =
@@ -110,7 +110,7 @@ void decode_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("decode: requires (code, N, K[, method[, opt]])",
-                    0, 0, "decode", "", "numkit:decode:nargin");
+                    0, 0, "decode", "", "nk:decode:nargin");
     const long long n = static_cast<long long>(args[1].toScalar());
     const long long k = static_cast<long long>(args[2].toScalar());
     const std::string method =
@@ -124,4 +124,4 @@ void decode_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/gev.cpp
 
-#include <numkit/stats/distributions/gev.hpp>
+#include <nk/stats/distributions/gev.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -16,7 +16,7 @@
 
 #include "gev_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value gevpdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr)
@@ -61,7 +61,7 @@ Value gevinv(const Value &p, double k, double sigma, double mu, std::pmr::memory
     }, mr);
 }
 
-Value gevrnd(::numkit::ops::RngContext &rng, double k, double sigma, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value gevrnd(::nk::ops::RngContext &rng, double k, double sigma, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -95,4 +95,4 @@ std::tuple<double, double> gevstat(double k, double sigma, double mu)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

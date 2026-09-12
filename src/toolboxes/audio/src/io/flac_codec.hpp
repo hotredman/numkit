@@ -9,11 +9,11 @@
 
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 #include <vector>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 /// Sniff FLAC magic bytes directly from an in-memory buffer.
 bool isFlacBytes(const std::uint8_t *data, std::size_t len);
@@ -28,4 +28,4 @@ AudioData readFlac(const std::uint8_t *data, std::size_t len,
 /// Peek FLAC metadata without decoding all audio frames.
 AudioInfo peekFlac(const std::uint8_t *data, std::size_t len);
 
-} // namespace numkit::audio
+} // namespace nk::audio

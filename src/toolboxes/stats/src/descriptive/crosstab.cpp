@@ -20,11 +20,11 @@
 // NaN values are excluded from the row/col index sets and from the
 // total N.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/stats/distributions/chi2.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/stats/distributions/chi2.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -35,7 +35,7 @@
 
 #include "crosstab_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 std::tuple<Value, double, double>
@@ -45,7 +45,7 @@ crosstab(const Value &x, const Value &y_opt, std::pmr::memory_resource *mr)
     const bool have_y = !y_opt.isEmpty();
     if (have_y && y_opt.numel() != Nx)
         throw Error("crosstab: x and y must have the same length",
-                    0, 0, "crosstab", "", "numkit:crosstab:LenMismatch");
+                    0, 0, "crosstab", "", "nk:crosstab:LenMismatch");
 
     auto u_x = sortedUniqueNoNaN(x);
     const size_t R = u_x.size();
@@ -114,4 +114,4 @@ crosstab(const Value &x, const Value &y_opt, std::pmr::memory_resource *mr)
     return {std::move(T), chi2, p};
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

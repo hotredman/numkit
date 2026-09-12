@@ -12,18 +12,18 @@
 // point. Unlike fminsearch (derivative-free Nelder-Mead), fminunc uses the
 // gradient — faster on smooth problems.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
-namespace numkit::optim {
+namespace nk::optim {
 
 static const char *kFminuncMSource = R"NKM(
 function [x, fval, exitflag] = fminunc(fn, x0, varargin)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:fminunc:fnType', 'fminunc: 1st argument must be a function handle');
+    error('nk:fminunc:fnType', 'fminunc: 1st argument must be a function handle');
   end
   n = numel(x0);
   if n == 0
-    error('numkit:fminunc:badX0', 'fminunc: x0 must be non-empty');
+    error('nk:fminunc:badX0', 'fminunc: x0 must be non-empty');
   end
   isRow = (size(x0, 1) == 1);
   x = reshape(x0, n, 1);
@@ -101,4 +101,4 @@ void registerFminuncM(Engine &engine)
     engine.registerBuiltinMSource(kFminuncMSource);
 }
 
-} // namespace numkit::optim
+} // namespace nk::optim

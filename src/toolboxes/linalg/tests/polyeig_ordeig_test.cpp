@@ -3,12 +3,12 @@
 // Regression guard for polyeig + ordeig. Spec at
 // tools/parity/specs/{polyeig,ordeig}.json — both OK vs MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class PolyeigOrdeigTest : public ::testing::Test
 {

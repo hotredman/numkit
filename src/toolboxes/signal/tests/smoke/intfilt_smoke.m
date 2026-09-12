@@ -4,7 +4,7 @@ clear
 % length 2*R*L-1. MATLAB R2025b builds it by LEAST SQUARES: it is exactly
 % firls(2*R*L-2, F*2, M) over a piecewise band/amplitude spec (passband
 % amplitude R around the image-free bands, zero in the spectral images).
-% numkit previously used a Hamming-windowed sinc whose coefficients
+% nk previously used a Hamming-windowed sinc whose coefficients
 % disagreed with MATLAB; it now reuses firls and matches bit-for-bit.
 
 b = intfilt(4, 2, 0.5);

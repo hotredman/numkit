@@ -2,7 +2,7 @@
 //
 // Parity tests for backend-split functions (Phase 8+). Each test
 // computes a reference via a plain scalar loop and compares against
-// the public API, which — depending on NUMKIT_WITH_SIMD — resolves
+// the public API, which — depending on NK_WITH_SIMD — resolves
 // to either the portable backend (trivially passes, it IS the
 // reference) or the Highway-dispatched backend. Same source, same
 // assertions, run under both presets.
@@ -12,15 +12,15 @@
 // identically). Transcendentals added in later phases will use an
 // ULP budget instead.
 
-#include <numkit/builtin/ops.hpp>
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/ops.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/builtin/specfun.hpp>
 
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <gtest/gtest.h>
 
@@ -34,8 +34,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using numkit::ValueType;
-using numkit::Value;
+using nk::ValueType;
+using nk::Value;
 
 namespace {
 
@@ -79,7 +79,7 @@ TEST(SimdParity_Abs, MatchesScalarOnLargeRandomVector)
     for (auto &v : src) v = dist(rng);
 
     Value x = makeDoubleVector(mr, src);
-    Value y = numkit::builtin::abs(x, mr);
+    Value y = nk::builtin::abs(x, mr);
 
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i) {
@@ -113,7 +113,7 @@ TEST(SimdParity_Abs, HandlesIeeeEdgeCases)
     };
 
     Value x = makeDoubleVector(mr, src);
-    Value y = numkit::builtin::abs(x, mr);
+    Value y = nk::builtin::abs(x, mr);
 
     ASSERT_EQ(y.numel(), src.size());
     for (size_t i = 0; i < src.size(); ++i) {
@@ -138,7 +138,7 @@ TEST(SimdParity_Abs, ScalarInputStillWorks)
     // Scalar / small paths bypass the SIMD loop entirely; included
     // to catch regressions in the public wrapper's dispatch logic.
     Value x = Value::scalar(-3.5, mr);
-    Value y = numkit::builtin::abs(x, mr);
+    Value y = nk::builtin::abs(x, mr);
     EXPECT_TRUE(bitEquals(y.toScalar(), 3.5));
 }
 
@@ -154,7 +154,7 @@ TEST(SimdParity_Abs, ComplexFallsBackToScalarImpl)
     v.complexDataMut()[1] = {-5.0, 12.0};
     v.complexDataMut()[2] = {0.0, 0.0};
 
-    Value y = numkit::builtin::abs(v, mr);
+    Value y = nk::builtin::abs(v, mr);
     ASSERT_EQ(y.numel(), 3u);
     EXPECT_DOUBLE_EQ(y.doubleData()[0], 5.0);
     EXPECT_DOUBLE_EQ(y.doubleData()[1], 13.0);
@@ -229,7 +229,7 @@ void checkTranscendentalParity(SimdFn simdFn, ScalarFn scalarFn,
 TEST(SimdParity_Sin, WithinUlpBudget)
 {
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::sin(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::sin(x, a); },
         [](double x) { return std::sin(x); },
         -10.0, 10.0, "sin");
 }
@@ -237,7 +237,7 @@ TEST(SimdParity_Sin, WithinUlpBudget)
 TEST(SimdParity_Cos, WithinUlpBudget)
 {
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::cos(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::cos(x, a); },
         [](double x) { return std::cos(x); },
         -10.0, 10.0, "cos");
 }
@@ -247,7 +247,7 @@ TEST(SimdParity_Exp, WithinUlpBudget)
     // Clamp to a range where exp() doesn't overflow — past ~709 it
     // becomes Inf and ULP distance is undefined / infinite.
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::exp(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::exp(x, a); },
         [](double x) { return std::exp(x); },
         -5.0, 5.0, "exp");
 }
@@ -257,7 +257,7 @@ TEST(SimdParity_Log, WithinUlpBudget)
     // Strictly positive inputs — negatives produce NaN, whose ULP
     // distance doesn't compare meaningfully.
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::log(x, a); },
         [](double x) { return std::log(x); },
         0.01, 100.0, "log");
 }
@@ -265,7 +265,7 @@ TEST(SimdParity_Log, WithinUlpBudget)
 TEST(SimdParity_Expm1, WithinUlpBudget)
 {
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::expm1(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::expm1(x, a); },
         [](double x) { return std::expm1(x); },
         -10.0, 10.0, "expm1");
 }
@@ -274,7 +274,7 @@ TEST(SimdParity_Log1p, WithinUlpBudget)
 {
     // log1p domain is x > -1; sample away from the -1 pole.
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log1p(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::log1p(x, a); },
         [](double x) { return std::log1p(x); },
         -0.9, 100.0, "log1p");
 }
@@ -283,7 +283,7 @@ TEST(SimdParity_Log2, WithinUlpBudget)
 {
     // Strictly positive inputs (negatives -> NaN).
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log2(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::log2(x, a); },
         [](double x) { return std::log2(x); },
         0.01, 100.0, "log2");
 }
@@ -293,7 +293,7 @@ TEST(SimdParity_Erf, WithinUlpBudget)
     // [-3, 3] exercises both the vectorised SLEEF dd kernel (|x| <= 2.5)
     // and the scalar std::erf fixup (|x| > 2.5).
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::erf(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::erf(x, a); },
         [](double x) { return std::erf(x); },
         -3.0, 3.0, "erf");
 }
@@ -302,7 +302,7 @@ TEST(SimdParity_Erf, WideRangeAndSpecialLanes)
 {
     // Mix in the small-x, large-x, zero and sign branches.
     checkTranscendentalParity(
-        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::erf(x, a); },
+        [](std::pmr::memory_resource *a, const Value &x) { return nk::builtin::erf(x, a); },
         [](double x) { return std::erf(x); },
         -6.0, 6.0, "erf-wide");
 }
@@ -311,7 +311,7 @@ TEST(SimdParity_Transcendental, NegativeLogScalarStillComplex)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     // MATLAB contract (preserved in both backends): scalar log(-1) → i·π.
-    Value y = numkit::builtin::log(Value::scalar(-1.0, mr), mr);
+    Value y = nk::builtin::log(Value::scalar(-1.0, mr), mr);
     EXPECT_TRUE(y.isComplex());
     auto c = y.toComplex();
     EXPECT_NEAR(c.real(), 0.0, 1e-12);
@@ -366,28 +366,28 @@ void checkBinaryParity(SimdFn simdFn, ScalarOp op, const char *name)
 TEST(SimdParity_Plus,    MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::plus(x, y, a); },
         [](double x, double y) { return x + y; }, "plus");
 }
 
 TEST(SimdParity_Minus,   MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::minus(x, y, a); },
         [](double x, double y) { return x - y; }, "minus");
 }
 
 TEST(SimdParity_Times,   MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::times(x, y, a); },
         [](double x, double y) { return x * y; }, "times");
 }
 
 TEST(SimdParity_Rdivide, MatchesScalar)
 {
     checkBinaryParity(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::rdivide(x, y, a); },
         [](double x, double y) { return x / y; }, "rdivide");
 }
 
@@ -419,7 +419,7 @@ TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
         B.doubleDataMut()[i] = dist(rng);
     }
 
-    Value C = numkit::builtin::mtimes(A, B, mr);
+    Value C = nk::builtin::mtimes(A, B, mr);
     ASSERT_EQ(C.numel(), N * N);
 
     // Independent scalar reference with the same (j,k,i) order so the
@@ -470,7 +470,7 @@ TEST(SimdParity_Mtimes, MatchesScalarMultiKBlock)
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(A, B, mr);
+    Value C = nk::builtin::mtimes(A, B, mr);
     ASSERT_EQ(C.numel(), M * N);
 
     // Reference matches the kernel's (j, k, i) reduction order — the
@@ -517,7 +517,7 @@ TEST(SimdParity_Mtimes, MatchesScalarExactKBlockMultiple)
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(A, B, mr);
+    Value C = nk::builtin::mtimes(A, B, mr);
 
     std::vector<double> ref(M * N, 0.0);
     for (size_t j = 0; j < N; ++j)
@@ -552,7 +552,7 @@ TEST(SimdParity_Dim, AbsOn1DRow)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(x, mr);
+    auto y = nk::builtin::abs(x, mr);
     EXPECT_EQ(y.dims().rows(), 1u);
     EXPECT_EQ(y.dims().cols(), 256u);
     for (size_t i = 0; i < 256; ++i)
@@ -564,7 +564,7 @@ TEST(SimdParity_Dim, AbsOn1DColumn)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix(256, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(x, mr);
+    auto y = nk::builtin::abs(x, mr);
     EXPECT_EQ(y.dims().rows(), 256u);
     EXPECT_EQ(y.dims().cols(), 1u);
     for (size_t i = 0; i < 256; ++i)
@@ -576,7 +576,7 @@ TEST(SimdParity_Dim, AbsOn3D)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix3d(3, 4, 5, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(x, mr);
+    auto y = nk::builtin::abs(x, mr);
     ASSERT_TRUE(y.dims().is3D());
     EXPECT_EQ(y.dims().rows(), 3u);
     EXPECT_EQ(y.dims().cols(), 4u);
@@ -591,7 +591,7 @@ TEST(SimdParity_Dim, SinOn3D)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     auto x = Value::matrix3d(2, 3, 4, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = 0.1 * double(i);
-    auto y = numkit::builtin::sin(x, mr);
+    auto y = nk::builtin::sin(x, mr);
     ASSERT_TRUE(y.dims().is3D());
     EXPECT_EQ(y.numel(), 24u);
     for (size_t i = 0; i < y.numel(); ++i)
@@ -635,28 +635,28 @@ void checkBinaryOn3D(BinaryFn fn, ScalarOp op, const char *name)
 TEST(SimdParity_Dim, PlusOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::plus(x, y, a); },
         [](double x, double y) { return x + y; }, "plus");
 }
 
 TEST(SimdParity_Dim, MinusOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::minus(x, y, a); },
         [](double x, double y) { return x - y; }, "minus");
 }
 
 TEST(SimdParity_Dim, TimesOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::times(x, y, a); },
         [](double x, double y) { return x * y; }, "times");
 }
 
 TEST(SimdParity_Dim, RdivideOn3D)
 {
     checkBinaryOn3D(
-        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(x, y, a); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return nk::builtin::rdivide(x, y, a); },
         [](double x, double y) { return x / y; }, "rdivide");
 }
 
@@ -664,14 +664,14 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     // Row vector: cols > 1, rows = 1 — NOT excluded by the fast path,
-    // so goes through SIMD when NUMKIT_WITH_SIMD=ON.
+    // so goes through SIMD when NK_WITH_SIMD=ON.
     auto aRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     auto bRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) {
         aRow.doubleDataMut()[i] = double(i);
         bRow.doubleDataMut()[i] = 3.0;
     }
-    auto cRow = numkit::builtin::plus(aRow, bRow, mr);
+    auto cRow = nk::builtin::plus(aRow, bRow, mr);
     EXPECT_EQ(cRow.dims().rows(), 1u);
     EXPECT_EQ(cRow.dims().cols(), 256u);
     for (size_t i = 0; i < 256; ++i)
@@ -684,7 +684,7 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
         aCol.doubleDataMut()[i] = double(i);
         bCol.doubleDataMut()[i] = 3.0;
     }
-    auto cCol = numkit::builtin::plus(aCol, bCol, mr);
+    auto cCol = nk::builtin::plus(aCol, bCol, mr);
     EXPECT_EQ(cCol.dims().rows(), 256u);
     EXPECT_EQ(cCol.dims().cols(), 1u);
     for (size_t i = 0; i < 256; ++i)
@@ -703,8 +703,8 @@ TEST(SimdParity_Mtimes, ThrowsOn3DInput)
         auto B = Value::matrix3d(4, 3, 2, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
         for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
-        EXPECT_THROW({ (void)numkit::builtin::mtimes(A, B, mr); },
-                     numkit::Error);
+        EXPECT_THROW({ (void)nk::builtin::mtimes(A, B, mr); },
+                     nk::Error);
     }
 
     // 3D * 2D — also undefined.
@@ -713,8 +713,8 @@ TEST(SimdParity_Mtimes, ThrowsOn3DInput)
         auto B = Value::matrix(4, 3, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
         for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
-        EXPECT_THROW({ (void)numkit::builtin::mtimes(A, B, mr); },
-                     numkit::Error);
+        EXPECT_THROW({ (void)nk::builtin::mtimes(A, B, mr); },
+                     nk::Error);
     }
 }
 
@@ -729,7 +729,7 @@ TEST(SimdParity_Mtimes, ScalarTimes3DArrayStillWorks)
     for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = double(i);
     auto s = Value::scalar(2.5, mr);
 
-    auto C = numkit::builtin::mtimes(s, A, mr);
+    auto C = nk::builtin::mtimes(s, A, mr);
     ASSERT_TRUE(C.dims().is3D());
     EXPECT_EQ(C.dims().pages(), 4u);
     EXPECT_EQ(C.numel(), 24u);
@@ -752,7 +752,7 @@ TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(A, B, mr);
+    Value C = nk::builtin::mtimes(A, B, mr);
     ASSERT_EQ(C.dims().rows(), M);
     ASSERT_EQ(C.dims().cols(), N);
 
@@ -769,7 +769,7 @@ TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
 
 // ════════════════════════════════════════════════════════════════════════
 // Large-N elementwise parity — exercises the parallel_for path in
-// the NUMKIT_WITH_THREADS build above the per-kernel parallel
+// the NK_WITH_THREADS build above the per-kernel parallel
 // threshold (kElementwiseThreshold = 16k, kTranscendentalThreshold = 4k).
 // Each kernel must produce bit-identical results to a scalar reference
 // regardless of how the work is split across worker threads, because
@@ -799,7 +799,7 @@ TEST(SimdParity_ParallelLarge, AbsBitIdenticalAcrossSplits)
     auto src = makeReals(N, 7, -1e6, 1e6);
 
     Value x = makeDoubleVector(mr, src);
-    Value y = numkit::builtin::abs(x, mr);
+    Value y = nk::builtin::abs(x, mr);
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(y.doubleData()[i], std::fabs(src[i]))) << "i=" << i;
@@ -814,7 +814,7 @@ TEST(SimdParity_ParallelLarge, PlusBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::plus(x, y, mr);
+    Value z = nk::builtin::plus(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i])) << "i=" << i;
@@ -829,7 +829,7 @@ TEST(SimdParity_ParallelLarge, MinusBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::minus(x, y, mr);
+    Value z = nk::builtin::minus(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] - b[i])) << "i=" << i;
@@ -844,7 +844,7 @@ TEST(SimdParity_ParallelLarge, TimesBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::times(x, y, mr);
+    Value z = nk::builtin::times(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] * b[i])) << "i=" << i;
@@ -859,7 +859,7 @@ TEST(SimdParity_ParallelLarge, RdivideBitIdenticalAcrossSplits)
 
     Value x = makeDoubleVector(mr, a);
     Value y = makeDoubleVector(mr, b);
-    Value z = numkit::builtin::rdivide(x, y, mr);
+    Value z = nk::builtin::rdivide(x, y, mr);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] / b[i])) << "i=" << i;
@@ -878,9 +878,9 @@ TEST(SimdParity_ParallelLarge, SinDeterministicAcrossCalls)
     auto src = makeReals(N, 41, -10.0, 10.0);
 
     Value x  = makeDoubleVector(mr, src);
-    Value y1 = numkit::builtin::sin(x, mr);
-    Value y2 = numkit::builtin::sin(x, mr);
-    Value y3 = numkit::builtin::sin(x, mr);
+    Value y1 = nk::builtin::sin(x, mr);
+    Value y2 = nk::builtin::sin(x, mr);
+    Value y3 = nk::builtin::sin(x, mr);
     ASSERT_EQ(y1.numel(), N);
     for (size_t i = 0; i < N; ++i) {
         EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
@@ -895,8 +895,8 @@ TEST(SimdParity_ParallelLarge, ExpDeterministicAcrossCalls)
     auto src = makeReals(N, 43, -5.0, 5.0);
 
     Value x  = makeDoubleVector(mr, src);
-    Value y1 = numkit::builtin::exp(x, mr);
-    Value y2 = numkit::builtin::exp(x, mr);
+    Value y1 = nk::builtin::exp(x, mr);
+    Value y2 = nk::builtin::exp(x, mr);
     ASSERT_EQ(y1.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
@@ -911,7 +911,7 @@ TEST(SimdParity_ParallelLarge, ExactBoundaryCases)
         auto b = makeReals(N, 59 + static_cast<uint32_t>(N), -1.0, 1.0);
         Value x = makeDoubleVector(mr, a);
         Value y = makeDoubleVector(mr, b);
-        Value z = numkit::builtin::plus(x, y, mr);
+        Value z = nk::builtin::plus(x, y, mr);
         ASSERT_EQ(z.numel(), N) << "N=" << N;
         for (size_t i = 0; i < N; ++i)
             EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i]))
@@ -923,7 +923,7 @@ TEST(SimdParity_ParallelLarge, ExactBoundaryCases)
 // BLAS SIMD Microkernel Parity (gemm, gemv, ger, trsm)
 // ════════════════════════════════════════════════════════════════════════
 
-#include <numkit/ops/blas.hpp>
+#include <nk/ops/blas.hpp>
 
 TEST(SimdParity_Blas, GemmRealOddTails)
 {
@@ -937,7 +937,7 @@ TEST(SimdParity_Blas, GemmRealOddTails)
             B[i] = dist(rng);
         }
 
-        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, A.data(), n, B.data(), n, 0.0, C_simd.data(), n);
+        nk::ops::gemm(nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, A.data(), n, B.data(), n, 0.0, C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t k = 0; k < n; ++k) {
@@ -967,7 +967,7 @@ TEST(SimdParity_Blas, GemmComplexOddTails)
             B[i] = Complex(dist(rng), dist(rng));
         }
 
-        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, Complex(1.0, 0.0), A.data(), n, B.data(), n, Complex(0.0, 0.0), C_simd.data(), n);
+        nk::ops::gemm(nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::NoTrans, n, n, n, Complex(1.0, 0.0), A.data(), n, B.data(), n, Complex(0.0, 0.0), C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t k = 0; k < n; ++k) {
@@ -995,7 +995,7 @@ TEST(SimdParity_Blas, GemvRealOddTails)
         for (size_t i = 0; i < n * n; ++i) A[i] = dist(rng);
         for (size_t i = 0; i < n; ++i) x[i] = dist(rng);
 
-        numkit::ops::gemv(n, n, 1.0, A.data(), n, x.data(), 1, 0.0, y_simd.data(), 1);
+        nk::ops::gemv(n, n, 1.0, A.data(), n, x.data(), 1, 0.0, y_simd.data(), 1);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t i = 0; i < n; ++i) {
@@ -1018,7 +1018,7 @@ TEST(SimdParity_Blas, GerRealOddTails)
         std::vector<double> x(n), y(n), A_simd(n * n, 0.0), A_ref(n * n, 0.0);
         for (size_t i = 0; i < n; ++i) { x[i] = dist(rng); y[i] = dist(rng); }
 
-        numkit::ops::ger(n, n, 1.0, x.data(), 1, y.data(), 1, A_simd.data(), n);
+        nk::ops::ger(n, n, 1.0, x.data(), 1, y.data(), 1, A_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t i = 0; i < n; ++i) {
@@ -1046,8 +1046,8 @@ TEST(SimdParity_Blas, TrsmRealLowerSolve)
         }
         for (size_t i = 0; i < n * n; ++i) B[i] = B_copy[i] = dist(rng);
 
-        numkit::ops::trsm(numkit::ops::MatrixSide::Left, numkit::ops::MatrixUplo::Lower,
-                          numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixDiag::NonUnit,
+        nk::ops::trsm(nk::ops::MatrixSide::Left, nk::ops::MatrixUplo::Lower,
+                          nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixDiag::NonUnit,
                           n, n, 1.0, L.data(), n, B.data(), n);
 
         // Verify L * X == B_copy
@@ -1080,7 +1080,7 @@ TEST(SimdParity_Blas, GemmP1_RandomSizes)
         const double alpha = 1.25;
         const double beta = 0.75;
 
-        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, alpha, A.data(), n, B.data(), n, beta, C_simd.data(), n);
+        nk::ops::gemm(nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::NoTrans, n, n, n, alpha, A.data(), n, B.data(), n, beta, C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t k = 0; k < n; ++k) {
@@ -1104,7 +1104,7 @@ TEST(SimdParity_Blas, GemmP1_NanInfPropagation)
     std::vector<double> B = {0.0, std::numeric_limits<double>::quiet_NaN(), 0.0, 1.0};
     std::vector<double> C(4, 0.0);
 
-    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, 2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
+    nk::ops::gemm(nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::NoTrans, 2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
     EXPECT_TRUE(std::isnan(C[0]) || std::isnan(C[1]) || std::isnan(C[2]) || std::isnan(C[3]));
 }
 TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
@@ -1118,11 +1118,11 @@ TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
         B[i] = dist(rng);
     }
 
-    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
-    EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
+    nk::ops::gemm(nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
+    EXPECT_GT(nk::ops::get_last_gemm_threads_used(), 1u);
 
-    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
-    EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
+    nk::ops::gemm(nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
+    EXPECT_GT(nk::ops::get_last_gemm_threads_used(), 1u);
 
     for (size_t i = 0; i < n * n; ++i) {
         EXPECT_EQ(C1[i], C2[i]) << "Bitwise discrepancy at index " << i;
@@ -1135,36 +1135,36 @@ TEST(SimdParity_Blas, TrsmP4_AllCombosRealAndComplex)
     std::uniform_real_distribution<double> dist(0.5, 2.0);
 
     const size_t m = 7, n = 7;
-    for (auto side : {numkit::ops::MatrixSide::Left, numkit::ops::MatrixSide::Right}) {
-        for (auto uplo : {numkit::ops::MatrixUplo::Lower, numkit::ops::MatrixUplo::Upper}) {
-            for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::Trans, numkit::ops::MatrixTranspose::ConjTrans}) {
-                for (auto diag : {numkit::ops::MatrixDiag::NonUnit, numkit::ops::MatrixDiag::Unit}) {
+    for (auto side : {nk::ops::MatrixSide::Left, nk::ops::MatrixSide::Right}) {
+        for (auto uplo : {nk::ops::MatrixUplo::Lower, nk::ops::MatrixUplo::Upper}) {
+            for (auto trans : {nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::Trans, nk::ops::MatrixTranspose::ConjTrans}) {
+                for (auto diag : {nk::ops::MatrixDiag::NonUnit, nk::ops::MatrixDiag::Unit}) {
                     // Real double test
                     {
                         std::vector<double> A(m * m, 0.0), B(m * n), B_copy(m * n);
                         for (size_t j = 0; j < m; ++j) {
                             for (size_t i = 0; i < m; ++i) {
-                                if (uplo == numkit::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = dist(rng);
-                                else if (uplo == numkit::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = dist(rng);
-                                if (i == j && diag == numkit::ops::MatrixDiag::Unit) A[i + j * m] = 1.0;
+                                if (uplo == nk::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = dist(rng);
+                                else if (uplo == nk::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = dist(rng);
+                                if (i == j && diag == nk::ops::MatrixDiag::Unit) A[i + j * m] = 1.0;
                             }
                         }
                         for (size_t i = 0; i < m * n; ++i) B[i] = B_copy[i] = dist(rng);
 
-                        numkit::ops::trsm(side, uplo, trans, diag, m, n, 1.25, A.data(), m, B.data(), m);
+                        nk::ops::trsm(side, uplo, trans, diag, m, n, 1.25, A.data(), m, B.data(), m);
 
                         double max_err = 0.0;
                         for (size_t j = 0; j < n; ++j) {
                             for (size_t i = 0; i < m; ++i) {
                                 double lhs = 0.0;
-                                if (side == numkit::ops::MatrixSide::Left) {
+                                if (side == nk::ops::MatrixSide::Left) {
                                     for (size_t k = 0; k < m; ++k) {
-                                        double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
+                                        double a_val = (trans == nk::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
                                         lhs += a_val * B[k + j * m];
                                     }
                                 } else {
                                     for (size_t k = 0; k < n; ++k) {
-                                        double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
+                                        double a_val = (trans == nk::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
                                         lhs += B[i + k * m] * a_val;
                                     }
                                 }
@@ -1180,30 +1180,30 @@ TEST(SimdParity_Blas, TrsmP4_AllCombosRealAndComplex)
                         std::vector<Complex> A(m * m, Complex(0.0, 0.0)), B(m * n), B_copy(m * n);
                         for (size_t j = 0; j < m; ++j) {
                             for (size_t i = 0; i < m; ++i) {
-                                if (uplo == numkit::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = Complex(dist(rng), dist(rng));
-                                else if (uplo == numkit::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = Complex(dist(rng), dist(rng));
-                                if (i == j && diag == numkit::ops::MatrixDiag::Unit) A[i + j * m] = Complex(1.0, 0.0);
+                                if (uplo == nk::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = Complex(dist(rng), dist(rng));
+                                else if (uplo == nk::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = Complex(dist(rng), dist(rng));
+                                if (i == j && diag == nk::ops::MatrixDiag::Unit) A[i + j * m] = Complex(1.0, 0.0);
                             }
                         }
                         for (size_t i = 0; i < m * n; ++i) B[i] = B_copy[i] = Complex(dist(rng), dist(rng));
 
                         Complex alpha(1.25, -0.5);
-                        numkit::ops::trsm(side, uplo, trans, diag, m, n, alpha, A.data(), m, B.data(), m);
+                        nk::ops::trsm(side, uplo, trans, diag, m, n, alpha, A.data(), m, B.data(), m);
 
                         double max_err = 0.0;
                         for (size_t j = 0; j < n; ++j) {
                             for (size_t i = 0; i < m; ++i) {
                                 Complex lhs(0.0, 0.0);
-                                if (side == numkit::ops::MatrixSide::Left) {
+                                if (side == nk::ops::MatrixSide::Left) {
                                     for (size_t k = 0; k < m; ++k) {
-                                        Complex a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
-                                        if (trans == numkit::ops::MatrixTranspose::ConjTrans) a_val = std::conj(a_val);
+                                        Complex a_val = (trans == nk::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
+                                        if (trans == nk::ops::MatrixTranspose::ConjTrans) a_val = std::conj(a_val);
                                         lhs += a_val * B[k + j * m];
                                     }
                                 } else {
                                     for (size_t k = 0; k < n; ++k) {
-                                        Complex a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
-                                        if (trans == numkit::ops::MatrixTranspose::ConjTrans) a_val = std::conj(a_val);
+                                        Complex a_val = (trans == nk::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
+                                        if (trans == nk::ops::MatrixTranspose::ConjTrans) a_val = std::conj(a_val);
                                         lhs += B[i + k * m] * a_val;
                                     }
                                 }
@@ -1227,20 +1227,20 @@ TEST(SimdParity_Blas, SyrkP4_ParityTest)
     const size_t n = 7, k = 5;
 
     // 1. Real Syrk test (NoTrans & Trans)
-    for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::Trans}) {
-        size_t rows_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? n : k;
-        size_t cols_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? k : n;
+    for (auto trans : {nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::Trans}) {
+        size_t rows_a = (trans == nk::ops::MatrixTranspose::NoTrans) ? n : k;
+        size_t cols_a = (trans == nk::ops::MatrixTranspose::NoTrans) ? k : n;
         std::vector<double> A(rows_a * cols_a), C_simd(n * n, 1.0), C_ref(n * n, 1.0);
         for (size_t i = 0; i < rows_a * cols_a; ++i) A[i] = dist(rng);
 
-        numkit::ops::syrk(numkit::ops::MatrixUplo::Lower, trans, n, k, 1.5, A.data(), rows_a, 0.5, C_simd.data(), n);
+        nk::ops::syrk(nk::ops::MatrixUplo::Lower, trans, n, k, 1.5, A.data(), rows_a, 0.5, C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t i = j; i < n; ++i) {
                 double acc = 0.0;
                 for (size_t l = 0; l < k; ++l) {
-                    double a_ik = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + l * rows_a] : A[l + i * rows_a];
-                    double a_jk = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[j + l * rows_a] : A[l + j * rows_a];
+                    double a_ik = (trans == nk::ops::MatrixTranspose::NoTrans) ? A[i + l * rows_a] : A[l + i * rows_a];
+                    double a_jk = (trans == nk::ops::MatrixTranspose::NoTrans) ? A[j + l * rows_a] : A[l + j * rows_a];
                     acc += a_ik * a_jk;
                 }
                 C_ref[i + j * n] = 0.5 * C_ref[i + j * n] + 1.5 * acc;
@@ -1255,21 +1255,21 @@ TEST(SimdParity_Blas, SyrkP4_ParityTest)
     }
 
     // 2. Complex Herk test (NoTrans & ConjTrans) (P4-b critical fix test)
-    for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::ConjTrans}) {
-        size_t rows_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? n : k;
-        size_t cols_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? k : n;
+    for (auto trans : {nk::ops::MatrixTranspose::NoTrans, nk::ops::MatrixTranspose::ConjTrans}) {
+        size_t rows_a = (trans == nk::ops::MatrixTranspose::NoTrans) ? n : k;
+        size_t cols_a = (trans == nk::ops::MatrixTranspose::NoTrans) ? k : n;
         std::vector<Complex> A(rows_a * cols_a), C_simd(n * n, Complex(1.0, 0.5)), C_ref(n * n, Complex(1.0, 0.5));
         for (size_t i = 0; i < rows_a * cols_a; ++i) A[i] = Complex(dist(rng), dist(rng));
 
         Complex alpha(1.5, -0.25);
         Complex beta(0.5, 0.1);
-        numkit::ops::syrk(numkit::ops::MatrixUplo::Lower, trans, n, k, alpha, A.data(), rows_a, beta, C_simd.data(), n);
+        nk::ops::syrk(nk::ops::MatrixUplo::Lower, trans, n, k, alpha, A.data(), rows_a, beta, C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t i = j; i < n; ++i) {
                 Complex acc(0.0, 0.0);
                 for (size_t l = 0; l < k; ++l) {
-                    if (trans == numkit::ops::MatrixTranspose::NoTrans) {
+                    if (trans == nk::ops::MatrixTranspose::NoTrans) {
                         // C = alpha * A * A^T + beta * C
                         acc += A[i + l * rows_a] * A[j + l * rows_a];
                     } else {

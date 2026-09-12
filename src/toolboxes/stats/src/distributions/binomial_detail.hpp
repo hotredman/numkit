@@ -9,8 +9,8 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -64,7 +64,7 @@ inline double bino_cdf_scalar(double k, double n, double p, std::pmr::memory_res
     Value xv = Value::scalar(1.0 - p, mr);
     Value av = Value::scalar(n - kf, mr);
     Value bv = Value::scalar(kf + 1.0, mr);
-    Value r = ::numkit::builtin::betainc(xv, av, bv, mr);
+    Value r = ::nk::builtin::betainc(xv, av, bv, mr);
     return r.toScalar();
 }
 
@@ -101,4 +101,4 @@ inline double bino_inv_scalar(double pival, double n, double p) {
 
 } // anonymous
 
-} // namespace numkit::stats
+} // namespace nk::stats

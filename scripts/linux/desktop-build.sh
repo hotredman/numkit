@@ -19,7 +19,7 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: desktop-build.sh [--skip-wasm] [--skip-native] [--no-package]"
             echo
-            echo "Builds the Numkit Desktop application using Electron and CMake."
+            echo "Builds the NK Desktop application using Electron and CMake."
             echo
             echo "Options:"
             echo "  --skip-wasm    Do not rebuild WASM engine (reuse existing build)"
@@ -31,7 +31,7 @@ for arg in "$@"; do
     esac
 done
 
-echo "=== Numkit IDE — Desktop Build (Linux) ==="
+echo "=== NK IDE — Desktop Build (Linux) ==="
 echo
 
 if ! command -v node &>/dev/null; then
@@ -40,7 +40,7 @@ if ! command -v node &>/dev/null; then
 fi
 
 if [ "$SKIP_WASM" -eq 1 ]; then
-    if [ -f "${WASM_DIST}/numkit_ide.wasm" ]; then
+    if [ -f "${WASM_DIST}/nk_ide.wasm" ]; then
         echo "[1/5] Skipping WASM rebuild (--skip-wasm; reusing existing build)"
     else
         echo "[1/5] WARNING: --skip-wasm but no WASM at ${WASM_DIST} — falling through to rebuild"
@@ -61,9 +61,9 @@ else
     echo "[1b/7] Native C++ binaries ready"
 fi
 
-if [ -f "${WASM_DIST}/numkit_ide.wasm" ]; then
-    cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
-    cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
+if [ -f "${WASM_DIST}/nk_ide.wasm" ]; then
+    cp "${WASM_DIST}/nk_ide.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/nk_ide.wasm" "${IDE_DIR}/public/"
     echo "[2/7] WASM engine copied to ide/public/"
 else
     echo "[2/7] WARNING: WASM not found at ${WASM_DIST} — app will run in demo mode"
@@ -110,10 +110,10 @@ if ls "${DESKTOP_DIR}/release/"*.AppImage 1> /dev/null 2>&1; then
     echo "[6/7] Copied AppImage package to deploy/desktop/"
 fi
 
-NATIVE_REPL="${PROJECT_DIR}/build/linux/release/apps/numkit/numkit_repl"
+NATIVE_REPL="${PROJECT_DIR}/build/linux/release/apps/nk/nk_repl"
 if [ -f "$NATIVE_REPL" ]; then
     cp "$NATIVE_REPL" "${DEPLOY_DIR}/"
-    echo "[6/7] Copied interpreter: numkit_repl"
+    echo "[6/7] Copied interpreter: nk_repl"
 fi
 
 echo

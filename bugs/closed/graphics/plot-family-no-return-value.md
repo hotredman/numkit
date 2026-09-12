@@ -4,7 +4,7 @@
   layer: set/get/isgraphics/ishandle/isvalid, unified delete, MATLAB-exact
   class(), dot-syntax via BuiltinClass, gca/gcf/figure handles; commit
   9d2df9116)
-- **Severity:** P2 (works in MATLAB, refused in numkit; handle-using plotting
+- **Severity:** P2 (works in MATLAB, refused in nk; handle-using plotting
   code is the textbook norm — `h = stem(...); set(h(1), 'MarkerSize', 3)`)
 - **Kind:** bug
 - **Found:** 2026-08-31 via fieldtest portion 1 (mdadams book, example_10.m
@@ -25,11 +25,11 @@ n = 0:5;
 h = stem(n, sin(n), 'filled', 'b');
 disp(exist('h'))
 set(h(1), 'MarkerSize', 3);
-% numkit:  exist → 0; then Error: VM: undefined function 'h' (in call to 'h')
+% nk:  exist → 0; then Error: VM: undefined function 'h' (in call to 'h')
 % MATLAB R2025b: exist → 2 (handle object); set(...) succeeds, no output
 ```
 
-Same for `h = plot(n, sin(n))` (exist → 0 in numkit).
+Same for `h = plot(n, sin(n))` (exist → 0 in nk).
 
 ## Root cause
 

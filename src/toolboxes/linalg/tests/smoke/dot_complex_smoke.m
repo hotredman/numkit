@@ -1,7 +1,7 @@
 clear
 
 % dot on COMPLEX vectors: MATLAB conjugates the FIRST argument,
-% dot(a,b) = sum(conj(a).*b). numkit previously dropped the imaginary part
+% dot(a,b) = sum(conj(a).*b). nk previously dropped the imaginary part
 % (returned a wrong real scalar). MATLAB R2025b.
 
 fprintf('dot([1+2i 3],[4 5i]) = %s (expect 4+7i)\n', mat2str(dot([1+2i 3], [4 5i])));

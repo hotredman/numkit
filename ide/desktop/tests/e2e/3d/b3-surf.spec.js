@@ -3,7 +3,7 @@
 // MATLAB:
 //   surf(Z) / surf(X, Y, Z)
 //   mesh(...) — same shape; in MATLAB the difference is face shading
-//   on/off. numkit ships a wireframe-only render for both right now —
+//   on/off. nk ships a wireframe-only render for both right now —
 //   face shading + lighting deferred (would need a polygon layer).
 //
 // Tests assert:
@@ -65,7 +65,7 @@ test.describe('B3 — surf / mesh', () => {
       + 'surf(Z);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
   });
 

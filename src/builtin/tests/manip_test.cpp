@@ -353,7 +353,7 @@ TEST_P(ManipTest, CircshiftMatrixBothDims)
     EXPECT_DOUBLE_EQ((*A)(1, 1), 1.0);
 }
 
-// circshift(X, K, dim) shifts by K ONLY along dimension `dim`. numkit
+// circshift(X, K, dim) shifts by K ONLY along dimension `dim`. nk
 // previously ignored the dim argument and always shifted dim 1. vs MATLAB
 // R2025b. DEEP-PROBE 2026-05-30.
 TEST_P(ManipTest, CircshiftAlongDim)
@@ -961,7 +961,7 @@ TEST_P(ManipTest, EllipsoidShifted)
 
 // ── flip / fliplr / flipud / rot90 on CELL and STRING arrays ──────────
 // (DEEP-PROBE 2026-05-31) MATLAB's flip family is type-agnostic — it just
-// permutes elements. numkit previously errored on cell/string inputs
+// permutes elements. nk previously errored on cell/string inputs
 // ("ND fallback does not support type cell/string" / "Not a double array").
 
 TEST_P(ManipTest, FlipCellRowVector)

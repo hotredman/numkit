@@ -8,11 +8,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // Strip trailing (near-)zero coefficients from a polynomial Value → vector.
 std::vector<double> trimTrailingZeros(const Value &p);
@@ -21,4 +21,4 @@ std::vector<double> trimTrailingZeros(const Value &p);
 bool isSymmetric(const std::vector<double> &v, double scale = 1.0,
                  double tol = 1e-9);
 
-} // namespace numkit::signal
+} // namespace nk::signal

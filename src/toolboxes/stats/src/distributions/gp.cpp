@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/gp.cpp
 
-#include <numkit/stats/distributions/gp.hpp>
+#include <nk/stats/distributions/gp.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -16,7 +16,7 @@
 
 #include "gp_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value gppdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr)
@@ -58,7 +58,7 @@ Value gpinv(const Value &p, double k, double sigma, double theta, std::pmr::memo
     }, mr);
 }
 
-Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value gprnd(::nk::ops::RngContext &rng, double k, double sigma, double theta, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -97,4 +97,4 @@ std::tuple<double, double> gpstat(double k, double sigma, double theta)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

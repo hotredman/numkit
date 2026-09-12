@@ -4,13 +4,13 @@
 // functions (modal*, order tracking, rpm*maps) are not implemented
 // here — they need a full state-space / RPM-resampling stack.
 
-#include <numkit/signal/measurements/vibration.hpp>
+#include <nk/signal/measurements/vibration.hpp>
 
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/signal/transforms/hilbert.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/signal/transforms/hilbert.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -22,7 +22,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -271,4 +271,4 @@ tsa(const Value &x, double fs,
     return std::make_tuple(vecCol(mr, avg), vecCol(mr, th));
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -1,4 +1,4 @@
-// playwright.config.js — config for the Numkit IDE Electron e2e tests.
+// playwright.config.js — config for the NK IDE Electron e2e tests.
 //
 // Single worker on purpose: each test launches a real Electron process,
 // owns a renderer window, talks to a real WASM engine. Parallel runs

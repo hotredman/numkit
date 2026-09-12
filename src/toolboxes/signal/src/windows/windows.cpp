@@ -1,10 +1,10 @@
 // toolboxes/signal/src/windows/windows.cpp
 
-#include <numkit/signal/windows/windows.hpp>
+#include <nk/signal/windows/windows.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include "dsp_helpers.hpp"  // fillFftTwiddles, fftRadix2, nextPow2
 
@@ -17,7 +17,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -214,7 +214,7 @@ Value gausswin(size_t N, double alpha, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0)
         throw Error("gausswin: alpha must be positive",
-                     0, 0, "gausswin", "", "numkit:gausswin:badAlpha");
+                     0, 0, "gausswin", "", "nk:gausswin:badAlpha");
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         out.doubleDataMut()[0] = 1.0;
@@ -255,7 +255,7 @@ Value chebwin(size_t N, double at, std::pmr::memory_resource *mr)
 {
     if (at <= 0)
         throw Error("chebwin: at must be positive (sidelobe attenuation in dB)",
-                     0, 0, "chebwin", "", "numkit:chebwin:badAt");
+                     0, 0, "chebwin", "", "nk:chebwin:badAt");
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         out.doubleDataMut()[0] = 1.0;
@@ -374,10 +374,10 @@ Value taylorwin(size_t N, int nbar, double sll, std::pmr::memory_resource *mr)
 {
     if (sll >= 0)
         throw Error("taylorwin: sll must be negative (peak sidelobe in dB)",
-                     0, 0, "taylorwin", "", "numkit:taylorwin:badSll");
+                     0, 0, "taylorwin", "", "nk:taylorwin:badSll");
     if (nbar < 2)
         throw Error("taylorwin: nbar must be >= 2",
-                     0, 0, "taylorwin", "", "numkit:taylorwin:badNbar");
+                     0, 0, "taylorwin", "", "nk:taylorwin:badNbar");
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 0) return out;
     // Note: N=1 takes the full formula path — MATLAB returns
@@ -481,4 +481,4 @@ Value barthannwin(size_t N, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -7,12 +7,12 @@
 
 ## Symptom
 `histcounts(x)`, `histcounts(x, nbins)`, and the `'BinWidth'` / `'BinLimits'`
-forms throw — numkit requires explicit bin edges. MATLAB auto-selects bins.
+forms throw — nk requires explicit bin edges. MATLAB auto-selects bins.
 
 ## Repro
 ```matlab
 [N, e] = histcounts([1 2 2 3 3 3])
-% numkit: Error — histcounts: bin edges required — automatic binning
+% nk: Error — histcounts: bin edges required — automatic binning
 %         (nbins / 'BinWidth' / 'BinLimits') is not supported
 % MATLAB: N = [1 2 3],  edges = [0.5 1.5 2.5 3.5]
 [N, e] = histcounts([1 2 3 4 5 6 7 8 9 10], 3)
@@ -48,7 +48,7 @@ promoted live) + `src/lang/tests/setops_test.cpp` (`HistcountsAutomaticBinning`)
 
 ## References
 - `src/math/src/discrete/discrete.cpp` (`histcountsAutoEdges` + binpicker port),
-  `src/math/include/numkit/math/discrete/discrete.hpp` (`HistBinSpec`),
+  `src/math/include/nk/math/discrete/discrete.hpp` (`HistBinSpec`),
   `src/bundle/src/register/math/discrete_reg.cpp` (`histcounts_reg`).
 - Spec `tools/parity/specs/histcounts_autobin.json`;
   smoke `src/lang/tests/smoke/histcounts_autobin_smoke.m`.

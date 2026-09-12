@@ -2,12 +2,12 @@
 //
 // Regression guard for findgroups + groupcounts.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class GroupTest : public ::testing::Test
 {

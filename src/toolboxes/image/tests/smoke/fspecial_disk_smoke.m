@@ -2,7 +2,7 @@ clear
 
 % fspecial('disk',r) builds the circular averaging filter. MATLAB R2025b
 % uses the EXACT sub-pixel area-coverage integral: each cell's weight is
-% the fraction of that unit cell lying inside the disk of radius r. numkit
+% the fraction of that unit cell lying inside the disk of radius r. nk
 % previously used a crude linear-taper approximation, so the coefficients
 % (and the kernel size for non-integer r) were off.
 

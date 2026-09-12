@@ -3,11 +3,11 @@
 // Regression guard for encode (Error Correction Codes block encoder).
 // Reference codewords from the MATLAB R2025b probe.
 
-#include <numkit/comm/coding/blockcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/blockcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class EncodeTest : public ::testing::Test
 {

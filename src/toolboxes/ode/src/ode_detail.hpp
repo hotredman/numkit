@@ -10,10 +10,10 @@
 // interpolants, the stepping loops) stay in their own TUs.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/fn_handle.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/fn_handle.hpp>
 
 #include <array>
 #include <cstddef>
@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::ode {
+namespace nk::ode {
 
 // Solver options shared by ode45 / ode23. All defaults are common EXCEPT
 // `refine` (ode45 → 4, ode23 → 1 per MATLAB R2025b), which the caller supplies
@@ -87,7 +87,7 @@ inline OdeOpts read_opts(const Value &opts, int refine_default)
 }
 
 // Evaluate the RHS callback at (t, y) -> dy/dt (length d). Engine-free: the RHS
-// is a numkit::FnHandle (args = {t, y}, outs[0] = dy/dt). `solver` ("ode45" /
+// is a nk::FnHandle (args = {t, y}, outs[0] = dy/dt). `solver` ("ode45" /
 // "ode23") names the caller in the size-mismatch error so each integrator keeps
 // its own message + identifier. The per-TU `eval_rhs` wrapper binds it.
 inline void callOdeRhs(FnHandle rhs, double t, const std::vector<double> &y,
@@ -104,9 +104,9 @@ inline void callOdeRhs(FnHandle rhs, double t, const std::vector<double> &y,
     if (out_buf.numel() != d)
         throw Error(std::string(solver) + ": RHS returned " + std::to_string(out_buf.numel())
                   + " values but expected " + std::to_string(d),
-                    0, 0, solver, "", "numkit:" + std::string(solver) + ":badRhsSize");
+                    0, 0, solver, "", "nk:" + std::string(solver) + ":badRhsSize");
     dydt.resize(d);
     for (std::size_t i = 0; i < d; ++i) dydt[i] = out_buf.elemAsDouble(i);
 }
 
-} // namespace numkit::ode
+} // namespace nk::ode

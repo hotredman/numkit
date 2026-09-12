@@ -18,5 +18,5 @@
     "ind2gray(uint16 X, MAP)     class-preserving uint16 output via 65536-LUT",
     "out-of-range index clamping (both float and integer)"
   ],
-  "comment": "MATLAB ind2gray algorithm: graycm = rgb2gray(MAP) → take column 1 → length-N grey vector. Then class-preserving lookup. Float X uses 1-based indexing with clamp to [1, M]; integer X (uint8/uint16) uses 0-based indexing with LUT padded to vs=256/65536 using last grey value beyond M-1. Coefficients are the BT.601 YIQ luma (0.298936021293775, 0.587043074451121, 0.114020904255103). Bit-equal MATLAB R2025b on all probed test vectors including the RGB-cmap case where the previous numkit impl was wrong (it just took column 0 of MAP instead of applying rgb2gray)."
+  "comment": "MATLAB ind2gray algorithm: graycm = rgb2gray(MAP) → take column 1 → length-N grey vector. Then class-preserving lookup. Float X uses 1-based indexing with clamp to [1, M]; integer X (uint8/uint16) uses 0-based indexing with LUT padded to vs=256/65536 using last grey value beyond M-1. Coefficients are the BT.601 YIQ luma (0.298936021293775, 0.587043074451121, 0.114020904255103). Bit-equal MATLAB R2025b on all probed test vectors including the RGB-cmap case where the previous nk impl was wrong (it just took column 0 of MAP instead of applying rgb2gray)."
 }

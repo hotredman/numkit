@@ -7,17 +7,17 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/balance.hpp>
+#include <nk/linalg/balance.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <string>
 #include <utility>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void balance_reg(Span<const Value> args, size_t nargout,
@@ -25,17 +25,17 @@ void balance_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("balance: requires (A [, 'noperm'])",
-                    0, 0, "balance", "", "numkit:balance:nargin");
+                    0, 0, "balance", "", "nk:balance:nargin");
     bool noperm = false;
     if (args.size() >= 2) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("balance: optional arg must be 'noperm'",
-                        0, 0, "balance", "", "numkit:balance:BadOpt");
+                        0, 0, "balance", "", "nk:balance:BadOpt");
         std::string s = args[1].toString();
         if (s == "noperm") noperm = true;
         else
             throw Error("balance: unknown option '" + s + "'",
-                        0, 0, "balance", "", "numkit:balance:BadOpt");
+                        0, 0, "balance", "", "nk:balance:BadOpt");
     }
 
     auto R = balance_impl(args[0], noperm, ctx.engine->resource());
@@ -65,4 +65,4 @@ void balance_reg(Span<const Value> args, size_t nargout,
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

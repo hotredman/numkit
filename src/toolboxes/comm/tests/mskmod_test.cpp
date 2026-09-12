@@ -3,10 +3,10 @@
 // Regression guard for mskmod() — minimum-shift keying modulator,
 // differential variant. Bit-equal with MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MskmodTest : public ::testing::Test
 {

@@ -1,20 +1,20 @@
 // toolboxes/builtin/src/language/operators/binary_ops_reg.cpp
 //
 // CallContext register half (Phase 2b multi-block split).
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/ops.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/ops/binary_ops.hpp>
-#include <numkit/ops/compare.hpp>
-#include <numkit/ops/la_solve.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/ops.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/ops/binary_ops.hpp>
+#include <nk/ops/compare.hpp>
+#include <nk/ops/la_solve.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "ops/binary_ops_detail.hpp"
-#include <numkit/ops/helpers.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,8 +28,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -39,7 +39,7 @@ namespace detail {
     {                                                                                 \
         if (args.size() < 2)                                                          \
             throw Error(#MATLAB_NAME ": requires 2 arguments",                       \
-                         0, 0, #MATLAB_NAME, "", "numkit:" #MATLAB_NAME ":nargin");        \
+                         0, 0, #MATLAB_NAME, "", "nk:" #MATLAB_NAME ":nargin");        \
         outs[0] = CXX_FN(args[0], args[1], ctx.engine->resource());                  \
     }
 
@@ -67,7 +67,7 @@ void ldivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ldivide: requires 2 arguments",
-                     0, 0, "ldivide", "", "numkit:ldivide:nargin");
+                     0, 0, "ldivide", "", "nk:ldivide:nargin");
     outs[0] = rdivide(args[1], args[0], ctx.engine->resource());
 }
 
@@ -77,7 +77,7 @@ void and_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("and: requires 2 arguments",
-                     0, 0, "and", "", "numkit:and:nargin");
+                     0, 0, "and", "", "nk:and:nargin");
     outs[0] = logicalAnd(args[0], args[1], ctx.engine->resource());
 }
 
@@ -86,10 +86,10 @@ void or_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("or: requires 2 arguments",
-                     0, 0, "or", "", "numkit:or:nargin");
+                     0, 0, "or", "", "nk:or:nargin");
     outs[0] = logicalOr(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

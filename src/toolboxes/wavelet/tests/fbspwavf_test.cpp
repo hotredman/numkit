@@ -1,11 +1,11 @@
 // toolboxes/wavelet/tests/fbspwavf_test.cpp
 // fbspwavf.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FbspwavfTest : public ::testing::Test
 {

@@ -18,13 +18,13 @@
 // erfc/gamma (which need expk anyway). Parity vs the scalar reference is
 // checked in toolboxes/builtin/tests/simd_parity_test.cpp.
 
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/parallel_for.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/parallel_for.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -35,7 +35,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace nk::builtin {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -284,12 +284,12 @@ void ErfLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace nk::builtin
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 HWY_EXPORT(ErfLoop);
 
@@ -303,13 +303,13 @@ Value erf(const Value &x, std::pmr::memory_resource *mr)
         return r;
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
-    numkit::detail::parallel_for(x.numel(), numkit::detail::kTranscendentalThreshold,
+    nk::detail::parallel_for(x.numel(), nk::detail::kTranscendentalThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(ErfLoop)(in + s, out + s, e - s);
         });
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin
 
 #endif // HWY_ONCE

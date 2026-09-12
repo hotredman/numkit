@@ -3,16 +3,16 @@
 //   bitand / bitor / bitxor / bitshift / bitcmp / bitset / bitget
 // All  — bit-identical MATLAB R2025b
 // on probed inputs (parity tol=0, exact integer match).
-// Side observation noted in this commit's review: numkit's bitset
+// Side observation noted in this commit's review: nk's bitset
 // rejects uint32 first arg ("Not a double array") and uint32 array
 // concat fails — separate adapter-level gaps, NOT in scope here.
 // Probed only via inputs that work; full type matrix is a follow-up.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class BitwiseBatchTest : public ::testing::Test
 {

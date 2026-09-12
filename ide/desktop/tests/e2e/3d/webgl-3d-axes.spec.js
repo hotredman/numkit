@@ -17,7 +17,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
       + 'zlim([-1 2]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -83,7 +83,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
     // canvas. Tick + axis labels combined → at least 4 divs (3 axis
     // names + several ticks). We don't pixel-diff, just count.
     const labelDivs = await ide.figureCards.first()
-      .locator('canvas[data-numkit-3d]')
+      .locator('canvas[data-nk-3d]')
       .locator('xpath=..')
       .locator('div')
       .count();
@@ -128,7 +128,7 @@ test.describe('WebGL 3-D — axes infrastructure', () => {
       'import compat.*;\n'
       + 'surf([1 2 3; 2 3 4; 3 4 5]);\n'
     );
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)

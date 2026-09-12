@@ -9,7 +9,7 @@
 MATLAB `spectrogram` returns up to six outputs `[s, f, t, ps, fc, tc]`, where
 `fc` and `tc` are the **reassigned centre-of-energy frequency and time per STFT
 cell** — matrices the SAME SIZE as `s` (not per-time-bin vectors; see the
-re-scope note below). numkit emits at most four (`s, f, t, ps`) and throws "Too
+re-scope note below). nk emits at most four (`s, f, t, ps`) and throws "Too
 many output arguments" for `fc`/`tc`. (`ps`, the 4th output, was added earlier —
 see bugs/signal/spectrogram-ps.md.)
 
@@ -18,7 +18,7 @@ see bugs/signal/spectrogram-ps.md.)
 clear;
 x = sin(2*pi*0.1*(0:99));
 [s, f, t, ps, fc, tc] = spectrogram(x, 16, 8, 16, 1);
-% numkit: Error — Too many output arguments
+% nk: Error — Too many output arguments
 % MATLAB: fc, tc are length-numel(t) vectors; here tc(1)=8, fc(1)≈0
 ```
 

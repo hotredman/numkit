@@ -15,7 +15,7 @@ input's orientation.
 ```matlab
 clear;
 y = conv([1; 2; 3], [1 2]);
-% numkit (pre-fix): 1x4 row
+% nk (pre-fix): 1x4 row
 % MATLAB R2025b:    4x1 column
 % rule: LONGER vector wins, ties -> column (conv(row3,col2) -> 1x4 row)
 ```

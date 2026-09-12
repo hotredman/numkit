@@ -2,12 +2,12 @@
 //
 // Implementation of the type lattice — see type_lattice.hpp.
 
-#include <numkit/codegen/type_lattice.hpp>
+#include <nk/codegen/type_lattice.hpp>
 
 #include <cmath>
 #include <sstream>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 bool Shape::operator==(const Shape &o) const
 {
@@ -222,4 +222,4 @@ std::string ConstVal::str() const
     return os.str();
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

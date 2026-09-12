@@ -9,10 +9,10 @@
 // every root inside the unit circle while preserving the magnitude-
 // response shape).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class PolyUtilsTest : public ::testing::Test
 {

@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <numkit/builtin/builtin.hpp>
-#include <numkit/bundle/builtin_library.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/builtin/builtin.hpp>
+#include <nk/bundle/builtin_library.hpp>
+#include <nk/core/engine.hpp>
 
-using namespace numkit;
+using namespace nk;
 
 // Suite name must NOT collide with the parameterized BuiltinTest in
 // bundle/tests/builtins_test.cpp: two different fixture classes under

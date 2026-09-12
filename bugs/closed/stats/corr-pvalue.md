@@ -6,14 +6,14 @@
 - **Found:** 2026-06 via DEEP-PROBE (stats coverage)
 
 ## Symptom
-`[r, p] = corr(x, y, ...)` throws "Too many output arguments" — numkit
+`[r, p] = corr(x, y, ...)` throws "Too many output arguments" — nk
 returns only the correlation `r`; the p-value `p` (test of H0: no
 correlation) is missing for Pearson, Spearman, AND Kendall.
 
 ## Repro
 ```matlab
 x = [1 2 3 4 5]'; y = [2 1 4 3 6]';
-[r, p] = corr(x, y, 'type', 'Kendall')   % numkit: Error — Too many output args
+[r, p] = corr(x, y, 'type', 'Kendall')   % nk: Error — Too many output args
 % MATLAB: r = 0.6,       p = 0.233333
 [r, p] = corr(x, y, 'type', 'Spearman')  % MATLAB: r = 0.8,   p = 0.133333
 [r, p] = corr(x, y)                       % MATLAB: r = 0.821995, p = 0.0877066
@@ -54,7 +54,7 @@ The `r` values are all correct (1-output form works).
   (n=5), `p=0.014136905` (n=8); matrix `corr(X)` diagonal p = 1,
   off-diagonal = the pairwise p. `r` and the 1-output form are unchanged.
 - **Known divergence (documented):** for large-n Spearman, MATLAB uses the
-  AS 89 algorithm; numkit uses the Student-t approximation. The two agree to
+  AS 89 algorithm; nk uses the Student-t approximation. The two agree to
   ~3 digits but are not identical, so only the small-n EXACT Spearman case is
   validated in parity. Ties in Kendall fall back to the normal approximation.
 - Live guard: `src/toolboxes/stats/tests/corr_pvalue_test.cpp` (5 TEST_F) + flipped

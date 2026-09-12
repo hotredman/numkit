@@ -1,5 +1,5 @@
 /**
- * Pure path utility functions for Numkit IDE.
+ * Pure path utility functions for NK IDE.
  * Handles normalization, sanitization, and parent resolution for both
  * Virtual File System (POSIX /) and Local File System (OS paths)
  * using deterministic string operations without complex regular expressions.

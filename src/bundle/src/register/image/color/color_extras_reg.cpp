@@ -8,14 +8,14 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/color/color.hpp>
-#include <numkit/image/type_convert/type_convert.hpp>
-#include <numkit/image/geom/geom.hpp>
-#include <numkit/image/contrast/contrast.hpp>
+#include <nk/image/color/color.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
+#include <nk/image/geom/geom.hpp>
+#include <nk/image/contrast/contrast.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 #include "color/color_extras_detail.hpp"
 
 #include <array>
@@ -25,7 +25,7 @@
 #include <string>
 #include <utility>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void rgb2lightness_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rgb2lightness: requires (RGB)",
-                    0, 0, "rgb2lightness", "", "numkit:rgb2lightness:nargin");
+                    0, 0, "rgb2lightness", "", "nk:rgb2lightness:nargin");
     outs[0] = rgb2lightness(args[0], ctx.engine->resource());
 }
 
@@ -44,26 +44,26 @@ void rgb2ind_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("rgb2ind: requires (RGB, inmap [, dithering]) — "
                     "Q/tol forms deferred",
-                    0, 0, "rgb2ind", "", "numkit:rgb2ind:nargin");
+                    0, 0, "rgb2ind", "", "nk:rgb2ind:nargin");
     // Optional 3rd arg: 'dither' (default in MATLAB) | 'nodither'.
-    // Numkit always behaves as 'nodither'; if 'dither' is requested we
+    // NK always behaves as 'nodither'; if 'dither' is requested we
     // throw to keep parity honest (KNOWN GAP).
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString())) {
         const std::string s = args[2].toString();
         if (s == "dither")
             throw Error("rgb2ind: 'dither' option not implemented in v1 "
                         "(KNOWN GAP); pass 'nodither' instead",
-                        0, 0, "rgb2ind", "", "numkit:rgb2ind:NoDither");
+                        0, 0, "rgb2ind", "", "nk:rgb2ind:NoDither");
         if (s != "nodither")
             throw Error("rgb2ind: dithering arg must be 'dither' or 'nodither'",
-                        0, 0, "rgb2ind", "", "numkit:rgb2ind:BadOpt");
+                        0, 0, "rgb2ind", "", "nk:rgb2ind:BadOpt");
     }
     // Q (positive integer scalar) and tol (real in [0,1]) forms throw.
     if (args[1].numel() == 1) {
         throw Error("rgb2ind: scalar Q (min-variance quant) and tol "
                     "(uniform quant) forms not implemented in v1; pass "
                     "an explicit K×3 colormap instead (KNOWN GAP)",
-                    0, 0, "rgb2ind", "", "numkit:rgb2ind:NotImpl");
+                    0, 0, "rgb2ind", "", "nk:rgb2ind:NotImpl");
     }
     auto [X, cmap] = rgb2ind_inmap(args[0], args[1], ctx.engine->resource());
     outs[0] = X;
@@ -79,7 +79,7 @@ void rgbwide2ycbcr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("rgbwide2ycbcr: requires (RGB, BPS)",
-                    0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:nargin");
+                    0, 0, "rgbwide2ycbcr", "", "nk:rgbwide2ycbcr:nargin");
     const int bps = static_cast<int>(args[1].toScalar());
     outs[0] = rgbwide2ycbcr(args[0], bps, ctx.engine->resource());
 }
@@ -89,7 +89,7 @@ void ycbcr2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ycbcr2rgbwide: requires (YCBCR, BPS)",
-                    0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:nargin");
+                    0, 0, "ycbcr2rgbwide", "", "nk:ycbcr2rgbwide:nargin");
     const int bps = static_cast<int>(args[1].toScalar());
     outs[0] = ycbcr2rgbwide(args[0], bps, ctx.engine->resource());
 }
@@ -100,7 +100,7 @@ void rgbwide2xyz_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("rgbwide2xyz: requires (RGB, BPS [, NV...])",
                     0, 0, "rgbwide2xyz", "",
-                    "numkit:rgbwide2xyz:nargin");
+                    "nk:rgbwide2xyz:nargin");
     auto *mr = ctx.engine->resource();
     const int bps = static_cast<int>(args[1].toScalar());
     std::string cs = "BT.2020";
@@ -111,7 +111,7 @@ void rgbwide2xyz_reg(Span<const Value> args, size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("rgbwide2xyz: expected NV-pair name string",
                         0, 0, "rgbwide2xyz", "",
-                        "numkit:rgbwide2xyz:badNv");
+                        "nk:rgbwide2xyz:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name) nlo += static_cast<char>(std::tolower(
@@ -123,7 +123,7 @@ void rgbwide2xyz_reg(Span<const Value> args, size_t /*nargout*/,
         } else {
             throw Error("rgbwide2xyz: unknown option '" + name + "'",
                         0, 0, "rgbwide2xyz", "",
-                        "numkit:rgbwide2xyz:unknownNv");
+                        "nk:rgbwide2xyz:unknownNv");
         }
         i += 2;
     }
@@ -136,7 +136,7 @@ void xyz2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("xyz2rgbwide: requires (XYZ, BPS [, NV...])",
                     0, 0, "xyz2rgbwide", "",
-                    "numkit:xyz2rgbwide:nargin");
+                    "nk:xyz2rgbwide:nargin");
     auto *mr = ctx.engine->resource();
     const int bps = static_cast<int>(args[1].toScalar());
     std::string cs = "BT.2020";
@@ -147,7 +147,7 @@ void xyz2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("xyz2rgbwide: expected NV-pair name string",
                         0, 0, "xyz2rgbwide", "",
-                        "numkit:xyz2rgbwide:badNv");
+                        "nk:xyz2rgbwide:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name) nlo += static_cast<char>(std::tolower(
@@ -159,7 +159,7 @@ void xyz2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
         } else {
             throw Error("xyz2rgbwide: unknown option '" + name + "'",
                         0, 0, "xyz2rgbwide", "",
-                        "numkit:xyz2rgbwide:unknownNv");
+                        "nk:xyz2rgbwide:unknownNv");
         }
         i += 2;
     }
@@ -171,7 +171,7 @@ void cmunique_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("cmunique: requires (X, MAP), (RGB), or (I)",
-                    0, 0, "cmunique", "", "numkit:cmunique:nargin");
+                    0, 0, "cmunique", "", "nk:cmunique:nargin");
     auto *mr = ctx.engine->resource();
     std::pair<Value, Value> result;
     if (args.size() == 1) {
@@ -196,7 +196,7 @@ void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imfuse: requires (A, B [, METHOD] [, NV...])",
-                    0, 0, "imfuse", "", "numkit:imfuse:nargin");
+                    0, 0, "imfuse", "", "nk:imfuse:nargin");
     auto *mr = ctx.engine->resource();
 
     const Value &A = args[0];
@@ -227,13 +227,13 @@ void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
             throw Error("imfuse: unknown METHOD '" + m + "' (allowed: "
                         "falsecolor / blend / diff / checkerboard / "
                         "montage)",
-                        0, 0, "imfuse", "", "numkit:imfuse:method");
+                        0, 0, "imfuse", "", "nk:imfuse:method");
         // else: leave i=2 so it gets parsed as NV pair below.
     }
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("imfuse: expected NV-pair name string",
-                        0, 0, "imfuse", "", "numkit:imfuse:badNvArg");
+                        0, 0, "imfuse", "", "nk:imfuse:badNvArg");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -266,14 +266,14 @@ void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
                     channels.doubleDataMut()[2] = 2;
                 } else {
                     throw Error("imfuse: unknown ColorChannels '" + s + "'",
-                                0, 0, "imfuse", "", "numkit:imfuse:channels");
+                                0, 0, "imfuse", "", "nk:imfuse:channels");
                 }
             } else {
                 channels = v;
             }
         } else {
             throw Error("imfuse: unknown option '" + name + "'",
-                        0, 0, "imfuse", "", "numkit:imfuse:unknownNv");
+                        0, 0, "imfuse", "", "nk:imfuse:unknownNv");
         }
         i += 2;
     }
@@ -285,7 +285,7 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("tonemap: requires (HDR [, NV...])",
-                    0, 0, "tonemap", "", "numkit:tonemap:nargin");
+                    0, 0, "tonemap", "", "nk:tonemap:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -297,7 +297,7 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("tonemap: expected NV-pair name",
-                        0, 0, "tonemap", "", "numkit:tonemap:badNv");
+                        0, 0, "tonemap", "", "nk:tonemap:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -307,7 +307,7 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
             const Value &v = args[i + 1];
             if (v.numel() != 2)
                 throw Error("tonemap: AdjustLightness must be [lo hi]",
-                            0, 0, "tonemap", "", "numkit:tonemap:adjustLen");
+                            0, 0, "tonemap", "", "nk:tonemap:adjustLen");
             lo = v.elemAsDouble(0);
             hi = v.elemAsDouble(1);
         } else if (nlo == "adjustsaturation") {
@@ -322,11 +322,11 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
             } else {
                 throw Error("tonemap: NumberOfTiles must be a scalar or "
                             "2-element vector",
-                            0, 0, "tonemap", "", "numkit:tonemap:tilesLen");
+                            0, 0, "tonemap", "", "nk:tonemap:tilesLen");
             }
         } else {
             throw Error("tonemap: unknown option '" + name + "'",
-                        0, 0, "tonemap", "", "numkit:tonemap:unknownNv");
+                        0, 0, "tonemap", "", "nk:tonemap:unknownNv");
         }
         i += 2;
     }
@@ -343,7 +343,7 @@ void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("labeloverlay: requires (A, L [, NV...])",
                     0, 0, "labeloverlay", "",
-                    "numkit:labeloverlay:nargin");
+                    "nk:labeloverlay:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -357,7 +357,7 @@ void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("labeloverlay: expected NV-pair name string",
                         0, 0, "labeloverlay", "",
-                        "numkit:labeloverlay:badNv");
+                        "nk:labeloverlay:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -374,7 +374,7 @@ void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
         } else {
             throw Error("labeloverlay: unknown option '" + name + "'",
                         0, 0, "labeloverlay", "",
-                        "numkit:labeloverlay:unknownNv");
+                        "nk:labeloverlay:unknownNv");
         }
         i += 2;
     }
@@ -397,7 +397,7 @@ void label2rgb_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("label2rgb: requires (L [, map [, zerocolor [, order]]])",
-                    0, 0, "label2rgb", "", "numkit:label2rgb:nargin");
+                    0, 0, "label2rgb", "", "nk:label2rgb:nargin");
     auto *mr = ctx.engine->resource();
     const Value &L = args[0];
 
@@ -427,10 +427,10 @@ void label2rgb_reg(Span<const Value> args, std::size_t /*nargout*/,
             throw Error("label2rgb: order 'shuffle' is not yet supported "
                         "(requires MATLAB's swb2712 random stream)",
                         0, 0, "label2rgb", "",
-                        "numkit:label2rgb:shuffleUnsupported");
+                        "nk:label2rgb:shuffleUnsupported");
         if (ord != "noshuffle")
             throw Error("label2rgb: order must be 'noshuffle' or 'shuffle'",
-                        0, 0, "label2rgb", "", "numkit:label2rgb:order");
+                        0, 0, "label2rgb", "", "nk:label2rgb:order");
     }
 
     // ── Resolve zerocolor: RGB triplet or ColorSpec string ─────────
@@ -442,7 +442,7 @@ void label2rgb_reg(Span<const Value> args, std::size_t /*nargout*/,
                 throw Error("label2rgb: invalid zerocolor string '" +
                             args[2].toString() + "'",
                             0, 0, "label2rgb", "",
-                            "numkit:label2rgb:zerocolor");
+                            "nk:label2rgb:zerocolor");
             bg = Value::matrix(1, 3, ValueType::DOUBLE, mr);
             double *bd = bg.doubleDataMut();
             bd[0] = rgb[0]; bd[1] = rgb[1]; bd[2] = rgb[2];
@@ -456,4 +456,4 @@ void label2rgb_reg(Span<const Value> args, std::size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

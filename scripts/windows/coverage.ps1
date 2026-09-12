@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  Source-based code coverage for numkit (architecture-review risk #6).
+  Source-based code coverage for nk (architecture-review risk #6).
 
 .DESCRIPTION
-  Builds the `coverage` CMake preset (Ninja + clang-cl, NUMKIT_COVERAGE=ON),
+  Builds the `coverage` CMake preset (Ninja + clang-cl, NK_COVERAGE=ON),
   runs the gtest suite under LLVM_PROFILE_FILE, merges the raw profiles with
   llvm-profdata and prints an llvm-cov line/region/function report scoped to
   src/ (third_party / _deps / test code filtered out).
@@ -43,30 +43,30 @@ Set-Location $repo
 if (-not $NoBuild) {
     cmake --preset coverage
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed" }
-    cmake --build --preset coverage --target numkit_gtest
+    cmake --build --preset coverage --target nk_gtest
     if ($LASTEXITCODE -ne 0) { throw "coverage build failed" }
 }
 
-$exe = "$build/tests/gtest/numkit_gtest.exe"
+$exe = "$build/tests/gtest/nk_gtest.exe"
 if (-not (Test-Path $exe)) { throw "coverage build did not produce $exe" }
 
 # 3. Run the suite. gtest is a single process, so write to one fixed,
 # absolute profraw — no globbing, no %p/flush/cwd races.
-$raw   = Join-Path $build "numkit.profraw"
-$pdata = Join-Path $build "numkit.profdata"
+$raw   = Join-Path $build "nk.profraw"
+$pdata = Join-Path $build "nk.profdata"
 Remove-Item $raw, $pdata -ErrorAction SilentlyContinue
 $env:LLVM_PROFILE_FILE = $raw
 & $exe @GtestArgs
 $runExit = $LASTEXITCODE
 $env:LLVM_PROFILE_FILE = $null
-if ($runExit -ne 0) { Write-Warning "numkit_gtest exited $runExit — coverage below reflects only what ran." }
+if ($runExit -ne 0) { Write-Warning "nk_gtest exited $runExit — coverage below reflects only what ran." }
 
 # 4. Merge + report, scoped to src/.
-if (-not (Test-Path $raw)) { throw "no profraw at $raw — was the build instrumented (NUMKIT_COVERAGE=ON)?" }
+if (-not (Test-Path $raw)) { throw "no profraw at $raw — was the build instrumented (NK_COVERAGE=ON)?" }
 & "$llvm/llvm-profdata.exe" merge -sparse $raw -o $pdata
 if ($LASTEXITCODE -ne 0) { throw "llvm-profdata merge failed" }
 
-Write-Host "`n==== numkit source coverage (src/, third_party + tests excluded) ====`n"
+Write-Host "`n==== nk source coverage (src/, third_party + tests excluded) ====`n"
 & "$llvm/llvm-cov.exe" report $exe "-instr-profile=$pdata" "-ignore-filename-regex=$ignore" "src"
 
 if ($Html) {

@@ -1,5 +1,5 @@
 /**
- * fs/local.js — real-filesystem backend for Numkit IDE.
+ * fs/local.js — real-filesystem backend for NK IDE.
  *
  * Two interchangeable backends with the same public shape:
  *
@@ -30,12 +30,12 @@
 // Native backend — Electron desktop
 // ─────────────────────────────────────────────────────────────────
 //
-// Persists the root folder path in localStorage ("numkit.ide.native.root")
+// Persists the root folder path in localStorage ("nk.ide.native.root")
 // so reloading the IDE reopens the same folder without asking again.
 // No permission handshake is needed — the main process runs with
 // the user's OS permissions.
 
-const NATIVE_ROOT_KEY = 'numkit.ide.native.root';
+const NATIVE_ROOT_KEY = 'nk.ide.native.root';
 
 function makeNativeBackend() {
     const api = window.nativeFS;
@@ -207,7 +207,7 @@ function makeNativeBackend() {
 // preserves the mount across page reloads (still needs a permission
 // re-grant from the user).
 
-const DB_NAME = 'numkit-ide-local-fs';
+const DB_NAME = 'nk-ide-local-fs';
 const DB_VERSION = 1;
 const STORE = 'handles';
 const HANDLE_KEY = 'root';

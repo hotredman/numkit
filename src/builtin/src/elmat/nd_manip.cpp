@@ -1,28 +1,28 @@
 // toolboxes/builtin/src/lang/arrays/nd_manip.cpp
 //
-// Phase 6: N-D array manipulation. numkit's Value is capped at
+// Phase 6: N-D array manipulation. nk's Value is capped at
 // 3D so the perm vector must have length 2 or 3. The general
 // approach: compute output dims from input dims via the permutation,
 // then iterate over output indices and compute the corresponding
 // input index. Pure scalar gather; no SIMD opportunity in the
 // general case (input strides differ per axis after permutation).
 
-#include <numkit/builtin/elmat.hpp>
+#include <nk/builtin/elmat.hpp>
 
-#include <numkit/builtin/elmat.hpp>  // reshape, horzcat, vertcat
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
-#include <numkit/value/error.hpp>
+#include <nk/builtin/elmat.hpp>  // reshape, horzcat, vertcat
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cstring>
 #include <numeric>
 #include <vector>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -33,17 +33,17 @@ void validatePerm(const int *perm, std::size_t N, const char *fn)
 {
     if (N == 0)
         throw Error(std::string(fn) + ": perm vector must not be empty",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyPerm");
+                     0, 0, fn, "", std::string("nk:") + fn + ":emptyPerm");
     if (N > Dims::kMaxRank)
         throw Error(std::string(fn) + ": perm length exceeds 32",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("nk:") + fn + ":tooManyDims");
     int sorted[Dims::kMaxRank];
     for (std::size_t i = 0; i < N; ++i) sorted[i] = perm[i];
     std::sort(sorted, sorted + N);
     for (std::size_t i = 0; i < N; ++i) {
         if (sorted[i] != static_cast<int>(i + 1))
             throw Error(std::string(fn) + ": perm must be a permutation of 1..N",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":badPerm");
+                         0, 0, fn, "", std::string("nk:") + fn + ":badPerm");
     }
 }
 
@@ -104,7 +104,7 @@ Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *m
     const int inNd = std::max<int>(dd.ndim(), static_cast<int>(n));
     if (inNd > Dims::kMaxRank)
         throw Error("permute: rank exceeds 32",
-                     0, 0, "permute", "", "numkit:permute:tooManyDims");
+                     0, 0, "permute", "", "nk:permute:tooManyDims");
 
     // All shape arrays on the stack — no per-call heap traffic. Avoids
     // 4 std::vector allocs that dominated cost at small sizes (post-ND
@@ -146,10 +146,10 @@ Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *m
         if (t == ValueType::STRING || t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("permute: does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "permute", "", "numkit:permute:type");
+                         0, 0, "permute", "", "nk:permute:type");
         if (isCell && inNd > 2)
             throw Error("permute: cell array rank > 2 not supported",
-                         0, 0, "permute", "", "numkit:permute:cellND");
+                         0, 0, "permute", "", "nk:permute:cellND");
         Value r = isCell ? Value::cell(outDimsArr[0], inNd >= 2 ? outDimsArr[1] : 1, mr)
                          : Value::matrixND(outDimsArr, inNd, t, mr);
         if (x.numel() == 0) return r;
@@ -335,7 +335,7 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
             || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("cat: dim 3 does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "cat", "", "numkit:cat:typeDim3");
+                         0, 0, "cat", "", "nk:cat:typeDim3");
         const auto &dd = v.dims();
         if (!anchored) {
             R = dd.rows();
@@ -345,10 +345,10 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
         } else {
             if (dd.rows() != R || dd.cols() != C)
                 throw Error("cat: dim 3 inputs must agree on rows and cols",
-                             0, 0, "cat", "", "numkit:cat:badDims");
+                             0, 0, "cat", "", "nk:cat:badDims");
             if (t != outType)
                 throw Error("cat: dim 3 requires all inputs to share a type",
-                             0, 0, "cat", "", "numkit:cat:typeMismatchDim3");
+                             0, 0, "cat", "", "nk:cat:typeMismatchDim3");
         }
         totalPages += dd.is3D() ? dd.pages() : 1;
     }
@@ -410,7 +410,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
     constexpr int kMaxNd = Dims::kMaxRank;
     if (outNdim > kMaxNd)
         throw Error("cat: rank exceeds 32",
-                     0, 0, "cat", "", "numkit:cat:tooManyDims");
+                     0, 0, "cat", "", "nk:cat:tooManyDims");
 
     size_t outDim[kMaxNd];
     for (int j = 0; j < outNdim; ++j) outDim[j] = 0;
@@ -425,7 +425,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
             || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("cat: ND cat does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "cat", "", "numkit:cat:typeND");
+                         0, 0, "cat", "", "nk:cat:typeND");
         const auto &d = v.dims();
         if (!anchored) {
             for (int j = 0; j < outNdim; ++j)
@@ -435,7 +435,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
         } else {
             if (t != outType)
                 throw Error("cat: ND cat requires all inputs to share a type",
-                             0, 0, "cat", "", "numkit:cat:typeMismatchND");
+                             0, 0, "cat", "", "nk:cat:typeMismatchND");
             for (int j = 0; j < outNdim; ++j) {
                 const size_t vd = (j < d.ndim()) ? d.dim(j) : 1;
                 if (j == k) {
@@ -444,7 +444,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
                     throw Error("cat: dim " + std::to_string(dim)
                                  + " inputs must agree on all axes except dim "
                                  + std::to_string(dim),
-                                 0, 0, "cat", "", "numkit:cat:badDims");
+                                 0, 0, "cat", "", "nk:cat:badDims");
                 }
             }
         }
@@ -489,7 +489,7 @@ Value cat(int dim, Span<const Value> values, std::pmr::memory_resource *mr)
 {
     if (dim < 1)
         throw Error("cat: dim must be a positive integer",
-                     0, 0, "cat", "", "numkit:cat:badDim");
+                     0, 0, "cat", "", "nk:cat:badDim");
     switch (dim) {
         case 1: return vertcat(values, mr);
         case 2: return horzcat(values, mr);
@@ -520,7 +520,7 @@ Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < count; ++i) {
         if (values[i].dims().is3D())
             throw Error("blkdiag: 3D inputs are not supported",
-                         0, 0, "blkdiag", "", "numkit:blkdiag:3D");
+                         0, 0, "blkdiag", "", "nk:blkdiag:3D");
         totalRows += values[i].dims().rows();
         totalCols += values[i].dims().cols();
         if (values[i].numel() == 0) continue;
@@ -528,11 +528,11 @@ Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
         if (vt == ValueType::CELL || vt == ValueType::STRING ||
             vt == ValueType::STRUCT || vt == ValueType::FUNC_HANDLE)
             throw Error("blkdiag: inputs must be numeric, char, or logical",
-                         0, 0, "blkdiag", "", "numkit:blkdiag:badType");
+                         0, 0, "blkdiag", "", "nk:blkdiag:badType");
         if (!typeSet) { t = vt; typeSet = true; }
         else if (vt != t)
             throw Error("blkdiag: mixed input types are not supported",
-                         0, 0, "blkdiag", "", "numkit:blkdiag:mixedType");
+                         0, 0, "blkdiag", "", "nk:blkdiag:mixedType");
     }
 
     auto r = Value::matrix(totalRows, totalCols, t, mr);
@@ -595,7 +595,7 @@ Value shiftdim(const Value &x, int n, std::pmr::memory_resource *mr)
     constexpr int kMaxNd = Dims::kMaxRank;
     if (newN > kMaxNd)
         throw Error("shiftdim: rank exceeds 32",
-                     0, 0, "shiftdim", "", "numkit:shiftdim:tooManyDims");
+                     0, 0, "shiftdim", "", "nk:shiftdim:tooManyDims");
     size_t newDims[kMaxNd];
     for (int i = 0; i < k; ++i) newDims[i] = 1;
     for (int i = 0; i < N; ++i) newDims[k + i] = d.dim(i);
@@ -632,4 +632,4 @@ ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr)
     return { std::move(y), k };
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

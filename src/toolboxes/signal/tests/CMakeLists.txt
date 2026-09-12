@@ -1,4 +1,4 @@
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vibration_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_core_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution_test.cpp
@@ -77,6 +77,6 @@ target_sources(numkit_gtest PRIVATE
 # fft_kernels.hpp to call the Stockham/r2 dispatchers directly for parity
 # tests. Expose that include path only for the test target (the public
 # signal API doesn't need it).
-target_include_directories(numkit_gtest PRIVATE
+target_include_directories(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )

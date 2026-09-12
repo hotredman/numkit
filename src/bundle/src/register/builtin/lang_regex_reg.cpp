@@ -3,16 +3,16 @@
 // CallContext register half of language/strings/regex.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "strfun/regex_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,8 +24,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -37,7 +37,7 @@ inline void regexpDispatch(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error(std::string(fn) + ": requires at least 2 arguments (s, pat)",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
+                     0, 0, fn, "", std::string("nk:") + fn + ":nargin");
     auto *mr = ctx.engine->resource();
     // Trailing option strings. 'once' is a modifier (match first occurrence,
     // return the scalarised form); the first non-'once' string selects the
@@ -48,7 +48,7 @@ inline void regexpDispatch(Span<const Value> args, size_t nargout,
     for (size_t i = 2; i < args.size(); ++i) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": option must be a string",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":badOption");
+                         0, 0, fn, "", std::string("nk:") + fn + ":badOption");
         std::string o = args[i].toString();
         std::string lo = o;
         for (auto &c : lo) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -85,7 +85,7 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.size() < 3)
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
-                     0, 0, "regexprep", "", "numkit:regexprep:nargin");
+                     0, 0, "regexprep", "", "nk:regexprep:nargin");
     // Trailing option strings: recognise 'ignorecase' and 'once' (other
     // documented options — 'preservecase', 'lineanchors', … — are not yet
     // parsed and are left to their default behaviour).
@@ -107,16 +107,16 @@ void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("regexptranslate: requires 2 arguments (op, str)",
-                     0, 0, "regexptranslate", "", "numkit:regexptranslate:nargin");
+                     0, 0, "regexptranslate", "", "nk:regexptranslate:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("regexptranslate: op must be a char or string",
-                     0, 0, "regexptranslate", "", "numkit:regexptranslate:badOp");
+                     0, 0, "regexptranslate", "", "nk:regexptranslate:badOp");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("regexptranslate: str must be a char or string",
-                     0, 0, "regexptranslate", "", "numkit:regexptranslate:badStr");
+                     0, 0, "regexptranslate", "", "nk:regexptranslate:badStr");
     outs[0] = regexptranslate(args[0].toString(), args[1].toString(), ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

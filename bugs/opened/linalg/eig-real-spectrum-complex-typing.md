@@ -13,7 +13,7 @@ clear;
 A = [1 9 3; 0.1111111111111111 1 8; 0.3333333333333333 0.125 1];
 [V, D] = eig(A);
 disp(isreal(V))
-% numkit:  0   (complex-typed, max|imag| = 0)
+% nk:  0   (complex-typed, max|imag| = 0)
 % MATLAB R2025b: 1
 ```
 

@@ -14,7 +14,7 @@ test.describe('WebGL 3-D — lighting / material / camlight / surfl', () => {
           + `lighting('${mode}');\n`
         );
         await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-        await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+        await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
           .toBeVisible({ timeout: 10_000 });
         expect(ide.devErrors().filter((e) =>
           !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -74,7 +74,7 @@ test.describe('WebGL 3-D — lighting / material / camlight / surfl', () => {
       + 'surfl([1 2 3 4; 2 3 4 5; 3 4 5 6]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)

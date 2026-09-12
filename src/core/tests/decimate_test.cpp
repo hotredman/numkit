@@ -6,19 +6,19 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/ops/decimate.hpp>
+#include <nk/ops/decimate.hpp>
 
 #include <vector>
 #include <cmath>
 
-using numkit::decimateM4;
-using numkit::decimateM2;
-using numkit::decimateLTTB;
-using numkit::decimateSeries;
-using numkit::decimVisibleRange;
-using numkit::buildPyramid;
-using numkit::decimateLOD;
-using numkit::DecimAlgo;
+using nk::decimateM4;
+using nk::decimateM2;
+using nk::decimateLTTB;
+using nk::decimateSeries;
+using nk::decimVisibleRange;
+using nk::buildPyramid;
+using nk::decimateLOD;
+using nk::DecimAlgo;
 
 namespace {
 std::vector<double> ramp(std::size_t n) {

@@ -4,10 +4,10 @@
 // State values are realization-dependent, so tests use explicit ss()
 // systems (fixed realization) and check against MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ResponseXTrajTest : public ::testing::Test
 {
@@ -62,7 +62,7 @@ TEST_F(ResponseXTrajTest, ImpulseStateTrajectoryShape)
 }
 
 // stepinfo returns MATLAB R2025b's full 9-field struct, including the
-// TransientTime field (2nd, between RiseTime and SettlingTime) that numkit
+// TransientTime field (2nd, between RiseTime and SettlingTime) that nk
 // previously omitted. TransientTime = last time |y-yfinal| exceeds 2% of the
 // PEAK deviation max|y(t)-yfinal|; SettlingTime uses 2% of |yinit-yfinal|.
 // For a standard step the peak deviation occurs at t=0 = |yfinal|, so

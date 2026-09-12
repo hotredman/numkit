@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-5,
   "fingerprint": ["n1", "n2", "n3", "n4"],
-  "comment": "Sig: n = normest(A). 2-norm estimate via largest singular value. NOTE: numkit returns the exact value (full SVD), MATLAB uses power-iteration with default tol=1e-6 (~5-6 sig digits). Tol 1e-5 reflects MATLAB's iteration tolerance. A future perf-pass can switch to power-iteration to match performance characteristics."
+  "comment": "Sig: n = normest(A). 2-norm estimate via largest singular value. NOTE: nk returns the exact value (full SVD), MATLAB uses power-iteration with default tol=1e-6 (~5-6 sig digits). Tol 1e-5 reflects MATLAB's iteration tolerance. A future perf-pass can switch to power-iteration to match performance characteristics."
 }

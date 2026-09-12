@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Signature audit: compare MATLAB's documented signature against numkit's.
+"""Signature audit: compare MATLAB's documented signature against nk's.
 
   python signprobe.py mapminmax hardlim        # audit specific functions
   python signprobe.py --batch fns.list         # audit a list (one fn per line)
 
 For each function, captures MATLAB's `help fn` (R2025b ground truth — the
-signature block up to the first empty line) and numkit's `help fn` via the
+signature block up to the first empty line) and nk's `help fn` via the
 WASM CLI, then reports the first divergent signature line. Doc-prose
 differences are ignored (we diff the CALL SYNTAX lines, which start with the
 function name); an arg-list mismatch (missing option, different default /
@@ -19,7 +19,7 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).parent
-WASM_CLI = HERE.parent / "packages" / "numkit" / "bin" / "cli.js"
+WASM_CLI = HERE.parent / "packages" / "nk" / "bin" / "cli.js"
 MATLAB = Path(r"C:\Program Files\MATLAB\R2025b\bin\matlab.exe")
 
 
@@ -37,7 +37,7 @@ def matlab_help(fns):
     return blocks
 
 
-def numkit_help(fns):
+def nk_help(fns):
     blocks = {}
     for f in fns:
         p = subprocess.run(["node", str(WASM_CLI), "-e", f"help {f}"],
@@ -66,7 +66,7 @@ def signature_lines(help_text, fn):
 
 def audit(fns):
     ml = matlab_help(fns)
-    nk = numkit_help(fns)
+    nk = nk_help(fns)
     n_match = 0
     for f in fns:
         a = signature_lines(ml.get(f, ""), f)
@@ -80,7 +80,7 @@ def audit(fns):
             for x in a[:3]:
                 print(f"        matlab: {x[:90]}")
             for x in b[:3]:
-                print(f"        numkit: {x[:90]}")
+                print(f"        nk: {x[:90]}")
     print(f"\n{n_match}/{len(fns)} signatures match")
 
 

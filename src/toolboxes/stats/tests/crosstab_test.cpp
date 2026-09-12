@@ -3,10 +3,10 @@
 // Regression guard for crosstab() — contingency table + chi-square
 // independence test.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CrosstabTest : public ::testing::Test
 {
@@ -95,7 +95,7 @@ TEST_F(CrosstabTest, ColumnSumsAndRowSumsMatch)
 
 // DEEP-PROBE c179: 4th output `labels` — a (maxCategories x numVars) cell of
 // num2str value strings (char rows), padded with [] beyond each variable's
-// category count. numkit previously emitted only [T,chi2,p]. vs MATLAB R2025b.
+// category count. nk previously emitted only [T,chi2,p]. vs MATLAB R2025b.
 TEST_F(CrosstabTest, LabelsOutput)
 {
     // x unique = {1,2,3}, y unique = {10,20}  ->  labels is 3x2.

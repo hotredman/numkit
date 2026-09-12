@@ -10,14 +10,14 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/eig.hpp>
+#include <nk/linalg/eig.hpp>
 
-#include <numkit/linalg/properties.hpp>               // inv (generalized eig B\A)
-#include <numkit/builtin/ops.hpp>  // mtimes (eig(A,B))
+#include <nk/linalg/properties.hpp>               // inv (generalized eig B\A)
+#include <nk/builtin/ops.hpp>  // mtimes (eig(A,B))
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,14 +26,14 @@
 #include <tuple>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void ordeig_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() != 1)
         throw Error("ordeig: requires (T)",
-                    0, 0, "ordeig", "", "numkit:ordeig:nargin");
+                    0, 0, "ordeig", "", "nk:ordeig:nargin");
     outs[0] = ordeig(args[0], ctx.engine->resource());
 }
 
@@ -41,7 +41,7 @@ void polyeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("polyeig: requires at least 2 coefficient matrices",
-                    0, 0, "polyeig", "", "numkit:polyeig:nargin");
+                    0, 0, "polyeig", "", "nk:polyeig:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [V, e] = polyeig_VE(args, mr);
@@ -160,7 +160,7 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.empty() || args.size() > 3)
         throw Error("eig: requires 1 to 3 arguments",
-                    0, 0, "eig", "", "numkit:eig:nargin");
+                    0, 0, "eig", "", "nk:eig:nargin");
     auto *mr = ctx.engine->resource();
 
     // Parse trailing args: an optional second matrix B (generalized
@@ -180,11 +180,11 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
             else if (s == "chol" || s == "qz" || s == "nobalance") { /* accept */ }
             else
                 throw Error("eig: unknown option '" + s + "'",
-                            0, 0, "eig", "", "numkit:eig:badOption");
+                            0, 0, "eig", "", "nk:eig:badOption");
         } else {
             if (B)
                 throw Error("eig: at most one matrix B is allowed",
-                            0, 0, "eig", "", "numkit:eig:tooManyMatrices");
+                            0, 0, "eig", "", "nk:eig:tooManyMatrices");
             B = &args[i];
         }
     }
@@ -192,7 +192,7 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     // Reduce a generalized problem (A, B) to the standard problem on
     // M = B\A = inv(B)·A. The eigenvalues of M equal the generalized
     // eigenvalues, and any eigenvector v of M satisfies A·v = B·v·λ.
-    Value M = B ? numkit::builtin::mtimes(inv(*B, mr), *A, mr) : *A;
+    Value M = B ? nk::builtin::mtimes(inv(*B, mr), *A, mr) : *A;
 
     if (nargout >= 2) {
         auto [V, D] = eigVDAuto(M, mr);
@@ -215,7 +215,7 @@ void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.size() != 1)
         throw Error("hess: requires exactly 1 argument",
-                    0, 0, "hess", "", "numkit:hess:nargin");
+                    0, 0, "hess", "", "nk:hess:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [P, H] = hess(args[0], mr);
@@ -230,11 +230,11 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() != 1)
         throw Error("schur: requires exactly 1 argument",
-                    0, 0, "schur", "", "numkit:schur:nargin");
+                    0, 0, "schur", "", "nk:schur:nargin");
     auto *mr = ctx.engine->resource();
     if (args[0].dims().ndim() != 2 || args[0].dims().dim(0) != args[0].dims().dim(1))
         throw Error("schur: matrix must be square",
-                    0, 0, "schur", "", "numkit:schur:notSquare");
+                    0, 0, "schur", "", "nk:schur:notSquare");
     // Symmetric A → diagonal Schur (eig); general A → real Schur (Francis QR).
     auto [U, T] = isSymmetricApprox(args[0], 1e-10)
                       ? schur_sym(args[0], mr)
@@ -251,9 +251,9 @@ void sylvester_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() != 3)
         throw Error("sylvester: requires (A, B, C)",
-                    0, 0, "sylvester", "", "numkit:sylvester:nargin");
+                    0, 0, "sylvester", "", "nk:sylvester:nargin");
     outs[0] = sylvester_sym(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

@@ -2,11 +2,11 @@
 //
 // Regression guard for bootci / bootstrp (function-handle based).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class BootTest : public ::testing::Test
 {

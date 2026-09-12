@@ -48,7 +48,7 @@ fprintf('  LHS mean = %.4f (expect 50.6, bit-equal MATLAB)\n', mean(f0_lhs));
 fprintf('\n[pitch SRH method on 220 Hz sine — Cycle K-4]\n');
 f0_srh = pitch(x, fs, 'Method', 'SRH');
 fprintf('  SRH first 5: '); fprintf('%.4f ', f0_srh(1:5)); fprintf('\n');
-fprintf('  expect: 206 (constant, MATLAB) — numkit ~1 Hz/frame diff in some\n');
+fprintf('  expect: 206 (constant, MATLAB) — nk ~1 Hz/frame diff in some\n');
 fprintf('  SRH mean = %.4f (~205, MATLAB 204.37)\n', mean(f0_srh));
 
 fprintf('\n[pitch Range NV arg — Cycle L (partial)]\n');

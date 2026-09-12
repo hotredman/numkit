@@ -4,17 +4,17 @@
 // The detail{{}} *_reg fns were interleaved with compute in the original
 // TU; collected here verbatim (reg-side arg parsers nested in their anon
 // namespaces ride along). See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/signal/filter_design/analog_filters.hpp>
-#include <numkit/signal/filter_design/iir_designs.hpp>
-#include <numkit/signal/filter_implementation/conversions_extras.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/signal/filter_design/analog_filters.hpp>
+#include <nk/signal/filter_design/iir_designs.hpp>
+#include <nk/signal/filter_implementation/conversions_extras.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -83,7 +83,7 @@ void cheby1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("cheby1: requires (N, Rp, Wn[, ftype][, 's'])",
-                     0, 0, "cheby1", "", "numkit:cheby1:nargin");
+                     0, 0, "cheby1", "", "nk:cheby1:nargin");
     const int N    = static_cast<int>(args[0].toScalar());
     const double R = args[1].toScalar();
     const Value &Wn = args[2];
@@ -103,7 +103,7 @@ void cheby2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("cheby2: requires (N, Rs, Wn[, ftype][, 's'])",
-                     0, 0, "cheby2", "", "numkit:cheby2:nargin");
+                     0, 0, "cheby2", "", "nk:cheby2:nargin");
     const int N    = static_cast<int>(args[0].toScalar());
     const double R = args[1].toScalar();
     const Value &Wn = args[2];
@@ -123,7 +123,7 @@ void besself_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("besself: requires (N, Wn[, ftype][, 's'])",
-                     0, 0, "besself", "", "numkit:besself:nargin");
+                     0, 0, "besself", "", "nk:besself:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const Value &Wn = args[1];
     auto t = parseTrailing(args, 2);
@@ -141,7 +141,7 @@ void ellip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 4)
         throw Error("ellip: requires (N, Rp, Rs, Wn[, ftype][, 's'])",
-                     0, 0, "ellip", "", "numkit:ellip:nargin");
+                     0, 0, "ellip", "", "nk:ellip:nargin");
     const int N      = static_cast<int>(args[0].toScalar());
     const double Rp  = args[1].toScalar();
     const double Rs  = args[2].toScalar();
@@ -173,7 +173,7 @@ inline bool parseAnalogFromOrdArgs(Span<const Value> args, size_t start) {
     {                                                                              \
         if (args.size() < 4)                                                       \
             throw Error(#name ": requires (Wp, Ws, Rp, Rs[, 's'])",               \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                   \
+                         0, 0, #name, "", "nk:" #name ":nargin");                   \
         const Value &Wp = args[0];                                                \
         const Value &Ws = args[1];                                                \
         const double Rp = args[2].toScalar();                                     \
@@ -199,7 +199,7 @@ void ellipord_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("ellipord: requires (Wp, Ws, Rp, Rs[, 's'])",
-                    0, 0, "ellipord", "", "numkit:ellipord:nargin");
+                    0, 0, "ellipord", "", "nk:ellipord:nargin");
     bool analog = false;
     if (args.size() >= 5) {
         std::string s = args[4].toString();
@@ -219,7 +219,7 @@ void firpmord_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("firpmord: requires (F, A, dev [, fs])",
-                    0, 0, "firpmord", "", "numkit:firpmord:nargin");
+                    0, 0, "firpmord", "", "nk:firpmord:nargin");
     double fs = 2.0;
     if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
     auto [N, ff, aa, wts] = firpmord(args[0], args[1], args[2], fs, ctx.engine->resource());
@@ -238,7 +238,7 @@ void kaiserord_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("kaiserord: requires (F, A, dev [, fs])",
-                    0, 0, "kaiserord", "", "numkit:kaiserord:nargin");
+                    0, 0, "kaiserord", "", "nk:kaiserord:nargin");
     double fs = 2.0;
     if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
     auto [N, Wn, beta, ftype] = kaiserord(args[0], args[1], args[2], fs, ctx.engine->resource());
@@ -261,7 +261,7 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     // digital pipeline (bugs/closed/signal/butter-analog-flag-wn-domain.md).
     if (args.size() < 2)
         throw Error("butter: requires (N, Wn[, ftype][, 's'])",
-                     0, 0, "butter", "", "numkit:butter:nargin");
+                     0, 0, "butter", "", "nk:butter:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const Value &Wn = args[1];
     auto t = parseTrailing(args, 2);
@@ -279,4 +279,4 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

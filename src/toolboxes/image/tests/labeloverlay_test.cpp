@@ -6,13 +6,13 @@
 //
 // Default ColorAssignment is 'auto' which → 'shuffle' for the default
 // 'jet' colormap. The shuffle uses rng('default') (MT19937 seed 0,
-// state[0]=5489). The C++ side uses numkit's MatlabMT19937 +
+// state[0]=5489). The C++ side uses nk's MatlabMT19937 +
 // stable-sort-of-rand to be bit-identical with MATLAB's randperm.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class LabelOverlayTest : public ::testing::Test
 {

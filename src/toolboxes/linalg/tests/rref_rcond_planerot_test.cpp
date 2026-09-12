@@ -5,12 +5,12 @@
 //   rcond(A)           reciprocal 1-norm condition estimate
 //   planerot([x; y])   Givens rotation
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class RrefRcondPlanerotTest : public ::testing::Test
 {

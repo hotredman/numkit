@@ -3,12 +3,12 @@
 // Regression guard for pammod() / pamdemod() — M-PAM modulation.
 // MATLAB R2025b: pammod/pamdemod DEFAULT to 'bin' (binary) symbol
 // ordering, NOT 'gray' (unlike qammod, which defaults to 'gray').
-// numkit previously defaulted all four to 'gray'.
+// nk previously defaulted all four to 'gray'.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class PammodTest : public ::testing::Test
 {

@@ -7,18 +7,18 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/value/dims.hpp>
-#include <numkit/value/shape_ops.hpp>
+#include <nk/value/dims.hpp>
+#include <nk/value/shape_ops.hpp>
 
 #include <array>
 #include <vector>
 
-using numkit::Dims;
-using numkit::broadcastDimsND;
-using numkit::broadcastOffsetND;
-using numkit::computeStridesColMajor;
-using numkit::incrementCoords;
-using numkit::linearizeFromCoords;
+using nk::Dims;
+using nk::broadcastDimsND;
+using nk::broadcastOffsetND;
+using nk::computeStridesColMajor;
+using nk::incrementCoords;
+using nk::linearizeFromCoords;
 
 // ─── broadcastDimsND ────────────────────────────────────────────
 

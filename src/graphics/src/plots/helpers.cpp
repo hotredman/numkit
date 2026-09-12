@@ -1,4 +1,4 @@
-// numkit/graphics — plots/helpers.cpp
+// nk/graphics — plots/helpers.cpp
 //
 // Definitions of the pure JSON/parse helpers declared in plot_internal.hpp.
 // Core-free, no figure side effects: data -> JSON string and option parsing,
@@ -10,7 +10,7 @@
 #include <cctype>
 #include <cmath>
 
-namespace numkit::detail {
+namespace nk::detail {
 
 std::string vecToJson(const Value &v)
 {
@@ -109,4 +109,4 @@ void doubleToJson(std::ostringstream &os, double val)
         os << val;
 }
 
-}  // namespace numkit::detail
+}  // namespace nk::detail

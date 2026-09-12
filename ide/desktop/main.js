@@ -1,4 +1,4 @@
-// main.js — Numkit IDE desktop shell
+// main.js — NK IDE desktop shell
 // Supports two modes:
 //   Dev mode:  spawns Vite dev server, loads from http://
 //   Prod mode: loads pre-built static files from dist/
@@ -12,7 +12,7 @@ const http = require('http');
 
 // Bump V8's renderer-process heap limit. The default on 64-bit
 // Chromium is roughly 4 GB but actual cap depends on the Electron
-// build and OS — empirically the Numkit renderer was hitting OOM
+// build and OS — empirically the NK renderer was hitting OOM
 // well below 2 GB. Bumping to 4 GB gives breathing room for big
 // scripts (large matrices, long REPL sessions); WASM still grows
 // inside this limit. `--js-flags` MUST be set before app.ready, so
@@ -40,7 +40,7 @@ app.commandLine.appendSwitch('disable-http-cache');
 // across launches and crashes.
 const LOG_DIR = app.isPackaged ? app.getPath('userData') : __dirname;
 fs.mkdirSync(LOG_DIR, { recursive: true });
-const LOG_PATH = path.join(LOG_DIR, 'numkit-ide.log');
+const LOG_PATH = path.join(LOG_DIR, 'nk-ide.log');
 function logToFile(level, ...args) {
   try {
     const line = `[${new Date().toISOString()}] [${level}] ${args.map(a =>
@@ -54,7 +54,7 @@ try {
   const st = fs.statSync(LOG_PATH);
   if (st.size > 5 * 1024 * 1024) fs.truncateSync(LOG_PATH, 0);
 } catch { /* file doesn't exist — fine, will be created on first append */ }
-logToFile('boot', `Numkit IDE main starting; LOG_PATH=${LOG_PATH}`);
+logToFile('boot', `NK IDE main starting; LOG_PATH=${LOG_PATH}`);
 
 // Mirror console.{log,warn,error} to the file so [mem-trace] /
 // renderer-gone diagnostics are captured even when the terminal
@@ -96,7 +96,7 @@ function createWindow(url) {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    title: 'Numkit IDE',
+    title: 'NK IDE',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -104,7 +104,7 @@ function createWindow(url) {
     },
   });
 
-  console.log('[Numkit IDE] Loading:', url);
+  console.log('[NK IDE] Loading:', url);
   if (url.startsWith('http')) {
     mainWindow.loadURL(url);
   } else {
@@ -144,11 +144,11 @@ function createWindow(url) {
       console.error('[mem-trace at-crash]',
         all.map((m) => `${m.type || 'unknown'}#${m.pid} ws=${fmt(m.memory?.workingSetSize * 1024 || 0)}`).join(' | '));
     } catch { /* ignore */ }
-    console.error('[Numkit IDE] Renderer gone:', details);
+    console.error('[NK IDE] Renderer gone:', details);
     if (mainWindow && !mainWindow.isDestroyed()) {
       dialog.showMessageBox(mainWindow, {
         type: 'error',
-        title: 'Numkit IDE — renderer crashed',
+        title: 'NK IDE — renderer crashed',
         message: `Renderer process exited unexpectedly (reason: ${details.reason}, exitCode: ${details.exitCode}).`,
         detail: 'Likely an out-of-memory event. The window can be reloaded; if it keeps happening, try clearing the console or running fewer figures at once.',
         buttons: ['Reload', 'Quit'],
@@ -164,10 +164,10 @@ function createWindow(url) {
     }
   });
   mainWindow.webContents.on('unresponsive', () => {
-    console.warn('[Numkit IDE] Renderer unresponsive — likely a long synchronous WASM call or runaway loop');
+    console.warn('[NK IDE] Renderer unresponsive — likely a long synchronous WASM call or runaway loop');
   });
   mainWindow.webContents.on('responsive', () => {
-    console.log('[Numkit IDE] Renderer responsive again');
+    console.log('[NK IDE] Renderer responsive again');
   });
 
   mainWindow.on('closed', () => { replSession.kill(); mainWindow = null; });
@@ -180,7 +180,7 @@ function startVite() {
   const VITE_BIN = path.join(IDE_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
 
   return new Promise((resolve, reject) => {
-    console.log('[Numkit IDE] Dev mode — starting Vite');
+    console.log('[NK IDE] Dev mode — starting Vite');
 
     viteProcess = spawn(NODE_EXE, [VITE_BIN, '--host', '127.0.0.1'], {
       cwd: IDE_DIR,
@@ -189,7 +189,7 @@ function startVite() {
     });
 
     viteProcess.on('error', (err) => {
-      console.error('[Numkit IDE] Failed to start Vite:', err.message);
+      console.error('[NK IDE] Failed to start Vite:', err.message);
       reject(err);
     });
 
@@ -214,7 +214,7 @@ function startVite() {
 
     setTimeout(() => {
       if (!resolved) {
-        console.error('[Numkit IDE] Vite did not start within 30s');
+        console.error('[NK IDE] Vite did not start within 30s');
         resolve(null);
       }
     }, 30000);
@@ -264,7 +264,7 @@ app.whenReady().then(async () => {
   let loadTarget;
 
   if (IS_PROD) {
-    console.log('[Numkit IDE] Production mode — loading from dist/');
+    console.log('[NK IDE] Production mode — loading from dist/');
     loadTarget = path.join(DIST_DIR, 'index.html');
   } else {
     const viteUrl = await startVite();
@@ -272,7 +272,7 @@ app.whenReady().then(async () => {
       await waitForServer(viteUrl);
       loadTarget = viteUrl;
     } else {
-      console.error('[Numkit IDE] No Vite URL detected, exiting');
+      console.error('[NK IDE] No Vite URL detected, exiting');
       app.quit();
       return;
     }
@@ -324,7 +324,7 @@ ipcMain.handle('fs:getOsTempDir', async () => {
 
 ipcMain.handle('fs:setupExample', async (_e, scriptBaseName, files) => {
   const osTemp = app.getPath('temp') || os.tmpdir();
-  const exampleDir = path.join(osTemp, 'numkit', 'examples', scriptBaseName);
+  const exampleDir = path.join(osTemp, 'nk', 'examples', scriptBaseName);
   await fsp.mkdir(exampleDir, { recursive: true });
   for (const f of (files || [])) {
     if (!f.name) continue;
@@ -535,7 +535,7 @@ let runtimeSettings = { interpreterPath: '', codegenPath: '', cxxPath: '' };
 // Priority order:
 //   1. Explicit path from runtimeSettings (user configured in Preferences).
 //   2. The same directory as the running IDE executable — this is where
-//      desktop-build.bat places numkit_repl.exe / numkit_codegen.exe in the
+//      desktop-build.bat places nk_repl.exe / nk_codegen.exe in the
 //      deploy/ bundle, so an out-of-the-box install Just Works without
 //      any Preferences configuration.
 //   3. Bare name (OS PATH lookup at spawn time).
@@ -578,20 +578,20 @@ function resolveExe(settingPath, exeName) {
   try {
     const repoRoot = path.resolve(__dirname, '..', '..');
     const devCandidates = [
-      path.join(repoRoot, 'build', 'windows', 'release', 'apps', 'numkit',  'Release', exeOnWin),
-      path.join(repoRoot, 'build', 'windows', 'release', 'apps', 'numkit',  exeOnWin),
-      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', 'numkit',    'Debug', exeOnWin),
-      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', 'numkit',    exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'release', 'apps', 'nk',  'Release', exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'release', 'apps', 'nk',  exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', 'nk',    'Debug', exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', 'nk',    exeOnWin),
       path.join(repoRoot, 'build', 'windows', 'release', 'apps', exeName,   'Release', exeOnWin),
       path.join(repoRoot, 'build', 'windows', 'release', 'apps', exeName,   exeOnWin),
       path.join(repoRoot, 'build', 'windows', 'debug', 'apps', exeName,     'Debug', exeOnWin),
       path.join(repoRoot, 'build', 'windows', 'debug', 'apps', exeName,     exeOnWin),
-      path.join(repoRoot, 'build', 'linux', 'release', 'apps', 'numkit',    exeOnWin),
-      path.join(repoRoot, 'build', 'linux', 'debug', 'apps', 'numkit',      exeOnWin),
+      path.join(repoRoot, 'build', 'linux', 'release', 'apps', 'nk',    exeOnWin),
+      path.join(repoRoot, 'build', 'linux', 'debug', 'apps', 'nk',      exeOnWin),
       path.join(repoRoot, 'build', 'linux', 'release', 'apps', exeName,     exeOnWin),
       path.join(repoRoot, 'build', 'linux', 'debug', 'apps', exeName,       exeOnWin),
-      path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'numkit',  'Release', exeOnWin),
-      path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'numkit',  'Debug', exeOnWin),
+      path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'nk',  'Release', exeOnWin),
+      path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'nk',  'Debug', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'apps', exeName,   'Release', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'apps', exeName,   'Debug', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'Release', exeOnWin),
@@ -625,13 +625,13 @@ function autoDetectToolPaths(settings) {
   let modified = false;
 
   try {
-    const replResolved = resolveExe(current.interpreterPath, 'numkit_repl');
+    const replResolved = resolveExe(current.interpreterPath, 'nk_repl');
     if (replResolved && (replResolved.includes('/') || replResolved.includes('\\')) && current.interpreterPath !== replResolved) {
       current.interpreterPath = replResolved;
       modified = true;
     }
 
-    const codegenResolved = resolveExe(current.codegenPath, 'numkit_codegen');
+    const codegenResolved = resolveExe(current.codegenPath, 'nk_codegen');
     if (codegenResolved && (codegenResolved.includes('/') || codegenResolved.includes('\\')) && current.codegenPath !== codegenResolved) {
       current.codegenPath = codegenResolved;
       modified = true;
@@ -672,7 +672,7 @@ ipcMain.handle('settings:update', async (_e, settings) => {
     const oldPath = runtimeSettings.interpreterPath;
     runtimeSettings = { ...runtimeSettings, ...settings };
     autoDetectToolPaths(runtimeSettings);
-    console.log('[Numkit IDE] settings updated:', runtimeSettings);
+    console.log('[NK IDE] settings updated:', runtimeSettings);
     if (typeof replSession !== 'undefined' && (oldCompat !== runtimeSettings.matlabCompatibility || oldPath !== runtimeSettings.interpreterPath)) {
       replSession._kill();
     }
@@ -684,15 +684,15 @@ ipcMain.handle('settings:update', async (_e, settings) => {
 ipcMain.handle('settings:resolve', async () => {
   autoDetectToolPaths(runtimeSettings);
   return {
-    interpreterPath: resolveExe(runtimeSettings.interpreterPath, 'numkit_repl'),
-    codegenPath:     resolveExe(runtimeSettings.codegenPath,     'numkit_codegen'),
+    interpreterPath: resolveExe(runtimeSettings.interpreterPath, 'nk_repl'),
+    codegenPath:     resolveExe(runtimeSettings.codegenPath,     'nk_codegen'),
     cxxPath: (runtimeSettings.cxxPath || '').trim(),
   };
 });
 
 // ── Persistent REPL session ────────────────────────────────────────────────
 //
-// Manages a long-lived `numkit_repl --ide-session` child process.
+// Manages a long-lived `nk_repl --ide-session` child process.
 // The IDE routes ALL code execution (ConsolePane REPL lines + Run button)
 // through this session so the workspace is shared and persistent between runs.
 //
@@ -1040,7 +1040,7 @@ class ReplSession {
 
   // Send code to the session; return Promise<{stdout,stderr,vars,exitCode,notFound?,sessionRestarted?}>.
   async run(code, opts = null) {
-    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     const wasRestarted = this.crashed;
     let payload = '';
     if (opts?.cwd) {
@@ -1060,7 +1060,7 @@ class ReplSession {
 
   // Set the current working directory in the session.
   async setCwd(newCwd) {
-    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     const realCwd = resolveReplCwd(newCwd);
     if (!realCwd) return;
     try { await fsp.mkdir(realCwd, { recursive: true }); } catch (_) {}
@@ -1072,7 +1072,7 @@ class ReplSession {
 
   // Send __RESET__ to clear the workspace (no code executed).
   async reset() {
-    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     return new Promise((resolve) => {
       this._enqueue(exePath, '__RESET__\n', resolve, false, 'reset');
     });
@@ -1081,7 +1081,7 @@ class ReplSession {
   // Send a single-line introspection command; resolve with the parsed JSON response.
   // The process is spawned on demand (same as run()) and stays alive.
   async query(command) {
-    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     return new Promise((resolve) => {
       this._enqueue(exePath, command + '\n', resolve, false, 'query');
     });
@@ -1098,7 +1098,7 @@ class ReplSession {
   inspectPath(name, path)                        { return this.query(`__INSPECT_PATH__:${name}\t${path || ''}`); }
 
   async buildAST(source) {
-    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     const payload = `__BUILD_AST__\n${source || ''}\n__END_OF_INPUT__\n`;
     return new Promise((resolve) => {
       this._enqueue(exePath, payload, resolve, false, 'query');
@@ -1106,7 +1106,7 @@ class ReplSession {
   }
 
   async buildScriptGraph(source) {
-    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     const payload = `__BUILD_GRAPH__\n${source || ''}\n__END_OF_INPUT__\n`;
     return new Promise((resolve) => {
       this._enqueue(exePath, payload, resolve, false, 'query');
@@ -1122,7 +1122,7 @@ class ReplSession {
   // Start a debug session: send __DEBUG_START__:<bpJson>\n<code>\n__END_OF_INPUT__
   // Returns Promise<{ status:'paused'|'completed'|'error'|'stopped', ... }>
   async debugStart(code) {
-    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     const bpJson = JSON.stringify(this._breakpoints);
     const payload = `__DEBUG_START__:${bpJson}\n${code}\n__END_OF_INPUT__\n`;
     return new Promise((resolve) => {
@@ -1133,7 +1133,7 @@ class ReplSession {
   // Send a debug command while paused: action = 'continue'|'step_over'|'step_into'|'step_out'|'stop'
   // Returns Promise<{ status:'paused'|'completed'|'error'|'stopped', ... }>
   async debugStep(action) {
-    const exePath = this.exePath || resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const exePath = this.exePath || resolveExe(runtimeSettings.interpreterPath, 'nk_repl');
     return new Promise((resolve) => {
       this._enqueue(exePath, `__DEBUG_CMD__:${action}\n`, resolve, false, 'debug');
     });
@@ -1188,19 +1188,19 @@ ipcMain.handle('repl:inspectPath',   (_e, name, path)                  => replSe
 ipcMain.handle('repl:buildAST',         (_e, source)                      => replSession.buildAST(source));
 ipcMain.handle('repl:buildScriptGraph', (_e, source)                      => replSession.buildScriptGraph(source));
 
-// Transpile + AOT-compile + run the given numkit source code.
+// Transpile + AOT-compile + run the given nk source code.
 //
 // The renderer passes the script source as a string; we write it to a
-// temp .m file, spawn numkit_codegen --run against it, collect both
+// temp .m file, spawn nk_codegen --run against it, collect both
 // stdout and stderr, clean up the temp file, then resolve with:
 //   { stdout, stderr, exitCode }       on normal exit
 //   { stdout, stderr, exitCode, notFound: true }  when the exe is missing
 ipcMain.handle('codegen:run', async (_e, code, opts) => {
   // 1. Resolve executable via priority chain (settings → next to IDE → PATH).
-  const exe = resolveExe(runtimeSettings.codegenPath, 'numkit_codegen');
+  const exe = resolveExe(runtimeSettings.codegenPath, 'nk_codegen');
 
   // 2. Write source to a temp file.
-  const tmpDir = path.join(os.tmpdir(), 'numkit_codegen_run');
+  const tmpDir = path.join(os.tmpdir(), 'nk_codegen_run');
   try { fs.mkdirSync(tmpDir, { recursive: true }); } catch { /* exists */ }
   const tmpFile = path.join(tmpDir, `run_${Date.now()}.m`);
   try { fs.writeFileSync(tmpFile, typeof code === 'string' ? code : '', 'utf8'); }
@@ -1211,9 +1211,9 @@ ipcMain.handle('codegen:run', async (_e, code, opts) => {
   if (opts?.entry) args.push('--entry', opts.entry);
   if (opts?.args)  args.push('--args', opts.args);
 
-  // 4. Env: pass NUMKIT_CXX override when configured.
+  // 4. Env: pass NK_CXX override when configured.
   const env = { ...process.env };
-  if ((runtimeSettings.cxxPath || '').trim()) env.NUMKIT_CXX = runtimeSettings.cxxPath.trim();
+  if ((runtimeSettings.cxxPath || '').trim()) env.NK_CXX = runtimeSettings.cxxPath.trim();
 
   // 5. Spawn, collect, clean up, resolve.
   return new Promise((resolve) => {

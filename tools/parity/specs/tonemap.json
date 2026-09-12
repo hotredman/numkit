@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1,
   "fingerprint": ["r1", "r2", "r3", "r4", "r5"],
-  "comment": "Sig: RGB = tonemap(HDR [, NV...]). Ward's log-luminance equalisation followed by adapthisteq + imadjust + saturation scaling. RGB and grayscale paths. Pipeline reuses numkit's rgb2lab/lab2rgb/adapthisteq/imadjust — accumulated float drift makes bit-exact parity infeasible; tolerance ±1 uint8 unit on centre pixels. Reference: G. Ward et al., IEEE TVCG 3(4), 1997. Default NumberOfTiles=[4 4] matches MATLAB exactly; non-default tile counts may diverge due to adapthisteq precision differences. Image namespace 2026-05-27."
+  "comment": "Sig: RGB = tonemap(HDR [, NV...]). Ward's log-luminance equalisation followed by adapthisteq + imadjust + saturation scaling. RGB and grayscale paths. Pipeline reuses nk's rgb2lab/lab2rgb/adapthisteq/imadjust — accumulated float drift makes bit-exact parity infeasible; tolerance ±1 uint8 unit on centre pixels. Reference: G. Ward et al., IEEE TVCG 3(4), 1997. Default NumberOfTiles=[4 4] matches MATLAB exactly; non-default tile counts may diverge due to adapthisteq precision differences. Image namespace 2026-05-27."
 }

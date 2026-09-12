@@ -12,12 +12,12 @@
 // (no-arg form, fractional input, vector input) — only the working
 // scalar-positive path is pinned here.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class MathReductionsBatchTest : public ::testing::Test
 {
@@ -171,7 +171,7 @@ TEST_F(MathReductionsBatchTest, ProdSum)
 
 // MATLAB R2025b: a default reduction of the 0x0 empty [] returns the scalar
 // identity, NOT a 1x0 empty: sum([])==0, prod([])==1, mean([])==NaN.
-// DEEP-PROBE 2026-05-29: numkit previously returned a 1x0 empty for all three.
+// DEEP-PROBE 2026-05-29: nk previously returned a 1x0 empty for all three.
 TEST_F(MathReductionsBatchTest, EmptyDefaultReductionScalarIdentity)
 {
     EXPECT_DOUBLE_EQ(evalScalar("sum([])"),  0.0);
@@ -198,7 +198,7 @@ TEST_F(MathReductionsBatchTest, PartialEmptyReductionKeepsShape)
 // MATLAB R2025b: max/min of an EMPTY array returns empty and never errors.
 // Shape = input size with the operating dim clamped to min(size,1):
 // max([])=0x0, max(zeros(0,3))=0x3, max(zeros(3,0))=1x0.
-// DEEP-PROBE 2026-05-29: numkit previously threw "min/max of empty array
+// DEEP-PROBE 2026-05-29: nk previously threw "min/max of empty array
 // is not supported".
 TEST_F(MathReductionsBatchTest, MaxMinEmptyReturnsEmpty)
 {
@@ -230,7 +230,7 @@ TEST_F(MathReductionsBatchTest, MaxEmptyTwoOutputAndIndexRegression)
 
 // cumsum / cumprod on integer types: MATLAB keeps the integer class and
 // accumulates natively with saturation at each step (the saturated running
-// value carries forward). numkit previously threw "Not a double array".
+// value carries forward). nk previously threw "Not a double array".
 // DEEP-PROBE 2026-05-30.
 TEST_F(MathReductionsBatchTest, CumsumCumprodIntegerClass)
 {
@@ -268,7 +268,7 @@ TEST_F(MathReductionsBatchTest, CumsumCumprodIntegerClass)
 }
 
 // diff() on integer types keeps the class and SATURATES each pass (MATLAB
-// R2025b). numkit previously promoted to double. DEEP-PROBE 2026-05-30.
+// R2025b). nk previously promoted to double. DEEP-PROBE 2026-05-30.
 TEST_F(MathReductionsBatchTest, DiffIntegerClassSaturates)
 {
     eval("a = diff(int8([10 5 20]));");

@@ -16,8 +16,8 @@ fidelity-pass tests (StrfunTest, VM-only fixture) never saw it.
 ```matlab
 clear;
 g = inline('2*t', 't');
-% numkit TW backend: "Cell contents indexing requires a cell array"
-% numkit VM backend: g is a 1x1 inline object (class(g) = 'inline', g(3) = 6)
+% nk TW backend: "Cell contents indexing requires a cell array"
+% nk VM backend: g is a 1x1 inline object (class(g) = 'inline', g(3) = 6)
 % MATLAB R2025b: g is a 1x1 inline object
 ```
 

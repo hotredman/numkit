@@ -1,15 +1,15 @@
 // toolboxes/stats/src/fit/fit.cpp
 // Distribution MLE fitters with confidence intervals.
 
-#include <numkit/stats/fit/fit.hpp>
+#include <nk/stats/fit/fit.hpp>
 
-#include <numkit/stats/distributions/chi2.hpp>
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/stats/distributions/beta.hpp>
+#include <nk/stats/distributions/chi2.hpp>
+#include <nk/stats/distributions/students_t.hpp>
+#include <nk/stats/distributions/beta.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -18,7 +18,7 @@
 
 #include "fit_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 std::tuple<Value, Value, Value, Value>
@@ -205,7 +205,7 @@ binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource 
     const bool scalarN = (Nn == 1);
     if (!scalarN && Nn != Nx)
         throw Error("binofit: x and n must be the same length",
-                    0, 0, "binofit", "", "numkit:binofit:size");
+                    0, 0, "binofit", "", "nk:binofit:size");
 
     Value phat = Value::matrix(Nx, 1, ValueType::DOUBLE, mr);
     Value pci  = Value::matrix(Nx, 2, ValueType::DOUBLE, mr);
@@ -274,10 +274,10 @@ double normlike(double mu, double sigma, const Value &x, const Value &cens, cons
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("normlike: censoring must match the data length",
-                    0, 0, "normlike", "", "numkit:normlike:cens");
+                    0, 0, "normlike", "", "nk:normlike:cens");
     if (useF && freq.numel() != N)
         throw Error("normlike: freq must match the data length",
-                    0, 0, "normlike", "", "numkit:normlike:freq");
+                    0, 0, "normlike", "", "nk:normlike:freq");
 
     const double inv_s   = 1.0 / sigma;
     const double inv_2s2 = 0.5 * inv_s * inv_s;
@@ -342,10 +342,10 @@ double explike_full(double mu, const Value &x,
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("explike: censoring must match the data length",
-                    0, 0, "explike", "", "numkit:explike:cens");
+                    0, 0, "explike", "", "nk:explike:cens");
     if (useF && freq.numel() != N)
         throw Error("explike: freq must match the data length",
-                    0, 0, "explike", "", "numkit:explike:freq");
+                    0, 0, "explike", "", "nk:explike:freq");
 
     const double inv_mu  = 1.0 / mu;
     const double inv_mu2 = inv_mu * inv_mu;
@@ -417,10 +417,10 @@ double lognlike_full(double mu, double sigma, const Value &x,
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("lognlike: censoring must match the data length",
-                    0, 0, "lognlike", "", "numkit:lognlike:cens");
+                    0, 0, "lognlike", "", "nk:lognlike:cens");
     if (useF && freq.numel() != N)
         throw Error("lognlike: freq must match the data length",
-                    0, 0, "lognlike", "", "numkit:lognlike:freq");
+                    0, 0, "lognlike", "", "nk:lognlike:freq");
 
     const double inv_s   = 1.0 / sigma;
     const double inv_s2  = inv_s * inv_s;
@@ -554,10 +554,10 @@ double wbllike_full(double scale, double shape, const Value &x, const Value &cen
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("wbllike: censoring must match the data length",
-                    0, 0, "wbllike", "", "numkit:wbllike:cens");
+                    0, 0, "wbllike", "", "nk:wbllike:cens");
     if (useF && freq.numel() != N)
         throw Error("wbllike: freq must match the data length",
-                    0, 0, "wbllike", "", "numkit:wbllike:freq");
+                    0, 0, "wbllike", "", "nk:wbllike:freq");
     const double logA = std::log(scale);
     const double logK = std::log(shape);
     double nL = 0.0;
@@ -601,10 +601,10 @@ double evlike_full(double mu, double sigma, const Value &x, const Value &cens, c
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("evlike: censoring must match the data length",
-                    0, 0, "evlike", "", "numkit:evlike:cens");
+                    0, 0, "evlike", "", "nk:evlike:cens");
     if (useF && freq.numel() != N)
         throw Error("evlike: freq must match the data length",
-                    0, 0, "evlike", "", "numkit:evlike:freq");
+                    0, 0, "evlike", "", "nk:evlike:freq");
     const double inv_s = 1.0 / sigma;
     const double logS  = std::log(sigma);
     double nL = 0.0;
@@ -676,4 +676,4 @@ double gplike(double k, double sigma, const Value &x, std::pmr::memory_resource 
     return double(N) * std::log(sigma) + (1.0 / k + 1.0) * sLogT;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -2,7 +2,7 @@ clear
 
 % graycomatrix now accepts the MATLAB-documented 'GrayLimits', [] (empty) form,
 % which means "auto limits = [min(I(:)) max(I(:))] over the actual data" for any
-% class. numkit previously threw "GrayLimits must be 2-element" on the empty
+% class. nk previously threw "GrayLimits must be 2-element" on the empty
 % value. The empty form is DISTINCT from the default (class range, e.g. [0 255]
 % for uint8): the empty form spreads the NumLevels bins across the data range.
 

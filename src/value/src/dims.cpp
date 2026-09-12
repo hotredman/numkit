@@ -1,5 +1,5 @@
 // src/dims.cpp
-#include <numkit/value/dims.hpp>
+#include <nk/value/dims.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace numkit {
+namespace nk {
 
 Dims::Dims() : heap_(nullptr), nd_(2)
 {
@@ -144,4 +144,4 @@ bool Dims::operator==(const Dims &o) const noexcept
     return true;
 }
 
-} // namespace numkit
+} // namespace nk

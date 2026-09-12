@@ -11,9 +11,9 @@ import PreferencesModal from './PreferencesModal';
 import { WorkspacePanel, VariableEditor } from '../workspace/Workspace';
 import FiguresPane from '../plot/FiguresPane';
 import FigureWindow from '../plot/FigureWindow';
-import NumkitGraphView from '../lang/NumkitGraphView';
-import NumkitASTView from '../lang/NumkitASTView';
-import NumkitASTTreeView from '../lang/NumkitASTTreeView';
+import NKGraphView from '../lang/NKGraphView';
+import NKASTView from '../lang/NKASTView';
+import NKASTTreeView from '../lang/NKASTTreeView';
 import { adaptVariables, adaptFigures } from '../plot/adapters';
 
 import CurrentFolderBar from './CurrentFolderBar';
@@ -498,7 +498,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // Engine version banner
   const [engineVersion, setEngineVersion] = useState(null);
   // Editor view mode: 'text' = standard code editor, 'graph' = data-flow
-  // node graph (NumkitGraphView). Single-shared state across tabs for
+  // node graph (NKGraphView). Single-shared state across tabs for
   // MVP — switching tabs keeps whatever view the user picked last.
   // Editor area is a multi-pane split: any subset of {text, graph,
   // ast, tree} renders side-by-side as horizontal-flex panes. The
@@ -508,8 +508,8 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // (text → graph → AST → tree). Both the on/off state and the
   // per-pane flex-grow ratios are persisted to localStorage so the
   // user's layout survives restarts.
-  const STORAGE_PANES = 'numkit.ide.editor.panes';
-  const STORAGE_FRACS = 'numkit.ide.editor.paneFracs';
+  const STORAGE_PANES = 'nk.ide.editor.panes';
+  const STORAGE_FRACS = 'nk.ide.editor.paneFracs';
   const DEFAULT_PANES = { text: true, graph: false, ast: false, tree: false };
   const DEFAULT_FRACS = { text: 1,    graph: 1,     ast: 1,     tree: 1     };
   const [editorPanes, setEditorPanes] = useState(() => {
@@ -577,7 +577,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     if (v) setEngineVersion(v);
   }, [engine, status]);
   useEffect(() => {
-    const banner = engineVersion ? `Numkit IDE v3 — build ${engineVersion}` : 'Numkit IDE v3';
+    const banner = engineVersion ? `NK IDE v3 — build ${engineVersion}` : 'NK IDE v3';
     setOutput([
       { type: 'system', text: banner },
       { type: 'system', text: 'Type commands below. "help <topic>" for function info.' },
@@ -609,7 +609,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const [fsMode, setFsMode] = useState(() => {
     try {
       if (!isElectron) return 'virtual';
-      const stored = localStorage.getItem('numkit.ide.fsmode');
+      const stored = localStorage.getItem('nk.ide.fsmode');
       return (stored === 'local' || stored === 'virtual') ? stored : 'virtual';
     } catch {
       return 'virtual';
@@ -617,24 +617,24 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   });
   const [virtualCwd, setVirtualCwd] = useState(() => {
     try {
-      const saved = localStorage.getItem('numkit.ide.cwd.virtual');
+      const saved = localStorage.getItem('nk.ide.cwd.virtual');
       return saved ? sanitizeVfsPath(saved) : '/';
     } catch { return '/'; }
   });
   const [localCwd, setLocalCwd] = useState(() => {
-    try { return localStorage.getItem('numkit.ide.cwd.local') || (localFS.root?.() || ''); }
+    try { return localStorage.getItem('nk.ide.cwd.local') || (localFS.root?.() || ''); }
     catch { return (localFS.root?.() || ''); }
   });
   const [isNavOpen, setIsNavOpen] = useState(false);
 
   useEffect(() => {
-    try { localStorage.setItem('numkit.ide.fsmode', fsMode); } catch { /* ignore */ }
+    try { localStorage.setItem('nk.ide.fsmode', fsMode); } catch { /* ignore */ }
   }, [fsMode]);
   useEffect(() => {
-    try { localStorage.setItem('numkit.ide.cwd.virtual', virtualCwd); } catch { /* ignore */ }
+    try { localStorage.setItem('nk.ide.cwd.virtual', virtualCwd); } catch { /* ignore */ }
   }, [virtualCwd]);
   useEffect(() => {
-    try { localStorage.setItem('numkit.ide.cwd.local', localCwd); } catch { /* ignore */ }
+    try { localStorage.setItem('nk.ide.cwd.local', localCwd); } catch { /* ignore */ }
   }, [localCwd]);
 
   useEffect(() => {
@@ -770,7 +770,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
           targetCwd = relDir ? `${lRoot}\\${relDir.slice(1).replace(/\//g, '\\')}` : lRoot;
         }
       } else {
-        // Virtual FS path (e.g. /numkit_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m)
+        // Virtual FS path (e.g. /nk_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m)
         const lastSlash = vPath.lastIndexOf('/');
         const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '/';
         targetCwd = relDir;
@@ -791,7 +791,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       if (r.notFound) {
         addOutput([{
           type: 'warning',
-          text: '[Run] numkit_repl.exe not found. Configure the path in Settings (gear icon).',
+          text: '[Run] nk_repl.exe not found. Configure the path in Settings (gear icon).',
         }]);
         setConsoleNotify(true);
         return;
@@ -1098,7 +1098,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   }, [tabs, activeTab, addOutput, runCode]);
 
   // Build & Run — transpile + AOT-compile + run the active tab via
-  // numkit_codegen --run. Requires the Electron IPC bridge; gracefully
+  // nk_codegen --run. Requires the Electron IPC bridge; gracefully
   // degrades in browser mode with an explanatory console message.
   const handleBuildRun = useCallback(async () => {
     const tab = tabs.find((t) => t.id === activeTab);
@@ -1131,7 +1131,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     if (result.notFound) {
       addOutput([{
         type: 'warning',
-        text: '[Build & Run] numkit_codegen not found. Set the path in Settings (⚙ Settings → Code Generator).',
+        text: '[Build & Run] nk_codegen not found. Set the path in Settings (⚙ Settings → Code Generator).',
       }]);
     } else {
       // stderr contains the compiler log ("compiled → /tmp/…") and any
@@ -1493,14 +1493,14 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                         );
                       case 'graph':
                         return (
-                          <NumkitGraphView
+                          <NKGraphView
                             source={activeTabData?.code || ''}
                             engine={engine}
                           />
                         );
                       case 'ast':
                         return (
-                          <NumkitASTView
+                          <NKASTView
                             source={activeTabData?.code || ''}
                             engine={engine}
                             cursorLine={editorCursor.line}
@@ -1514,7 +1514,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                         );
                       case 'tree':
                         return (
-                          <NumkitASTTreeView
+                          <NKASTTreeView
                             source={activeTabData?.code || ''}
                             engine={engine}
                             cursorLine={editorCursor.line}

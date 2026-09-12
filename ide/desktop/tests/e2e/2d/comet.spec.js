@@ -25,7 +25,7 @@ test.describe('comet / comet3', () => {
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
-    await expect(ide.figureWindow.locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureWindow.locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 5_000 });
   });
 });

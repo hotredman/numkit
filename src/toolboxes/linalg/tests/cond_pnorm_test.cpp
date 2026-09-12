@@ -4,12 +4,12 @@
 // Closes the ⚠️ gap in PROGRESS — cond was 2-norm only.
 // Spec at tools/parity/specs/cond_pnorm.json (OK vs MATLAB R2025b).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class CondPnormTest : public ::testing::Test
 {

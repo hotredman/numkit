@@ -5,10 +5,10 @@
 // noise comes from psf2otf's complex residual on real-symmetric
 // PSFs).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DeconvwnrTest : public ::testing::Test
 {

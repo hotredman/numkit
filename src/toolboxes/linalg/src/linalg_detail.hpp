@@ -14,12 +14,12 @@
 #include <type_traits>
 #include <vector>
 
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/blas.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/blas.hpp>
 
-namespace numkit::linalg::detail {
+namespace nk::linalg::detail {
 
 using Complex = std::complex<double>;
 
@@ -126,4 +126,4 @@ inline Value narrow_if_real(const Value &v, std::pmr::memory_resource *mr = null
 
 // In-place LU with partial pivoting on a column-major n×n matrix (blocked dgetrf pattern).
 
-} // namespace numkit::linalg::detail
+} // namespace nk::linalg::detail

@@ -1,9 +1,9 @@
-#include <numkit/builtin/datatypes.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/builtin/datatypes.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 Value isfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr) {
     if (!s.isStruct()) return Value::logicalScalar(false, mr);
@@ -21,18 +21,18 @@ Value isfield(const Value &s, const Value &field, std::pmr::memory_resource *mr)
 
 Value getfield(const Value &s, const std::string &field, std::pmr::memory_resource *) {
     if (!s.isStruct())
-        throw Error("getfield requires a struct", 0, 0, "getfield", "", "numkit:getfield:notStruct");
+        throw Error("getfield requires a struct", 0, 0, "getfield", "", "nk:getfield:notStruct");
     if (s.isStructArray()) {
         if (s.numel() == 0)
-            throw Error("getfield: struct array is empty", 0, 0, "getfield", "", "numkit:getfield:emptyArray");
+            throw Error("getfield: struct array is empty", 0, 0, "getfield", "", "nk:getfield:emptyArray");
         const auto &elem0 = s.structArrayElem(0);
         auto it = elem0.find(field);
         if (it == elem0.end())
-            throw Error("getfield: no such field '" + field + "'", 0, 0, "getfield", "", "numkit:getfield:noField");
+            throw Error("getfield: no such field '" + field + "'", 0, 0, "getfield", "", "nk:getfield:noField");
         return it->second;
     }
     if (!s.hasField(field))
-        throw Error("getfield: no such field '" + field + "'", 0, 0, "getfield", "", "numkit:getfield:noField");
+        throw Error("getfield: no such field '" + field + "'", 0, 0, "getfield", "", "nk:getfield:noField");
     return s.field(field);
 }
 
@@ -47,7 +47,7 @@ Value setfield(const Value &s, const std::string &field, const Value &val, std::
     } else if (s.isEmpty()) {
         out = Value::structure(mr);
     } else {
-        throw Error("setfield: first argument must be a struct or []", 0, 0, "setfield", "", "numkit:setfield:notStruct");
+        throw Error("setfield: first argument must be a struct or []", 0, 0, "setfield", "", "nk:setfield:notStruct");
     }
     if (out.isStructArray()) {
         out.setFieldAll(field, val);
@@ -63,7 +63,7 @@ Value setfield(const Value &s, const Value &field, const Value &val, std::pmr::m
 
 Value rmfield(const Value &s, const std::string &field, std::pmr::memory_resource *) {
     if (!s.isStruct())
-        throw Error("rmfield requires a struct", 0, 0, "rmfield", "", "numkit:rmfield:notStruct");
+        throw Error("rmfield requires a struct", 0, 0, "rmfield", "", "nk:rmfield:notStruct");
     Value out = s;
     out.removeField(field);
     return out;
@@ -73,4 +73,4 @@ Value rmfield(const Value &s, const Value &field, std::pmr::memory_resource *mr)
     return rmfield(s, field.toString(), mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

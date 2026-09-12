@@ -3,10 +3,10 @@
 // Regression guard for pmmod() — phase modulator.
 // y = cos(2π·Fc·t + phasedev·x + ini_phase)
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class PmmodTest : public ::testing::Test
 {
@@ -27,7 +27,7 @@ TEST_F(PmmodTest, KnownReferenceValues)
     eval("fs = 8000; fc = 100; t = (0:9)'/fs; x = sin(2*pi*5*t);"
          "y = pmmod(x, fc, fs, pi/4);");
     EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 1.0);
-    // tol=1e-9: numkit's sin/cos go through Highway SIMD (≤ 5 ULP);
+    // tol=1e-9: nk's sin/cos go through Highway SIMD (≤ 5 ULP);
     // composing via phasedev*sin(...) into cos(...) accumulates a few
     // ULP. Real bugs would show diff >> this magnitude.
     EXPECT_NEAR(evalScalar("y(2)"),  0.9966706056297996,  1e-9);

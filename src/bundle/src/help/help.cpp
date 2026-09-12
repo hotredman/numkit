@@ -1,11 +1,11 @@
 // src/bundle/src/help/help.cpp
 //
-// Help system C++ API and Engine registration adapters for NumKit bundle.
+// Help system C++ API and Engine registration adapters for NK bundle.
 
-#include <numkit/bundle/help.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/bundle/help.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <iomanip>
@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::bundle {
+namespace nk::bundle {
 
 // ════════════════════════════════════════════════════════════════════════
 // C++ API
@@ -221,4 +221,4 @@ void HelpLibrary::install(Engine &engine)
     engine.registerFunction("inmem",      &detail::inmem_reg);
 }
 
-} // namespace numkit::bundle
+} // namespace nk::bundle

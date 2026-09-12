@@ -1,17 +1,17 @@
 // toolboxes/wavelet/tests/haart_public_api_test.cpp
 //
 // Direct C++ API guard for haart / ihaart after the lift from adapter-only
-// to numkit::wavelet::haart (HaartResult {a, d}) and ihaart (Value). The
+// to nk::wavelet::haart (HaartResult {a, d}) and ihaart (Value). The
 // forward/inverse pair is exercised via round-trip reconstruction.
 
-#include <numkit/wavelet/dwt/haart.hpp>
-#include <numkit/wavelet/dwt/ihaart.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/wavelet/dwt/haart.hpp>
+#include <nk/wavelet/dwt/ihaart.hpp>
+#include <nk/core/engine.hpp>
 
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value hv(Engine &e, const char *expr, const char *name)

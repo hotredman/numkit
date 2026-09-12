@@ -4,12 +4,12 @@
 // MStdAbs_*.cpp (SIMD-backed) and only its declaration is in
 // math/elementary/rounding.hpp.
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 #include "rounding.hpp"
 #include "mod_simd.hpp"
 #include "_unary_hint.hpp"
@@ -18,7 +18,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // Public 2-arg wrapper — delegates to the 3-arg overload in the SIMD
 // backends with no buffer hint.
@@ -28,17 +28,17 @@ Value abs(const Value &x, std::pmr::memory_resource *mr) { return abs(x, nullptr
 
 Value floor(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(x, [](double v) { return std::floor(v); }, ::numkit::builtin::detail::doubleFloorLoop, mr);
+    return roundLikeDispatch(x, [](double v) { return std::floor(v); }, ::nk::builtin::detail::doubleFloorLoop, mr);
 }
 
 Value ceil(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(x, [](double v) { return std::ceil(v); }, ::numkit::builtin::detail::doubleCeilLoop, mr);
+    return roundLikeDispatch(x, [](double v) { return std::ceil(v); }, ::nk::builtin::detail::doubleCeilLoop, mr);
 }
 
 Value round(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(x, [](double v) { return std::round(v); }, ::numkit::builtin::detail::doubleRoundLoop, mr);
+    return roundLikeDispatch(x, [](double v) { return std::round(v); }, ::nk::builtin::detail::doubleRoundLoop, mr);
 }
 
 Value roundN(const Value &x, int n, bool significant, std::pmr::memory_resource *mr)
@@ -48,7 +48,7 @@ Value roundN(const Value &x, int n, bool significant, std::pmr::memory_resource 
 
 Value fix(const Value &x, std::pmr::memory_resource *mr)
 {
-    return roundLikeDispatch(x, [](double v) { return std::trunc(v); }, ::numkit::builtin::detail::doubleFixLoop, mr);
+    return roundLikeDispatch(x, [](double v) { return std::trunc(v); }, ::nk::builtin::detail::doubleFixLoop, mr);
 }
 
 Value sign(const Value &x, std::pmr::memory_resource *mr)
@@ -141,4 +141,4 @@ Value rem(const Value &a, const Value &b, std::pmr::memory_resource *mr)
                       [](double aa, double bb) { return std::fmod(aa, bb); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

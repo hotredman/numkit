@@ -16,18 +16,18 @@
 //  - S. P. Lloyd, "Least Squares Quantization in PCM",
 //    IEEE Trans. Inf. Theory 28(2):129-137, 1982.
 
-#include <numkit/comm/source/dpcmopt.hpp>
-#include <numkit/comm/source/lloyds.hpp>
+#include <nk/comm/source/dpcmopt.hpp>
+#include <nk/comm/source/lloyds.hpp>
 
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cstddef>
 #include <tuple>
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -95,34 +95,34 @@ DpcmOptResult dpcmopt(const Value &training_set, int ord,
 {
     // ── Argument validation ──────────────────────────────────────
     if (ord < 1)
-        throw numkit::Error("The predictor order must be a positive "
+        throw nk::Error("The predictor order must be a positive "
                             "integer.",
-                            0, 0, "dpcmopt", "", "numkit:dpcmopt:InvalidOrd");
+                            0, 0, "dpcmopt", "", "nk:dpcmopt:InvalidOrd");
 
     const std::size_t N = training_set.numel();
     // N must be at least ord + 3 so the smallest autocorrelation
     // denominator (N-1-ord) is >= 2.
     if (N < static_cast<std::size_t>(ord) + 3)
-        throw numkit::Error("The size of the training set is not large "
+        throw nk::Error("The size of the training set is not large "
                             "enough for the given predictor order.",
-                            0, 0, "dpcmopt", "", "numkit:dpcmopt:InvalidInput");
+                            0, 0, "dpcmopt", "", "nk:dpcmopt:InvalidInput");
 
-    numkit::ScratchArena arena(mr);
+    nk::ScratchArena arena(mr);
 
     // ── Read the training signal into contiguous scratch ─────────
     // elemAsDouble accepts a row or column vector.
-    numkit::ScratchVec<double> x(N, &arena);
+    nk::ScratchVec<double> x(N, &arena);
     for (std::size_t i = 0; i < N; ++i)
         x[i] = training_set.elemAsDouble(i);
 
     // ── Autocorrelation estimate, lags 0..ord ────────────────────
-    numkit::ScratchVec<double> r(static_cast<std::size_t>(ord) + 1, &arena);
+    nk::ScratchVec<double> r(static_cast<std::size_t>(ord) + 1, &arena);
     autocorrelation(x.data(), N, ord, r.data());
 
     // ── Levinson-Durbin: prediction-error filter A(z) ────────────
     // a = [1, a1, ..., a_ord]
-    numkit::ScratchVec<double> a(static_cast<std::size_t>(ord) + 1, &arena);
-    numkit::ScratchVec<double> prev(static_cast<std::size_t>(ord) + 1,
+    nk::ScratchVec<double> a(static_cast<std::size_t>(ord) + 1, &arena);
+    nk::ScratchVec<double> prev(static_cast<std::size_t>(ord) + 1,
                                     &arena);
     levinson_durbin(r.data(), ord, a.data(), prev.data());
 
@@ -165,7 +165,7 @@ DpcmOptResult dpcmopt(const Value &training_set, int ord,
     // distor, rel); ini_codebook is forwarded as-is — lloyds itself
     // disambiguates a scalar codebook-length from an explicit codebook.
     auto [partition, codebook, distor, rel] =
-        numkit::comm::lloyds(residual, ini_codebook, 1e-7, mr);
+        nk::comm::lloyds(residual, ini_codebook, 1e-7, mr);
     (void)distor;
     (void)rel;
 
@@ -174,4 +174,4 @@ DpcmOptResult dpcmopt(const Value &training_set, int ord,
     return result;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

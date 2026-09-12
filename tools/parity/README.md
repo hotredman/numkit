@@ -1,6 +1,6 @@
 # tools/parity/ — MATLAB-parity validation harness
 
-Cross-engine validation for numkit: every public function is checked against
+Cross-engine validation for nk: every public function is checked against
 **MATLAB R2025b** (and **Octave 11.1.0** when it ships the function) for
 correctness, and timed for performance. This is **artefact #2 of the mandatory
 4-artefact rule** (see `AGENTS.md`).
@@ -10,9 +10,9 @@ correctness, and timed for performance. This is **artefact #2 of the mandatory
 | File | What it does |
 |------|--------------|
 | `specs/<name>.json` | One spec per function/branch: `setup`, `expr`, `fingerprint`, `tol`, `iters`, `comment`. ~1500 of them — the accumulated parity corpus. |
-| `run_parity.py` | The driver. Runs a spec on three engines (numkit native, MATLAB, Octave), compares output (`correctness=OK` / `N/A` / mismatch), measures wall-clock, and appends/updates the row in `PROGRESS.md` (+ `BENCHMARK.md`). |
+| `run_parity.py` | The driver. Runs a spec on three engines (nk native, MATLAB, Octave), compares output (`correctness=OK` / `N/A` / mismatch), measures wall-clock, and appends/updates the row in `PROGRESS.md` (+ `BENCHMARK.md`). |
 | `PROGRESS.md` | Live parity map — every function with coverage + correctness + timing. The harness rewrites it in place. |
-| `BENCHMARK.md` | Per-function timing (numkit vs MATLAB vs Octave). |
+| `BENCHMARK.md` | Per-function timing (nk vs MATLAB vs Octave). |
 
 ```
 python tools/parity/run_parity.py tools/parity/specs/<name>.json
@@ -24,7 +24,7 @@ in the spec `comment`).
 
 ## Coverage / gap analysis — the outer loop
 
-Answers "what does MATLAB ship that numkit doesn't yet?" and feeds
+Answers "what does MATLAB ship that nk doesn't yet?" and feeds
 [`../../bugs/missing.md`](../../bugs/missing.md):
 
 ```

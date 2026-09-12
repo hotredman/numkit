@@ -9,8 +9,8 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -49,16 +49,16 @@ inline double gammainc_scalar(double xx, double a, std::pmr::memory_resource *mr
 {
     Value xv = Value::scalar(xx, mr);
     Value av = Value::scalar(a,  mr);
-    return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
+    return ::nk::builtin::gammainc(xv, av, mr).toScalar();
 }
 
 inline double gammaincinv_scalar(double p, double a, std::pmr::memory_resource *mr)
 {
     Value pv = Value::scalar(p, mr);
     Value av = Value::scalar(a, mr);
-    return ::numkit::builtin::gammaincinv(pv, av, mr).toScalar();
+    return ::nk::builtin::gammaincinv(pv, av, mr).toScalar();
 }
 
 } // anonymous
 
-} // namespace numkit::stats
+} // namespace nk::stats

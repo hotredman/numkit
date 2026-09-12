@@ -32,11 +32,11 @@
 //   * gabor — Gabor filter object. Requires a class infrastructure
 //     beyond v1 scope (MATLAB-OOP, blocked by §0).
 
-#include <numkit/image/filter/filter.hpp>
+#include <nk/image/filter/filter.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -48,7 +48,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -70,7 +70,7 @@ Size3 parseHsize(const Value &hsize)
                 static_cast<size_t>(hsize.elemAsDouble(2))};
     }
     throw Error("fspecial3: hsize must be scalar or 3-element vector",
-                0, 0, "fspecial3", "", "numkit:fspecial3:BadHsize");
+                0, 0, "fspecial3", "", "nk:fspecial3:BadHsize");
 }
 
 inline size_t lin3(size_t r, size_t c, size_t p, size_t H, size_t W)
@@ -104,7 +104,7 @@ Sig3 parseSigma3(const Value &sig, double defv = 1.0)
         return {sig.elemAsDouble(0), sig.elemAsDouble(1), sig.elemAsDouble(2)};
     }
     throw Error("fspecial3: sigma must be scalar or 3-element vector",
-                0, 0, "fspecial3", "", "numkit:fspecial3:BadSigma");
+                0, 0, "fspecial3", "", "nk:fspecial3:BadSigma");
 }
 
 } // namespace
@@ -120,7 +120,7 @@ Sig3 parseSemiaxes(const Value &v, double defv = 5.0)
     if (v.numel() == 3)
         return {v.elemAsDouble(0), v.elemAsDouble(1), v.elemAsDouble(2)};
     throw Error("fspecial3: semiaxes must be a scalar or 3-element vector",
-                0, 0, "fspecial3", "", "numkit:fspecial3:BadSemiaxes");
+                0, 0, "fspecial3", "", "nk:fspecial3:BadSemiaxes");
 }
 
 } // namespace
@@ -173,7 +173,7 @@ Value fspecial3(const std::string &type, const Value &a1, const Value &a2,
         const double ar = ax.sx, ac = ax.sy, ap = ax.sz;
         if (ar <= 0.0 || ac <= 0.0 || ap <= 0.0)
             throw Error("fspecial3: ellipsoid semiaxes must be positive",
-                        0, 0, "fspecial3", "", "numkit:fspecial3:BadSemiaxes");
+                        0, 0, "fspecial3", "", "nk:fspecial3:BadSemiaxes");
         // Grid half-extent = ceil(semiaxis); size = 2·half + 1.
         Size3 s{ static_cast<size_t>(2.0 * std::ceil(ar) + 1.0),
                  static_cast<size_t>(2.0 * std::ceil(ac) + 1.0),
@@ -208,13 +208,13 @@ Value fspecial3(const std::string &type, const Value &a1, const Value &a2,
         const double g2 = (!a2.isEmpty() && !a2.isUnset()) ? a2.toScalar() : 0.0;
         if (g1 < 0.0)
             throw Error("fspecial3: Expected input number 2, GAMMA1, to be nonnegative.",
-                        0, 0, "fspecial3", "", "numkit:fspecial3:BadGamma");
+                        0, 0, "fspecial3", "", "nk:fspecial3:BadGamma");
         if (g2 < 0.0)
             throw Error("fspecial3: Expected input number 3, GAMMA2, to be nonnegative.",
-                        0, 0, "fspecial3", "", "numkit:fspecial3:BadGamma");
+                        0, 0, "fspecial3", "", "nk:fspecial3:BadGamma");
         if (g1 + g2 > 1.0)
             throw Error("fspecial3: GAMMA1 + GAMMA2 should be less than or equal to 1 and greater than 0.",
-                        0, 0, "fspecial3", "", "numkit:fspecial3:BadGamma");
+                        0, 0, "fspecial3", "", "nk:fspecial3:BadGamma");
         const double face   = 1.0 - g1 - g2;        // 6 neighbours, dist² 1
         const double edge   = g1 / 4.0;             // 12 neighbours, dist² 2
         const double corner = g2 / 4.0;             // 8 neighbours, dist² 3
@@ -296,12 +296,12 @@ Value fspecial3(const std::string &type, const Value &a1, const Value &a2,
             if (dir == "Y" || dir == "y") return static_cast<double>(-dr) * sm(dc) * sm(dp);
             if (dir == "Z" || dir == "z") return static_cast<double>(-dp) * sm(dr) * sm(dc);
             throw Error("fspecial3: direction must be 'X', 'Y', or 'Z'",
-                        0, 0, "fspecial3", "", "numkit:fspecial3:BadDir");
+                        0, 0, "fspecial3", "", "nk:fspecial3:BadDir");
         });
     }
 
     throw Error("fspecial3: unsupported type '" + type + "'",
-                0, 0, "fspecial3", "", "numkit:fspecial3:BadType");
+                0, 0, "fspecial3", "", "nk:fspecial3:BadType");
 }
 
 // ── fwind2 ────────────────────────────────────────────────────────────
@@ -314,12 +314,12 @@ Value fwind2(std::pmr::memory_resource *mr, const Value &Hd, const Value &w)
 {
     if (Hd.dims().is3D() || w.dims().is3D())
         throw Error("fwind2: inputs must be 2-D",
-                    0, 0, "fwind2", "", "numkit:fwind2:Not2D");
+                    0, 0, "fwind2", "", "nk:fwind2:Not2D");
     const size_t H = Hd.dims().rows();
     const size_t W = Hd.dims().cols();
     if (w.dims().rows() != H || w.dims().cols() != W)
         throw Error("fwind2: window must match Hd shape",
-                    0, 0, "fwind2", "", "numkit:fwind2:ShapeMismatch");
+                    0, 0, "fwind2", "", "nk:fwind2:ShapeMismatch");
 
     Value h = Value::matrix(H, W, ValueType::DOUBLE, mr);
     if (H == 0 || W == 0) return h;
@@ -359,4 +359,4 @@ Value fwind2(std::pmr::memory_resource *mr, const Value &Hd, const Value &w)
     return h;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

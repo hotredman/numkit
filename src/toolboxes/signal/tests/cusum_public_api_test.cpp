@@ -1,15 +1,15 @@
 // toolboxes/signal/tests/cusum_public_api_test.cpp
 //
 // Direct C++ API guard for cusum after the lift from adapter-only to the
-// public typed entry point numkit::signal::cusum (multi-output via the
+// public typed entry point nk::signal::cusum (multi-output via the
 // CusumResult struct; optional tmean/tdev as Value::Empty = auto).
 
-#include <numkit/signal/measurements/sig_utils.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/signal/measurements/sig_utils.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value cv(Engine &e, const char *expr, const char *name)

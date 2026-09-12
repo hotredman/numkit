@@ -9,12 +9,12 @@
 ## Verdict
 
 Filed 2026-09-05 during the repeated-poles impulse debugging. On
-re-verification (2026-09-06, separated dual runs) numkit's deconv
+re-verification (2026-09-06, separated dual runs) nk's deconv
 matches MATLAB R2025b on ALL four cases below — including the
 strictly-proper form the report called "entirely broken". The report's
 "MATLAB expected" values were misattributed probe output (the same
 session produced the zp2sos attribution error; both came from reading
-numkit console output as MATLAB). The compute (long division in
+nk console output as MATLAB). The compute (long division in
 convolution.cpp) and the registration wiring are correct.
 
 ## Original symptom (for the record)
@@ -29,13 +29,13 @@ completely broken; other cases look swapped.
 clear;
 [u1, r1] = deconv([1], [1 2 1]);      % 1/(s+1)^2: deg b < deg a
 disp(u1); disp(r1)
-% numkit:  u1 = 0, r1 = 1        (quotient 0? remainder b=[1] -> SWAPPED)
+% nk:  u1 = 0, r1 = 1        (quotient 0? remainder b=[1] -> SWAPPED)
 % MATLAB:  u1 = 0, r1 = [0 0 1]  (quotient 0 polynomial; r = b)
 [u2, r2] = deconv([1 3 2], [1 1]);    % (s^2+3s+2)/(s+1) = (s+2), r=0
-% numkit:  V=[1 2], K=[0 0 0]    (remainder holds the QUOTIENT)
+% nk:  V=[1 2], K=[0 0 0]    (remainder holds the QUOTIENT)
 % MATLAB:  u2 = [1 2], r2 = 0
 [u3, r3] = deconv([2 5 3 6], [1 6 11 6]);
-% numkit:  V=[2], K=[0 -7 -19 -6]   (garbage)
+% nk:  V=[2], K=[0 -7 -19 -6]   (garbage)
 % MATLAB:  u3 = [2], r3 = [-7 -19 -6]... (probe: MATLAB u3=[2], check)
 ```
 

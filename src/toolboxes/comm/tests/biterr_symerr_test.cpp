@@ -2,11 +2,11 @@
 //
 // Regression guard for biterr / symerr.
 
-#include <numkit/comm/eq/errors.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/eq/errors.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class BitErrTest : public ::testing::Test
 {
@@ -78,7 +78,7 @@ TEST_F(BitErrTest, SymerrSizeMismatchThrows)
     EXPECT_THROW(eval("symerr([1 2 3], [1 2]);"), std::exception);
 }
 
-// ── Public C++ API (numkit::comm::biterr / symerr) ────────────────────
+// ── Public C++ API (nk::comm::biterr / symerr) ────────────────────
 namespace {
 Value bv(Engine &e, const char *expr, const char *name)
 {

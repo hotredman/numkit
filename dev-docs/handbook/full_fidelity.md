@@ -79,7 +79,7 @@ If a branch is genuinely out of scope for the current portion, it is
 deferred EXPLICITLY, never silently:
 
 - real defect / stub / missing output → `bugs/opened/<ns>/<fn>.md` with
-  a self-contained MATLAB-vs-numkit repro + a `DISABLED_` guard in
+  a self-contained MATLAB-vs-nk repro + a `DISABLED_` guard in
   `known_bugs_test.cpp` (the bug-catalog protocol);
 - parity gap (whole function absent) → PROGRESS.md, not bugs/;
 - the divergence is then visible: in the bug catalog, in

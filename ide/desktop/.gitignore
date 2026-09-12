@@ -8,4 +8,4 @@ playwright-report/
 playwright/.cache/
 
 # Local logs
-numkit-ide.log
+nk-ide.log

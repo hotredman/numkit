@@ -1,12 +1,12 @@
 // toolboxes/stats/src/distributions/binomial.cpp
 
-#include <numkit/stats/distributions/binomial.hpp>
+#include <nk/stats/distributions/binomial.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -17,7 +17,7 @@
 
 #include "binomial_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value binopdf(const Value &k, double n, double p, std::pmr::memory_resource *mr)
@@ -41,7 +41,7 @@ Value binoinv(const Value &p_in, double n, double p, std::pmr::memory_resource *
     return elementwise(p_in, [=](double pi) { return bino_inv_scalar(pi, n, p); }, mr);
 }
 
-Value binornd(::numkit::ops::RngContext &rng, double n, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value binornd(::nk::ops::RngContext &rng, double n, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -62,4 +62,4 @@ std::tuple<double, double> binostat(double n, double p)
     return std::make_tuple(n * p, n * p * (1.0 - p));
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

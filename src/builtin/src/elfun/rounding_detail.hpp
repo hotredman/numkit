@@ -3,12 +3,12 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -27,11 +27,11 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
-using namespace numkit::ops;
+using namespace nk::ops;
 
 // Shared shape: scalar shortcut → result; double-array → SIMD/portable
 // loop; other numeric types → fall through to unaryDouble (which calls
@@ -85,4 +85,4 @@ inline double roundNScalar(double v, int n, bool significant)
 // round(x,n)/round(x,n,'significant') worker (def in rounding.cpp, external).
 Value roundN(const Value &x, int n, bool significant, std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

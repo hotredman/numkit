@@ -12,7 +12,7 @@ throws. (median/mean/quartiles/grubbs/movmedian/movmean are implemented.)
 ## Repro
 ```matlab
 isoutlier([1 2 3 4 5 6 7 8 9 50], 'gesd')
-% numkit: Error — isoutlier: method 'gesd' is not supported in this revision
+% nk: Error — isoutlier: method 'gesd' is not supported in this revision
 % MATLAB: 0 0 0 0 0 0 0 0 0 1
 ```
 

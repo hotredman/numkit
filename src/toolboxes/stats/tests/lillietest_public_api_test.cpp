@@ -1,17 +1,17 @@
 // toolboxes/stats/tests/lillietest_public_api_test.cpp
 //
 // Direct C++ API guard for lillietest after the lift from adapter-only to
-// the public typed entry point numkit::stats::lillietest (multi-output
+// the public typed entry point nk::stats::lillietest (multi-output
 // std::tuple<Value,Value,Value,Value> = (h, p, kstat, critval)). Reference
 // inputs/decisions match the lillietest.json parity spec (MATLAB R2025b).
 
-#include <numkit/stats/test/hypothesis.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/stats/test/hypothesis.hpp>
+#include <nk/core/engine.hpp>
 
 #include <tuple>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value lv(Engine &e, const char *expr, const char *name)

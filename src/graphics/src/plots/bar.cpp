@@ -1,10 +1,10 @@
-// numkit/graphics — bar.cpp
+// nk/graphics — bar.cpp
 //
 // graphics.bar.* builders (bar / barh / scatter / hist / histogram / pie / boxplot / patch / heatmap / bubblechart / swarmchart), carved out of plots.cpp. Core-free bodies (GraphicsContext); shared
 // JSON/parse helpers come from plot_internal.hpp.
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildBarPlots(std::vector<PlotEntry> &table)
 {
@@ -1652,4 +1652,4 @@ void buildBarPlots(std::vector<PlotEntry> &table)
         });
 }
 
-}  // namespace numkit
+}  // namespace nk

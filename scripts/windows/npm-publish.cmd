@@ -25,8 +25,8 @@ echo Unknown option: %~1
 goto show_help
 :args_done
 
-echo === Numkit - Publish npm package (manual) ===
-echo Package: %PROJECT_DIR%packages\numkit
+echo === NK - Publish npm package (manual) ===
+echo Package: %PROJECT_DIR%packages\nk
 if "%DRY_RUN%"=="1" echo Mode: DRY RUN (no upload to the registry)
 echo.
 
@@ -54,7 +54,7 @@ if "%SKIP_BUILD%"=="0" (
 
 echo.
 echo === Step 2/4: Refreshing package dist/ from build output ===
-pushd "%PROJECT_DIR%packages\numkit"
+pushd "%PROJECT_DIR%packages\nk"
 call node scripts\refresh-dist.js
 if errorlevel 1 (
     popd
@@ -102,15 +102,15 @@ if errorlevel 1 (
 echo.
 for /f "tokens=*" %%v in ('node -p "require('./package.json').version"') do set PKG_VERSION=%%v
 popd
-echo === Published numkit@%PKG_VERSION% ===
-echo Verify: https://www.npmjs.com/package/numkit
-echo Test:   npx numkit -e "disp(1+1)"
+echo === Published nk@%PKG_VERSION% ===
+echo Verify: https://www.npmjs.com/package/nk
+echo Test:   npx nk -e "disp(1+1)"
 exit /b 0
 
 :show_help_ok
 echo Usage: %~nx0 [--skip-build] [--dry-run]
 echo.
-echo Publishes packages\numkit (the WASM CLI) to https://www.npmjs.com — manual flow.
+echo Publishes packages\nk (the WASM CLI) to https://www.npmjs.com — manual flow.
 echo.
 echo Steps: rebuild WASM (web-build^) - refresh dist/ - npm test - npm publish.
 echo Requires: Node 16+, npm login, EMSDK installed (unless --skip-build^).

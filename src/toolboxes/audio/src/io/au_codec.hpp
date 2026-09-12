@@ -9,11 +9,11 @@
 
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 #include <vector>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 /// Sniff AU/SND magic bytes directly from an in-memory buffer.
 bool isAuBytes(const std::uint8_t *data, std::size_t len);
@@ -33,4 +33,4 @@ std::vector<std::uint8_t> writeAuToBytes(const Value &y, double sampleRate,
                                          uint16_t bitsPerSample = 16,
                                          const std::string &comment = "");
 
-} // namespace numkit::audio
+} // namespace nk::audio

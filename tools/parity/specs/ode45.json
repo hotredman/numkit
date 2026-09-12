@@ -23,5 +23,5 @@
     "dense-output interpolation at explicit tspan points",
     "[t, y] output shape  (n × 1, n × d)"
   ],
-  "comment": "Sig 1+2: ode45(@f, tspan, y0) and ode45(@f, tspan, y0, opts). MATLAB R2025b runs Dormand-Prince 5(4) with Shampine's 4-th order free interpolant for dense output; numkit ode45 implements the same RK tableau (Hairer-Norsett-Wanner Vol I, p.178) and the same Shampine 1986 interpolant. With explicit tspan + tight tols, numkit and MATLAB land identically on the requested sample points (verified to ~1e-9). The fingerprint also exercises shape (n=11, d=1) and analytical solution exp(-2). Refine, MaxStep, multi-variable, reverse integration, and additional opts are covered by gtest + smoke."
+  "comment": "Sig 1+2: ode45(@f, tspan, y0) and ode45(@f, tspan, y0, opts). MATLAB R2025b runs Dormand-Prince 5(4) with Shampine's 4-th order free interpolant for dense output; nk ode45 implements the same RK tableau (Hairer-Norsett-Wanner Vol I, p.178) and the same Shampine 1986 interpolant. With explicit tspan + tight tols, nk and MATLAB land identically on the requested sample points (verified to ~1e-9). The fingerprint also exercises shape (n=11, d=1) and analytical solution exp(-2). Refine, MaxStep, multi-variable, reverse integration, and additional opts are covered by gtest + smoke."
 }

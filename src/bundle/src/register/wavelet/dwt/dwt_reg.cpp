@@ -9,23 +9,23 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/dwt/dwt.hpp>
+#include <nk/wavelet/dwt/dwt.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <string>
 #include <tuple>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("dwt/idwt: expected a string for wavelet name",
-                    0, 0, "", "", "numkit:wavelet:type");
+                    0, 0, "", "", "nk:wavelet:type");
     return v.toString();
 }
 
@@ -54,7 +54,7 @@ static bool parse_mode_nv(Span<const Value> args, size_t start,
             if (m != "sym" && m != "symh") {
                 throw Error(std::string(fn) + ": only 'mode'='sym' is "
                             "implemented (got '" + m + "')",
-                            0, 0, fn, "", "numkit:wavelet:mode_nyi");
+                            0, 0, fn, "", "nk:wavelet:mode_nyi");
             }
         }
     }
@@ -66,7 +66,7 @@ void dwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("dwt: requires (x, wname) or (x, Lo_D, Hi_D)",
-                    0, 0, "dwt", "", "numkit:dwt:nargin");
+                    0, 0, "dwt", "", "nk:dwt:nargin");
     auto *mr = ctx.engine->resource();
     Value cA, cD;
     if (args[1].isChar() || args[1].isString()) {
@@ -77,7 +77,7 @@ void dwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         // dwt(x, Lo_D, Hi_D[, 'mode', extmode])
         if (args.size() < 3 || (args[2].isChar() || args[2].isString()))
             throw Error("dwt: custom-filter form requires (x, Lo_D, Hi_D)",
-                        0, 0, "dwt", "", "numkit:dwt:nargin");
+                        0, 0, "dwt", "", "nk:dwt:nargin");
         parse_mode_nv(args, 3, "dwt");
         std::tie(cA, cD) = dwt_with_filters_pub(args[0],
                                                 readVec(args[1]), readVec(args[2]),
@@ -93,7 +93,7 @@ void idwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("idwt: requires (cA, cD, wname[, len]) or "
                     "(cA, cD, Lo_R, Hi_R[, len])",
-                    0, 0, "idwt", "", "numkit:idwt:nargin");
+                    0, 0, "idwt", "", "nk:idwt:nargin");
     auto *mr = ctx.engine->resource();
     long long len = -1;
 
@@ -114,7 +114,7 @@ void idwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (args.size() < 4 || (args[3].isChar() || args[3].isString()))
             throw Error("idwt: custom-filter form requires "
                         "(cA, cD, Lo_R, Hi_R)",
-                        0, 0, "idwt", "", "numkit:idwt:nargin");
+                        0, 0, "idwt", "", "nk:idwt:nargin");
         size_t i = 4;
         if (i < args.size() && args[i].numel() == 1
             && !(args[i].isChar() || args[i].isString())) {
@@ -129,4 +129,4 @@ void idwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/vartestn_test.cpp
 // vartestn.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class VartestnTest : public ::testing::Test
 {

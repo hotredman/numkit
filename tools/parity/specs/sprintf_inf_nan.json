@@ -13,5 +13,5 @@
     "ne", "e1",
     "ng", "g1"
   ],
-  "comment": "sprintf/fprintf %f/%e/%g of Inf/NaN print capitalised vs MATLAB R2025b. Bug fixed 2026-05-30: numkit printed the C library's lowercase 'inf'/'nan'. Now: sprintf('%f',Inf)='Inf' (na=3, a(1)='I'=73, a(3)='f'=102), sprintf('%f',NaN)='NaN', sprintf('%e',-Inf)='-Inf' (c(1)='-'=45, c(2)='I'=73), %8.2f Inf -> '     Inf' (nd=8, d(8)='f'=102, d(1)=32 space; precision ignored, width honoured), %+f Inf -> '+Inf' (e(1)='+'=43), %g NaN -> 'NaN'. The '+' flag adds a sign only to +Inf, not NaN. namespace=builtin."
+  "comment": "sprintf/fprintf %f/%e/%g of Inf/NaN print capitalised vs MATLAB R2025b. Bug fixed 2026-05-30: nk printed the C library's lowercase 'inf'/'nan'. Now: sprintf('%f',Inf)='Inf' (na=3, a(1)='I'=73, a(3)='f'=102), sprintf('%f',NaN)='NaN', sprintf('%e',-Inf)='-Inf' (c(1)='-'=45, c(2)='I'=73), %8.2f Inf -> '     Inf' (nd=8, d(8)='f'=102, d(1)=32 space; precision ignored, width honoured), %+f Inf -> '+Inf' (e(1)='+'=43), %g NaN -> 'NaN'. The '+' flag adds a sign only to +Inf, not NaN. namespace=builtin."
 }

@@ -16,9 +16,9 @@ if ! command -v node &>/dev/null; then
     exit 1
 fi
 
-if [ -f "${WASM_DIST}/numkit_ide.wasm" ]; then
-    cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
-    cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
+if [ -f "${WASM_DIST}/nk_ide.wasm" ]; then
+    cp "${WASM_DIST}/nk_ide.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/nk_ide.wasm" "${IDE_DIR}/public/"
     echo "WASM engine found"
 else
     echo "WASM not built — fallback mode (build with: ./scripts/linux/engine-build.sh --wasm)"

@@ -3,15 +3,15 @@
 // from MATLAB R2025b probe.
 // Note: gevlike's ACOV uses the analytical observed-Fisher Hessian
 // at k != 0 (matches FD). At exactly k=0 MATLAB uses an analytical
-// Gumbel-limit Hessian that differs from FD straddling; numkit's FD
+// Gumbel-limit Hessian that differs from FD straddling; nk's FD
 // approach reports the FD value (~0.030, 0.098, -1.622) and not
 // MATLAB's analytical ACOV — documented as a known gap.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GevlikeTest : public ::testing::Test
 {

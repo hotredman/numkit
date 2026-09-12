@@ -3,10 +3,10 @@
 // Regression guard for ammod() — amplitude modulator.
 // y = (x + carr_amp) .* cos(2π·Fc·t + ini_phase)
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class AmmodTest : public ::testing::Test
 {

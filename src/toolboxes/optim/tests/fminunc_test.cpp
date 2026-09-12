@@ -4,15 +4,15 @@
 // central-difference gradient. Parity with MATLAB is on the SOLUTION (the
 // minimiser). Verified vs MATLAB R2025b. Fixes bugs/optim/fminunc.md.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class FminuncTest : public ::testing::Test {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 

@@ -7,11 +7,11 @@
 // different integer class / the real part of complex are cast with
 // round-half-away + saturate. Bit-exact MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ConcatIntegerTypesTest : public ::testing::Test
 {

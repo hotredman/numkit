@@ -14,15 +14,15 @@
 // uses elements (2:end). Prediction step: out = predictor[1..M] · x
 // where x is the most-recent M reconstructed samples (newest first).
 
-#include <numkit/comm/source/dpcm.hpp>
+#include <nk/comm/source/dpcm.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <utility>
 #include <vector>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -41,7 +41,7 @@ void readPredictor(const Value &predictor, std::vector<double> &p)
     const size_t L = predictor.numel();
     if (L < 2)
         throw Error("dpcm: predictor must have at least 2 elements",
-                    0, 0, "dpcm", "", "numkit:dpcm:InvalidPredictor");
+                    0, 0, "dpcm", "", "nk:dpcm:InvalidPredictor");
     p.resize(L - 1);
     // Skip the leading 0 (predictor[0] in MATLAB's 1-based form).
     for (size_t k = 0; k < L - 1; ++k)
@@ -64,7 +64,7 @@ dpcmenco(const Value &sig, const Value &codebook,
         throw Error("dpcmenco: length(codebook) must equal "
                     "length(partition) + 1",
                     0, 0, "dpcmenco", "",
-                    "numkit:dpcmenco:InvalidPartitionSize");
+                    "nk:dpcmenco:InvalidPartitionSize");
     std::vector<double> pred;
     readPredictor(predictor, pred);
     const size_t M = pred.size();
@@ -119,7 +119,7 @@ dpcmdeco(const Value &indx, const Value &codebook,
         const double iv = indx.elemAsDouble(i);
         if (!(iv >= 0.0) || iv >= static_cast<double>(K))
             throw Error("dpcmdeco: index out of codebook range",
-                        0, 0, "dpcmdeco", "", "numkit:dpcmdeco:OutOfRange");
+                        0, 0, "dpcmdeco", "", "nk:dpcmdeco:OutOfRange");
         o_qerr[i] = codebook.elemAsDouble(static_cast<size_t>(iv));
     }
 
@@ -134,4 +134,4 @@ dpcmdeco(const Value &indx, const Value &codebook,
     return {std::move(sig_v), std::move(quanterr_v)};
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

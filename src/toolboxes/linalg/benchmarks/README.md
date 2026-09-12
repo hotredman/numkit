@@ -1,21 +1,21 @@
 # Linear Algebra Performance Benchmarks
 
-Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_bench.exe` Release build) and MATLAB R2025b executed headlessly on the same machine.
+Measured benchmark comparison between `nk` Linear Algebra module (`nk_bench.exe` Release build) and MATLAB R2025b executed headlessly on the same machine.
 
 ## Environment & Methodology
 
 - **Date**: 2026-08-06
 - **Hardware**: 24-core x86_64 CPU @ 3.07 GHz, L3 Cache 36.8 MB
-- **NumKit Build**: MSVC 2022 (Visual Studio 17.14), C++20 Release (`build/desktop-fast`)
-- **NumKit Raw Output**: [`results/2026-08-06_p7_numkit_bench.txt`](results/2026-08-06_p7_numkit_bench.txt)
+- **NK Build**: MSVC 2022 (Visual Studio 17.14), C++20 Release (`build/desktop-fast`)
+- **NK Raw Output**: [`results/2026-08-06_p7_nk_bench.txt`](results/2026-08-06_p7_nk_bench.txt)
 - **MATLAB Version**: MATLAB R2025b (25.2.0.2998904), 24 threads
 - **MATLAB Raw Output**: [`results/2026-08-06_matlab_r2025b_x86_64.txt`](results/2026-08-06_matlab_r2025b_x86_64.txt)
 
-## Measured Comparison Table (NumKit Multithreaded vs MATLAB R2025b timeit)
+## Measured Comparison Table (NK Multithreaded vs MATLAB R2025b timeit)
 
-| Op / Benchmark | Domain | Size (n) | NumKit Time (Wall) | MATLAB R2025b Time (`timeit`) | Ratio (NumKit/MATLAB) | Gate / Status |
+| Op / Benchmark | Domain | Size (n) | NK Time (Wall) | MATLAB R2025b Time (`timeit`) | Ratio (NK/MATLAB) | Gate / Status |
 |----------------|--------|----------|--------------------|-------------------------------|-----------------------|---------------|
-| **GEMM** (`gemm`) | Real Double | 64 | **0.0205 ms** (20.5 µs) | **0.0200 ms** (20.0 µs) | **1.02×** | **PASSED** (NumKit in 100% parity with MATLAB!) |
+| **GEMM** (`gemm`) | Real Double | 64 | **0.0205 ms** (20.5 µs) | **0.0200 ms** (20.0 µs) | **1.02×** | **PASSED** (NK in 100% parity with MATLAB!) |
 | **GEMM** (`gemm`) | Real Double | 128 | **0.148 ms** | 0.010 ms | 14.8× | Accelerated 7.6x via C4.1 fast path |
 | **GEMM** (`gemm`) | Real Double | 256 | 5.210 ms | 0.070 ms | 74.4× | S2 Bug Filed |
 | **GEMM** (`gemm`) | Real Double | 512 | 7.020 ms | 1.130 ms | 6.21× | S2 Bug Filed |
@@ -46,5 +46,5 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).
 - **Zero-Allocation Stack Fast Path**: Direct stack-allocated L1-resident packing buffers for small matrices ($m, n, k \le 128$) eliminating heap allocation (`malloc`/`free`) and thread pool latency.
 - **4M Split-Complex GEMM**: Operates directly on split real/imaginary packed panels ($A_r, A_i, B_r, B_i$).
-- **Multithreading & Bitwise Determinism**: Parallelized across column blocks ($jc$) via `numkit::detail::parallel_for`. Verified 100% bitwise deterministic across 24 worker threads (`GemmP2_BitwiseDeterminism` asserts active worker count > 1).
+- **Multithreading & Bitwise Determinism**: Parallelized across column blocks ($jc$) via `nk::detail::parallel_for`. Verified 100% bitwise deterministic across 24 worker threads (`GemmP2_BitwiseDeterminism` asserts active worker count > 1).
 - **IEEE-754 Compliance**: Preserves strict NaN/Inf propagation without short-circuit zero skipping.

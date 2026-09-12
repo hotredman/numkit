@@ -10,9 +10,9 @@
 //   - Name-value pairs (LineWidth, MarkerSize)
 //   - Subplot
 
-#include <numkit/core/engine.hpp>
-#include <numkit/figure/figure_manager.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/figure/figure_manager.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
@@ -22,7 +22,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 // ============================================================
 // FigureManager — direct API tests (no engine)

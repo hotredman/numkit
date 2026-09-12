@@ -2,10 +2,10 @@
 //
 // Regression guard for crossval (k-fold cross-validation).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CrossvalTest : public ::testing::Test
 {

@@ -71,7 +71,7 @@
         if (!cell || cell.dataset.highlighted) return;
         cell.dataset.highlighted = 'true';
 
-        // Example: "Value numkit::wavelet::wextend" or "const Value & numkit::foo"
+        // Example: "Value nk::wavelet::wextend" or "const Value & nk::foo"
         const fullText = cell.textContent.trim();
         if (!fullText) return;
 

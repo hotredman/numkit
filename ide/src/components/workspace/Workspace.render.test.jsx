@@ -250,7 +250,7 @@ describe('VariableEditor — struct inspector render smoke', () => {
   });
 
   it('field list has the unified browser toolbar (filter · Σ▾ · view) and filters fields', () => {
-    try { localStorage.setItem('numkit.ide.struct.view', 'list'); } catch { /* none */ }
+    try { localStorage.setItem('nk.ide.struct.view', 'list'); } catch { /* none */ }
     const engine = makeEngine({
       inspectPath: () => ({
         kind: 'struct', rows: 1, cols: 1, numel: 1,
@@ -273,7 +273,7 @@ describe('VariableEditor — struct inspector render smoke', () => {
   });
 
   it('field list cards view renders a card per field', () => {
-    try { localStorage.setItem('numkit.ide.struct.view', 'cards'); } catch { /* none */ }
+    try { localStorage.setItem('nk.ide.struct.view', 'cards'); } catch { /* none */ }
     const engine = makeEngine({
       inspectPath: () => ({
         kind: 'struct', rows: 1, cols: 1, numel: 1,
@@ -286,11 +286,11 @@ describe('VariableEditor — struct inspector render smoke', () => {
     });
     const { container } = render(<VE variable={structVar} onClose={() => {}} engine={engine} />);
     expect(container.querySelectorAll('.var-card').length).toBe(2);
-    try { localStorage.setItem('numkit.ide.struct.view', 'list'); } catch { /* none */ }  // restore
+    try { localStorage.setItem('nk.ide.struct.view', 'list'); } catch { /* none */ }  // restore
   });
 
   it('drops the inline "+ new field" row; right-click the table area opens Insert field', () => {
-    try { localStorage.setItem('numkit.ide.struct.view', 'list'); } catch { /* none */ }
+    try { localStorage.setItem('nk.ide.struct.view', 'list'); } catch { /* none */ }
     const engine = makeEngine({
       inspectPath: () => ({
         kind: 'struct', rows: 1, cols: 1, numel: 1,

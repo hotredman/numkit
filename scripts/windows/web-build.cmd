@@ -17,7 +17,7 @@ if not defined EMCC_DIR (
     if exist "%USERPROFILE%\Repo\emsdk\upstream\emscripten\emcc.bat" set "EMCC_DIR=%USERPROFILE%\Repo\emsdk\upstream\emscripten"
 )
 
-echo === Numkit IDE Static Build -- output to deploy\ ===
+echo === NK IDE Static Build -- output to deploy\ ===
 echo.
 
 if "%1"=="--help" goto show_help
@@ -48,8 +48,8 @@ if "%SKIP_WASM%"=="1" (
 )
 
 echo Copying WASM files into ide\public\...
-copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
-copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
+copy /y "%WASM_DIST%\nk_ide.js"   "%IDE_DIR%\public\" >nul
+copy /y "%WASM_DIST%\nk_ide.wasm" "%IDE_DIR%\public\" >nul
 
 if exist "%IDE_DIR%\scripts\generate-manifest.js" (
     echo Generating examples manifest...

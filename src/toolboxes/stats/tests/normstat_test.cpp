@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/normstat_test.cpp
 // normstat. Reference values from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class NormstatTest : public ::testing::Test
 {

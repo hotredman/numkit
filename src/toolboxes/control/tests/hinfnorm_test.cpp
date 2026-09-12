@@ -4,13 +4,13 @@
 // bugs/control/hinfnorm.md. Reference values from MATLAB R2025b.
 // One TEST_F per documented branch/edge.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class HinfnormTest : public ::testing::Test
 {

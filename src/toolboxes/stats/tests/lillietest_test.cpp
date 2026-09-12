@@ -2,10 +2,10 @@
 //
 // Regression guard for lillietest (Lilliefors normality test).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class LillieTest : public ::testing::Test
 {

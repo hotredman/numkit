@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": ["real(y(1))", "imag(y(1))", "real(y(5))", "imag(y(5))", "abs(y(5))", "real(y(13))", "imag(y(13))", "rt", "rtN"],
-  "comment": "MATLAB apskmod / apskdemod with explicit identity SymbolMapping (numkit's default). Engine-detecting shim handles MATLAB's name-value form vs numkit's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A."
+  "comment": "MATLAB apskmod / apskdemod with explicit identity SymbolMapping (nk's default). Engine-detecting shim handles MATLAB's name-value form vs nk's positional 5th arg. Standard 16-APSK [4,12] [1, 2.7] forward+round-trip + nearest-neighbour demod under small noise. Bit-equal with MATLAB R2025b. Default 'gray' SymbolMapping deferred -- MATLAB's per-ring Gray for non-power-of-2 (M=12) needs more probing. Octave 11.1.0 doesn't ship apskmod in core; reports N/A."
 }

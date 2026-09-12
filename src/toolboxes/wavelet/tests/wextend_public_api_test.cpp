@@ -1,15 +1,15 @@
 // toolboxes/wavelet/tests/wextend_public_api_test.cpp
 //
 // Direct C++ API guard for wextend after the lift from adapter-only to the
-// public entry numkit::wavelet::wextend (1-D / 2-D boundary extension).
+// public entry nk::wavelet::wextend (1-D / 2-D boundary extension).
 // Reference values match wextend_test.cpp / MATLAB R2025b.
 
-#include <numkit/wavelet/dwt/wkeep_wextend.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/wavelet/dwt/wkeep_wextend.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value wv(Engine &e, const char *expr, const char *name)

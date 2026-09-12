@@ -1,7 +1,7 @@
 # optim.linprog — rank-deficient internal solve surfaces as a hard error instead of a solution
 
 - **Status:** ✅ FIXED (2026-09-05)
-- **Severity:** P2 (works in MATLAB, refused in numkit)
+- **Severity:** P2 (works in MATLAB, refused in nk)
 - **Kind:** bug
 - **Found:** 2026-09-05 via fieldtest portion 10 (springer-math
   linear-programming book, example1a/1b/2a/2b — 4 scripts, same site)
@@ -26,7 +26,7 @@ lb = [1; 0; 2; 0];
 ub = [Inf; Inf; 10; Inf];
 [x, f] = linprog(c, A, b, Aeq, beq, lb, ub);
 disp(f)
-% numkit:  Error: mldivide: matrix is singular or rank-deficient
+% nk:  Error: mldivide: matrix is singular or rank-deficient
 % MATLAB R2025b: f = 14.4, x = [4.4 0 2 13.6]
 ```
 

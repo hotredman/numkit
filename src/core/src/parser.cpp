@@ -1,9 +1,9 @@
-#include <numkit/core/parser.hpp>
+#include <nk/core/parser.hpp>
 #include <algorithm>
 #include <stdexcept>
 #include <unordered_map>
 
-namespace numkit {
+namespace nk {
 
 // ============================================================
 // Конструктор
@@ -1530,4 +1530,4 @@ ASTNodePtr Parser::parseCellLiteral()
     return parseArrayLiteral(TokenType::LBRACE, TokenType::RBRACE, NodeType::CELL_LITERAL);
 }
 
-} // namespace numkit
+} // namespace nk

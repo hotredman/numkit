@@ -1,6 +1,6 @@
 // doxygen/doxygen_mainpage.dox
 //
-// Modern, interactive landing page for NumKit C++ API Documentation.
+// Modern, interactive landing page for NK C++ API Documentation.
 
 /**
 @mainpage Index
@@ -198,13 +198,13 @@
 \endhtmlonly
 
 ```cpp
-#include <numkit/bundle/standard_library.hpp>
-#include <numkit/builtin/builtin.hpp>
-#include <numkit/signal/signal.hpp>
-#include <numkit/linalg/linalg.hpp>
+#include <nk/bundle/standard_library.hpp>
+#include <nk/builtin/builtin.hpp>
+#include <nk/signal/signal.hpp>
+#include <nk/linalg/linalg.hpp>
 #include <iostream>
 
-using namespace numkit;
+using namespace nk;
 
 int main() {
     // 1. Pure C++ Public API with SIMD acceleration
@@ -228,7 +228,7 @@ int main() {
 
 <div class="trademark-footer">
   <h4>Trademark &amp; Compatibility Notice</h4>
-  <p>MATLAB® is a registered trademark of The MathWorks, Inc. NumKit is an independent, clean-room open-source project and is <b>not affiliated with, endorsed by, or sponsored by</b> The MathWorks, Inc. References to MATLAB describe functional syntax and algorithm compatibility only.</p>
+  <p>MATLAB® is a registered trademark of The MathWorks, Inc. NK is an independent, clean-room open-source project and is <b>not affiliated with, endorsed by, or sponsored by</b> The MathWorks, Inc. References to MATLAB describe functional syntax and algorithm compatibility only.</p>
 </div>
 \endhtmlonly
 

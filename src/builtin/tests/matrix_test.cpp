@@ -1252,39 +1252,39 @@ TEST_P(SortFindTest, Nonzeros3DColumnMajor)
 }
 
 // sort() on integer types keeps the class on the sorted VALUES (the index
-// output stays double), across dim and 'descend'. numkit previously threw
+// output stays double), across dim and 'descend'. nk previously threw
 // "Not a double array". DEEP-PROBE 2026-05-30.
 TEST_P(SortFindTest, SortIntegerKeepsClass)
 {
     eval("a = sort(int8([3 -128 5]));");
     auto *a = getVarPtr("a");
     ASSERT_NE(a, nullptr);
-    EXPECT_EQ(a->type(), numkit::ValueType::INT8);
+    EXPECT_EQ(a->type(), nk::ValueType::INT8);
     EXPECT_DOUBLE_EQ(evalScalar("double(a(1))"), -128.0);
     EXPECT_DOUBLE_EQ(evalScalar("double(a(2))"),    3.0);
     EXPECT_DOUBLE_EQ(evalScalar("double(a(3))"),    5.0);
     eval("b = sort(int8([3 -128 5]), 'descend');");
-    EXPECT_EQ(getVarPtr("b")->type(), numkit::ValueType::INT8);
+    EXPECT_EQ(getVarPtr("b")->type(), nk::ValueType::INT8);
     EXPECT_DOUBLE_EQ(evalScalar("double(b(1))"),    5.0);
     EXPECT_DOUBLE_EQ(evalScalar("double(b(3))"), -128.0);
     // [s,i]: values keep class, index output is double.
     eval("[s, ix] = sort(int8([30 10 20]));");
-    EXPECT_EQ(getVarPtr("s")->type(),  numkit::ValueType::INT8);
-    EXPECT_EQ(getVarPtr("ix")->type(), numkit::ValueType::DOUBLE);
+    EXPECT_EQ(getVarPtr("s")->type(),  nk::ValueType::INT8);
+    EXPECT_EQ(getVarPtr("ix")->type(), nk::ValueType::DOUBLE);
     EXPECT_DOUBLE_EQ(evalScalar("double(s(1))"), 10.0);
     EXPECT_DOUBLE_EQ(evalScalar("ix(1)"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("ix(3)"), 1.0);
     // Per-dim matrix keeps class.
     eval("c = sort(int32([3 1 2; 6 5 4]), 2);");
-    EXPECT_EQ(getVarPtr("c")->type(), numkit::ValueType::INT32);
+    EXPECT_EQ(getVarPtr("c")->type(), nk::ValueType::INT32);
     EXPECT_DOUBLE_EQ(evalScalar("double(c(1,1))"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("double(c(2,3))"), 6.0);
     eval("u = sort(uint8([200 5 100]));");
-    EXPECT_EQ(getVarPtr("u")->type(), numkit::ValueType::UINT8);
+    EXPECT_EQ(getVarPtr("u")->type(), nk::ValueType::UINT8);
     EXPECT_DOUBLE_EQ(evalScalar("double(u(1))"), 5.0);
     // double input unchanged (regress).
     eval("[sd, id] = sort([3 1 2]);");
-    EXPECT_EQ(getVarPtr("sd")->type(), numkit::ValueType::DOUBLE);
+    EXPECT_EQ(getVarPtr("sd")->type(), nk::ValueType::DOUBLE);
     EXPECT_DOUBLE_EQ(evalScalar("sd(1)"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("id(1)"), 2.0);
 }
@@ -1867,7 +1867,7 @@ TEST_P(GridKronTest, CrossComplex)
 }
 
 // cross(A,B,dim): the dim argument was IGNORED (always crossed along the
-// first length-3 dimension). For a 3x3 (ambiguous) input numkit picked dim 1
+// first length-3 dimension). For a 3x3 (ambiguous) input nk picked dim 1
 // regardless of the requested dim. MATLAB crosses along the requested dim.
 // vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
 TEST_P(GridKronTest, CrossAlongDim)
@@ -1900,7 +1900,7 @@ TEST_P(GridKronTest, Kron3DInputThrows)
 }
 
 // Complex dot: MATLAB conjugates the FIRST argument -> dot(a,b)=sum(conj(a).*b),
-// per-column for matrices. numkit previously dropped the imaginary part via
+// per-column for matrices. nk previously dropped the imaginary part via
 // elemAsDouble (returned a wrong real scalar). vs MATLAB R2025b. 2026-05-29.
 TEST_P(GridKronTest, DotComplexConjugatesFirstArg)
 {

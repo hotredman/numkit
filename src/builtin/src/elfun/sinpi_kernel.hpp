@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 // sinpik / cospik share one coefficient table; only the o-selection and
 // the final sign differ. Index 0 is the leading (highest-degree) term.
@@ -91,4 +91,4 @@ inline double cospi_kernel(double d)
     return (x == 0.0) ? 0.0 : x;
 }
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail

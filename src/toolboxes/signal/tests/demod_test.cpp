@@ -4,10 +4,10 @@
 // R2025b on the 3 supported AM-family modes (~2e-3 diff in filtfilt
 // edge handling).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DemodTest : public ::testing::Test
 {

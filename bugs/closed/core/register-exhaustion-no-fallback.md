@@ -1,7 +1,7 @@
 # core.compiler — register exhaustion (>255) surfaces as a user error on real code instead of the TreeWalker fallback
 
 - **Status:** ✅ FIXED (a89273172, 2026-09-07)
-- **Severity:** P2 (works in MATLAB, refused in numkit)
+- **Severity:** P2 (works in MATLAB, refused in nk)
 - **Kind:** bug
 - **Found:** 2026-08-30 via fieldtest (real-world `sa_tsp.m` — simulated
   annealing TSP); minimal shape distilled 2026-08-31
@@ -23,7 +23,7 @@ the error surfaced to the user instead.
 clear;
 y = [1 1 1 1 ... 1];   % a row literal with 253 elements
 disp(numel(y));
-% numkit: Error: Compiler: register exhaustion (>255 registers needed in chunk)
+% nk: Error: Compiler: register exhaustion (>255 registers needed in chunk)
 % MATLAB R2025b: 253
 ```
 
@@ -32,7 +32,7 @@ fail** (253 + chunk overhead > 255). The same error reproduces for a
 253-operand `1+1+…` chain and a 300-argument call — every shape that keeps
 >~252 values live in one chunk.
 
-Generate the literal: `python -c "print('y = [' + ' '.join(['1']*253) + '']; disp(numel(y));')" > r.m && numkit r.m`
+Generate the literal: `python -c "print('y = [' + ' '.join(['1']*253) + '']; disp(numel(y));')" > r.m && nk r.m`
 
 ## Root cause (hypotheses to check)
 

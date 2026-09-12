@@ -3,13 +3,13 @@
 // CallContext register half of descriptive/grpstats.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("grpstats: requires (X, group [, fn])",
-                    0, 0, "grpstats", "", "numkit:grpstats:nargin");
+                    0, 0, "grpstats", "", "nk:grpstats:nargin");
     auto *mr = ctx.engine->resource();
 
     std::vector<std::string> fn_names;
@@ -44,12 +44,12 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
                 if (!(el.isChar() || el.isString()))
                     throw Error("grpstats: cell fn names must be strings",
                                 0, 0, "grpstats", "",
-                                "numkit:grpstats:BadCell");
+                                "nk:grpstats:BadCell");
                 fn_names.push_back(el.toString());
             }
         } else {
             throw Error("grpstats: fn arg must be a string or cell of strings",
-                        0, 0, "grpstats", "", "numkit:grpstats:BadFnArg");
+                        0, 0, "grpstats", "", "nk:grpstats:BadFnArg");
         }
     }
 
@@ -72,4 +72,4 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

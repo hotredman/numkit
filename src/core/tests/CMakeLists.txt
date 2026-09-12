@@ -1,4 +1,4 @@
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     # lexer / parser / compiler
     ${CMAKE_CURRENT_SOURCE_DIR}/play_manifest_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dependency_graph_test.cpp
@@ -13,7 +13,7 @@ target_sources(numkit_gtest PRIVATE
     # Object model (dev-docs/handbook/object_model.md) — P1 infra: type + registry + clone
     ${CMAKE_CURRENT_SOURCE_DIR}/object_model_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vm_benchmark.cpp
-    # Thread pool — no-op file body when NUMKIT_WITH_THREADS is OFF
+    # Thread pool — no-op file body when NK_WITH_THREADS is OFF
     ${CMAKE_CURRENT_SOURCE_DIR}/thread_pool_test.cpp
     # ND shape ops — broadcasting, strides, coord-walking
     ${CMAKE_CURRENT_SOURCE_DIR}/shape_ops_test.cpp
@@ -48,7 +48,7 @@ target_sources(numkit_gtest PRIVATE
 )
 
 # Relocated from tests/builtin (layer split 2026-06-17).
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/advanced_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/commands_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/comments_test.cpp
@@ -60,4 +60,4 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/scope_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
 )
-target_sources(numkit_gtest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ide_serializer_test.cpp)
+target_sources(nk_gtest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ide_serializer_test.cpp)

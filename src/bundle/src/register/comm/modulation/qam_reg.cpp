@@ -7,15 +7,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/modulation/qam.hpp>
+#include <nk/comm/modulation/qam.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 namespace {
@@ -46,7 +46,7 @@ void pammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pammod: requires (x, M[, ini_phase, symbol_order])",
-                    0, 0, "pammod", "", "numkit:pammod:nargin");
+                    0, 0, "pammod", "", "nk:pammod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -60,7 +60,7 @@ void pamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pamdemod: requires (y, M[, ini_phase, symbol_order])",
-                    0, 0, "pamdemod", "", "numkit:pamdemod:nargin");
+                    0, 0, "pamdemod", "", "nk:pamdemod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -74,7 +74,7 @@ void qammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("qammod: requires (x, M[, symbol_order, 'UnitAveragePower', tf])",
-                    0, 0, "qammod", "", "numkit:qammod:nargin");
+                    0, 0, "qammod", "", "nk:qammod:nargin");
     const int M = (int)args[1].toScalar();
     auto order = parse_order(args, 2, "gray");
     bool up = parse_unit_power(args, 2);
@@ -86,7 +86,7 @@ void qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("qamdemod: requires (y, M[, symbol_order, 'UnitAveragePower', tf])",
-                    0, 0, "qamdemod", "", "numkit:qamdemod:nargin");
+                    0, 0, "qamdemod", "", "nk:qamdemod:nargin");
     const int M = (int)args[1].toScalar();
     auto order = parse_order(args, 2, "gray");
     bool up = parse_unit_power(args, 2);
@@ -98,7 +98,7 @@ void modnorm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("modnorm: requires (ref, type, target)",
-                    0, 0, "modnorm", "", "numkit:modnorm:nargin");
+                    0, 0, "modnorm", "", "nk:modnorm:nargin");
     std::string type = "avpow";
     if (args[1].isChar() || args[1].isString()) type = args[1].toString();
     const double target = args[2].toScalar();
@@ -106,4 +106,4 @@ void modnorm_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::comm
+} // namespace nk::comm

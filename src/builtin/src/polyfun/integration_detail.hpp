@@ -1,6 +1,6 @@
-// math/include/numkit/math/integration/integration_detail.hpp
+// math/include/nk/math/integration/integration_detail.hpp
 //
-// Internal (numkit::builtin::detail) entry points of the integration compute,
+// Internal (nk::builtin::detail) entry points of the integration compute,
 // exposed only so the Engine-coupled *_reg adapters in bundle can reuse the
 // exact same machinery as the public gradient/del2/cumtrapz/trapz/integral.
 // Not a stable API — these are the lower-level dispatch helpers + the
@@ -9,14 +9,14 @@
 
 #pragma once
 
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
 
 #include <cstddef>
 #include <memory_resource>
 #include <vector>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 // 15-point Gauss-Kronrod nodes (symmetric about 0) and weights, plus the
 // embedded 7-point Gauss weights. Source: Davis & Rabinowitz, "Methods of
@@ -64,4 +64,4 @@ Value cumtrapzMatrixRowsC(const Complex *src, const double *xData, size_t rows,
 Value trapzImpl(const Value &y, int dim, const double *xData,
                 std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail

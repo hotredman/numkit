@@ -3,10 +3,10 @@
 // Regression guard for eomday() — last day of the given month with
 // proleptic-Gregorian leap-year rule.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class EomdayTest : public ::testing::Test
 {

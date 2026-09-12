@@ -9,15 +9,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/source/base_conversions.hpp>
+#include <nk/comm/source/base_conversions.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -28,12 +28,12 @@ bool parseMsbFlag(const Value &v, const char *who)
 {
     if (!v.isChar() && !v.isString())
         throw Error(std::string(who) + ": flag must be 'left-msb' or 'right-msb'",
-                    0, 0, who, "", std::string("numkit:") + who + ":BadFlag");
+                    0, 0, who, "", std::string("nk:") + who + ":BadFlag");
     std::string s = v.toString();
     if (s == "left-msb")  return true;
     if (s == "right-msb") return false;
     throw Error(std::string(who) + ": unknown flag '" + s + "'",
-                0, 0, who, "", std::string("numkit:") + who + ":BadFlag");
+                0, 0, who, "", std::string("nk:") + who + ":BadFlag");
 }
 
 } // namespace
@@ -45,7 +45,7 @@ void bit2int_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bit2int: requires (b, n [, msbfirst])",
-                    0, 0, "bit2int", "", "numkit:bit2int:nargin");
+                    0, 0, "bit2int", "", "nk:bit2int:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     bool msb = true;
     if (args.size() >= 3) msb = (args[2].toScalar() != 0.0);
@@ -57,7 +57,7 @@ void int2bit_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("int2bit: requires (d, n [, msbfirst])",
-                    0, 0, "int2bit", "", "numkit:int2bit:nargin");
+                    0, 0, "int2bit", "", "nk:int2bit:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     bool msb = true;
     if (args.size() >= 3) msb = (args[2].toScalar() != 0.0);
@@ -69,7 +69,7 @@ void bi2de_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bi2de: requires (b [, base] [, flag])",
-                    0, 0, "bi2de", "", "numkit:bi2de:nargin");
+                    0, 0, "bi2de", "", "nk:bi2de:nargin");
     int base = 2;
     bool msb = false;  // default 'right-msb' = LSB-first
     for (size_t i = 1; i < args.size(); ++i) {
@@ -80,7 +80,7 @@ void bi2de_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if (base < 2)
         throw Error("bi2de: base must be >= 2",
-                    0, 0, "bi2de", "", "numkit:bi2de:BadBase");
+                    0, 0, "bi2de", "", "nk:bi2de:BadBase");
     outs[0] = bi2de(args[0], base, msb, ctx.engine->resource());
 }
 
@@ -89,7 +89,7 @@ void de2bi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("de2bi: requires (d [, n] [, base] [, flag])",
-                    0, 0, "de2bi", "", "numkit:de2bi:nargin");
+                    0, 0, "de2bi", "", "nk:de2bi:nargin");
     int n = -1;       // -1 = auto
     int base = 2;
     bool msb = false; // default 'right-msb'
@@ -115,7 +115,7 @@ void vec2mat_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("vec2mat: requires (v, n [, padval])",
-                    0, 0, "vec2mat", "", "numkit:vec2mat:nargin");
+                    0, 0, "vec2mat", "", "nk:vec2mat:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     double padval = 0.0;
     if (args.size() >= 3) padval = args[2].toScalar();
@@ -127,4 +127,4 @@ void vec2mat_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

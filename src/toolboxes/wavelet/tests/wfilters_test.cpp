@@ -1,11 +1,11 @@
 // toolboxes/wavelet/tests/wfilters_test.cpp
 // wfilters.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WfiltersTest : public ::testing::Test
 {
@@ -16,7 +16,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// 2026-05-08 — gap closure: previously numkit's Lo_D / Lo_R labels
+// 2026-05-08 — gap closure: previously nk's Lo_D / Lo_R labels
 // were swapped relative to MATLAB R2025b. Root cause of the
 // dwt / wavedec value mismatches. Now bit-identical.
 

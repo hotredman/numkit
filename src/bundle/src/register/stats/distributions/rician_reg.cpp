@@ -3,18 +3,18 @@
 // CallContext register half of distributions/rician.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>   // besseli
-#include <numkit/comm/channel/channel.hpp>           // marcumq
-#include <numkit/stats/distributions/rician.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>   // besseli
+#include <nk/comm/channel/channel.hpp>           // marcumq
+#include <nk/stats/distributions/rician.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/rician_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -35,7 +35,7 @@ void ricepdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ricepdf: requires (x, s, sigma)",
-                    0, 0, "ricepdf", "", "numkit:ricepdf:nargin");
+                    0, 0, "ricepdf", "", "nk:ricepdf:nargin");
     outs[0] = ricepdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -46,7 +46,7 @@ void ricecdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("ricecdf: requires (x, s, sigma[, 'upper'])",
-                    0, 0, "ricecdf", "", "numkit:ricecdf:nargin");
+                    0, 0, "ricecdf", "", "nk:ricecdf:nargin");
     Value v = ricecdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -57,7 +57,7 @@ void riceinv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("riceinv: requires (p, s, sigma)",
-                    0, 0, "riceinv", "", "numkit:riceinv:nargin");
+                    0, 0, "riceinv", "", "nk:riceinv:nargin");
     outs[0] = riceinv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -66,7 +66,7 @@ void ricernd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ricernd: requires (s, sigma[, m, n])",
-                    0, 0, "ricernd", "", "numkit:ricernd:nargin");
+                    0, 0, "ricernd", "", "nk:ricernd:nargin");
     const double s     = args[0].toScalar();
     const double sigma = args[1].toScalar();
     size_t rows = 1, cols = 1;
@@ -86,4 +86,4 @@ void ricestat_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

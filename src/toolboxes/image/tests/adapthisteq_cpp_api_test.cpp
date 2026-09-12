@@ -1,18 +1,18 @@
 // toolboxes/image/tests/adapthisteq_cpp_api_test.cpp
 //
 // Pilot of the new uniform public API for toolboxes/image. Calls
-// numkit::image::adapthisteq directly from C++ without engine.eval,
+// nk::image::adapthisteq directly from C++ without engine.eval,
 // using the AdaptHistEqOptions struct + the mr-last convention.
 
-#include <numkit/value/value.hpp>
-#include <numkit/image/contrast/contrast.hpp>
+#include <nk/value/value.hpp>
+#include <nk/image/contrast/contrast.hpp>
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <vector>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 // Build a 16×16 uint8 ramp: I(r,c) = (r*16 + c). MATLAB column-major

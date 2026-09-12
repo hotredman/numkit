@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/evstat_test.cpp
 // evstat.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class EvstatTest : public ::testing::Test
 {

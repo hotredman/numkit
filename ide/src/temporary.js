@@ -1,5 +1,5 @@
 /**
- * temporary.js — IndexedDB-backed scratch filesystem for Numkit IDE.
+ * temporary.js — IndexedDB-backed scratch filesystem for NK IDE.
  *
  * "Temporary" because it lives only in the browser's IndexedDB:
  * clearing site data wipes it. For real-disk access see Local Folder
@@ -31,7 +31,7 @@
 
 import { makeBridge, isSupported as bridgeSupported } from './sab-bridge/sync-bridge';
 
-const DB_NAME = 'numkit-ide-vfs';
+const DB_NAME = 'nk-ide-vfs';
 const DB_VERSION = 1;
 const STORE_NAME = 'files';
 
@@ -234,7 +234,7 @@ const direct = {
 
 // ── Public tempFS — bridge if supported, direct IDB otherwise ──
 //
-// 2026-05-09: bridge path is gated behind NUMKIT_TEMPFS_BRIDGE=1 because
+// 2026-05-09: bridge path is gated behind NK_TEMPFS_BRIDGE=1 because
 // packaged Electron (file:// origin) doesn't reliably expose
 // crossOriginIsolated even with COOP/COEP headers injected via
 // webRequest.onHeadersReceived — the worker silently fails to start and

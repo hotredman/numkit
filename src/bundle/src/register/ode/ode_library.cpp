@@ -3,29 +3,29 @@
 // Registers all ODE-toolbox functions under ode.<name> and the flat
 // compat.<name> alias.
 
-#include <numkit/ode/library.hpp>
+#include <nk/ode/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::ode::detail {
+namespace nk::ode::detail {
 
 void ode45_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ode23_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void odeset_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void odeget_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
-} // namespace numkit::ode::detail
+} // namespace nk::ode::detail
 
-namespace numkit::ode {
+namespace nk::ode {
 // Defined in ode45.cpp / ode23.cpp — install the `.m` solver wrappers (pausable
 // RHS; the C++ `Value ode45/ode23(...)` APIs remain the synchronous embedder
 // path).
 void registerOde45M(Engine &engine);
 void registerOde23M(Engine &engine);
-} // namespace numkit::ode
+} // namespace nk::ode
 
-namespace numkit {
+namespace nk {
 
 void OdeLibrary::install(Engine &engine)
 {
@@ -45,4 +45,4 @@ void OdeLibrary::install(Engine &engine)
     reg("options", "odeget", &ode::detail::odeget_reg);
 }
 
-} // namespace numkit
+} // namespace nk

@@ -22,15 +22,15 @@
 //   bE[14..42] = bE[i-1] * 1.0711703             (log-spaced, ~27 bands/octave)
 // PMR HARD RULE.
 
-#include <numkit/audio/spectral/cepstral.hpp>
-#include <numkit/audio/spectral/melspec_delta.hpp>
+#include <nk/audio/spectral/cepstral.hpp>
+#include <nk/audio/spectral/melspec_delta.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The
 // cepstralCoefficients / mfcc / gtcc builtins (CallContext wrappers) live
 // in spectral/cepstral_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include "fft_one_sided.hpp"
 
@@ -42,7 +42,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::audio {
+namespace nk::audio {
 
 namespace {
 
@@ -266,14 +266,14 @@ Value cepstralCoefficients(const Value &S, int numCoeffs, std::pmr::memory_resou
     if (S.dims().is3D())
         throw Error("cepstralCoefficients: input must be 2-D",
                     0, 0, "cepstralCoefficients", "",
-                    "numkit:cepstralCoefficients:Not2D");
+                    "nk:cepstralCoefficients:Not2D");
     const size_t L = S.dims().rows();
     const size_t M = S.dims().cols();
     const size_t N = static_cast<size_t>(numCoeffs);
     if (numCoeffs < 2)
         throw Error("cepstralCoefficients: NumCoeffs must be > 1",
                     0, 0, "cepstralCoefficients", "",
-                    "numkit:cepstralCoefficients:BadN");
+                    "nk:cepstralCoefficients:BadN");
 
     Value out = Value::matrix(M, N, ValueType::DOUBLE, mr);
     if (L == 0 || M == 0) return out;
@@ -539,4 +539,4 @@ gtcc(const Value &x, double fs, int numCoeffs, std::pmr::memory_resource *mr)
     return {out, delta, deltaDelta};
 }
 
-} // namespace numkit::audio
+} // namespace nk::audio

@@ -213,7 +213,7 @@ const ConsolePane = forwardRef(function ConsolePane(
           onKeyDown={onKeyDown}
           spellCheck={false}
           autoComplete="off"
-          placeholder="enter numkit command…"
+          placeholder="enter nk command…"
         />
       </div>
     </div>

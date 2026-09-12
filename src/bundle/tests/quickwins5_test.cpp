@@ -3,10 +3,10 @@
 // Regression guard for the cycle-51 quick-wins five:
 //   trace, det, chol, topkrows, cputime
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class QuickWins5Test : public ::testing::Test
 {

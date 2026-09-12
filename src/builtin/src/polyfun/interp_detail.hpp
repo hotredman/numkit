@@ -3,11 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -292,7 +292,7 @@ interpMakima(const double *x, const double *y, size_t n,
 {
     if (n < 2)
         throw Error("makima: need at least 2 data points",
-                     0, 0, "makima", "", "numkit:makima:tooFewPoints");
+                     0, 0, "makima", "", "nk:makima:tooFewPoints");
     if (n < 3)
         return interpLinear(x, y, n, xq, nq, mr);
 
@@ -482,7 +482,7 @@ Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
 
     if (n < 2)
         throw Error("interp1: need at least 2 data points",
-                     0, 0, "interp1", "", "numkit:interp1:tooFewPoints");
+                     0, 0, "interp1", "", "nk:interp1:tooFewPoints");
 
     // Complex y: interpolate the real and imaginary parts separately and
     // recombine (MATLAB). This wraps every method + the matrix-column path,
@@ -527,7 +527,7 @@ Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
                 // extrapolator, see applyInterp1Extrap).
                 return interpV5Cubic(xd, yd, n, xqd, nq, &scratch);
             throw Error("interp1: unknown method '" + method + "'",
-                         0, 0, "interp1", "", "numkit:interp1:badMethod");
+                         0, 0, "interp1", "", "nk:interp1:badMethod");
         }();
         applyInterp1Extrap(yq.data(), xqd, nq, xd, yd, n, method, mode, fill);
         return yq;
@@ -537,7 +537,7 @@ Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
     if (yIsVector) {
         if (n != y.numel())
             throw Error("interp1: x and y must have same length",
-                         0, 0, "interp1", "", "numkit:interp1:lengthMismatch");
+                         0, 0, "interp1", "", "nk:interp1:lengthMismatch");
         auto yq = runColumn(y.doubleData());
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
@@ -548,12 +548,12 @@ Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
     if (y.dims().ndim() > 2)
         throw Error("interp1: N-D Y arrays are not supported in this "
                     "revision (vector or 2-D matrix only)",
-                     0, 0, "interp1", "", "numkit:interp1:ndY");
+                     0, 0, "interp1", "", "nk:interp1:ndY");
     const size_t yr = static_cast<size_t>(y.dims().dim(0));
     const size_t yc = static_cast<size_t>(y.dims().dim(1));
     if (yr != n)
         throw Error("interp1: for a matrix Y, size(Y,1) must equal length(X)",
-                     0, 0, "interp1", "", "numkit:interp1:lengthMismatch");
+                     0, 0, "interp1", "", "nk:interp1:lengthMismatch");
     const double *yd = y.doubleData();
     auto out = Value::matrix(nq, yc, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -592,9 +592,9 @@ Interp2Method parseInterp2Method(const std::string &m, bool allowSeparable = fal
     if (s == "spline" || s == "pchip" || s == "makima")
         throw Error("interp2: '" + m + "' method not yet supported "
                      "(linear / nearest / cubic / spline available)",
-                     0, 0, "interp2", "", "numkit:interp2:unsupportedMethod");
+                     0, 0, "interp2", "", "nk:interp2:unsupportedMethod");
     throw Error("interp2: unknown method '" + m + "'",
-                 0, 0, "interp2", "", "numkit:interp2:badMethod");
+                 0, 0, "interp2", "", "nk:interp2:badMethod");
 }
 
 // Keys' cubic convolution kernel (a = -0.5).
@@ -627,7 +627,7 @@ void validateMonotonicAscending(const double *g, std::size_t n, const char *axis
         if (g[i] <= g[i - 1])
             throw Error(std::string("interp2: ") + axis
                          + " must be strictly increasing",
-                         0, 0, "interp2", "", "numkit:interp2:notMonotonic");
+                         0, 0, "interp2", "", "nk:interp2:notMonotonic");
 }
 
 // Bicubic (Keys, a=-0.5) convolution sample. Vpad is the (R+2)×(C+2)
@@ -754,19 +754,19 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
 {
     if (V.type() == ValueType::COMPLEX)
         throw Error("interp2: complex inputs are not supported",
-                     0, 0, "interp2", "", "numkit:interp2:complex");
+                     0, 0, "interp2", "", "nk:interp2:complex");
     if (V.dims().is3D() || V.dims().ndim() > 2)
         throw Error("interp2: V must be a 2D matrix",
-                     0, 0, "interp2", "", "numkit:interp2:rank");
+                     0, 0, "interp2", "", "nk:interp2:rank");
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     if (xN != C)
         throw Error("interp2: length(X) must equal cols(V)",
-                     0, 0, "interp2", "", "numkit:interp2:gridSize");
+                     0, 0, "interp2", "", "nk:interp2:gridSize");
     if (yN != R)
         throw Error("interp2: length(Y) must equal rows(V)",
-                     0, 0, "interp2", "", "numkit:interp2:gridSize");
+                     0, 0, "interp2", "", "nk:interp2:gridSize");
     validateMonotonicAscending(xGrid, C, "X");
     validateMonotonicAscending(yGrid, R, "Y");
 
@@ -786,7 +786,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
     if (m == Interp2Method::Cubic) {
         if (R < 3 || C < 3)
             throw Error("interp2: 'cubic' requires at least 3 points in each dimension",
-                         0, 0, "interp2", "", "numkit:interp2:cubicSize");
+                         0, 0, "interp2", "", "nk:interp2:cubicSize");
         auto isUniform = [](const double *g, std::size_t n) {
             if (n < 2) return true;
             const double step = g[1] - g[0];
@@ -797,7 +797,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
         };
         if (!isUniform(xGrid, C) || !isUniform(yGrid, R))
             throw Error("interp2: 'cubic' requires a uniformly-spaced grid",
-                         0, 0, "interp2", "", "numkit:interp2:cubicNonUniform");
+                         0, 0, "interp2", "", "nk:interp2:cubicNonUniform");
         const std::size_t PR = R + 2, PC = C + 2;
         Vpad.assign(PR * PC, 0.0);
         auto at = [&](std::size_t i, std::size_t j) -> double & { return Vpad[j * PR + i]; };
@@ -896,7 +896,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
     }
 
     throw Error("interp2: Xq and Yq must have the same size",
-                 0, 0, "interp2", "", "numkit:interp2:queryShape");
+                 0, 0, "interp2", "", "nk:interp2:queryShape");
 }
 
 } // namespace
@@ -950,20 +950,20 @@ Value interp3Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
 {
     if (V.type() == ValueType::COMPLEX)
         throw Error("interp3: complex inputs are not supported",
-                     0, 0, "interp3", "", "numkit:interp3:complex");
+                     0, 0, "interp3", "", "nk:interp3:complex");
     if (!V.dims().is3D())
         throw Error("interp3: V must be a 3D array",
-                     0, 0, "interp3", "", "numkit:interp3:rank");
+                     0, 0, "interp3", "", "nk:interp3:rank");
     if (Xq.numel() != Yq.numel() || Xq.numel() != Zq.numel())
         throw Error("interp3: Xq, Yq, Zq must have the same numel",
-                     0, 0, "interp3", "", "numkit:interp3:queryShape");
+                     0, 0, "interp3", "", "nk:interp3:queryShape");
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
     if (xN != C || yN != R || zN != P)
         throw Error("interp3: grid lengths must equal V's dim sizes",
-                     0, 0, "interp3", "", "numkit:interp3:gridSize");
+                     0, 0, "interp3", "", "nk:interp3:gridSize");
     validateMonotonicAscending(xGrid, C, "X");
     validateMonotonicAscending(yGrid, R, "Y");
     validateMonotonicAscending(zGrid, P, "Z");
@@ -993,4 +993,4 @@ Value interp3Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

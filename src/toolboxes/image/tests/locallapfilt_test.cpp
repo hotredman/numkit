@@ -8,12 +8,12 @@
 // match within a few uint8 units, which is well below the visual-
 // difference threshold for tone-mapped images).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class LocalLapFiltTest : public ::testing::Test
 {

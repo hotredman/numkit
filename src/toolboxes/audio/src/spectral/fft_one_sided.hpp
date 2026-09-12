@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/signal/transforms/fft.hpp>
 
 #include <complex>
 #include <cstddef>
 
-namespace numkit::audio::detail {
+namespace nk::audio::detail {
 
 inline void fftPowerHalf(std::pmr::memory_resource *mr,
                          const double *x, std::size_t N,
@@ -54,4 +54,4 @@ inline void fftMagHalf(std::pmr::memory_resource *mr,
     for (std::size_t k = 0; k < H; ++k) out_mag_half[k] = std::abs(Yd[k]);
 }
 
-} // namespace numkit::audio::detail
+} // namespace nk::audio::detail

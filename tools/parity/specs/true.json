@@ -12,5 +12,5 @@
     "r3",
     "n3"
   ],
-  "comment": "Sig: r = true(...). true()=1; true(2,2) is a 2x2 logical one matrix (numel 4); true(3) is 3x3 (numel 9), every element 1. Indexing goes through a temp var (t2(1)) because MATLAB rejects chained indexing on a call result -- true(2,2)(1) is 'Invalid array indexing' in MATLAB (numkit allows it). namespace=builtin."
+  "comment": "Sig: r = true(...). true()=1; true(2,2) is a 2x2 logical one matrix (numel 4); true(3) is 3x3 (numel 9), every element 1. Indexing goes through a temp var (t2(1)) because MATLAB rejects chained indexing on a call result -- true(2,2)(1) is 'Invalid array indexing' in MATLAB (nk allows it). namespace=builtin."
 }

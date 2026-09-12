@@ -4,11 +4,11 @@
 // complex-number strings (was NaN). MATLAB R2025b reference values. Real strings
 // stay real double (zero regression).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Str2doubleComplexTest : public ::testing::Test
 {

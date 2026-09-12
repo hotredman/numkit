@@ -2,7 +2,7 @@ clear
 
 % Smoke test for graph-lowering Phase 2 — exercises every control-flow
 % construct the lowering pass handles so the IDE's graph view has a
-% realistic fixture to render, and `numkit.exe` confirms the
+% realistic fixture to render, and `nk.exe` confirms the
 % script also runs at runtime end-to-end.
 %
 % Constructs exercised:

@@ -1,12 +1,12 @@
 // toolboxes/stats/src/distributions/poisson.cpp
 
-#include <numkit/stats/distributions/poisson.hpp>
+#include <nk/stats/distributions/poisson.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -17,7 +17,7 @@
 
 #include "poisson_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value poisspdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
@@ -39,7 +39,7 @@ Value poisscdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
         return std::floor(ki) + 1.0;
     }, mr);
     Value lam = Value::scalar(lambda, mr);
-    Value lower = ::numkit::builtin::gammainc(lam, xs, mr);
+    Value lower = ::nk::builtin::gammainc(lam, xs, mr);
     // F = 1 - P, but: for ki < 0, xs = 0 and we want F = 0. gammainc(λ, 0) is
     // technically undefined; if it returns 0, F = 1 — wrong. Patch via a
     // walk that knows the original ki.
@@ -71,7 +71,7 @@ Value poissinv(const Value &p, double lambda, std::pmr::memory_resource *mr)
     return elementwise(p, [=](double pi){ return poiss_inv_scalar(pi, lambda); }, mr);
 }
 
-Value poissrnd(::numkit::ops::RngContext &rng, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value poissrnd(::nk::ops::RngContext &rng, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -97,4 +97,4 @@ std::tuple<double, double> poisstat(double lambda)
     return std::make_tuple(lambda, lambda);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

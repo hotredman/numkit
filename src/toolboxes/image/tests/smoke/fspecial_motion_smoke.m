@@ -2,7 +2,7 @@ clear
 
 % fspecial('motion',len,theta) builds an anti-aliased motion-blur PSF: a
 % line of `len` pixels at `theta` degrees (counter-clockwise from
-% horizontal), normalised to sum 1. MATLAB R2025b. numkit previously threw
+% horizontal), normalised to sum 1. MATLAB R2025b. nk previously threw
 % 'unknown filter type 'motion''. (Fixing it also exposed a fspecial_reg
 % bug: a scalar 2nd arg was size-doubled for EVERY filter, so motion's
 % theta silently received the len value.)

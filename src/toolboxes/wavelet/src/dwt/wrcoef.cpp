@@ -6,7 +6,7 @@
 //
 //   y = wrcoef(type, c, l, wname[, n])
 //
-// The (c, l) pair is the output of `wavedec`. Layout (numkit convention,
+// The (c, l) pair is the output of `wavedec`. Layout (nk convention,
 // matching the MATLAB doc):
 //
 //   c = [cA_N, cD_N, cD_{N-1}, ..., cD_1]
@@ -25,23 +25,23 @@
 //     The two-filter form `wrcoef(type, c, l, Lo_R, Hi_R[, n])` is
 //     intentionally NOT supported in this release — pass wname instead.
 //
-// Output y is a row vector of length |x| (matches numkit's wavedec/
+// Output y is a row vector of length |x| (matches nk's wavedec/
 // waverec which always emit row outputs). MATLAB preserves the
-// orientation of c into y; numkit's wavedec coerces c into a row
+// orientation of c into y; nk's wavedec coerces c into a row
 // internally, so wrcoef output is row-shaped here too.
 
-#include <numkit/wavelet/dwt/multilevel.hpp>
+#include <nk/wavelet/dwt/multilevel.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The wrcoef builtin
 // (CallContext wrapper) lives in dwt/wrcoef_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -68,12 +68,12 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
 {
     if (type != "a" && type != "d")
         throw Error("wrcoef: type must be 'a' or 'd'",
-                    0, 0, "wrcoef", "", "numkit:wrcoef:type");
+                    0, 0, "wrcoef", "", "nk:wrcoef:type");
 
     const size_t Lcount = l.numel();
     if (Lcount < 3)
         throw Error("wrcoef: l must have at least 3 entries",
-                    0, 0, "wrcoef", "", "numkit:wrcoef:l");
+                    0, 0, "wrcoef", "", "nk:wrcoef:l");
     const int N = static_cast<int>(Lcount) - 2;
 
     if (n < 0)
@@ -82,12 +82,12 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
         if (n < 0 || n > N)
             throw Error("wrcoef: for type='a', level must satisfy 0 <= n <= "
                         + std::to_string(N),
-                        0, 0, "wrcoef", "", "numkit:wrcoef:level");
+                        0, 0, "wrcoef", "", "nk:wrcoef:level");
     } else { // 'd'
         if (n < 1 || n > N)
             throw Error("wrcoef: for type='d', level must satisfy 1 <= n <= "
                         + std::to_string(N),
-                        0, 0, "wrcoef", "", "numkit:wrcoef:level");
+                        0, 0, "wrcoef", "", "nk:wrcoef:level");
     }
 
     auto cv = vec_from_value(c);
@@ -100,7 +100,7 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
     for (int k = 0; k < N; ++k) expectedC += sliceLen(1 + k);
     if (cv.size() != expectedC)
         throw Error("wrcoef: c length does not match l bookkeeping",
-                    0, 0, "wrcoef", "", "numkit:wrcoef:cl");
+                    0, 0, "wrcoef", "", "nk:wrcoef:cl");
 
     // Detail at MATLAB level k (1-based, k=1 finest, k=N coarsest)
     // lives in c at L-index (1 + N - k). Compute the [start, end) byte
@@ -137,4 +137,4 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
     return waverec(cMod, l, wname, mr);
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

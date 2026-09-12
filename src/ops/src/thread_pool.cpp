@@ -1,10 +1,10 @@
-#include <numkit/ops/thread_pool.hpp>
+#include <nk/ops/thread_pool.hpp>
 
 #include <algorithm>
 #include <utility>
 #include <hwy/cache_control.h>
 
-namespace numkit::detail {
+namespace nk::detail {
 
 inline void spin_pause() noexcept {
     hwy::Pause();
@@ -154,4 +154,4 @@ void ThreadPool::worker_loop(int id)
     }
 }
 
-} // namespace numkit::detail
+} // namespace nk::detail

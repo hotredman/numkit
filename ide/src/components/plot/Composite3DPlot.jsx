@@ -78,7 +78,7 @@ function Composite3DPlot({
       canvas,
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: import.meta.env.VITE_NUMKIT_E2E === '1',
+      preserveDrawingBuffer: import.meta.env.VITE_NK_E2E === '1',
     });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     // Transparent canvas — the wrapper <div> below carries the actual
@@ -221,11 +221,11 @@ function Composite3DPlot({
                        wantMinorRef: { current: false } };
     raf = requestAnimationFrame(tick);
 
-    canvas.setAttribute('data-numkit-3d', '1');
+    canvas.setAttribute('data-nk-3d', '1');
     // Test inspection hook — exposes the live three.js context so
     // Playwright specs can read camera.position / count visible grid
     // faces. The cleanup on unmount drops it; minimal leak risk.
-    canvas.__numkit3dCtx = ctxRef;
+    canvas.__nk3dCtx = ctxRef;
 
     return () => {
       cancelAnimationFrame(raf);
@@ -234,7 +234,7 @@ function Composite3DPlot({
       controls.dispose();
       disposeTree(scene);
       renderer.dispose();
-      try { delete canvas.__numkit3dCtx; } catch (e) { /* ignore */ }
+      try { delete canvas.__nk3dCtx; } catch (e) { /* ignore */ }
       ctxRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -529,7 +529,7 @@ function Composite3DPlot({
                 display: 'block', width, height,
                 background: 'transparent',
               }}
-              data-numkit-3d-frames={frameCount} />
+              data-nk-3d-frames={frameCount} />
       {/* CSS2D overlay: HTML labels positioned in 3-D space by three. */}
       <div ref={labelLayerRef}
            style={{

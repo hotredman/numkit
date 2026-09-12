@@ -13,9 +13,9 @@
 // `.m` form keeps it on the same self-contained, debuggable footing as the
 // other optim solvers.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
-namespace numkit::optim {
+namespace nk::optim {
 
 static const char *kQuadprogMSource = R"NKM(
 function [x, fval, exitflag] = quadprog(H, f, A, b, Aeq, beq, lb, ub, x0)
@@ -124,4 +124,4 @@ void registerQuadprogM(Engine &engine)
     engine.registerBuiltinMSource(kQuadprogMSource);
 }
 
-} // namespace numkit::optim
+} // namespace nk::optim

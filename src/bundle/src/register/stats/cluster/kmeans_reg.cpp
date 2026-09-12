@@ -3,16 +3,16 @@
 // CallContext register half of cluster/kmeans.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/cluster/kmeans.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/cluster/kmeans.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "cluster/kmeans_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("kmeans: requires (X, K[, N-V pairs])",
-                    0, 0, "kmeans", "", "numkit:kmeans:nargin");
+                    0, 0, "kmeans", "", "nk:kmeans:nargin");
     const int K = (int)args[1].toScalar();
     int max_iter  = 100;
     int replicates = 1;
@@ -52,14 +52,14 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
             if (dn != "sqeuclidean" && dn != "squaredeuclidean")
                 throw Error("kmeans: only Distance = 'sqeuclidean' is "
                             "implemented (got '" + dn + "')",
-                            0, 0, "kmeans", "", "numkit:kmeans:distance");
+                            0, 0, "kmeans", "", "nk:kmeans:distance");
         }
         else if (key == "start") {
             const std::string sn = lower(v.toString());
             if (sn != "plus")
                 throw Error("kmeans: only Start = 'plus' is implemented "
                             "(got '" + sn + "')",
-                            0, 0, "kmeans", "", "numkit:kmeans:start");
+                            0, 0, "kmeans", "", "nk:kmeans:start");
         }
         // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
         // accepted (no-op).
@@ -73,4 +73,4 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -3,10 +3,10 @@
 // Regression guard for builtin::inv / linsolve / pageinv.
 // All three share the la_solve LU/QR backend.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class InvLinsolveTest : public ::testing::Test
 {

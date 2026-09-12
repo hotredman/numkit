@@ -13,18 +13,18 @@ handles are correct.
 ## Repro
 ```matlab
 func2str(@(x) x + 1)
-% numkit: '@__anon_0'
+% nk: '@__anon_0'
 % MATLAB: '@(x)x+1'
 
 func2str(@(a,b) a.*b + 1)
-% numkit: '@__anon_1'
+% nk: '@__anon_1'
 % MATLAB: '@(a,b)a.*b+1'
 
-func2str(@sin)      % named handle — numkit == MATLAB == 'sin'
+func2str(@sin)      % named handle — nk == MATLAB == 'sin'
 ```
 
 ## Root cause
-numkit does not retain the source text (or the AST) of an anonymous function;
+nk does not retain the source text (or the AST) of an anonymous function;
 the parser assigns each lambda an internal `__anon_<N>` name, and `func2str`
 falls back to that name with an `@` prefix (see the comment in
 `src/runtime/src/function_handles.cpp` func2str + BUGS.md #16).
@@ -64,7 +64,7 @@ gtest `Func2Str` asserts it on TW + VM.
 
 ## References
 - `src/core/src/parser.cpp` (`reconstructAnonSource`, `parseAnonFunc`),
-  `src/value/include/numkit/value/heap_object.hpp` + `src/value/src/{heap_object,value}.cpp`
+  `src/value/include/nk/value/heap_object.hpp` + `src/value/src/{heap_object,value}.cpp`
   (`funcSource`), `src/core/src/{tree_walker,compiler}.cpp` (`execAnonFunc` /
   `compileAnonFunc`), `src/runtime/src/function_handles.cpp` (func2str).
 - Spec `tools/parity/specs/func2str_anonymous.json`; smoke

@@ -3,24 +3,24 @@
 // CallContext register half of language/arrays/matrix.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/ops.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/ops/binary_ops.hpp>
-#include <numkit/ops/la_solve.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elmat.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/ops.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/ops/binary_ops.hpp>
+#include <nk/ops/la_solve.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
 #include "datafun/cumsum.hpp"
 #include "elmat/matrix_detail.hpp"
-#include <numkit/ops/reductions.hpp>
-#include <numkit/ops/rows_helpers.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ops/reductions.hpp>
+#include <nk/ops/rows_helpers.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -32,8 +32,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -70,7 +70,7 @@ namespace { inline void fillOnes(Value &v, ValueType t)
       case ValueType::UINT32:  { auto *p = v.uint32DataMut();  std::fill(p, p + n, uint32_t(1)); break; }
       case ValueType::UINT64:  { auto *p = v.uint64DataMut();  std::fill(p, p + n, uint64_t(1)); break; }
       default: throw Error("ones: unsupported type for fill",
-                           0, 0, "ones", "", "numkit:ones:badType");
+                           0, 0, "ones", "", "nk:ones:badType");
     }
 }}
 
@@ -103,7 +103,7 @@ namespace { ValueType colonOutType(const Value *ops, size_t n)
         else if (t != nonDouble)
             throw Error("colon: operands must be all the same type, "
                         "or mixed with real scalar doubles",
-                        0, 0, "colon", "", "numkit:colon:typeMix");
+                        0, 0, "colon", "", "nk:colon:typeMix");
     }
     return nonDouble;
 }}
@@ -122,14 +122,14 @@ void colon_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
                                           args[2].toScalar(), t, mr);
     } else {
         throw Error("colon: requires 2 or 3 arguments",
-                    0, 0, "colon", "", "numkit:colon:nargin");
+                    0, 0, "colon", "", "nk:colon:nargin");
     }
 }
 
 // MATLAB's sparse() with size args allocates an MxN sparse zero matrix.
-// Numkit has no sparse storage class -- this stub returns dense zeros.
+// NK has no sparse storage class -- this stub returns dense zeros.
 // Matches issparse=false (we ship that stub; see types.cpp:issparse).
-// KNOWN GAP: numkit returns dense; MATLAB returns sparse storage class.
+// KNOWN GAP: nk returns dense; MATLAB returns sparse storage class.
 // All numerical operations match (zeros on both sides), only class()
 // differs. Documented in PROGRESS for sparse().
 void sparse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -145,14 +145,14 @@ void sparse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() == 1) {
         // sparse(A) -- "convert" dense to sparse. We just return A as-is
         // (since we have no sparse storage). For most numerical use this
-        // is correct; isparse() still returns false (matches numkit
+        // is correct; isparse() still returns false (matches nk
         // semantics).
         outs[0] = args[0];
         return;
     }
-    throw Error("sparse: numkit has no sparse storage; supports only "
+    throw Error("sparse: nk has no sparse storage; supports only "
                 "sparse(M, N) → dense zeros and sparse(A) → A passthrough",
-                0, 0, "sparse", "", "numkit:sparse:NoSparse");
+                0, 0, "sparse", "", "nk:sparse:NoSparse");
 }
 
 // `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions (not
@@ -182,7 +182,7 @@ void nan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("nan: type must be 'double' or 'single' (NaN is float-only)",
-                    0, 0, "nan", "", "numkit:nan:badType");
+                    0, 0, "nan", "", "nk:nan:badType");
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
@@ -203,7 +203,7 @@ void inf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("inf: type must be 'double' or 'single' (Inf is float-only)",
-                    0, 0, "inf", "", "numkit:inf:badType");
+                    0, 0, "inf", "", "nk:inf:badType");
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
@@ -272,7 +272,7 @@ void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
       case ValueType::UINT16: { auto *p = m.uint16DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
       case ValueType::UINT32: { auto *p = m.uint32DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
       case ValueType::UINT64: { auto *p = m.uint64DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
-      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "numkit:eye:badType");
+      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "nk:eye:badType");
     }
     outs[0] = std::move(m);
 }
@@ -281,11 +281,11 @@ void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() != 1)
         throw Error("magic: requires exactly 1 argument",
-                     0, 0, "magic", "", "numkit:magic:nargin");
+                     0, 0, "magic", "", "nk:magic:nargin");
     const double nd = args[0].toScalar();
     if (nd < 0.0 || nd != std::floor(nd))
         throw Error("magic: N must be a non-negative integer",
-                     0, 0, "magic", "", "numkit:magic:badN");
+                     0, 0, "magic", "", "nk:magic:badN");
     outs[0] = magic(static_cast<size_t>(nd), ctx.engine->resource());
 }
 
@@ -293,7 +293,7 @@ void toeplitz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("toeplitz: requires 1 or 2 arguments",
-                    0, 0, "toeplitz", "", "numkit:toeplitz:nargin");
+                    0, 0, "toeplitz", "", "nk:toeplitz:nargin");
     const Value &r = args.size() == 2 ? args[1] : Value::Empty;
     outs[0] = toeplitz(args[0], r, ctx.engine->resource());
 }
@@ -302,7 +302,7 @@ void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("hankel: requires 1 or 2 arguments",
-                    0, 0, "hankel", "", "numkit:hankel:nargin");
+                    0, 0, "hankel", "", "nk:hankel:nargin");
     const Value &r = args.size() == 2 ? args[1] : Value::Empty;
     outs[0] = hankel(args[0], r, ctx.engine->resource());
 }
@@ -311,7 +311,7 @@ void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() != 1)
         throw Error("vander: requires exactly 1 argument",
-                    0, 0, "vander", "", "numkit:vander:nargin");
+                    0, 0, "vander", "", "nk:vander:nargin");
     outs[0] = vander(args[0], ctx.engine->resource());
 }
 
@@ -319,7 +319,7 @@ void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() != 1)
         throw Error("compan: requires exactly 1 argument",
-                    0, 0, "compan", "", "numkit:compan:nargin");
+                    0, 0, "compan", "", "nk:compan:nargin");
     outs[0] = compan(args[0], ctx.engine->resource());
 }
 
@@ -331,11 +331,11 @@ size_t requireSizeArg(Span<const Value> args, const char *fn)
 {
     if (args.size() != 1)
         throw Error(std::string(fn) + ": requires exactly 1 argument",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("nk:") + fn + ":nargin");
     const double nd = args[0].toScalar();
     if (nd < 0.0 || nd != std::floor(nd))
         throw Error(std::string(fn) + ": N must be a non-negative integer",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badN");
+                    0, 0, fn, "", std::string("nk:") + fn + ":badN");
     return static_cast<size_t>(nd);
 }
 
@@ -370,7 +370,7 @@ void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (!args.empty())
         throw Error("rosser: takes no arguments",
-                    0, 0, "rosser", "", "numkit:rosser:nargin");
+                    0, 0, "rosser", "", "nk:rosser:nargin");
     outs[0] = rosser(ctx.engine->resource());
 }
 
@@ -394,16 +394,16 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("topkrows: requires (A, k[, col[, direction]])",
-                    0, 0, "topkrows", "", "numkit:topkrows:nargin");
+                    0, 0, "topkrows", "", "nk:topkrows:nargin");
     const double kd = args[1].toScalar();
     if (kd < 0.0 || kd != std::floor(kd))
         throw Error("topkrows: k must be a non-negative integer",
-                    0, 0, "topkrows", "", "numkit:topkrows:badK");
+                    0, 0, "topkrows", "", "nk:topkrows:badK");
     auto *mr = ctx.engine->resource();
 
     // Parse `col` (positive int / vector) and `direction` (string /
     // string vector). 'ComparisonMethod' NV pair (auto/real/abs) is
-    // accept-and-ignore — numkit only supports real numeric input here.
+    // accept-and-ignore — nk only supports real numeric input here.
     std::vector<std::size_t> cols;
     std::vector<std::uint8_t> desc;
     size_t i = 2;
@@ -416,7 +416,7 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             if (v < 1.0 || v != std::floor(v))
                 throw Error("topkrows: col must be a positive integer "
                             "or vector of positive integers",
-                            0, 0, "topkrows", "", "numkit:topkrows:badCol");
+                            0, 0, "topkrows", "", "nk:topkrows:badCol");
             cols.push_back(static_cast<std::size_t>(v) - 1);
         }
         ++i;
@@ -432,7 +432,7 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             else
                 throw Error("topkrows: direction must be 'ascend' or "
                             "'descend'",
-                            0, 0, "topkrows", "", "numkit:topkrows:badDir");
+                            0, 0, "topkrows", "", "nk:topkrows:badDir");
             ++i;
         }
     }
@@ -441,7 +441,7 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         const std::string nm = args[i].toString();
         if (nm == "ComparisonMethod") { i += 2; continue; }
         throw Error("topkrows: unexpected argument '" + nm + "'",
-                    0, 0, "topkrows", "", "numkit:topkrows:badArg");
+                    0, 0, "topkrows", "", "nk:topkrows:badArg");
     }
 
     std::vector<std::size_t> idx_out;
@@ -462,7 +462,7 @@ void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.empty())
         throw Error("Not enough input arguments",
-                     0, 0, "size", "", "numkit:size:nargin");
+                     0, 0, "size", "", "nk:size:nargin");
     auto *mr = ctx.engine->resource();
 
     if (args.size() >= 2) {
@@ -500,7 +500,7 @@ void length_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("length: requires 1 argument",
-                     0, 0, "length", "", "numkit:length:nargin");
+                     0, 0, "length", "", "nk:length:nargin");
     outs[0] = length(args[0], ctx.engine->resource());
 }
 
@@ -508,7 +508,7 @@ void numel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("numel: requires 1 argument",
-                     0, 0, "numel", "", "numkit:numel:nargin");
+                     0, 0, "numel", "", "nk:numel:nargin");
     outs[0] = numel(args[0], ctx.engine->resource());
 }
 
@@ -516,7 +516,7 @@ void ndims_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("ndims: requires 1 argument",
-                     0, 0, "ndims", "", "numkit:ndims:nargin");
+                     0, 0, "ndims", "", "nk:ndims:nargin");
     outs[0] = ndims(args[0], ctx.engine->resource());
 }
 
@@ -524,7 +524,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("reshape: requires at least 2 arguments",
-                     0, 0, "reshape", "", "numkit:reshape:nargin");
+                     0, 0, "reshape", "", "nk:reshape:nargin");
 
     const auto &x = args[0];
     auto *mr = ctx.engine->resource();
@@ -545,7 +545,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
             if (args[i + 1].isEmpty()) {
                 if (inferPos >= 0)
                     throw Error("reshape: only one dimension may be inferred via []",
-                                 0, 0, "reshape", "", "numkit:reshape:tooManyInferred");
+                                 0, 0, "reshape", "", "nk:reshape:tooManyInferred");
                 inferPos = static_cast<int>(i);
             } else {
                 dims[i] = static_cast<size_t>(args[i + 1].toScalar());
@@ -555,7 +555,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         if (inferPos >= 0) {
             if (knownProd == 0 || x.numel() % knownProd != 0)
                 throw Error("reshape: size of array must be divisible by product of known dims",
-                             0, 0, "reshape", "", "numkit:reshape:indivisible");
+                             0, 0, "reshape", "", "nk:reshape:indivisible");
             dims[inferPos] = x.numel() / knownProd;
         }
     }
@@ -569,7 +569,7 @@ void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("transpose: requires 1 argument",
-                     0, 0, "transpose", "", "numkit:transpose:nargin");
+                     0, 0, "transpose", "", "nk:transpose:nargin");
     outs[0] = transpose(args[0], ctx.engine->resource());
 }
 
@@ -578,7 +578,7 @@ void pagetranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("pagetranspose: requires 1 argument",
-                     0, 0, "pagetranspose", "", "numkit:pagetranspose:nargin");
+                     0, 0, "pagetranspose", "", "nk:pagetranspose:nargin");
     outs[0] = pagetranspose(args[0], ctx.engine->resource());
 }
 
@@ -587,7 +587,7 @@ void pagectranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("pagectranspose: requires 1 argument",
-                     0, 0, "pagectranspose", "", "numkit:pagectranspose:nargin");
+                     0, 0, "pagectranspose", "", "nk:pagectranspose:nargin");
     outs[0] = pagectranspose(args[0], ctx.engine->resource());
 }
 
@@ -599,7 +599,7 @@ void peaks_reg(Span<const Value> args, size_t, Span<Value> outs,
         const double dn = args[0].toScalar();
         if (dn < 0 || dn > 1.0e9 || std::isnan(dn))
             throw Error("peaks: n must be a non-negative integer",
-                         0, 0, "peaks", "", "numkit:peaks:badN");
+                         0, 0, "peaks", "", "nk:peaks:badN");
         n = static_cast<size_t>(dn);
     }
     outs[0] = peaks(n, ctx.engine->resource());
@@ -651,7 +651,7 @@ void ellipsoid_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 6)
         throw Error("ellipsoid: requires (xc, yc, zc, xr, yr, zr [, n])",
-                     0, 0, "ellipsoid", "", "numkit:ellipsoid:nargin");
+                     0, 0, "ellipsoid", "", "nk:ellipsoid:nargin");
     const double xc = args[0].toScalar();
     const double yc = args[1].toScalar();
     const double zc = args[2].toScalar();
@@ -671,14 +671,14 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     auto parseFlag = [](const Value &v) -> TranspOp {
         if (!v.isChar() && !v.isString())
             throw Error("pagemtimes: transpose flag must be a string",
-                         0, 0, "pagemtimes", "", "numkit:pagemtimes:flagType");
+                         0, 0, "pagemtimes", "", "nk:pagemtimes:flagType");
         const std::string s = v.toString();
         if (s == "none")       return TranspOp::None;
         if (s == "transpose")  return TranspOp::Transpose;
         if (s == "ctranspose") return TranspOp::CTranspose;
         throw Error("pagemtimes: invalid transpose flag '" + s
                      + "' (expected 'none', 'transpose', or 'ctranspose')",
-                     0, 0, "pagemtimes", "", "numkit:pagemtimes:invalidFlag");
+                     0, 0, "pagemtimes", "", "nk:pagemtimes:invalidFlag");
     };
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
@@ -690,18 +690,18 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         return;
     }
     throw Error("pagemtimes: expected 2 or 4 arguments",
-                 0, 0, "pagemtimes", "", "numkit:pagemtimes:nargin");
+                 0, 0, "pagemtimes", "", "nk:pagemtimes:nargin");
 }
 
 void diag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("diag: requires 1 argument",
-                     0, 0, "diag", "", "numkit:diag:nargin");
+                     0, 0, "diag", "", "nk:diag:nargin");
     long k = 0;
     if (args.size() >= 2)
         k = static_cast<long>(std::llround(args[1].toScalar()));
-    outs[0] = numkit::narrowComplex(diag(args[0], k, ctx.engine->resource()),
+    outs[0] = nk::narrowComplex(diag(args[0], k, ctx.engine->resource()),
                                     ctx.engine->resource());
 }
 
@@ -709,7 +709,7 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.empty())
         throw Error("sort: requires 1 argument",
-                     0, 0, "sort", "", "numkit:sort:nargin");
+                     0, 0, "sort", "", "nk:sort:nargin");
     // sort(X[, dim][, direction]): a numeric trailing arg is the dim, a
     // string is the direction ('ascend' default / 'descend'). MATLAB
     // accepts sort(X,direction) and sort(X,dim,direction).
@@ -786,7 +786,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("sortrows: requires at least 1 argument",
-                     0, 0, "sortrows", "", "numkit:sortrows:nargin");
+                     0, 0, "sortrows", "", "nk:sortrows:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto cols = ScratchVec<int>(&scratch);
@@ -798,7 +798,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         if (s == "ascend") return false;
         if (s == "descend") return true;
         throw Error("sortrows: direction must be 'ascend' or 'descend'",
-                     0, 0, "sortrows", "", "numkit:sortrows:badDirection");
+                     0, 0, "sortrows", "", "nk:sortrows:badDirection");
     };
     // CHAR/STRING scalar → one flag; CELL or multi-element STRING → one per
     // element (both store their elements as Values in cellDataVec()).
@@ -834,7 +834,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                 if (dirs.size() != C)
                     throw Error("sortrows: number of directions must match the "
                                 "number of columns",
-                                 0, 0, "sortrows", "", "numkit:sortrows:dirCount");
+                                 0, 0, "sortrows", "", "nk:sortrows:dirCount");
                 for (size_t k = 0; k < C; ++k)
                     cols.push_back(dirs[k] ? -static_cast<int>(k + 1)
                                            : static_cast<int>(k + 1));
@@ -845,7 +845,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                 const double v = c.elemAsDouble(i);
                 if (v != std::floor(v))
                     throw Error("sortrows: column index must be an integer",
-                                 0, 0, "sortrows", "", "numkit:sortrows:badCol");
+                                 0, 0, "sortrows", "", "nk:sortrows:badCol");
                 cols.push_back(static_cast<int>(v));
             }
             // Optional direction argument: sortrows(A, cols, direction[s]).
@@ -855,7 +855,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                 if (!isDirArg(args[2]))
                     throw Error("sortrows: direction must be 'ascend' or "
                                 "'descend'",
-                                 0, 0, "sortrows", "", "numkit:sortrows:badDirection");
+                                 0, 0, "sortrows", "", "nk:sortrows:badDirection");
                 ScratchVec<uint8_t> dirs(&scratch);
                 collectDirs(args[2], dirs);
                 if (dirs.size() == 1) {
@@ -868,7 +868,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                     if (dirs.size() != cols.size())
                         throw Error("sortrows: number of directions must match "
                                     "the number of sort columns",
-                                     0, 0, "sortrows", "", "numkit:sortrows:dirCount");
+                                     0, 0, "sortrows", "", "nk:sortrows:dirCount");
                     for (size_t i = 0; i < cols.size(); ++i) {
                         const int a = cols[i] < 0 ? -cols[i] : cols[i];
                         cols[i] = dirs[i] ? -a : a;
@@ -887,7 +887,7 @@ void find_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.empty())
         throw Error("find: requires 1 argument",
-                     0, 0, "find", "", "numkit:find:nargin");
+                     0, 0, "find", "", "nk:find:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
 
@@ -901,18 +901,18 @@ void find_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (haveK) {
         if (args[1].numel() != 1)
             throw Error("find: Second argument must be a positive scalar integer.",
-                         0, 0, "find", "", "numkit:find:badK");
+                         0, 0, "find", "", "nk:find:badK");
         const double kd = args[1].toScalar();
         if (!std::isfinite(kd) || kd < 1.0 || kd != std::floor(kd))
             throw Error("find: Second argument must be a positive scalar integer.",
-                         0, 0, "find", "", "numkit:find:badK");
+                         0, 0, "find", "", "nk:find:badK");
         kReq = static_cast<size_t>(kd);
     }
     bool fromLast = false;
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (!(args[2].isChar() || args[2].isString()))
             throw Error("find: third argument must be 'first' or 'last'",
-                         0, 0, "find", "", "numkit:find:badDir");
+                         0, 0, "find", "", "nk:find:badDir");
         std::string d = args[2].toString();
         for (char &ch : d)
             if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>(ch + 32);
@@ -920,7 +920,7 @@ void find_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         else if (d == "first") fromLast = false;
         else
             throw Error("find: third argument must be 'first' or 'last'",
-                         0, 0, "find", "", "numkit:find:badDir");
+                         0, 0, "find", "", "nk:find:badDir");
     }
 
     ScratchArena scratch(mr);
@@ -985,7 +985,7 @@ void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("nnz: requires 1 argument",
-                     0, 0, "nnz", "", "numkit:nnz:nargin");
+                     0, 0, "nnz", "", "nk:nnz:nargin");
     outs[0] = nnz(args[0], ctx.engine->resource());
 }
 
@@ -993,7 +993,7 @@ void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("nonzeros: requires 1 argument",
-                     0, 0, "nonzeros", "", "numkit:nonzeros:nargin");
+                     0, 0, "nonzeros", "", "nk:nonzeros:nargin");
     outs[0] = nonzeros(args[0], ctx.engine->resource());
 }
 
@@ -1011,7 +1011,7 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("meshgrid: requires at least 1 argument",
-                     0, 0, "meshgrid", "", "numkit:meshgrid:nargin");
+                     0, 0, "meshgrid", "", "nk:meshgrid:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         // meshgrid(x) ≡ meshgrid(x, x). See BUGS.md #21.
@@ -1034,14 +1034,14 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         return;
     }
     throw Error("meshgrid: 4+ inputs are not supported",
-                 0, 0, "meshgrid", "", "numkit:meshgrid:tooManyInputs");
+                 0, 0, "meshgrid", "", "nk:meshgrid:tooManyInputs");
 }
 
 void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("ndgrid: requires at least 2 arguments",
-                     0, 0, "ndgrid", "", "numkit:ndgrid:nargin");
+                     0, 0, "ndgrid", "", "nk:ndgrid:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
         auto [X, Y] = ndgrid(args[0], args[1], mr);
@@ -1057,7 +1057,7 @@ void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         return;
     }
     throw Error("ndgrid: 4+ inputs are not yet supported",
-                 0, 0, "ndgrid", "", "numkit:ndgrid:tooManyInputs");
+                 0, 0, "ndgrid", "", "nk:ndgrid:tooManyInputs");
 }
 
 // NOTE: kron_reg migrated to toolboxes/linalg/src/vector_ops.cpp.
@@ -1078,7 +1078,7 @@ void parseCumDirNan(Span<const Value> args, size_t start,
 {
     dim = 0;
     reverse = false;
-    include_nan = false;        // matches numkit default = MATLAB default
+    include_nan = false;        // matches nk default = MATLAB default
     size_t i = start;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty()) {
@@ -1087,7 +1087,7 @@ void parseCumDirNan(Span<const Value> args, size_t start,
     while (i < args.size()) {
         if (!(args[i].isChar() || args[i].isString())) {
             throw Error("cummax/cummin: trailing positional must be a string flag",
-                        0, 0, "cummax/cummin", "", "numkit:cum:badArg");
+                        0, 0, "cummax/cummin", "", "nk:cum:badArg");
         }
         std::string s = args[i].toString();
         for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -1097,7 +1097,7 @@ void parseCumDirNan(Span<const Value> args, size_t start,
         else if (s == "includenan") include_nan = true;
         else
             throw Error("cummax/cummin: unknown flag '" + s + "'",
-                        0, 0, "cummax/cummin", "", "numkit:cum:flag");
+                        0, 0, "cummax/cummin", "", "nk:cum:flag");
         ++i;
     }
 }
@@ -1197,8 +1197,8 @@ void cummax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cummax: requires at least 1 argument",
-                     0, 0, "cummax", "", "numkit:cummax:nargin");
-    outs[0] = numkit::narrowComplex(
+                     0, 0, "cummax", "", "nk:cummax:nargin");
+    outs[0] = nk::narrowComplex(
         runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
             return cummax(v, d, mr);
         }, ctx.engine->resource()),
@@ -1209,8 +1209,8 @@ void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cummin: requires at least 1 argument",
-                     0, 0, "cummin", "", "numkit:cummin:nargin");
-    outs[0] = numkit::narrowComplex(
+                     0, 0, "cummin", "", "nk:cummin:nargin");
+    outs[0] = nk::narrowComplex(
         runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
             return cummin(v, d, mr);
         }, ctx.engine->resource()),
@@ -1270,8 +1270,8 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cumsum: requires at least 1 argument",
-                     0, 0, "cumsum", "", "numkit:cumsum:nargin");
-    outs[0] = numkit::narrowComplex(
+                     0, 0, "cumsum", "", "nk:cumsum:nargin");
+    outs[0] = nk::narrowComplex(
         cumScanFlags(args[0], args, /*isProd=*/false, ctx.engine->resource()),
         ctx.engine->resource());
 }
@@ -1280,8 +1280,8 @@ void cumprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("cumprod: requires at least 1 argument",
-                     0, 0, "cumprod", "", "numkit:cumprod:nargin");
-    outs[0] = numkit::narrowComplex(
+                     0, 0, "cumprod", "", "nk:cumprod:nargin");
+    outs[0] = nk::narrowComplex(
         cumScanFlags(args[0], args, /*isProd=*/true, ctx.engine->resource()),
         ctx.engine->resource());
 }
@@ -1290,7 +1290,7 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("diff: requires at least 1 argument",
-                     0, 0, "diff", "", "numkit:diff:nargin");
+                     0, 0, "diff", "", "nk:diff:nargin");
     int n = 1;
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -1298,16 +1298,16 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         // (a zero, negative, fractional or non-scalar order is an error).
         if (args[1].numel() != 1)
             throw Error("diff: Difference order N must be a positive integer scalar",
-                         0, 0, "diff", "", "numkit:diff:badOrder");
+                         0, 0, "diff", "", "nk:diff:badOrder");
         const double nv = args[1].toScalar();
         if (!std::isfinite(nv) || nv != std::floor(nv) || nv < 1.0)
             throw Error("diff: Difference order N must be a positive integer scalar",
-                         0, 0, "diff", "", "numkit:diff:badOrder");
+                         0, 0, "diff", "", "nk:diff:badOrder");
         n = static_cast<int>(nv);
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = numkit::narrowComplex(diff(args[0], n, dim, ctx.engine->resource()),
+    outs[0] = nk::narrowComplex(diff(args[0], n, dim, ctx.engine->resource()),
                                     ctx.engine->resource());
 }
 
@@ -1319,15 +1319,15 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "numkit:" #name ":nargin");               \
+                         0, 0, #name, "", "nk:" #name ":nargin");               \
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
         outs[0] = fn(args[0], dim, ctx.engine->resource());                   \
     }
 
-NK_LOGICAL_RED_REG(any, numkit::builtin::anyOf)
-NK_LOGICAL_RED_REG(all, numkit::builtin::allOf)
+NK_LOGICAL_RED_REG(any, nk::builtin::anyOf)
+NK_LOGICAL_RED_REG(all, nk::builtin::allOf)
 
 #undef NK_LOGICAL_RED_REG
 
@@ -1335,7 +1335,7 @@ void xor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("xor: requires 2 arguments",
-                     0, 0, "xor", "", "numkit:xor:nargin");
+                     0, 0, "xor", "", "nk:xor:nargin");
     outs[0] = xorOf(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1343,4 +1343,4 @@ void xor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -1,16 +1,16 @@
 // nk_codegen_rt.cpp — implementation of the Value-ABI bridge (see the
-// header + DESIGN.md §6a). numkit (Value + a private StandardEngine) lives
+// header + DESIGN.md §6a). nk (Value + a private StandardEngine) lives
 // entirely behind the opaque C ABI; nothing leaks to the generated code.
 
 #include "nk_codegen_rt.h"
 
 #include "nk_plugin.h"
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/value_type.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/value_type.hpp>
 
 #include <atomic>
 #include <complex>
@@ -33,14 +33,14 @@
 
 namespace {
 
-using numkit::Value;
+using nk::Value;
 
 // The encapsulated default engine — it carries the builtin registry. A
 // function-local static (built on first use), NOT a global the generated
 // code can see.
-numkit::StandardEngine &engine()
+nk::StandardEngine &engine()
 {
-    static numkit::StandardEngine e;
+    static nk::StandardEngine e;
     return e;
 }
 
@@ -110,7 +110,7 @@ nk_val nk_box_array(const double *p, size_t len)
 {
     if (!p && len != 0) return nullptr;  // a null read is UB, not a throw
     try {
-        Value   m = Value::matrix(1, len, numkit::ValueType::DOUBLE, nullptr);
+        Value   m = Value::matrix(1, len, nk::ValueType::DOUBLE, nullptr);
         double *d = m.doubleDataMut();
         for (size_t i = 0; i < len; ++i) d[i] = p[i];
         return make(std::move(m));
@@ -125,7 +125,7 @@ nk_val nk_box_string(const char *s)
     try {
         size_t len = 0;
         while (s[len]) ++len;
-        Value m = Value::matrix(1, len, numkit::ValueType::CHAR, nullptr);
+        Value m = Value::matrix(1, len, nk::ValueType::CHAR, nullptr);
         char *d = m.charDataMut();  // one byte per code unit (Latin1/ASCII)
         for (size_t i = 0; i < len; ++i) d[i] = s[i];
         return make(std::move(m));
@@ -187,7 +187,7 @@ nk_val nk_box_matrix(const double *p, size_t rows, size_t cols)
     const size_t n = rows * cols;
     if (!p && n != 0) return nullptr;  // a null read is UB, not a throw
     try {
-        Value   m = Value::matrix(rows, cols, numkit::ValueType::DOUBLE, nullptr);
+        Value   m = Value::matrix(rows, cols, nk::ValueType::DOUBLE, nullptr);
         double *d = m.doubleDataMut();
         for (size_t i = 0; i < n; ++i) d[i] = p[i];  // column-major, copied
         return make(std::move(m));
@@ -200,7 +200,7 @@ nk_val nk_box_array_nd(const double *p, const size_t *dims, int nd)
 {
     if (nd < 0 || (!dims && nd != 0)) return nullptr;
     try {
-        Value        m = Value::matrixND(dims, nd, numkit::ValueType::DOUBLE, nullptr);
+        Value        m = Value::matrixND(dims, nd, nk::ValueType::DOUBLE, nullptr);
         const size_t n = m.numel();
         if (!p && n != 0) return nullptr;
         double *d = m.doubleDataMut();
@@ -229,7 +229,7 @@ nk_val nk_box_complex_array_nd(const double *p, const size_t *dims, int nd)
 {
     if (nd < 0 || (!dims && nd != 0)) return nullptr;
     try {
-        Value        m = Value::matrixND(dims, nd, numkit::ValueType::COMPLEX, nullptr);
+        Value        m = Value::matrixND(dims, nd, nk::ValueType::COMPLEX, nullptr);
         const size_t n = m.numel();
         if (!p && n != 0) return nullptr;
         std::complex<double> *d = m.complexDataMut();
@@ -252,7 +252,7 @@ nk_val nk_eval(const char *code, nk_error *err)
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -273,7 +273,7 @@ nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
 
         const size_t       nout = nargout == 0 ? 1 : nargout;
         std::vector<Value> outs = engine().callFunctionHandleMulti(
-            handleFor(name), numkit::Span<const Value>(a.data(), a.size()), nout);
+            handleFor(name), nk::Span<const Value>(a.data(), a.size()), nout);
 
         for (size_t k = 1; k < nargout && extra_outs; ++k)
             extra_outs[k - 1] = make(k < outs.size() ? outs[k] : Value());
@@ -282,7 +282,7 @@ nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -300,7 +300,7 @@ nk_val nk_binop(const char *op, nk_val a, nk_val b, nk_error *err)
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -317,7 +317,7 @@ nk_val nk_unop(const char *op, nk_val a, nk_error *err)
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -333,7 +333,7 @@ int nk_truth(nk_val v, nk_error *err)
         setError(err, e.what());
         return 0;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return 0;
     }
 }
@@ -351,7 +351,7 @@ nk_val nk_index(nk_val a, const nk_val *subs, size_t nsubs, nk_error *err)
             if (!sv) throw std::runtime_error("nk_index: null subscript handle");
             args.push_back(*sv);
         }
-        const numkit::Span<const Value> argSpan(args.data(), args.size());
+        const nk::Span<const Value> argSpan(args.data(), args.size());
 
         // `value(subs)` is index/call-AMBIGUOUS — resolve exactly as the
         // interpreter (VM::execCallIndirect), so a Dynamic value behaves
@@ -402,7 +402,7 @@ nk_val nk_index(nk_val a, const nk_val *subs, size_t nsubs, nk_error *err)
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -426,7 +426,7 @@ nk_val nk_cell_get(nk_val c, double idx1, nk_error *err)
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -448,7 +448,7 @@ nk_val nk_cell_get_2d(nk_val c, double i1, double j1, nk_error *err)
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -471,7 +471,7 @@ void nk_cell_set(nk_val c, double idx1, nk_val v, nk_error *err)
     } catch (const std::exception &e) {
         setError(err, e.what());
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
     }
 }
 
@@ -492,7 +492,7 @@ void nk_cell_set_2d(nk_val c, double i1, double j1, nk_val v, nk_error *err)
     } catch (const std::exception &e) {
         setError(err, e.what());
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
     }
 }
 
@@ -509,7 +509,7 @@ nk_val nk_make_handle(const char *name, nk_error *err)
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -542,7 +542,7 @@ nk_val nk_make_closure_captured(const char *src, const char **names, const nk_va
         setError(err, e.what());
         return nullptr;
     } catch (...) {
-        setError(err, "unknown numkit error");
+        setError(err, "unknown nk error");
         return nullptr;
     }
 }
@@ -579,7 +579,7 @@ void nk_unbox_complex_array(nk_val v, double *out, size_t len)
                 out[2 * i]     = d[i].real();
                 out[2 * i + 1] = d[i].imag();
             }
-        } else {  // a real result (numkit narrowed a zero-imag complex) -> imag 0
+        } else {  // a real result (nk narrowed a zero-imag complex) -> imag 0
             const double *d = val->doubleData();
             for (size_t i = 0; i < len && i < nm; ++i) {
                 out[2 * i]     = d[i];
@@ -596,7 +596,7 @@ void nk_unbox_char_array(nk_val v, uint16_t *out, size_t len)
     try {
         const Value *val = unwrap(v);
         const size_t nm  = val->numel();
-        // numkit stores a char as one byte (Latin1/ASCII code unit); zero-extend each to the
+        // nk stores a char as one byte (Latin1/ASCII code unit); zero-extend each to the
         // codegen's uint16 char width. (getElementAsDouble does the same unsigned-char read.)
         const char *d = val->charData();
         for (size_t i = 0; i < len && i < nm; ++i)
@@ -638,15 +638,15 @@ int nk_register_fn(const char *name, nk_fn fn)
     try {
         // Adapt the plugin's C-ABI function into an ExternalFunc the engine
         // dispatches like any builtin. Marshalling crosses the boundary in
-        // both directions; a plugin-signalled error becomes a thrown numkit
+        // both directions; a plugin-signalled error becomes a thrown nk
         // error (the engine's own dispatch catches + reports it — and so the
         // exception NEVER unwinds through the plugin's extern "C" frame, which
         // has already returned by the time we throw).
         nk_fn f = fn;
         engine().registerFunction(
             name,
-            [f](numkit::Span<const Value> args, size_t nargout,
-                numkit::Span<Value> outs, numkit::CallContext &) {
+            [f](nk::Span<const Value> args, size_t nargout,
+                nk::Span<Value> outs, nk::CallContext &) {
                 std::vector<nk_val> in;  // owned by us, borrowed by the plugin
                 in.reserve(args.size());
                 for (const Value &a : args) in.push_back(make(a));

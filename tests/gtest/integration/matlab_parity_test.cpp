@@ -14,7 +14,7 @@
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit;
+using namespace nk;
 
 class MatlabParity : public DualEngineTest
 {
@@ -288,7 +288,7 @@ TEST_P(MatlabParity, MultiStatementClearNamedRemovesVar)
 TEST_P(MatlabParity, FunctionDefsAreForwardReferenceable)
 {
     // Call the function at the top of the script, define it lower down.
-    // MATLAB (and now numkit's split execution with a pre-registration
+    // MATLAB (and now nk's split execution with a pre-registration
     // pass) allows this because the AST gets scanned for FUNCTION_DEF
     // nodes before any statement runs.
     eval(R"(
@@ -374,7 +374,7 @@ TEST_P(MatlabParity, WhileAloneNoSplit)
 {
     // One statement at top-level — should NOT split (size() == 1 after
     // the i=0 is stashed via setVariable rather than eval).
-    engine.setVariable("i", numkit::Value::scalar(0));
+    engine.setVariable("i", nk::Value::scalar(0));
     eval(R"(
         while i < 3
             i = i + 1;

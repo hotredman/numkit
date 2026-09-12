@@ -3,18 +3,18 @@
 // CallContext register half of math/discrete/discrete.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "datafun/discrete_detail.hpp"
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/rows_helpers.hpp>  // numkit::ops::collectRowsByIndex
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/rows_helpers.hpp>  // nk::ops::collectRowsByIndex
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,8 +26,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -101,7 +101,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("unique: requires 1 argument",
-                     0, 0, "unique", "", "numkit:unique:nargin");
+                     0, 0, "unique", "", "nk:unique:nargin");
     auto *mr = ctx.engine->resource();
 
     // MATLAB unique preserves the input class on the VALUES (integer / logical
@@ -132,7 +132,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         const Value &a = args[i];
         if (a.type() != ValueType::CHAR)
             throw Error("unique: extra arguments must be string flags",
-                         0, 0, "unique", "", "numkit:unique:badArg");
+                         0, 0, "unique", "", "nk:unique:badArg");
         std::string s = a.toString();
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c) { return std::tolower(c); });
@@ -143,7 +143,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         else if (s == "last")  last = true;
         else {
             throw Error("unique: unknown flag '" + s + "'",
-                         0, 0, "unique", "", "numkit:unique:badFlag");
+                         0, 0, "unique", "", "nk:unique:badFlag");
         }
     }
     // NOTE: 'last' is honoured for the default (sorted) setOrder across the
@@ -178,7 +178,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     {                                                                          \
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
-                         0, 0, #name, "", "numkit:" #name ":nargin");               \
+                         0, 0, #name, "", "nk:" #name ":nargin");               \
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
@@ -195,7 +195,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("histcounts: requires at least one argument",
-                     0, 0, "histcounts", "", "numkit:histcounts:nargin");
+                     0, 0, "histcounts", "", "nk:histcounts:nargin");
     auto *mr = ctx.engine->resource();
 
     HistNorm norm = HistNorm::Count;
@@ -211,7 +211,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
     auto requireNumBins = [](double v) {
         if (!(std::isfinite(v) && v >= 1.0 && v == std::floor(v)))
             throw Error("histcounts: number of bins must be a positive integer",
-                         0, 0, "histcounts", "", "numkit:histcounts:badNumBins");
+                         0, 0, "histcounts", "", "nk:histcounts:badNumBins");
     };
 
     // A non-char second argument is either the bin count (scalar) or an
@@ -236,7 +236,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
         if (key == "normalization") {
             if (args[i + 1].type() != ValueType::CHAR)
                 throw Error("histcounts: 'Normalization' value must be a string",
-                             0, 0, "histcounts", "", "numkit:histcounts:badNorm");
+                             0, 0, "histcounts", "", "nk:histcounts:badNorm");
             std::string m = lower(args[i + 1].toString());
             if      (m == "count")        norm = HistNorm::Count;
             else if (m == "probability")  norm = HistNorm::Probability;
@@ -246,7 +246,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
             else if (m == "cdf")          norm = HistNorm::Cdf;
             else
                 throw Error("histcounts: unknown Normalization '" + m + "'",
-                             0, 0, "histcounts", "", "numkit:histcounts:badNorm");
+                             0, 0, "histcounts", "", "nk:histcounts:badNorm");
             ++i;
         } else if (key == "binedges") {
             edges = args[i + 1];
@@ -261,7 +261,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
             const double w = args[i + 1].toScalar();
             if (!(std::isfinite(w) && w > 0.0))
                 throw Error("histcounts: 'BinWidth' must be a positive scalar",
-                             0, 0, "histcounts", "", "numkit:histcounts:badBinWidth");
+                             0, 0, "histcounts", "", "nk:histcounts:badBinWidth");
             spec.hasBinWidth = true;
             spec.binWidth = w;
             ++i;
@@ -269,7 +269,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
             const Value &bl = args[i + 1];
             if (bl.numel() != 2)
                 throw Error("histcounts: 'BinLimits' must be a two-element vector",
-                             0, 0, "histcounts", "", "numkit:histcounts:badBinLimits");
+                             0, 0, "histcounts", "", "nk:histcounts:badBinLimits");
             spec.hasBinLimits = true;
             spec.limLo = bl.elemAsDouble(0);
             spec.limHi = bl.elemAsDouble(1);
@@ -277,7 +277,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
         } else if (key == "binmethod") {
             if (args[i + 1].type() != ValueType::CHAR)
                 throw Error("histcounts: 'BinMethod' value must be a string",
-                             0, 0, "histcounts", "", "numkit:histcounts:badBinMethod");
+                             0, 0, "histcounts", "", "nk:histcounts:badBinMethod");
             std::string m = lower(args[i + 1].toString());
             if      (m == "auto")     spec.method = HistBinMethod::Auto;
             else if (m == "scott")    spec.method = HistBinMethod::Scott;
@@ -287,12 +287,12 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
             else if (m == "sqrt")     spec.method = HistBinMethod::Sqrt;
             else
                 throw Error("histcounts: 'BinMethod' '" + m + "' not supported",
-                             0, 0, "histcounts", "", "numkit:histcounts:badBinMethod");
+                             0, 0, "histcounts", "", "nk:histcounts:badBinMethod");
             ++i;
         } else {
             throw Error("histcounts: option '" + args[i].toString() +
                             "' not supported",
-                         0, 0, "histcounts", "", "numkit:histcounts:badOption");
+                         0, 0, "histcounts", "", "nk:histcounts:badOption");
         }
     }
 
@@ -320,7 +320,7 @@ void histc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 2)
         throw Error("histc: requires (x, edges)",
-                     0, 0, "histc", "", "numkit:histc:nargin");
+                     0, 0, "histc", "", "nk:histc:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = histc(args[0], args[1], mr);
     if (nargout > 1) {
@@ -352,7 +352,7 @@ ismemberRows(const Value &A, const Value &B, bool wantLoc, std::pmr::memory_reso
     const size_t br = B.dims().rows(), bc = B.dims().cols();
     if (ar > 0 && br > 0 && ac != bc)
         throw Error("ismember: 'rows' inputs must have the same number of columns",
-                     0, 0, "ismember", "", "numkit:ismember:rowsCols");
+                     0, 0, "ismember", "", "nk:ismember:rowsCols");
 
     Value tf = Value::matrix(ar, 1, ValueType::LOGICAL, mr);
     uint8_t *tfd = (ar > 0) ? tf.logicalDataMut() : nullptr;
@@ -394,7 +394,7 @@ ismemberRows(const Value &A, const Value &B, bool wantLoc, std::pmr::memory_reso
 void ismember_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("ismember: requires 2 arguments", 0, 0, "ismember", "", "numkit:ismember:nargin");
+        throw Error("ismember: requires 2 arguments", 0, 0, "ismember", "", "nk:ismember:nargin");
     auto *mr = ctx.engine->resource();
     // ismember accepts char/logical/integer operands; its outputs are already
     // logical (tf) + double (loc), so only the operands need promoting to
@@ -498,7 +498,7 @@ void emitSetopIndices(SetOpKind kind, const Value &A, const Value &B,
     if (A.type() == ValueType::COMPLEX || B.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": index outputs are not supported for "
                     "complex inputs", 0, 0, fn, "",
-                    std::string("numkit:") + fn + ":complexIdx");
+                    std::string("nk:") + fn + ":complexIdx");
 
     ScratchArena scratch(mr);
     std::pmr::unordered_map<double, size_t, DoubleHashEq0> mapA(&scratch);
@@ -570,7 +570,7 @@ Value setOpRows(const Value &A, const Value &B, SetOpKind kind,
     if (ar > 0 && br > 0 && ac != bc)
         throw Error(std::string(fn) + ": 'rows' inputs must have the same "
                     "number of columns", 0, 0, fn, "",
-                    std::string("numkit:") + fn + ":rowsCols");
+                    std::string("nk:") + fn + ":rowsCols");
     const size_t cols = (ar > 0) ? ac : bc;
 
     // union(A,B,'rows') == unique rows of the vertical concatenation [A; B].
@@ -617,7 +617,7 @@ Value setOpRows(const Value &A, const Value &B, SetOpKind kind,
               [ad, ac, ar](size_t a, size_t b) { return rowLexCmp(ad, ac, ar, a, b) < 0; });
     nonNan.insert(nonNan.end(), nanIdx.begin(), nanIdx.end());
     if (nonNan.empty()) return emptyRowsResult(cols, mr);
-    return numkit::ops::collectRowsByIndex(mr, A, nonNan.data(), nonNan.size());
+    return nk::ops::collectRowsByIndex(mr, A, nonNan.data(), nonNan.size());
 }
 
 // Row-wise setxor (MATLAB setxor(A,B,'rows')): the symmetric difference of the
@@ -636,7 +636,7 @@ Value setxorRows(const Value &A, const Value &B, const char *fn,
     if (ar > 0 && br > 0 && ac != bc)
         throw Error(std::string(fn) + ": 'rows' inputs must have the same "
                     "number of columns", 0, 0, fn, "",
-                    std::string("numkit:") + fn + ":rowsCols");
+                    std::string("nk:") + fn + ":rowsCols");
     const size_t cols = (ar > 0) ? ac : bc;
     const size_t nr = ar + br;
     if (nr == 0) return emptyRowsResult(cols, mr);
@@ -676,14 +676,14 @@ Value setxorRows(const Value &A, const Value &B, const char *fn,
               [cdp, cols, nr](size_t a, size_t b) { return rowLexCmp(cdp, cols, nr, a, b) < 0; });
     nonNan.insert(nonNan.end(), nanIdx.begin(), nanIdx.end());
     if (nonNan.empty()) return emptyRowsResult(cols, mr);
-    return numkit::ops::collectRowsByIndex(mr, combined, nonNan.data(), nonNan.size());
+    return nk::ops::collectRowsByIndex(mr, combined, nonNan.data(), nonNan.size());
 }
 } // namespace
 
 void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("union: requires 2 arguments", 0, 0, "union", "", "numkit:union:nargin");
+        throw Error("union: requires 2 arguments", 0, 0, "union", "", "nk:union:nargin");
     auto *mr = ctx.engine->resource();
     // char/logical/integer operands: promote to double, compute, then narrow
     // the VALUES output back to the shared class (ia/ib stay double). The
@@ -696,7 +696,7 @@ void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
         if (nargout >= 2)
             throw Error("union: 'rows' index outputs (ia, ib) are not yet "
                         "supported in this revision", 0, 0, "union", "",
-                        "numkit:union:rowsIdx");
+                        "nk:union:rowsIdx");
         outs[0] = setOpRows(A, B, SetOpKind::Union, "union", mr);
         narrowOut();
         return;
@@ -711,7 +711,7 @@ void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 void intersect_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("intersect: requires 2 arguments", 0, 0, "intersect", "", "numkit:intersect:nargin");
+        throw Error("intersect: requires 2 arguments", 0, 0, "intersect", "", "nk:intersect:nargin");
     auto *mr = ctx.engine->resource();
     const ValueType setNarrow = setopNarrowClass(args[0], args[1]);
     Value A = setopPromote(args[0], mr), B = setopPromote(args[1], mr);
@@ -721,7 +721,7 @@ void intersect_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
         if (nargout >= 2)
             throw Error("intersect: 'rows' index outputs (ia, ib) are not yet "
                         "supported in this revision", 0, 0, "intersect", "",
-                        "numkit:intersect:rowsIdx");
+                        "nk:intersect:rowsIdx");
         outs[0] = setOpRows(A, B, SetOpKind::Intersect, "intersect", mr);
         narrowOut();
         return;
@@ -736,7 +736,7 @@ void intersect_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 void setdiff_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("setdiff: requires 2 arguments", 0, 0, "setdiff", "", "numkit:setdiff:nargin");
+        throw Error("setdiff: requires 2 arguments", 0, 0, "setdiff", "", "nk:setdiff:nargin");
     auto *mr = ctx.engine->resource();
     const ValueType setNarrow = setopNarrowClass(args[0], args[1]);
     Value A = setopPromote(args[0], mr), B = setopPromote(args[1], mr);
@@ -746,7 +746,7 @@ void setdiff_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
         if (nargout >= 2)
             throw Error("setdiff: 'rows' index output (ia) is not yet "
                         "supported in this revision", 0, 0, "setdiff", "",
-                        "numkit:setdiff:rowsIdx");
+                        "nk:setdiff:rowsIdx");
         outs[0] = setOpRows(A, B, SetOpKind::Setdiff, "setdiff", mr);
         narrowOut();
         return;
@@ -765,7 +765,7 @@ void primes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("primes: requires 1 argument",
-                     0, 0, "primes", "", "numkit:primes:nargin");
+                     0, 0, "primes", "", "nk:primes:nargin");
     outs[0] = primes(args[0].toScalar(), ctx.engine->resource());
 }
 
@@ -773,7 +773,7 @@ void isprime_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("isprime: requires 1 argument",
-                     0, 0, "isprime", "", "numkit:isprime:nargin");
+                     0, 0, "isprime", "", "nk:isprime:nargin");
     outs[0] = isprime(args[0], ctx.engine->resource());
 }
 
@@ -781,10 +781,10 @@ void factor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("factor: requires 1 argument",
-                     0, 0, "factor", "", "numkit:factor:nargin");
+                     0, 0, "factor", "", "nk:factor:nargin");
     if (!args[0].isScalar())
         throw Error("factor: argument must be a scalar",
-                     0, 0, "factor", "", "numkit:factor:notScalar");
+                     0, 0, "factor", "", "nk:factor:notScalar");
     outs[0] = factor(args[0].toScalar(), ctx.engine->resource());
 }
 
@@ -792,7 +792,7 @@ void perms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("perms: requires 1 argument",
-                     0, 0, "perms", "", "numkit:perms:nargin");
+                     0, 0, "perms", "", "nk:perms:nargin");
     outs[0] = perms(args[0], ctx.engine->resource());
 }
 
@@ -800,7 +800,7 @@ void factorial_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("factorial: requires 1 argument",
-                     0, 0, "factorial", "", "numkit:factorial:nargin");
+                     0, 0, "factorial", "", "nk:factorial:nargin");
     outs[0] = factorial(args[0], ctx.engine->resource());
 }
 
@@ -808,7 +808,7 @@ void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("nchoosek: requires 2 arguments (n, k)",
-                     0, 0, "nchoosek", "", "numkit:nchoosek:nargin");
+                     0, 0, "nchoosek", "", "nk:nchoosek:nargin");
     auto *mr = ctx.engine->resource();
     // Scalar N -> binomial coefficient; vector V -> all K-combinations (rows).
     if (args[0].isScalar())
@@ -824,12 +824,12 @@ void setxor_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("setxor: requires 2 arguments",
-                     0, 0, "setxor", "", "numkit:setxor:nargin");
+                     0, 0, "setxor", "", "nk:setxor:nargin");
     auto *mr = ctx.engine->resource();
     if (wantsRows(args, 2)) {
         if (nargout >= 2)
             throw Error("setxor: 'rows' index outputs (ia, ib) are not yet supported",
-                         0, 0, "setxor", "", "numkit:setxor:rowsIdx");
+                         0, 0, "setxor", "", "nk:setxor:rowsIdx");
         outs[0] = setxorRows(args[0], args[1], "setxor", mr);
         return;
     }
@@ -841,7 +841,7 @@ void allunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("allunique: requires 1 argument",
-                     0, 0, "allunique", "", "numkit:allunique:nargin");
+                     0, 0, "allunique", "", "nk:allunique:nargin");
     outs[0] = allunique(args[0], ctx.engine->resource());
 }
 
@@ -850,7 +850,7 @@ void numunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("numunique: requires 1 argument",
-                     0, 0, "numunique", "", "numkit:numunique:nargin");
+                     0, 0, "numunique", "", "nk:numunique:nargin");
     outs[0] = numunique(args[0], ctx.engine->resource());
 }
 
@@ -859,7 +859,7 @@ void ismembertol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 {
     if (args.size() < 2)
         throw Error("ismembertol: requires (A, S, [tol])",
-                     0, 0, "ismembertol", "", "numkit:ismembertol:nargin");
+                     0, 0, "ismembertol", "", "nk:ismembertol:nargin");
     double tol = (args.size() >= 3 && !args[2].isEmpty())
                      ? args[2].toScalar()
                      : 1e-6;
@@ -871,7 +871,7 @@ void uniquetol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("uniquetol: requires (A, [tol])",
-                     0, 0, "uniquetol", "", "numkit:uniquetol:nargin");
+                     0, 0, "uniquetol", "", "nk:uniquetol:nargin");
     double tol = (args.size() >= 2 && !args[1].isEmpty())
                      ? args[1].toScalar()
                      : 1e-6;
@@ -880,4 +880,4 @@ void uniquetol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/fpdf_test.cpp
 // fpdf. Reference values from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FpdfTest : public ::testing::Test
 {

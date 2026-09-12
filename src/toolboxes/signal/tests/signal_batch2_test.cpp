@@ -10,11 +10,11 @@
 // (16 verified; 1 deferred — freqs returns scalar where MATLAB returns
 // length-N vector).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SignalBatch2Test : public ::testing::Test
 {
@@ -101,7 +101,7 @@ TEST_F(SignalBatch2Test, FreqzWhole)
 
 // DEEP-PROBE 2026-05-31: freqz(b,a,n,fs) — the sample-rate form. The
 // frequency vector is in Hz over [0, fs/2) (or [0, fs) with 'whole'),
-// i.e. f = w*fs/(2*pi). H is unchanged. numkit ignored fs and returned
+// i.e. f = w*fs/(2*pi). H is unchanged. nk ignored fs and returned
 // radians. vs MATLAB R2025b.
 TEST_F(SignalBatch2Test, FreqzSampleRate)
 {

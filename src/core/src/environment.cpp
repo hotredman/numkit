@@ -1,7 +1,7 @@
 // src/environment.cpp
-#include <numkit/core/environment.hpp>
+#include <nk/core/environment.hpp>
 
-namespace numkit {
+namespace nk {
 
 // ============================================================
 // Environment — SBO helpers
@@ -241,4 +241,4 @@ std::vector<std::string> Environment::localNames() const
     return names;
 }
 
-} // namespace numkit
+} // namespace nk

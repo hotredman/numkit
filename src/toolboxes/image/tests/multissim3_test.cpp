@@ -4,10 +4,10 @@
 // (Wang/Simoncelli/Bovik 2003, 3-D extension). References from
 // MATLAB R2025b on a deterministic gradient volume.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MultiSSIM3Test : public ::testing::Test
 {

@@ -3,11 +3,11 @@
 // Colour-space conversions. Portable scalar implementation; SIMD
 // optimisation deferred to a later phase.
 
-#include <numkit/image/color/color.hpp>
-#include <numkit/image/type_convert/type_convert.hpp>
+#include <nk/image/color/color.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -52,7 +52,7 @@ Layout detect_layout(const Value &x, const char *fn) {
         lay.is_3d = false;
     } else {
         throw Error(std::string(fn) + ": input must be H×W×3 or N×3",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":size");
+                    0, 0, fn, "", std::string("nk:") + fn + ":size");
     }
     return lay;
 }
@@ -394,7 +394,7 @@ Value lab2rgb(const Value &x, std::pmr::memory_resource *mr) {
 // imsplit — split H×W×P → P planes of H×W
 // ════════════════════════════════════════════════════════════════════
 //
-// Numkit packs an H×W×P volume column-major across all three dims:
+// NK packs an H×W×P volume column-major across all three dims:
 // element (r, c, p) sits at linear offset p·H·W + c·H + r. Splitting
 // is therefore a contiguous H·W copy per channel — no transpose, no
 // stride trickery.
@@ -476,7 +476,7 @@ std::vector<double> rgb_rows(const Value &v, const char *name) {
     }
     if (W != 3)
         throw Error(std::string(name) + " must be a 3-element or N-by-3 array",
-                    0, 0, "colorangle", "", "numkit:colorangle:shape");
+                    0, 0, "colorangle", "", "nk:colorangle:shape");
     std::vector<double> out(3 * H);
     for (size_t r = 0; r < H; ++r)
         for (size_t c = 0; c < 3; ++c)
@@ -510,7 +510,7 @@ LabLayout detect_lab_layout(const Value &v, const char *fn) {
         L.is_3d = false;
     } else {
         throw Error(std::string(fn) + ": LAB must be Mx3 or MxNx3",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":size");
+                    0, 0, fn, "", std::string("nk:") + fn + ":size");
     }
     return L;
 }
@@ -559,7 +559,7 @@ Value lab2double(const Value &lab, std::pmr::memory_resource *mr)
                 break;
             default:
                 throw Error("lab2double: unsupported LAB class",
-                            0, 0, "lab2double", "", "numkit:lab2double:cls");
+                            0, 0, "lab2double", "", "nk:lab2double:cls");
         }
         od[lab_idx(L, p, 0)] = L_;
         od[lab_idx(L, p, 1)] = a;
@@ -613,7 +613,7 @@ Value lab2uint8(const Value &lab, std::pmr::memory_resource *mr)
                     break;
                 default:
                     throw Error("lab2uint8: unsupported LAB class",
-                                0, 0, "lab2uint8", "", "numkit:lab2uint8:cls");
+                                0, 0, "lab2uint8", "", "nk:lab2uint8:cls");
             }
             if (w < 0)   w = 0;
             if (w > 255) w = 255;
@@ -653,7 +653,7 @@ Value lab2uint16(const Value &lab, std::pmr::memory_resource *mr)
                     break;
                 default:
                     throw Error("lab2uint16: unsupported LAB class",
-                                0, 0, "lab2uint16", "", "numkit:lab2uint16:cls");
+                                0, 0, "lab2uint16", "", "nk:lab2uint16:cls");
             }
             if (w < 0)     w = 0;
             if (w > 65535) w = 65535;
@@ -709,14 +709,14 @@ Value colorgradient(const Value &C, const Value &w, int n, std::pmr::memory_reso
 {
     if (C.dims().cols() != 3)
         throw Error("colorgradient: C must be K-by-3",
-                    0, 0, "colorgradient", "", "numkit:colorgradient:C");
+                    0, 0, "colorgradient", "", "nk:colorgradient:C");
     const int K = static_cast<int>(C.dims().rows());
     if (K < 2)
         throw Error("colorgradient: C must have at least 2 rows",
-                    0, 0, "colorgradient", "", "numkit:colorgradient:rows");
+                    0, 0, "colorgradient", "", "nk:colorgradient:rows");
     if (n < 2)
         throw Error("colorgradient: n must be >= 2",
-                    0, 0, "colorgradient", "", "numkit:colorgradient:n");
+                    0, 0, "colorgradient", "", "nk:colorgradient:n");
 
     std::vector<double> wv;
     wv.reserve(static_cast<size_t>(K - 1));
@@ -725,7 +725,7 @@ Value colorgradient(const Value &C, const Value &w, int n, std::pmr::memory_reso
     } else {
         if (static_cast<int>(w.numel()) != K - 1)
             throw Error("colorgradient: must have one weight per interval",
-                        0, 0, "colorgradient", "", "numkit:colorgradient:w");
+                        0, 0, "colorgradient", "", "nk:colorgradient:w");
         for (size_t i = 0; i < w.numel(); ++i)
             wv.push_back(w.elemAsDouble(i));
     }
@@ -773,7 +773,7 @@ Value wavelength2rgb(const Value &wavelength, const std::string &out_class, doub
 {
     if (!(gamma >= 0.0 && gamma <= 1.0))
         throw Error("wavelength2rgb: gamma must be in [0, 1]",
-                    0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:gamma");
+                    0, 0, "wavelength2rgb", "", "nk:wavelength2rgb:gamma");
 
     const auto &d = wavelength.dims();
     const size_t N = wavelength.numel();
@@ -821,7 +821,7 @@ Value wavelength2rgb(const Value &wavelength, const std::string &out_class, doub
     if (lo == "uint16") return im2uint16(out, mr);
     if (lo == "int16")  return im2int16(out, mr);
     throw Error("wavelength2rgb: unsupported class",
-                0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:cls");
+                0, 0, "wavelength2rgb", "", "nk:wavelength2rgb:cls");
 }
 
 Value colorangle(const Value &rgb1, const Value &rgb2, std::pmr::memory_resource *mr)
@@ -832,7 +832,7 @@ Value colorangle(const Value &rgb1, const Value &rgb2, std::pmr::memory_resource
     const size_t Nb = b.size() / 3;
     if (Na != Nb && Na != 1 && Nb != 1)
         throw Error("colorangle: RGB1 and RGB2 must broadcast (N or 1)",
-                    0, 0, "colorangle", "", "numkit:colorangle:size");
+                    0, 0, "colorangle", "", "nk:colorangle:size");
     const size_t N = std::max(Na, Nb);
 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
@@ -1318,11 +1318,11 @@ Value xyz2double(const Value &xyz, std::pmr::memory_resource *mr)
     const bool ok_3d = d.is3D() && d.pages() == 3;
     if (!ok_2d && !ok_3d)
         throw Error("xyz2double: input must be M-by-3 or H-by-W-by-3",
-                    0, 0, "xyz2double", "", "numkit:xyz2double:size");
+                    0, 0, "xyz2double", "", "nk:xyz2double:size");
     const ValueType t = xyz.type();
     if (t != ValueType::DOUBLE && t != ValueType::UINT16)
         throw Error("xyz2double: input must be uint16 or double",
-                    0, 0, "xyz2double", "", "numkit:xyz2double:type");
+                    0, 0, "xyz2double", "", "nk:xyz2double:type");
 
     Value out = ok_3d
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
@@ -1346,11 +1346,11 @@ Value contrast(const Value &x, int m, std::pmr::memory_resource *mr)
 {
     if (m < 2)
         throw Error("contrast: M must be >= 2",
-                    0, 0, "contrast", "", "numkit:contrast:m");
+                    0, 0, "contrast", "", "nk:contrast:m");
     const size_t Nx = x.numel();
     if (Nx == 0)
         throw Error("contrast: input image must be non-empty",
-                    0, 0, "contrast", "", "numkit:contrast:empty");
+                    0, 0, "contrast", "", "nk:contrast:empty");
 
     double xmin = x.elemAsDouble(0), xmax = xmin;
     for (size_t i = 1; i < Nx; ++i) {
@@ -1363,7 +1363,7 @@ Value contrast(const Value &x, int m, std::pmr::memory_resource *mr)
     // MATLAB yields NaN map; we throw to keep output well-defined.
     if (!(range > 0.0))
         throw Error("contrast: image must have non-zero intensity range",
-                    0, 0, "contrast", "", "numkit:contrast:flat");
+                    0, 0, "contrast", "", "nk:contrast:flat");
 
     std::vector<double> sorted;
     sorted.reserve(Nx + static_cast<size_t>(m + 1));
@@ -1401,12 +1401,12 @@ Value brighten(const Value &map, double beta, std::pmr::memory_resource *mr)
 {
     if (!(beta > -1.0 && beta < 1.0))
         throw Error("brighten: BETA must be a scalar in the range (-1, 1)",
-                    0, 0, "brighten", "", "numkit:brighten:beta");
+                    0, 0, "brighten", "", "nk:brighten:beta");
     const double gamma = (beta > 0.0) ? (1.0 - beta) : (1.0 / (1.0 + beta));
     const auto &d = map.dims();
     if (d.is3D() || d.cols() != 3)
         throw Error("brighten: input must be an N-by-3 colormap",
-                    0, 0, "brighten", "", "numkit:brighten:shape");
+                    0, 0, "brighten", "", "nk:brighten:shape");
     const size_t N = map.numel();
     Value out = Value::matrix(d.rows(), 3, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -1424,11 +1424,11 @@ Value xyz2uint16(const Value &xyz, std::pmr::memory_resource *mr)
     const bool ok_3d = d.is3D() && d.pages() == 3;
     if (!ok_2d && !ok_3d)
         throw Error("xyz2uint16: input must be M-by-3 or H-by-W-by-3",
-                    0, 0, "xyz2uint16", "", "numkit:xyz2uint16:size");
+                    0, 0, "xyz2uint16", "", "nk:xyz2uint16:size");
     const ValueType t = xyz.type();
     if (t != ValueType::DOUBLE && t != ValueType::UINT16)
         throw Error("xyz2uint16: input must be uint16 or double",
-                    0, 0, "xyz2uint16", "", "numkit:xyz2uint16:type");
+                    0, 0, "xyz2uint16", "", "nk:xyz2uint16:type");
 
     Value out = ok_3d
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::UINT16, mr)
@@ -1463,7 +1463,7 @@ Value deltaE(const Value &I1, const Value &I2, bool isInputLab, std::pmr::memory
         if (d1.cols() != 3 || d2.cols() != 3 ||
             d1.rows() != d2.rows())
             throw Error("deltaE: M-by-3 inputs must agree in row count",
-                        0, 0, "deltaE", "", "numkit:deltaE:size");
+                        0, 0, "deltaE", "", "nk:deltaE:size");
         shape = COLORMAP;
         out_h = d1.rows();
         out_w = 1;
@@ -1471,13 +1471,13 @@ Value deltaE(const Value &I1, const Value &I2, bool isInputLab, std::pmr::memory
         if (d1.pages() != 3 || d2.pages() != 3 ||
             d1.rows() != d2.rows() || d1.cols() != d2.cols())
             throw Error("deltaE: H-by-W-by-3 inputs must agree in size",
-                        0, 0, "deltaE", "", "numkit:deltaE:size");
+                        0, 0, "deltaE", "", "nk:deltaE:size");
         shape = IMAGE;
         out_h = d1.rows();
         out_w = d1.cols();
     } else {
         throw Error("deltaE: I1 and I2 must both be M-by-3 or H-by-W-by-3",
-                    0, 0, "deltaE", "", "numkit:deltaE:size");
+                    0, 0, "deltaE", "", "nk:deltaE:size");
     }
 
     // Class promotion: double if either is double, else single.
@@ -1529,7 +1529,7 @@ Value whitepoint(const std::string &illuminant, std::pmr::memory_resource *mr)
     else
         throw Error("whitepoint: unsupported illuminant '" + illuminant +
                     "' (use a, c, d50, d55, d65, e, or icc)",
-                    0, 0, "whitepoint", "", "numkit:whitepoint:illum");
+                    0, 0, "whitepoint", "", "nk:whitepoint:illum");
 
     Value out = Value::matrix(1, 3, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -1585,7 +1585,7 @@ Value cmap2gray(const Value &cmap, std::pmr::memory_resource *mr)
     const auto &d = cmap.dims();
     if (d.is3D() || d.cols() != 3 || d.rows() < 1)
         throw Error("cmap2gray: CMAP must be an N-by-3 colormap",
-                    0, 0, "cmap2gray", "", "numkit:cmap2gray:shape");
+                    0, 0, "cmap2gray", "", "nk:cmap2gray:shape");
     const size_t N = d.rows();
     Value out = Value::matrix(N, 3, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -1619,11 +1619,11 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
     const size_t W = dL.cols();
     if (dL.is3D() && dL.pages() != 1)
         throw Error("label2rgb: L must be a 2-D labelled image",
-                    0, 0, "label2rgb", "", "numkit:label2rgb:dims");
+                    0, 0, "label2rgb", "", "nk:label2rgb:dims");
 
     if (cmap.dims().cols() != 3)
         throw Error("label2rgb: CMAP must be N-by-3",
-                    0, 0, "label2rgb", "", "numkit:label2rgb:cmap");
+                    0, 0, "label2rgb", "", "nk:label2rgb:cmap");
     const size_t N = cmap.dims().rows();
 
     double bg[3] = {1.0, 1.0, 1.0};
@@ -1633,7 +1633,7 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
         bg[2] = background.elemAsDouble(2);
     } else if (background.numel() != 0)
         throw Error("label2rgb: background must be a 3-element RGB triplet",
-                    0, 0, "label2rgb", "", "numkit:label2rgb:bg");
+                    0, 0, "label2rgb", "", "nk:label2rgb:bg");
 
     Value out = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
     if (H == 0 || W == 0) return out;
@@ -1653,7 +1653,7 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
         const int64_t lab = static_cast<int64_t>(lv);
         if (lv < 0 || lab != static_cast<int64_t>(lv))
             throw Error("label2rgb: L must be non-negative integer-valued",
-                        0, 0, "label2rgb", "", "numkit:label2rgb:value");
+                        0, 0, "label2rgb", "", "nk:label2rgb:value");
         if (lab == 0) {
             od[0 * plane + i] = sat(bg[0]);
             od[1 * plane + i] = sat(bg[1]);
@@ -1662,7 +1662,7 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
             const size_t row = static_cast<size_t>(lab) - 1;
             if (row >= N)
                 throw Error("label2rgb: CMAP has fewer rows than max label",
-                            0, 0, "label2rgb", "", "numkit:label2rgb:short");
+                            0, 0, "label2rgb", "", "nk:label2rgb:short");
             // cmap is N×3 column-major: idx[row, ch] = ch * N + row.
             od[0 * plane + i] = sat(cd[0 * N + row]);
             od[1 * plane + i] = sat(cd[1 * N + row]);
@@ -1672,4 +1672,4 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
     return out;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

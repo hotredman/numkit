@@ -3,7 +3,7 @@ clear
 % save/load .mat round-trip — exercises every supported encoding path.
 % Writes to a tempdir-derived path, reads back, prints diffs.
 
-fname = fullfile(tempdir(), 'numkit_savemat_smoke.mat');
+fname = fullfile(tempdir(), 'nk_savemat_smoke.mat');
 
 A = reshape(1:12, 3, 4);
 Z = [1+2i 3-1i; 0+0i 4+5i];

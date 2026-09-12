@@ -1,9 +1,9 @@
-# Numkit IDE — Electron e2e tests
+# NK IDE — Electron e2e tests
 
-Playwright tests that drive the packaged Numkit IDE renderer
+Playwright tests that drive the packaged NK IDE renderer
 through real Electron. Each test owns its own Electron process
 with an isolated user-data dir under the OS temp dir, so runs
-don't touch your real `%APPDATA%/numkit-ide-desktop` IDE state.
+don't touch your real `%APPDATA%/nk-ide-desktop` IDE state.
 
 ## Layout
 
@@ -120,8 +120,8 @@ selected the folder in the dialog:
 
 ```js
 await page.evaluate((root) => {
-  localStorage.setItem('numkit.ide.native.root', root);
-  localStorage.setItem('numkit.ide.sidebar.source', '"localFolder"');
+  localStorage.setItem('nk.ide.native.root', root);
+  localStorage.setItem('nk.ide.sidebar.source', '"localFolder"');
 }, FIXTURE_ROOT);
 await page.reload();
 ```

@@ -3,9 +3,9 @@
 // Unit tests for decomposition classdef.
 
 #include <gtest/gtest.h>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
-using namespace numkit;
+using namespace nk;
 
 TEST(DecompositionTest, DecompositionSourceRegistered) {
     // Basic verification that decomposition classdef source compiles cleanly

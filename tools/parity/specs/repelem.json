@@ -12,5 +12,5 @@
     "m1(1,1)", "m1(4,3)", "numel(m1)",
     "m2(1,1)", "m2(3,6)", "numel(m2)"
   ],
-  "comment": "Sig: y = repelem(v, n | counts); Y = repelem(A, r, c) with r/c scalar or vector. Covers: scalar count (fast path), per-element count vector (incl. a zero count dropping an element), column-vector orientation, and matrix per-row/per-column counts (scalar+vector mix both ways). Queue-clearing 2026-05-29: numkit previously threw 'Cannot convert double to scalar' on any count vector."
+  "comment": "Sig: y = repelem(v, n | counts); Y = repelem(A, r, c) with r/c scalar or vector. Covers: scalar count (fast path), per-element count vector (incl. a zero count dropping an element), column-vector orientation, and matrix per-row/per-column counts (scalar+vector mix both ways). Queue-clearing 2026-05-29: nk previously threw 'Cannot convert double to scalar' on any count vector."
 }

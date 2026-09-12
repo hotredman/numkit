@@ -5,10 +5,10 @@
 // (MATLAB `rng(seed)`); two Engines are independent. Bit-identical with MATLAB
 // R2025b's rng()+rand() (53-bit genRes53). Engine-free (Value + RngContext).
 
-#include <numkit/ops/rng.hpp>
+#include <nk/ops/rng.hpp>
 
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -17,7 +17,7 @@
 #include <sstream>
 #include <string>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 // ────────────────────────────────────────────────────────────────────
 // RngContext state control (seed lives inline in the header)
@@ -46,17 +46,17 @@ void deserializeState(MatlabMT19937 &gen, const std::string &blob)
     is >> tag;
     if (tag != "mt19937")
         throw Error("rng: malformed state blob",
-                     0, 0, "rng", "", "numkit:rng:badState");
+                     0, 0, "rng", "", "nk:rng:badState");
     uint32_t state[MatlabMT19937::STATE_SIZE];
     for (std::size_t i = 0; i < MatlabMT19937::STATE_SIZE; ++i) {
         if (!(is >> state[i]))
             throw Error("rng: malformed state blob",
-                         0, 0, "rng", "", "numkit:rng:badState");
+                         0, 0, "rng", "", "nk:rng:badState");
     }
     int idx;
     if (!(is >> idx))
         throw Error("rng: malformed state blob",
-                     0, 0, "rng", "", "numkit:rng:badState");
+                     0, 0, "rng", "", "nk:rng:badState");
     gen.setState(state, idx);
 }
 
@@ -81,14 +81,14 @@ void RngContext::restore(const Value &state)
 {
     if (!state.isStruct())
         throw Error("rng: state must be a struct from rng()",
-                     0, 0, "rng", "", "numkit:rng:notStruct");
+                     0, 0, "rng", "", "nk:rng:notStruct");
     if (!state.hasField("State"))
         throw Error("rng: state struct missing .State field",
-                     0, 0, "rng", "", "numkit:rng:noStateField");
+                     0, 0, "rng", "", "nk:rng:noStateField");
     const auto &blob = state.field("State");
     if (!blob.isChar() && !blob.isString())
         throw Error("rng: .State must be a char array",
-                     0, 0, "rng", "", "numkit:rng:badState");
+                     0, 0, "rng", "", "nk:rng:badState");
     deserializeState(gen_, blob.toString());
 }
 
@@ -151,7 +151,7 @@ void fillUniformInt(RngContext &rng, double *dst, size_t n, int64_t lo, int64_t 
 {
     if (lo > hi)
         throw Error("randi: low bound must be <= high bound",
-                     0, 0, "randi", "", "numkit:randi:badRange");
+                     0, 0, "randi", "", "nk:randi:badRange");
     std::uniform_int_distribution<int64_t> dist(lo, hi);
     for (size_t i = 0; i < n; ++i)
         dst[i] = static_cast<double>(dist(rng));
@@ -200,7 +200,7 @@ Value randperm(RngContext &rng, size_t n, size_t k, std::pmr::memory_resource *m
 {
     if (k > n)
         throw Error("randperm: k must not exceed n",
-                     0, 0, "randperm", "", "numkit:randperm:badK");
+                     0, 0, "randperm", "", "nk:randperm:badK");
     auto r = Value::matrix(1, k, ValueType::DOUBLE, mr);
     if (k == 0) return r;
 
@@ -219,4 +219,4 @@ Value randperm(RngContext &rng, size_t n, size_t k, std::pmr::memory_resource *m
     return r;
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

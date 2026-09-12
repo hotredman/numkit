@@ -1,9 +1,9 @@
 // toolboxes/stats/src/lda/lda.cpp
 
-#include <numkit/stats/lda/lda.hpp>
+#include <nk/stats/lda/lda.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -14,7 +14,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -57,10 +57,10 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     const size_t Nsamp = sample.dims().rows();
     if (sample.dims().cols() != d)
         throw Error("classify: sample and training must have the same number of columns",
-                    0, 0, "classify", "", "numkit:classify:cols");
+                    0, 0, "classify", "", "nk:classify:cols");
     if (group.numel() != Ntr)
         throw Error("classify: group must have one entry per training row",
-                    0, 0, "classify", "", "numkit:classify:group");
+                    0, 0, "classify", "", "nk:classify:group");
 
     std::string type = type_in;
     for (auto &c : type) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -70,7 +70,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     if (type != "linear" && type != "diaglinear"
         && type != "quadratic" && type != "diagquadratic")
         throw Error("classify: unsupported type (linear|diaglinear|quadratic|diagquadratic)",
-                    0, 0, "classify", "", "numkit:classify:type");
+                    0, 0, "classify", "", "nk:classify:type");
 
     // Identify unique group labels (sorted ascending).
     std::vector<double> labels;
@@ -145,7 +145,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
         double *L = Lblocks.data() + k * d * d;
         if (!cholesky(sigBlock(k), L, d))
             throw Error("classify: covariance is not positive definite",
-                        0, 0, "classify", "", "numkit:classify:psd");
+                        0, 0, "classify", "", "nk:classify:psd");
         double s = 0.0;
         for (size_t i = 0; i < d; ++i) s += std::log(L[i + i * d]);
         sumLogDiag[k] = s;
@@ -221,4 +221,4 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     return {std::move(cV), std::move(errV), std::move(postV), std::move(logpV)};
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 #include "../src/io/png_codec.hpp"
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <random>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::image;
+using namespace nk;
+using namespace nk::image;
 
 TEST(PngCodecTest, Gray8RoundTrip) {
     const size_t H = 25, W = 33;

@@ -1,6 +1,6 @@
 clear
 
-% smoothdata 'gaussian' kernel (DEEP-PROBE 2026-05-31). numkit used
+% smoothdata 'gaussian' kernel (DEEP-PROBE 2026-05-31). nk used
 % sigma = (k-1)/4 with a kernel mis-aligned at the truncated edges, so the
 % result was wrong at the boundaries AND interior. MATLAB R2025b uses
 % sigma = windowLength/5, centred on the CURRENT sample, with 'shrink'

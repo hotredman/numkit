@@ -3,10 +3,10 @@
 // Regression guard for image/bwmorph3 — 3-D binary morphology.
 // Fingerprints from MATLAB R2025b (clean-room port of bwmorph3Algorithm).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Bwmorph3Test : public ::testing::Test
 {

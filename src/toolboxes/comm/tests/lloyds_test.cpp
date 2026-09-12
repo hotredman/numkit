@@ -3,15 +3,15 @@
 // Regression guard for lloyds() — Lloyd-Max scalar quantizer designer.
 //
 // Bit-equal with MATLAB R2025b on deterministic training sets. Tests
-// using `randn` are NOT bit-exact because numkit's randn ≠ MATLAB's
+// using `randn` are NOT bit-exact because nk's randn ≠ MATLAB's
 // (Ziggurat deferred); we cover only the deterministic-training path
 // here. Statistical-quality checks via known monotone training sets
 // where the optimal partition/codebook is known by hand.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class LloydsTest : public ::testing::Test
 {

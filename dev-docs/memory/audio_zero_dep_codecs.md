@@ -1,7 +1,7 @@
 # Zero-Dependency In-Tree Audio Codecs & I/O Engine
 
 ## Context & Problem
-Previously, NumKit had temporal and spectral audio analysis tools (`mfcc`, `melspectrogram`, `spectralCentroid`, `pitch`), but completely lacked the core Audio I/O subsystem: `audioread`, `audiowrite`, `audioinfo`, as well as symbolic music processing (`midiread`, `midiwrite`, `midiinfo`).
+Previously, NK had temporal and spectral audio analysis tools (`mfcc`, `melspectrogram`, `spectralCentroid`, `pitch`), but completely lacked the core Audio I/O subsystem: `audioread`, `audiowrite`, `audioinfo`, as well as symbolic music processing (`midiread`, `midiwrite`, `midiinfo`).
 
 Key challenges addressed:
 1. **Emscripten / WebAssembly Baseline**: The project mandates strict **C++17** (`CMAKE_CXX_STANDARD 17`) with zero external C/C++ audio dependencies (e.g. libsndfile, libmpg123, FFmpeg, or OS-native decoders).

@@ -2,7 +2,7 @@ clear
 
 % grpstats now returns its default multi-output set when no 'whichstats'
 % argument is given: [means, sem, counts] = grpstats(X, group), matching
-% MATLAB. numkit previously emitted only the means, so requesting the 2nd or
+% MATLAB. nk previously emitted only the means, so requesting the 2nd or
 % 3rd output threw "Index 1 exceeds array size 0". sem = std/sqrt(n) is the
 % standard error of the mean; counts is the number of rows per group.
 

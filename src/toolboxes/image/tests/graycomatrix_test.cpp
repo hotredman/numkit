@@ -4,14 +4,14 @@
 // classical CLCM-based texture-analysis toolchain; fingerprints
 // captured from MATLAB R2025b on the rotational 4x4 demo image.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class GraycomatrixTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void   SetUp() override {
                 engine.eval("I = uint8([1 2 3 4; 2 3 4 1; 3 4 1 2; 4 1 2 3] * 32);");
     }
@@ -62,7 +62,7 @@ TEST_F(GraycomatrixTest, GrayLimitsCustom)
 // 'GrayLimits', [] (empty) = MATLAB-documented auto limits [min(I) max(I)]
 // over the actual data — for any class. For this uint8 image the data range
 // is [32 128], so the empty form must equal the explicit [32 128] GLCM and
-// must differ from the class-range default [0 255]. numkit previously threw
+// must differ from the class-range default [0 255]. nk previously threw
 // "GrayLimits must be 2-element" on the empty form (DEEP-PROBE c168).
 TEST_F(GraycomatrixTest, GrayLimitsEmptyAutoDataRange)
 {

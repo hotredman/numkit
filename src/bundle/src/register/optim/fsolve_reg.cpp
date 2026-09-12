@@ -11,18 +11,18 @@
 // trajectory: for a problem with a unique root near x0 any convergent
 // solver lands on the same point.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
-namespace numkit::optim {
+namespace nk::optim {
 
 static const char *kFsolveMSource = R"NKM(
 function [x, fval, exitflag] = fsolve(fn, x0, varargin)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:fsolve:fnType', 'fsolve: 1st argument must be a function handle');
+    error('nk:fsolve:fnType', 'fsolve: 1st argument must be a function handle');
   end
   n = numel(x0);
   if n == 0
-    error('numkit:fsolve:badX0', 'fsolve: x0 must be non-empty');
+    error('nk:fsolve:badX0', 'fsolve: x0 must be non-empty');
   end
   isRow = (size(x0, 1) == 1);
   x = reshape(x0, n, 1);
@@ -100,4 +100,4 @@ void registerFsolveM(Engine &engine)
     engine.registerBuiltinMSource(kFsolveMSource);
 }
 
-} // namespace numkit::optim
+} // namespace nk::optim

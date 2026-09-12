@@ -3,8 +3,8 @@
 // Tests for package A4 (waveform_generation extras):
 //   square, sawtooth, sinc, gmonopuls, diric.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -12,7 +12,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class WaveformExtrasTest : public ::testing::Test
 {

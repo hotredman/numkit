@@ -4,10 +4,10 @@
 // Code Modulation encoder + decoder. Bit-equal with MATLAB R2025b
 // on the standard probe (1st-order predictor, 6-bin codebook).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DpcmTest : public ::testing::Test
 {

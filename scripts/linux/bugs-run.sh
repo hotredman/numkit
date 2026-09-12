@@ -20,13 +20,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ! -f "${BUGS_HTML_DIR}/index.html" || "${SKIP_BUILD}" -eq 0 ]]; then
-    echo "Building NumKit Bugs & Parity site..."
+    echo "Building NK Bugs & Parity site..."
     python3 "${PROJECT_DIR}/tools/build_bugs_site.py" --output "${BUGS_HTML_DIR}"
 fi
 
 echo
 echo "========================================================"
-echo "  NumKit Bugs & Parity Documentation Local Server"
+echo "  NK Bugs & Parity Documentation Local Server"
 echo "  URL:     http://localhost:${PORT}/"
 echo "  Serving: ${BUGS_HTML_DIR}"
 echo "========================================================"

@@ -1,7 +1,7 @@
 // src/graphics/src/library.cpp
 //
 // Engine-coupled installer for the graphics plotting service — the SOLE
-// graphics TU that includes <numkit/core>. It is registration glue only: it
+// graphics TU that includes <nk/core>. It is registration glue only: it
 // asks plots.cpp (core-free) for the table of GraphicsFn plotting bodies, then
 // wraps each in a CallContext→GraphicsContext adapter and registers it under
 //   graphics.<sub>.<name>   +   compat.<name>   (+ bare core name when core=true)
@@ -26,14 +26,14 @@
 //   • one BuiltinClass per MATLAB class name routes dot-syntax
 //     (h.LineWidth, h.LineWidth = 2) through the FigureManager registry.
 
-#include <numkit/graphics/library.hpp>
-#include <numkit/graphics/graphics_context.hpp>
-#include <numkit/graphics/graphics_handle.hpp>
+#include <nk/graphics/library.hpp>
+#include <nk/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_handle.hpp>
 
-#include <numkit/core/engine.hpp>  // Engine, CallContext, ExternalFunc, Span, Value
-#include <numkit/figure/figure_manager.hpp>
-#include <numkit/figure/figure_render.hpp>
-#include <numkit/value/object.hpp>
+#include <nk/core/engine.hpp>  // Engine, CallContext, ExternalFunc, Span, Value
+#include <nk/figure/figure_manager.hpp>
+#include <nk/figure/figure_render.hpp>
+#include <nk/value/object.hpp>
 
 #include <cstddef>
 #include <cstdio>
@@ -45,7 +45,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 // export_reg.cpp — saveas/exportgraphics/print (portion 32).
 void registerFigureExport(Engine &engine);
@@ -198,7 +198,7 @@ Value decodeProp(const std::string &s, std::pmr::memory_resource *mr)
 }
 
 // ── Chart property defaults (MATLAB R2025b documented values) ────────
-// Introspection reports MATLAB's defaults even where the numkit renderer
+// Introspection reports MATLAB's defaults even where the nk renderer
 // draws its own palette (get before set); once the user sets a property,
 // both get() and the render use the user value.
 Value chartDefaultProp(const std::string &type, const std::string &name,
@@ -1643,4 +1643,4 @@ void GraphicsLibrary::install(Engine &engine)
     }
 }
 
-} // namespace numkit
+} // namespace nk

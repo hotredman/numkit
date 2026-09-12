@@ -204,13 +204,13 @@ export function EntityBrowser({
 /* Workspace panel (the main exported component for the bottom-dock tab)    */
 /* ======================================================================== */
 // localStorage keys for the Workspace display preferences. Same
-// `numkit.ide.*` namespace + lazy-init / write-on-change pattern as
+// `nk.ide.*` namespace + lazy-init / write-on-change pattern as
 // the editor-pane layout in IDE.jsx, so the user's chosen view (cards
 // vs table) and sort order survive restarts. The search `query` is
 // intentionally NOT persisted — a stale filter on restart would hide
 // variables for no visible reason.
-export const WS_VIEW_KEY = 'numkit.ide.workspace.view';
-export const WS_SORT_KEY = 'numkit.ide.workspace.sort';
+export const WS_VIEW_KEY = 'nk.ide.workspace.view';
+export const WS_SORT_KEY = 'nk.ide.workspace.sort';
 
 function loadPref(key, allowed, fallback) {
   try {

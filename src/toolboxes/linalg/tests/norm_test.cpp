@@ -1,11 +1,11 @@
 // toolboxes/builtin/tests/norm_test.cpp
 //
-// Regression guard for numkit::builtin::norm and asymmetric eig [V,D] form.
+// Regression guard for nk::builtin::norm and asymmetric eig [V,D] form.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class NormTest : public ::testing::Test
 {

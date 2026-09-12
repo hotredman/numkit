@@ -3,16 +3,16 @@
 // CallContext register half of distributions/lognormal.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/lognormal.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/lognormal.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/lognormal_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -40,7 +40,7 @@ inline double argSigma(Span<const Value> args, size_t i) {
 void lognpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("lognpdf: requires (x[, mu, sigma])", 0, 0, "lognpdf", "", "numkit:lognpdf:nargin");
+        throw Error("lognpdf: requires (x[, mu, sigma])", 0, 0, "lognpdf", "", "nk:lognpdf:nargin");
     auto *mr = ctx.engine->resource();
     Value hmu, hsig;
     const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
@@ -56,7 +56,7 @@ void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> s = args.subspan(0, stripUpperFlag(args, upper));
     if (s.empty())
-        throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "numkit:logncdf:nargin");
+        throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "nk:logncdf:nargin");
     auto *mr = ctx.engine->resource();
     Value hmu, hsig;
     const Value &mu  = dist_param(s, 1, 0.0, mr, hmu);
@@ -71,7 +71,7 @@ void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void logninv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("logninv: requires (p[, mu, sigma])", 0, 0, "logninv", "", "numkit:logninv:nargin");
+        throw Error("logninv: requires (p[, mu, sigma])", 0, 0, "logninv", "", "nk:logninv:nargin");
     auto *mr = ctx.engine->resource();
     Value hmu, hsig;
     const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
@@ -99,4 +99,4 @@ void lognstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

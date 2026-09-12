@@ -1,20 +1,20 @@
 // toolboxes/signal/tests/cceps_test.cpp
 // signal/cceps.
-// The bug: numkit's cceps implementation called fftRadix2(..., -1) for
-// the inverse-DFT pass — but in numkit's sign convention, dir=-1 is the
+// The bug: nk's cceps implementation called fftRadix2(..., -1) for
+// the inverse-DFT pass — but in nk's sign convention, dir=-1 is the
 // FORWARD DFT (W[k] = exp(-2πj k/N)) and dir=+1 is the INVERSE DFT.
 // Calling fft twice on log(fft(x)) gives a time-reversed cepstrum
 // (MATLAB output reversed bin-for-bin except DC).
 // Fix in toolboxes/signal/src/transforms/extras.cpp: change `-1` → `+1` in
 // both cceps() and icceps(), restoring the correct ifft pass.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class CcepsTest : public ::testing::Test
 {
@@ -67,7 +67,7 @@ TEST_F(CcepsTest, NdSecondOutput)
 
 TEST_F(CcepsTest, OutputNotTimeReversedRegression)
 {
-    // Pre-fix numkit returned [2.008, 0.904, 0.384, 0.200, 0.101,
+    // Pre-fix nk returned [2.008, 0.904, 0.384, 0.200, 0.101,
     //   0.038, -0.008, -0.044]. Pin that y(2) is small-negative
     // (MATLAB) rather than the large-positive 0.904 (the old bug).
     eval("y = cceps((1:8)');");
@@ -92,7 +92,7 @@ TEST_F(CcepsTest, IccepsRoundTripPreservesShape)
 {
     // icceps(cceps(x)) recovers x up to the circular shift that cceps's `nd`
     // removed: for (1:8)' (nd = 1) MATLAB R2025b returns [8 1 2 3 4 5 6 7].
-    // numkit matches it exactly (a true inverse modulo the nd shift); the
+    // nk matches it exactly (a true inverse modulo the nd shift); the
     // round-trip carries floating error so EXPECT_NEAR, not _EQ.
     eval("x = (1:8)'; c = cceps(x); y = icceps(c);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(y)"), 8.0);

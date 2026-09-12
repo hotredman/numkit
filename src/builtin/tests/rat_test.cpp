@@ -12,11 +12,11 @@
 //   - rats yields fixed-width centred 'numer/denom' field
 //   - All bit-identical to MATLAB R2025b probes.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RatTest : public ::testing::Test
 {
@@ -91,7 +91,7 @@ TEST_F(RatTest, OneOutputPiCFString)
 TEST_F(RatTest, OneOutputHalfUsesRegularizedCF)
 {
     // MATLAB R2025b: rat(0.5) = '1 + 1/(-2)' (NOT '0 + 1/(2)' which
-    // would be the simple-CF form). Numkit must use round(), not floor().
+    // would be the simple-CF form). NK must use round(), not floor().
     EXPECT_EQ(evalString("rat(0.5)"), "1 + 1/(-2)");
 }
 

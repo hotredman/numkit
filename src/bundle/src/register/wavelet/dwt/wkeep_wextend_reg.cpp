@@ -8,14 +8,14 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/dwt/wkeep_wextend.hpp>
+#include <nk/wavelet/dwt/wkeep_wextend.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <string>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 // y = wkeep(x, n[, OPT])             — 1-D form
@@ -41,7 +41,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("wkeep: requires (x, n[, OPT]) or (X, [R C][, [fr fc]])",
-                    0, 0, "wkeep", "", "numkit:wkeep:nargin");
+                    0, 0, "wkeep", "", "nk:wkeep:nargin");
     outs[0] = wkeep(args[0], args[1],
                     args.size() >= 3 ? args[2] : Value::Empty,
                     ctx.engine->resource());
@@ -59,11 +59,11 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("wextend: requires (type, mode, x, lf[, side])",
-                    0, 0, "wextend", "", "numkit:wextend:nargin");
+                    0, 0, "wextend", "", "nk:wextend:nargin");
 
     if (!args[1].isChar() && !args[1].isString())
         throw Error("wextend: mode must be a character vector",
-                    0, 0, "wextend", "", "numkit:wextend:mode");
+                    0, 0, "wextend", "", "nk:wextend:mode");
     std::string side = "b";
     if (args.size() >= 5 && (args[4].isChar() || args[4].isString()))
         side = args[4].toString();
@@ -73,4 +73,4 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

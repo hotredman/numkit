@@ -12,8 +12,8 @@
 
 #pragma once
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
@@ -24,7 +24,7 @@
 
 namespace m_test {
 
-using namespace numkit;
+using namespace nk;
 
 // ── Backend parameter ────────────────────────────────────────
 enum class BackendParam { TreeWalker, VM };

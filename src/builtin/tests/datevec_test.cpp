@@ -4,10 +4,10 @@
 // Round-trip exactness expected since the algorithm is the inverse
 // of the same days_from_civil core used in datenum.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DatevecTest : public ::testing::Test
 {

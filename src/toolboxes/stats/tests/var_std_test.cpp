@@ -2,11 +2,11 @@
 // — 'all' / vecdim / weight-vec
 // support. Reference values from MATLAB R2025b probe.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class VarStdTest : public ::testing::Test
 {
@@ -109,7 +109,7 @@ TEST_F(VarStdTest, StdSingleElementVectorIsZero)
 }
 
 // NOTE: var([1 2 3], 0, 1) -> [0 0 0] in MATLAB (reduce along singleton
-// dim 1 = per-column, each one element). numkit currently returns scalar 1
+// dim 1 = per-column, each one element). nk currently returns scalar 1
 // because the CORE reduction path collapses a vector along an explicit
 // singleton dim instead of treating it as a no-op (sum([1 2 3],1) and
 // mean([1 2 3],1) show the same core bug). That is a separate, deeper core
@@ -119,7 +119,7 @@ TEST_F(VarStdTest, StdSingleElementVectorIsZero)
 // MATLAB R2025b: var/std of an empty array -> NaN (not a 0x0 empty).
 // 0x0 [] -> scalar NaN; partial empties collapse the operating dim:
 // var(zeros(0,3))=[NaN NaN NaN] (1x3), var(zeros(3,0))=1x0, var([],0,2)=0x1.
-// DEEP-PROBE 2026-05-29: numkit previously returned a 0x0 empty for all.
+// DEEP-PROBE 2026-05-29: nk previously returned a 0x0 empty for all.
 TEST_F(VarStdTest, VarStdEmptyIsNaN)
 {
     EXPECT_TRUE(std::isnan(evalScalar("var([])")));
@@ -140,14 +140,14 @@ TEST_F(VarStdTest, VarStdEmptyIsNaN)
 
 TEST_F(VarStdTest, BadDimFlagThrows)
 {
-    EXPECT_THROW(eval("var(A, 0, 'unknown');"), numkit::Error);
+    EXPECT_THROW(eval("var(A, 0, 'unknown');"), nk::Error);
 }
 
 TEST_F(VarStdTest, PartialVecdimRejected)
 {
     // Partial vecdim is documented as not-supported.
     EXPECT_THROW(eval("A3 = repmat(A, [1 1 2]); var(A3, 0, [1 2]);"),
-                 numkit::Error);
+                 nk::Error);
 }
 
 // var/std with a weight VECTOR on a MATRIX: MATLAB applies the weights
@@ -178,5 +178,5 @@ TEST_F(VarStdTest, WeightVectorOnMatrix)
     eval("Mn = [1 2; NaN 4; 5 6];");
     EXPECT_NEAR(evalScalar("vn = var(Mn, [1;2;3], 1, 'omitnan'); vn(1)"), 3.0, 1e-12);
     // Weight length mismatch along the operating dim throws.
-    EXPECT_THROW(eval("var([1 2; 3 4; 5 6], [1 2]);"), numkit::Error);
+    EXPECT_THROW(eval("var([1 2; 3 4; 5 6], [1 2]);"), nk::Error);
 }

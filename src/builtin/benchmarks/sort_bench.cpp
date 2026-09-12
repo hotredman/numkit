@@ -4,10 +4,10 @@
 // random, already sorted, reverse sorted — since real sort
 // implementations behave very differently on each.
 
-#include <numkit/builtin/elmat.hpp>
+#include <nk/builtin/elmat.hpp>
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -19,9 +19,9 @@ namespace {
 
 enum class Pattern { Random, Sorted, Reverse };
 
-numkit::Value makeVector(size_t n, Pattern p)
+nk::Value makeVector(size_t n, Pattern p)
 {
-    using namespace numkit;
+    using namespace nk;
     Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *data = v.doubleDataMut();
 
@@ -39,13 +39,13 @@ numkit::Value makeVector(size_t n, Pattern p)
 
 void runSortBench(benchmark::State &state, Pattern p)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     Value x = makeVector(n, p);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        auto [sorted, idx] = numkit::builtin::sort(x, mr);
+        auto [sorted, idx] = nk::builtin::sort(x, mr);
         benchmark::DoNotOptimize(sorted);
         benchmark::DoNotOptimize(idx);
     }

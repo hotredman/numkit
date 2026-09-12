@@ -1,8 +1,8 @@
 // codegen/src/indexing.cpp — see indexing.hpp.
 
-#include <numkit/codegen/indexing.hpp>
+#include <nk/codegen/indexing.hpp>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 bool isBufferArray(const AbstractValue &v)
 {
@@ -89,4 +89,4 @@ IndexPlan planIndexWrite(const AbstractValue &array,
     return {f, true};
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

@@ -19,7 +19,7 @@ input to double at the boundary — `plot(t, t >= 0)` is in every textbook.
 clear;
 t = -5:0.01:5; u = (t >= 0);
 plot(t, u);
-% numkit (pre-fix): "Not a double array (in call to 'plot')"
+% nk (pre-fix): "Not a double array (in call to 'plot')"
 % MATLAB R2025b: step plot drawn, u treated as double 0/1
 ```
 

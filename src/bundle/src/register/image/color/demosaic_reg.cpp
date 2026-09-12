@@ -6,23 +6,23 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/color/color.hpp>
+#include <nk/image/color/color.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cstddef>
 #include <string>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
 static std::string asString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("demosaic: expected a string argument",
-                    0, 0, "demosaic", "", "numkit:demosaic:type");
+                    0, 0, "demosaic", "", "nk:demosaic:type");
     return v.toString();
 }
 
@@ -31,7 +31,7 @@ void demosaic_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("demosaic: requires (I, sensorAlignment [, NV])",
-                    0, 0, "demosaic", "", "numkit:demosaic:nargin");
+                    0, 0, "demosaic", "", "nk:demosaic:nargin");
     auto *mr = ctx.engine->resource();
     const std::string align = asString(args[1]);
     int bps = 0;
@@ -41,11 +41,11 @@ void demosaic_reg(Span<const Value> args, size_t /*nargout*/,
             bps = static_cast<int>(args[i + 1].toScalar());
         else
             throw Error("demosaic: unknown name-value parameter '" + name + "'",
-                        0, 0, "demosaic", "", "numkit:demosaic:nv");
+                        0, 0, "demosaic", "", "nk:demosaic:nv");
     }
     outs[0] = demosaic(args[0], align, bps, mr);
 }
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

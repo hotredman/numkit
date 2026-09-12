@@ -25,12 +25,12 @@ clear;
 % (representative, ttest class — engine level)
 h = ttest([5 6 7 8]);
 fprintf('%g\n', h.pval)
-% numkit (current): depends on the ttest return shape — the smokes assume scalar components
+% nk (current): depends on the ttest return shape — the smokes assume scalar components
 % MATLAB: prints the p-value
 ```
 
 Fixture class repro: run
-`numkit_repl.exe src/toolboxes/image/tests/smoke/imread_tiff_smoke.m` from
+`nk_repl.exe src/toolboxes/image/tests/smoke/imread_tiff_smoke.m` from
 the repo root (documented convention) → file-not-found on a fixture that
 exists under `src/`.
 
@@ -38,7 +38,7 @@ exists under `src/`.
 
 Decide per class: fixture smokes either get repo-root-relative paths or the
 documented run command gains a CWD note; the ttest-family smokes need the
-actual current return shape checked against MATLAB (if numkit's shape
+actual current return shape checked against MATLAB (if nk's shape
 diverges from MATLAB, that is an engine bug, not smoke drift — split it out
 then). Add the smoke corpus to a CI/scheduled sweep so drift is caught same-day.
 

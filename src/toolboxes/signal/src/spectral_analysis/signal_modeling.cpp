@@ -6,12 +6,12 @@
 // rc ↔ ac ↔ is ↔ lar). All implementations follow the standard real-
 // data formulations; complex AR isn't covered here.
 
-#include <numkit/signal/spectral_analysis/signal_modeling.hpp>
+#include <nk/signal/spectral_analysis/signal_modeling.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -22,7 +22,7 @@
 #include <cstring>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -726,7 +726,7 @@ Value poly2lsf(const Value &a, std::pmr::memory_resource *mr)
     std::vector<double> angles;
     for (auto &poly : {P, Q}) {
         Value polyV = rowVec(poly, mr);
-        Value rts = numkit::builtin::roots(polyV, mr);
+        Value rts = nk::builtin::roots(polyV, mr);
         const size_t n = rts.numel();
         for (size_t i = 0; i < n; ++i) {
             const Complex c = rts.complexData()[i];
@@ -924,4 +924,4 @@ invfreqz(const Value &H, const Value &w, int nb, int na, std::pmr::memory_resour
     return std::make_tuple(rowVec(b, mr), rowVec(a, mr));
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

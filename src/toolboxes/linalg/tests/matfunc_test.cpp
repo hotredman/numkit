@@ -2,11 +2,11 @@
 //
 // Regression guard for matrix functions: expm / logm / sqrtm / schur.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class MatFuncTest : public ::testing::Test
 {

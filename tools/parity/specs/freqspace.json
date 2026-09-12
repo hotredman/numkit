@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) \u2014 different size convention. Only structural numel pinned. Documented as separate \u0422\u0417."
+  "comment": "Sig: f = freqspace(N). KNOWN GAP: nk returns shorter vector than MATLAB for freqspace(8) \u2014 different size convention. Only structural numel pinned. Documented as separate \u0422\u0417."
 }

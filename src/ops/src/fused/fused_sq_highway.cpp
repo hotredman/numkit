@@ -9,8 +9,8 @@
 // real squares is never negative, so fusedSqrtSumSq needs no complex/domain
 // handling. NaN/Inf propagate through the plain IEEE ops as per-op.
 
-#include <numkit/ops/fused/fused_kernels.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -21,7 +21,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -73,11 +73,11 @@ void SqrtSumSqImpl(const double *x, const double *y, double *out, std::size_t n)
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(SqAffineImpl);
 HWY_EXPORT(SqDiffImpl);
@@ -91,7 +91,7 @@ void fusedSqAffine(const double *x, double scale, double offset,
     // (can't drift), and living in a lambda-free TU it vectorizes regardless of
     // the worker capture below — the [&]-escape alias trap can't recur (see
     // bugs/ops/cheap-elementwise-simd-small-n).
-    if (n < numkit::detail::kSimdInlineThreshold) {
+    if (n < nk::detail::kSimdInlineThreshold) {
         fusedSqAffineScalar(x, scale, offset, out, n);
         return;
     }
@@ -104,7 +104,7 @@ void fusedSqAffine(const double *x, double scale, double offset,
 void fusedSqShiftDiv(const double *x, double sub, double div,
                      double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see fusedSqAffine)
+    if (n < nk::detail::kSimdInlineThreshold) {   // delegate (see fusedSqAffine)
         fusedSqShiftDivScalar(x, sub, div, out, n);
         return;
     }
@@ -116,7 +116,7 @@ void fusedSqShiftDiv(const double *x, double sub, double div,
 
 void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see fusedSqAffine)
+    if (n < nk::detail::kSimdInlineThreshold) {   // delegate (see fusedSqAffine)
         fusedSqDiffScalar(x, y, out, n);
         return;
     }
@@ -132,5 +132,5 @@ void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n
     });
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif // HWY_ONCE

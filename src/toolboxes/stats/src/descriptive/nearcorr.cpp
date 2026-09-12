@@ -21,18 +21,18 @@
 //
 // KNOWN GAP: 'tolconv' / 'maxits' name-value parameters deferred.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/linalg/eig.hpp>             // eig_symmetric (migrated)
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/elmat.hpp>
+#include <nk/linalg/eig.hpp>             // eig_symmetric (migrated)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -50,7 +50,7 @@ projPSD(const std::vector<double> &M, size_t n, std::pmr::memory_resource *mr)
     Value M_v = Value::matrix(n, n, ValueType::DOUBLE, mr);
     std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
 
-    auto [V, D] = ::numkit::linalg::eig_symmetric(M_v, mr);
+    auto [V, D] = ::nk::linalg::eig_symmetric(M_v, mr);
     const double *vd = V.doubleData();
     const double *dd = D.doubleData();
 
@@ -91,7 +91,7 @@ Value nearcorr(const Value &A, std::pmr::memory_resource *mr)
     const size_t C = A.dims().cols();
     if (R != C)
         throw Error("nearcorr: input must be square",
-                    0, 0, "nearcorr", "", "numkit:nearcorr:NotSquare");
+                    0, 0, "nearcorr", "", "nk:nearcorr:NotSquare");
     if (R == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -136,4 +136,4 @@ Value nearcorr(const Value &A, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

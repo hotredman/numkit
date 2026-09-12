@@ -1,11 +1,11 @@
 // toolboxes/comm/src/library.cpp
 
-#include <numkit/comm/library.hpp>
+#include <nk/comm/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::comm::detail {
+namespace nk::comm::detail {
 // modulation/psk.cpp
 void pskmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pskdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -129,9 +129,9 @@ void cyclpoly_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cyclgen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void encode_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void decode_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
-} // namespace numkit::comm::detail
+} // namespace nk::comm::detail
 
-namespace numkit {
+namespace nk {
 
 void CommLibrary::install(Engine &engine)
 {
@@ -237,4 +237,4 @@ void CommLibrary::install(Engine &engine)
     reg("coding", "decode",       &comm::detail::decode_reg);
 }
 
-} // namespace numkit
+} // namespace nk

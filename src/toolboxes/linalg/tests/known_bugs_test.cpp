@@ -4,11 +4,11 @@
 // fixed; remove `DISABLED_` to turn into a live regression guard.
 // MATLAB R2025b reference values.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class LinalgKnownBug : public ::testing::Test
 {
@@ -148,9 +148,9 @@ TEST_F(LinalgKnownBug, CholAcceptsComplexHermitian)
 TEST_F(LinalgKnownBug, QrLastColumnSignConvention)
 {
     eval("[Q1, R1] = qr([0 -5 2; 6 0 -12; 1 3 0]);");
-    EXPECT_NEAR(evalScalar("R1(3,3)"),  2.71638, 1e-4);   // MATLAB: +; numkit: -
-    EXPECT_NEAR(evalScalar("Q1(1,3)"),  0.509321, 1e-5);  // MATLAB: +; numkit: -
-    EXPECT_NEAR(evalScalar("Q1(3,3)"),  0.848868, 1e-5);  // MATLAB: +; numkit: -
+    EXPECT_NEAR(evalScalar("R1(3,3)"),  2.71638, 1e-4);   // MATLAB: +; nk: -
+    EXPECT_NEAR(evalScalar("Q1(1,3)"),  0.509321, 1e-5);  // MATLAB: +; nk: -
+    EXPECT_NEAR(evalScalar("Q1(3,3)"),  0.848868, 1e-5);  // MATLAB: +; nk: -
     EXPECT_NEAR(evalScalar("R1(1,1)"), -6.08276, 1e-5);   // these already match
     EXPECT_NEAR(evalScalar("Q1(2,1)"), -0.986394, 1e-5);
 }

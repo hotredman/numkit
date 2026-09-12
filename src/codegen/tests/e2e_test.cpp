@@ -4,7 +4,7 @@
 // pipeline is correct, not just each unit. It transpiles biquad.m to C++
 // (emitFunction), compiles it with the external compiler (aot harness),
 // RUNS the native binary, and diffs its output against:
-//   A. the numkit runtime's own filter() over the same input (the
+//   A. the nk runtime's own filter() over the same input (the
 //      "diff vs the interpreter" the design calls for, DESIGN.md §10); and
 //   B. the exact Direct-Form-I recurrence in plain C++ (a tight-tol guard
 //      that pins any emitter arithmetic/index bug precisely).
@@ -12,16 +12,16 @@
 // Skips cleanly when no compiler is configured, so a toolchain-less CI
 // keeps the baseline green.
 
-#include <numkit/codegen/aot.hpp>
-#include <numkit/codegen/emitter.hpp>
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/aot.hpp>
+#include <nk/codegen/emitter.hpp>
+#include <nk/codegen/transfer.hpp>
 
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/value.hpp>
 
 #include "nk_codegen_test_paths.h"  // NK_BRIDGE_DIR / NK_RT_IMPORT_LIB / NK_RT_SHARED_DLL
 
@@ -36,8 +36,8 @@
 #include <string>
 #include <vector>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 namespace {
 
@@ -71,8 +71,8 @@ std::vector<double> compileRunReadDoubles(const std::string &program,
 {
     std::error_code ec;
     std::filesystem::remove(outTxt, ec);
-    const auto r = numkit::codegen::aot::compileToExecutable(program, exe);
-    EXPECT_EQ(r.status, numkit::codegen::aot::CompileStatus::Ok)
+    const auto r = nk::codegen::aot::compileToExecutable(program, exe);
+    EXPECT_EQ(r.status, nk::codegen::aot::CompileStatus::Ok)
         << "log:\n" << r.log << "\n--- generated source ---\n" << program;
     std::vector<double> got;
     if (r.ok() && std::system(("\"" + exe + "\"").c_str()) == 0) {
@@ -90,12 +90,12 @@ EmittedFunction transpile(const std::string &srcM, const std::vector<ParamSpec> 
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex(srcM);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(srcM);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     EXPECT_NE(fn, nullptr);
     return emitFunction(*fn, params, reg);
 }
@@ -110,12 +110,12 @@ TEST(CodegenE2E, BiquadMatchesRuntimeFilter)
     // 1. Transpile biquad.m -> C++ (RawBuffer ABI).
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex(kBiquadSrc);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(kBiquadSrc);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     std::vector<ParamSpec> params = {
@@ -127,7 +127,7 @@ TEST(CodegenE2E, BiquadMatchesRuntimeFilter)
     // 2. Wrap in a main() that runs it on a deterministic input and writes
     //    the result. The output path is baked in (forward slashes) so the
     //    binary takes no args — sidesteps cmd nested-quote hazards.
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_biquad_e2e.exe").string();
     const std::string outTxt = (base / "nk_biquad_e2e_out.txt").string();
@@ -165,10 +165,10 @@ TEST(CodegenE2E, BiquadMatchesRuntimeFilter)
     }
     ASSERT_EQ(got.size(), N) << "transpiled binary did not produce N outputs";
 
-    // 5A. Reference: the numkit runtime's filter() over the same input.
-    numkit::StandardEngine engine;
+    // 5A. Reference: the nk runtime's filter() over the same input.
+    nk::StandardEngine engine;
         engine.eval("xs = sin(0.01*(1:64));");
-    numkit::Value yv =
+    nk::Value yv =
         engine.eval("filter([0.0675 0.1349 0.0675],[1 -1.1430 0.4128], xs);");
     ASSERT_EQ(yv.numel(), N);
     const double *yref = yv.doubleData();
@@ -200,13 +200,13 @@ TEST(CodegenE2E, CheckedIndexPathRunsCorrectly)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function y = f(x)\n  n = numel(x);\n  y = zeros(1, n);\n"
+    nk::Lexer  lex("function y = f(x)\n  n = numel(x);\n  y = zeros(1, n);\n"
                        "  for k = 1:n\n    y(k) = x(k) + k;\n  end\nend\n");
-    numkit::Parser parser(lex.tokenize());
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
     const EmittedFunction emitted =
         emitFunction(*fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}},
@@ -214,7 +214,7 @@ TEST(CodegenE2E, CheckedIndexPathRunsCorrectly)
     ASSERT_TRUE(emitted.source.find("nk_rt::index") != std::string::npos)
         << "expected the checked path, not promotion";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_checked_e2e.exe").string();
     const std::string outTxt = (base / "nk_checked_e2e_out.txt").string();
@@ -264,13 +264,13 @@ TEST(CodegenE2E, ReassignedBoundComputesCorrectly)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function y = f(x)\n  n = numel(x);\n  n = 3;\n  y = zeros(1, n);\n"
+    nk::Lexer  lex("function y = f(x)\n  n = numel(x);\n  n = 3;\n  y = zeros(1, n);\n"
                        "  for k = 1:n\n    y(k) = x(k);\n  end\nend\n");
-    numkit::Parser parser(lex.tokenize());
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
     const EmittedFunction emitted =
         emitFunction(*fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}},
@@ -278,7 +278,7 @@ TEST(CodegenE2E, ReassignedBoundComputesCorrectly)
     // must be the checked form (stale fact -> no promotion)
     ASSERT_TRUE(emitted.source.find("for (std::size_t k = 0;") == std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_reassign_e2e.exe").string();
     const std::string outTxt = (base / "nk_reassign_e2e_out.txt").string();
@@ -328,7 +328,7 @@ TEST(CodegenE2E, IfElseRunsCorrectly)
          {"b", InferredType::scalar(ValueType::DOUBLE)}});
     ASSERT_EQ(emitted.signature, "double pick(double c, double a, double b)");
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_if_e2e.exe").string();
     const std::string outTxt = (base / "nk_if_e2e_out.txt").string();
@@ -361,7 +361,7 @@ TEST(CodegenE2E, WhileLoopRunsCorrectly)
         {{"n", InferredType::scalar(ValueType::DOUBLE)}});
     ASSERT_EQ(emitted.signature, "double acc(double n)");
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_while_e2e.exe").string();
     const std::string outTxt = (base / "nk_while_e2e_out.txt").string();
@@ -393,8 +393,8 @@ TEST(CodegenE2E, ValueClassMethodCall)
         "classdef Rect\n  properties\n    w = 0\n    h = 0\n  end\n"
         "  methods\n    function a = area(obj)\n      a = obj.w * obj.h;\n    end\n  end\nend\n"
         "function y = run(p)\n  y = p.area();\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -410,7 +410,7 @@ TEST(CodegenE2E, ValueClassMethodCall)
     const EmittedFunction emitted =
         emitProgram(*ft.find("run"), {{"p", InferredType::object(id)}}, ft, reg, &creg);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_method_e2e.exe").string();
     const std::string outTxt = (base / "nk_method_e2e_out.txt").string();
@@ -432,7 +432,7 @@ TEST(CodegenE2E, ValueClassMethodCall)
 }
 
 // Boundary #1a: a SELF-CONTAINED class program — the object is constructed,
-// mutated, and used entirely in numkit code (no C++-side construction). The
+// mutated, and used entirely in nk code (no C++-side construction). The
 // harness only calls the entry. Default construction Rect() -> Rect{}.
 TEST(CodegenE2E, SelfContainedClassProgram)
 {
@@ -443,8 +443,8 @@ TEST(CodegenE2E, SelfContainedClassProgram)
         "classdef Rect\n  properties\n    w = 0\n    h = 0\n  end\n"
         "  methods\n    function a = area(o)\n      a = o.w * o.h;\n    end\n  end\nend\n"
         "function y = demo()\n  r = Rect();\n  r.w = 3;\n  r.h = 4;\n  y = r.area();\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -458,7 +458,7 @@ TEST(CodegenE2E, SelfContainedClassProgram)
 
     const EmittedFunction emitted = emitProgram(*ft.find("demo"), {}, ft, reg, &creg);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_selfclass_e2e.exe").string();
     const std::string outTxt = (base / "nk_selfclass_e2e_out.txt").string();
@@ -484,8 +484,8 @@ TEST(CodegenE2E, Matrix2DRead)
         GTEST_SKIP() << "no external compiler configured for this build";
 
     const char *src = "function s = tr(A)\n  s = A(1,1) + A(2,2) + A(3,3);\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -499,7 +499,7 @@ TEST(CodegenE2E, Matrix2DRead)
     ASSERT_TRUE(emitted.source.find("std::size_t _nk_A_rows, std::size_t _nk_A_cols")
                 != std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_mat2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_mat2d_e2e_out.txt").string();
@@ -538,8 +538,8 @@ TEST(CodegenE2E, InterprocArrayReturn)
         "    r(k) = k * k;\n"
         "  end\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -552,7 +552,7 @@ TEST(CodegenE2E, InterprocArrayReturn)
     ASSERT_TRUE(emitted.source.find("std::vector<double> ") != std::string::npos)
         << "expected the callee to return a 1-D array by value (std::vector)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_iparr_e2e.exe").string();
     const std::string outTxt = (base / "nk_iparr_e2e_out.txt").string();
@@ -590,8 +590,8 @@ TEST(CodegenE2E, InterprocArrayReturnIntoOutput)
         "    r(k) = k * k;\n"
         "  end\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -604,7 +604,7 @@ TEST(CodegenE2E, InterprocArrayReturnIntoOutput)
     ASSERT_NE(emitted.source.find("_nk_ret"), std::string::npos)
         << "expected the interproc-result -> output-buffer copy path";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_iparr_out_e2e.exe").string();
     const std::string outTxt = (base / "nk_iparr_out_e2e_out.txt").string();
@@ -649,8 +649,8 @@ TEST(CodegenE2E, MultiOutputLeadingArray)
         "  end\n"
         "  s = n + 1;\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -663,7 +663,7 @@ TEST(CodegenE2E, MultiOutputLeadingArray)
     ASSERT_NE(emitted.source.find("std::vector<double> "), std::string::npos)
         << "expected the callee to return its leading 1-D array output by value";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_multiout_arr_e2e.exe").string();
     const std::string outTxt = (base / "nk_multiout_arr_e2e_out.txt").string();
@@ -699,8 +699,8 @@ TEST(CodegenE2E, InterprocReturn2DKnownDims)
         "  M = zeros(2, 2);\n"
         "  M(1,1) = 1; M(2,1) = 2; M(1,2) = 3; M(2,2) = 4;\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -713,7 +713,7 @@ TEST(CodegenE2E, InterprocReturn2DKnownDims)
     ASSERT_NE(emitted.source.find("std::vector<double> "), std::string::npos)
         << "expected the callee to return its 2-D matrix output by value";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_iret2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_iret2d_e2e_out.txt").string();
@@ -750,8 +750,8 @@ TEST(CodegenE2E, MultiOutputLeading2DArray)
         "  M(1,1) = 1; M(2,1) = 2; M(1,2) = 3; M(2,2) = 4;\n"
         "  s = 10;\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -764,7 +764,7 @@ TEST(CodegenE2E, MultiOutputLeading2DArray)
     ASSERT_NE(emitted.source.find("std::vector<double> "), std::string::npos)
         << "expected the callee to return its leading 2-D array output by value";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_multiout_2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_multiout_2d_e2e_out.txt").string();
@@ -806,7 +806,7 @@ TEST(CodegenE2E, BreakAndContinueInLoop)
     EXPECT_NE(emitted.source.find("break;"), std::string::npos);
     EXPECT_NE(emitted.source.find("continue;"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_brkcont_e2e.exe").string();
     const std::string outTxt = (base / "nk_brkcont_e2e_out.txt").string();
@@ -845,7 +845,7 @@ TEST(CodegenE2E, EarlyReturnStatement)
         {{"n", InferredType::scalar(ValueType::DOUBLE)}});
     EXPECT_NE(emitted.source.find("return y;"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_earlyret_e2e.exe").string();
     const std::string outTxt = (base / "nk_earlyret_e2e_out.txt").string();
@@ -886,7 +886,7 @@ TEST(CodegenE2E, SwitchStatement)
         {{"k", InferredType::scalar(ValueType::DOUBLE)}});
     EXPECT_NE(emitted.source.find("_nk_switch0"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_switch_e2e.exe").string();
     const std::string outTxt = (base / "nk_switch_e2e_out.txt").string();
@@ -928,7 +928,7 @@ TEST(CodegenE2E, LogicalArrayFromComparison)
     EXPECT_NE(emitted.source.find("std::vector<std::uint8_t>"), std::string::npos)
         << "a LOGICAL array local must use uint8 storage (not vector<bool>)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_logarr_e2e.exe").string();
     const std::string outTxt = (base / "nk_logarr_e2e_out.txt").string();
@@ -965,7 +965,7 @@ TEST(CodegenE2E, LogicalIndexingRead)
     EXPECT_NE(emitted.source.find(".push_back("), std::string::npos)
         << "logical indexing must build the result by filtering (push_back)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_logidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_logidx_e2e_out.txt").string();
@@ -1001,7 +1001,7 @@ TEST(CodegenE2E, LogicalIndexingWrite)
     EXPECT_NE(emitted.source.find("] = _nk_c;"), std::string::npos)
         << "logical-indexing write must scatter the scalar into the masked positions";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_logidxw_e2e.exe").string();
     const std::string outTxt = (base / "nk_logidxw_e2e_out.txt").string();
@@ -1042,7 +1042,7 @@ TEST(CodegenE2E, NativeAnyAllReductions)
     EXPECT_NE(emitted.source.find("_nk_acc"), std::string::npos)
         << "any/all must lower to an inline reduction loop (no bridge)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_anyall_e2e.exe").string();
     const std::string outTxt = (base / "nk_anyall_e2e_out.txt").string();
@@ -1078,7 +1078,7 @@ TEST(CodegenE2E, NativeMinMaxReductions)
     EXPECT_NE(emitted.source.find("_nk_acc != _nk_acc"), std::string::npos)
         << "native min/max must NaN-skip (acc != acc) for a float dtype";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_minmax_e2e.exe").string();
     const std::string outTxt = (base / "nk_minmax_e2e_out.txt").string();
@@ -1113,7 +1113,7 @@ TEST(CodegenE2E, NativeSumReduction)
     EXPECT_NE(emitted.source.find("_nk_acc += "), std::string::npos)
         << "native sum must lower to an inline accumulation loop (no bridge)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sum_e2e.exe").string();
     const std::string outTxt = (base / "nk_sum_e2e_out.txt").string();
@@ -1149,7 +1149,7 @@ TEST(CodegenE2E, NativeProdMeanReductions)
     EXPECT_NE(emitted.source.find("_nk_acc *= "), std::string::npos)
         << "native prod must lower to an inline product loop";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_prodmean_e2e.exe").string();
     const std::string outTxt = (base / "nk_prodmean_e2e_out.txt").string();
@@ -1185,7 +1185,7 @@ TEST(CodegenE2E, FindReturnsPositions)
     EXPECT_NE(emitted.source.find("_nk_i + 1"), std::string::npos)
         << "find must push 1-based positions";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_find_e2e.exe").string();
     const std::string outTxt = (base / "nk_find_e2e_out.txt").string();
@@ -1220,7 +1220,7 @@ TEST(CodegenE2E, NativeDiffReduction)
     EXPECT_NE(emitted.source.find("[_nk_i] - "), std::string::npos)
         << "diff must lower to a consecutive-difference loop";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_diff_e2e.exe").string();
     const std::string outTxt = (base / "nk_diff_e2e_out.txt").string();
@@ -1256,7 +1256,7 @@ TEST(CodegenE2E, NativeCumsumCumprod)
     EXPECT_NE(emitted.source.find(".push_back(_nk_acc)"), std::string::npos)
         << "cumsum/cumprod must push the running accumulator";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cum_e2e.exe").string();
     const std::string outTxt = (base / "nk_cum_e2e_out.txt").string();
@@ -1291,7 +1291,7 @@ TEST(CodegenE2E, NativeDotProduct)
     EXPECT_NE(emitted.source.find("_nk_acc += "), std::string::npos)
         << "dot must lower to an accumulation loop";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dot_e2e.exe").string();
     const std::string outTxt = (base / "nk_dot_e2e_out.txt").string();
@@ -1327,7 +1327,7 @@ TEST(CodegenE2E, CharRowLiteral)
     EXPECT_NE(emitted.source.find("std::vector<std::uint16_t>"), std::string::npos)
         << "a CHAR array must be stored as a uint16 buffer";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_char_e2e.exe").string();
     const std::string outTxt = (base / "nk_char_e2e_out.txt").string();
@@ -1366,7 +1366,7 @@ TEST(CodegenE2E, CharScalarCompareCount)
     EXPECT_NE(emitted.source.find("std::uint16_t(97)"), std::string::npos)
         << "a 1-char literal 'a' must emit its uint16 code unit (97)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_charcmp_e2e.exe").string();
     const std::string outTxt = (base / "nk_charcmp_e2e_out.txt").string();
@@ -1402,7 +1402,7 @@ TEST(CodegenE2E, CharArgIndexReturn)
     EXPECT_NE(emitted.source.find("std::uint16_t"), std::string::npos)
         << "a char arg/return must use the uint16 code-unit type";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_charg_e2e.exe").string();
     const std::string outTxt = (base / "nk_charg_e2e_out.txt").string();
@@ -1441,7 +1441,7 @@ TEST(CodegenE2E, NativeStrcmp)
     EXPECT_NE(emitted.source.find("_nk_eq"), std::string::npos)
         << "strcmp must lower to a length + elementwise equality check";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_strcmp_e2e.exe").string();
     const std::string outTxt = (base / "nk_strcmp_e2e_out.txt").string();
@@ -1477,7 +1477,7 @@ TEST(CodegenE2E, StructScalarFields)
     EXPECT_NE(emitted.source.find("_nk_fld_s_a"), std::string::npos)
         << "a plain-struct field must flatten to a synthesized scalar local";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_struct_e2e.exe").string();
     const std::string outTxt = (base / "nk_struct_e2e_out.txt").string();
@@ -1512,7 +1512,7 @@ TEST(CodegenE2E, HorzcatTwoArrays)
     EXPECT_NE(emitted.source.find(".push_back("), std::string::npos)
         << "horzcat must build the result by appending each operand";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_horzcat_e2e.exe").string();
     const std::string outTxt = (base / "nk_horzcat_e2e_out.txt").string();
@@ -1548,7 +1548,7 @@ TEST(CodegenE2E, ConcatStringLiteral)
     EXPECT_NE(emitted.source.find("std::uint16_t(72)"), std::string::npos)
         << "a char literal operand must append its code units ('H' = 72)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_concatlit_e2e.exe").string();
     const std::string outTxt = (base / "nk_concatlit_e2e_out.txt").string();
@@ -1582,8 +1582,8 @@ TEST(CodegenE2E, CharArrayInterprocReturn)
         "function s = g()\n"
         "  s = ['Hi' 'there'];\n"  // build a 7-char string
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -1595,7 +1595,7 @@ TEST(CodegenE2E, CharArrayInterprocReturn)
     EXPECT_NE(emitted.source.find("std::vector<std::uint16_t> "), std::string::npos)
         << "the char-building helper must return its char array by value";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_charret_e2e.exe").string();
     const std::string outTxt = (base / "nk_charret_e2e_out.txt").string();
@@ -1630,7 +1630,7 @@ TEST(CodegenE2E, CharUpperLower)
     EXPECT_NE(emitted.source.find("- 32"), std::string::npos)
         << "upper must apply the ASCII case shift (-32)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_upper_e2e.exe").string();
     const std::string outTxt = (base / "nk_upper_e2e_out.txt").string();
@@ -1665,7 +1665,7 @@ TEST(CodegenE2E, StructArrayField)
     EXPECT_NE(emitted.source.find("_nk_fld_s_v.assign("), std::string::npos)
         << "an array struct field must copy via the field-local vector";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_structarr_e2e.exe").string();
     const std::string outTxt = (base / "nk_structarr_e2e_out.txt").string();
@@ -1700,7 +1700,7 @@ TEST(CodegenE2E, StructFieldIndex)
     EXPECT_NE(emitted.source.find("_nk_fld_s_v.size()"), std::string::npos)
         << "s.v(k) must index the field-local array";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_structidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_structidx_e2e_out.txt").string();
@@ -1738,7 +1738,7 @@ TEST(CodegenE2E, IsemptyGuard)
     EXPECT_NE(emitted.source.find("== 0"), std::string::npos)
         << "isempty must lower to a numel==0 compare, not a bridge call";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_isempty_e2e.exe").string();
     const std::string outTxt = (base / "nk_isempty_e2e_out.txt").string();
@@ -1786,7 +1786,7 @@ TEST(CodegenE2E, IsscalarIsrealQueries)
     EXPECT_NE(emitted.source.find("== 1"), std::string::npos)
         << "isscalar must lower to a numel==1 compare";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_isquery_e2e.exe").string();
     const std::string outTxt = (base / "nk_isquery_e2e_out.txt").string();
@@ -1838,7 +1838,7 @@ TEST(CodegenE2E, OrientationQueries)
     EXPECT_NE(emitted.source.find("== 1"), std::string::npos)
         << "iscolumn of a row must lower to a length==1 compare";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_orient_e2e.exe").string();
     const std::string outTxt = (base / "nk_orient_e2e_out.txt").string();
@@ -1889,7 +1889,7 @@ TEST(CodegenE2E, DtypeClassification)
     EXPECT_EQ(emitted.source.find("isnumeric"), std::string::npos)
         << "dtype predicates must be lowered to compile-time true/false, not left as calls";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dtype_e2e.exe").string();
     const std::string outTxt = (base / "nk_dtype_e2e_out.txt").string();
@@ -1926,7 +1926,7 @@ TEST(CodegenE2E, LinspaceGenerative)
     EXPECT_EQ(emitted.source.find("linspace"), std::string::npos)
         << "linspace must be lowered to a native fill, not left as a call";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_linspace_e2e.exe").string();
     const std::string outTxt = (base / "nk_linspace_e2e_out.txt").string();
@@ -1963,7 +1963,7 @@ TEST(CodegenE2E, ColonRangeMaterialise)
     EXPECT_NE(emitted.source.find("_nk_cnt"), std::string::npos)
         << "a colon range must materialise via a native count+fill, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_colon_e2e.exe").string();
     const std::string outTxt = (base / "nk_colon_e2e_out.txt").string();
@@ -1997,7 +1997,7 @@ TEST(CodegenE2E, EndInIndex)
         "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_end_e2e.exe").string();
     const std::string outTxt = (base / "nk_end_e2e_out.txt").string();
@@ -2034,7 +2034,7 @@ TEST(CodegenE2E, SliceRead)
     EXPECT_NE(emitted.source.find("_nk_s0"), std::string::npos)
         << "a range index must materialise a slice copy, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_slice_e2e.exe").string();
     const std::string outTxt = (base / "nk_slice_e2e_out.txt").string();
@@ -2072,7 +2072,7 @@ TEST(CodegenE2E, SliceWrite)
     EXPECT_NE(emitted.source.find("_nk_v"), std::string::npos)
         << "a scalar slice write must broadcast natively, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_slicew_e2e.exe").string();
     const std::string outTxt = (base / "nk_slicew_e2e_out.txt").string();
@@ -2110,7 +2110,7 @@ TEST(CodegenE2E, ArrayReversal)
     EXPECT_NE(emitted.source.find("- 1 - _nk_i"), std::string::npos)
         << "flip must lower to a native reverse copy, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_flip_e2e.exe").string();
     const std::string outTxt = (base / "nk_flip_e2e_out.txt").string();
@@ -2145,7 +2145,7 @@ TEST(CodegenE2E, SortAscending)
     EXPECT_NE(emitted.source.find("std::sort"), std::string::npos)
         << "sort must lower to a native std::sort, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sort_e2e.exe").string();
     const std::string outTxt = (base / "nk_sort_e2e_out.txt").string();
@@ -2183,7 +2183,7 @@ TEST(CodegenE2E, StatsReductions)
     EXPECT_NE(emitted.source.find("_nk_ss"), std::string::npos)
         << "norm/var/std must lower to native accumulation, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_stats_e2e.exe").string();
     const std::string outTxt = (base / "nk_stats_e2e_out.txt").string();
@@ -2221,7 +2221,7 @@ TEST(CodegenE2E, Median)
     EXPECT_NE(emitted.source.find("_nk_t"), std::string::npos)
         << "median must lower to a native sort+middle, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_median_e2e.exe").string();
     const std::string outTxt = (base / "nk_median_e2e_out.txt").string();
@@ -2258,7 +2258,7 @@ TEST(CodegenE2E, SortDescend)
     EXPECT_NE(emitted.source.find("_a > _b"), std::string::npos)
         << "sort(x,'descend') must emit the reversed comparator";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sortd_e2e.exe").string();
     const std::string outTxt = (base / "nk_sortd_e2e_out.txt").string();
@@ -2294,7 +2294,7 @@ TEST(CodegenE2E, CumulativeExtrema)
     EXPECT_EQ(emitted.source.find("cummax"), std::string::npos)
         << "cummax must be lowered to a native running loop, not left as a call";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cumext_e2e.exe").string();
     const std::string outTxt = (base / "nk_cumext_e2e_out.txt").string();
@@ -2330,7 +2330,7 @@ TEST(CodegenE2E, CircShift)
     EXPECT_NE(emitted.source.find("% _nk_n"), std::string::npos)
         << "circshift must lower to a native modular-index copy, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_circ_e2e.exe").string();
     const std::string outTxt = (base / "nk_circ_e2e_out.txt").string();
@@ -2366,7 +2366,7 @@ TEST(CodegenE2E, ArgMaxMin)
     EXPECT_NE(emitted.source.find("_nk_idx"), std::string::npos)
         << "[m,i]=max must track the 1-based index natively, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_argmm_e2e.exe").string();
     const std::string outTxt = (base / "nk_argmm_e2e_out.txt").string();
@@ -2401,7 +2401,7 @@ TEST(CodegenE2E, LogspaceGenerative)
     EXPECT_NE(emitted.source.find("std::pow(10.0"), std::string::npos)
         << "logspace must lower to a native 10^(a+i*step) fill, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_logspace_e2e.exe").string();
     const std::string outTxt = (base / "nk_logspace_e2e_out.txt").string();
@@ -2435,7 +2435,7 @@ TEST(CodegenE2E, Unique)
     EXPECT_NE(emitted.source.find("push_back(_nk_t"), std::string::npos)
         << "unique must lower to a native sort+dedup, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_unique_e2e.exe").string();
     const std::string outTxt = (base / "nk_unique_e2e_out.txt").string();
@@ -2469,7 +2469,7 @@ TEST(CodegenE2E, Trapz)
     EXPECT_NE(emitted.source.find("* 0.5"), std::string::npos)
         << "trapz must lower to a native trapezoid accumulation, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_trapz_e2e.exe").string();
     const std::string outTxt = (base / "nk_trapz_e2e_out.txt").string();
@@ -2505,7 +2505,7 @@ TEST(CodegenE2E, Polyval)
     EXPECT_NE(emitted.source.find("_nk_acc * "), std::string::npos)
         << "polyval must lower to a native Horner loop, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_polyval_e2e.exe").string();
     const std::string outTxt = (base / "nk_polyval_e2e_out.txt").string();
@@ -2539,7 +2539,7 @@ TEST(CodegenE2E, Gradient)
         "end\n",
         {{"y", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_grad_e2e.exe").string();
     const std::string outTxt = (base / "nk_grad_e2e_out.txt").string();
@@ -2572,7 +2572,7 @@ TEST(CodegenE2E, ColonFlatten2D)
         "end\n",
         {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_flatten_e2e.exe").string();
     const std::string outTxt = (base / "nk_flatten_e2e_out.txt").string();
@@ -2605,7 +2605,7 @@ TEST(CodegenE2E, ColumnSlice2D)
         "end\n",
         {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_colslice_e2e.exe").string();
     const std::string outTxt = (base / "nk_colslice_e2e_out.txt").string();
@@ -2638,7 +2638,7 @@ TEST(CodegenE2E, RowSlice2D)
         "end\n",
         {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rowslice_e2e.exe").string();
     const std::string outTxt = (base / "nk_rowslice_e2e_out.txt").string();
@@ -2673,7 +2673,7 @@ TEST(CodegenE2E, Reshape)
     EXPECT_NE(emitted.source.find("reshape element count mismatch"), std::string::npos)
         << "reshape must materialise a 2-D local with a numel-match check, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_reshape_e2e.exe").string();
     const std::string outTxt = (base / "nk_reshape_e2e_out.txt").string();
@@ -2709,7 +2709,7 @@ TEST(CodegenE2E, NestedStruct)
     EXPECT_NE(emitted.source.find("_nk_fld_s_a_b"), std::string::npos)
         << "a nested field must flatten to a chained field-local";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_nstruct_e2e.exe").string();
     const std::string outTxt = (base / "nk_nstruct_e2e_out.txt").string();
@@ -2743,7 +2743,7 @@ TEST(CodegenE2E, RepmatScalar)
     EXPECT_EQ(emitted.source.find("repmat"), std::string::npos)
         << "repmat must be lowered to a native fill, not left as a call";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_repmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_repmat_e2e_out.txt").string();
@@ -2775,7 +2775,7 @@ TEST(CodegenE2E, DiagOfMatrix)
         "end\n",
         {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_diag_e2e.exe").string();
     const std::string outTxt = (base / "nk_diag_e2e_out.txt").string();
@@ -2807,7 +2807,7 @@ TEST(CodegenE2E, TraceOfMatrix)
         "end\n",
         {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 3))}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_trace_e2e.exe").string();
     const std::string outTxt = (base / "nk_trace_e2e_out.txt").string();
@@ -2839,7 +2839,7 @@ TEST(CodegenE2E, EyeIdentity)
         "end\n",
         {});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_eye_e2e.exe").string();
     const std::string outTxt = (base / "nk_eye_e2e_out.txt").string();
@@ -2871,7 +2871,7 @@ TEST(CodegenE2E, TrilLower)
         "end\n",
         {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 2))}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_tril_e2e.exe").string();
     const std::string outTxt = (base / "nk_tril_e2e_out.txt").string();
@@ -2904,7 +2904,7 @@ TEST(CodegenE2E, DiagOfVector)
         "end\n",
         {{"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_diagv_e2e.exe").string();
     const std::string outTxt = (base / "nk_diagv_e2e_out.txt").string();
@@ -2937,7 +2937,7 @@ TEST(CodegenE2E, RepmatRowVectorTo2D)
         "end\n",
         {{"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_repmat2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_repmat2d_e2e_out.txt").string();
@@ -2972,7 +2972,7 @@ TEST(CodegenE2E, VertcatRowsTo2D)
         {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_vertcat2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_vertcat2d_e2e_out.txt").string();
@@ -3007,7 +3007,7 @@ TEST(CodegenE2E, HorzcatColumnsTo2D)
         {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())},
          {"b", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_horzcat2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_horzcat2d_e2e_out.txt").string();
@@ -3043,7 +3043,7 @@ TEST(CodegenE2E, TransposeRuntimeDim2D)
         {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_transpose2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_transpose2d_e2e_out.txt").string();
@@ -3081,7 +3081,7 @@ TEST(CodegenE2E, ElementwiseAddRuntimeDim2D)
         {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ewadd2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_ewadd2d_e2e_out.txt").string();
@@ -3121,7 +3121,7 @@ TEST(CodegenE2E, MatmulRuntimeDim2D)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_matmul2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_matmul2d_e2e_out.txt").string();
@@ -3160,7 +3160,7 @@ TEST(CodegenE2E, SliceRuntimeDim2D)
         {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_slice2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_slice2d_e2e_out.txt").string();
@@ -3197,7 +3197,7 @@ TEST(CodegenE2E, MatrixVectorRuntimeDim2D)
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"x", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_matvec2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_matvec2d_e2e_out.txt").string();
@@ -3239,7 +3239,7 @@ TEST(CodegenE2E, IndexedWriteFillRuntimeDim2D)
         {{"m", InferredType::scalar(ValueType::DOUBLE)},
          {"n", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_fill2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_fill2d_e2e_out.txt").string();
@@ -3274,7 +3274,7 @@ TEST(CodegenE2E, ColumnSliceWriteRuntimeDim2D)
          {"n", InferredType::scalar(ValueType::DOUBLE)},
          {"col", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_colwrite2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_colwrite2d_e2e_out.txt").string();
@@ -3310,7 +3310,7 @@ TEST(CodegenE2E, RowSliceWriteRuntimeDim2D)
          {"n", InferredType::scalar(ValueType::DOUBLE)},
          {"row", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rowwrite2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_rowwrite2d_e2e_out.txt").string();
@@ -3349,7 +3349,7 @@ TEST(CodegenE2E, HorzcatMatricesRuntimeDim2D)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_horzcatmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_horzcatmat_e2e_out.txt").string();
@@ -3391,7 +3391,7 @@ TEST(CodegenE2E, VertcatMatricesRuntimeDim2D)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_vertcatmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_vertcatmat_e2e_out.txt").string();
@@ -3439,7 +3439,7 @@ TEST(CodegenE2E, RuntimeDim2DCompositionMatchesInterpreter)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_compose2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_compose2d_e2e_out.txt").string();
@@ -3461,7 +3461,7 @@ TEST(CodegenE2E, RuntimeDim2DCompositionMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[0], 154.0);  // 19 + 50 + 19 + 50 + 8 + 8
 
     // Differential: the interpreter must compute the same for the same program.
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
             .toScalar();
@@ -3469,7 +3469,7 @@ TEST(CodegenE2E, RuntimeDim2DCompositionMatchesInterpreter)
 }
 
 // BENCHMARK capstone: time a compute-heavy runtime-dim 2-D kernel (K matmuls of 2x2
-// matrices, accumulating C(1,1)) in the codegen-compiled binary vs the numkit interpreter
+// matrices, accumulating C(1,1)) in the codegen-compiled binary vs the nk interpreter
 // over the SAME .m. Asserts correctness (codegen result == interpreter == K*19, the real
 // guard) and LOGS the speedup (informational -- machine-dependent, never asserted, per the
 // AGENTS.md perf rule). First matrix-tier perf evidence (Brick 7 was scalar biquad).
@@ -3495,7 +3495,7 @@ TEST(CodegenE2E, RuntimeDim2DKernelVsInterpreter)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_bench2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_bench2d_e2e_out.txt").string();
@@ -3523,7 +3523,7 @@ TEST(CodegenE2E, RuntimeDim2DKernelVsInterpreter)
     EXPECT_DOUBLE_EQ(codegenResult, static_cast<double>(K) * 19.0);  // s = K * C(1,1)
 
     // Interpreter: run + time the same program.
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const std::string interpSrc =
         "a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n" + std::string(body) + "r";
     const auto   i0          = std::chrono::steady_clock::now();
@@ -3538,7 +3538,7 @@ TEST(CodegenE2E, RuntimeDim2DKernelVsInterpreter)
 }
 
 // Native rem (scalar, real): truncated remainder, sign of the dividend. Lowered to
-// std::fmod, bit-identical to numkit's scalar rem (misc.cpp). Asserts the codegen result
+// std::fmod, bit-identical to nk's scalar rem (misc.cpp). Asserts the codegen result
 // == hand value == interpreter, including signed operands. (mod stays bridged by design.)
 TEST(CodegenE2E, RemScalarNative)
 {
@@ -3551,7 +3551,7 @@ TEST(CodegenE2E, RemScalarNative)
         {{"a", InferredType::scalar(ValueType::DOUBLE)},
          {"b", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rem_e2e.exe").string();
     const std::string outTxt = (base / "nk_rem_e2e_out.txt").string();
@@ -3568,13 +3568,13 @@ TEST(CodegenE2E, RemScalarNative)
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], -969.0);
 
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("a=-7; b=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
 // Native deg2rad / rad2deg (scalar, real): a constant scaling x*(pi/180) / x*(180/pi),
-// inlined with numkit's exact constant so it is bit-identical to the interpreter. (Array/
+// inlined with nk's exact constant so it is bit-identical to the interpreter. (Array/
 // complex args stay bridged.)
 TEST(CodegenE2E, Deg2RadRad2DegScalarNative)
 {
@@ -3586,7 +3586,7 @@ TEST(CodegenE2E, Deg2RadRad2DegScalarNative)
         std::string("function r = f(d)\n") + body + "end\n",
         {{"d", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_deg2rad_e2e.exe").string();
     const std::string outTxt = (base / "nk_deg2rad_e2e_out.txt").string();
@@ -3604,13 +3604,13 @@ TEST(CodegenE2E, Deg2RadRad2DegScalarNative)
     // independent sanity (loose) + bit-exact match vs the interpreter (the real guard).
     EXPECT_NEAR(got[0], (3.14159265358979323846 / 2.0) * 100.0 + 90.0 * 180.0 / 3.14159265358979323846,
                 1e-9);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("d=90;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
 // Native gammaln = std::lgamma (real-total log-gamma). Lowers via unaryMathStd, so it
-// works both scalar and elementwise; bit-identical to numkit's gammaln (special.cpp).
+// works both scalar and elementwise; bit-identical to nk's gammaln (special.cpp).
 TEST(CodegenE2E, GammalnScalarNative)
 {
     if (!aot::available())
@@ -3622,7 +3622,7 @@ TEST(CodegenE2E, GammalnScalarNative)
         {{"a", InferredType::scalar(ValueType::DOUBLE)},
          {"b", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_gammaln_e2e.exe").string();
     const std::string outTxt = (base / "nk_gammaln_e2e_out.txt").string();
@@ -3638,7 +3638,7 @@ TEST(CodegenE2E, GammalnScalarNative)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_NEAR(got[0], std::lgamma(5.0) + std::lgamma(3.0) * 10.0, 1e-9);  // independent
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("a=5; b=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);  // bit-exact vs interpreter
 }
@@ -3659,7 +3659,7 @@ TEST(CodegenE2E, RepmatMatrixBlockTiling)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_repmatmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_repmatmat_e2e_out.txt").string();
@@ -3678,7 +3678,7 @@ TEST(CodegenE2E, RepmatMatrixBlockTiling)
     ASSERT_EQ(got.size(), 1u);
     // M(1,1)=1, M(2,2)=4, M(3,3)=1, M(4,4)=4, M(4,2)=4, numel=16
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 40.0 + 100.0 + 4000.0 + 40000.0 + 1600000.0);  // 1644141
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -3698,7 +3698,7 @@ TEST(CodegenE2E, RepmatColVectorTo2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_repmatcol_e2e.exe").string();
     const std::string outTxt = (base / "nk_repmatcol_e2e_out.txt").string();
@@ -3715,7 +3715,7 @@ TEST(CodegenE2E, RepmatColVectorTo2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 10.0 + 300.0 + 1000.0 + 30000.0 + 120000.0);  // 151310
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[10;20;30];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -3737,7 +3737,7 @@ TEST(CodegenE2E, RuntimeReshape)
          {"m", InferredType::scalar(ValueType::DOUBLE)},
          {"n", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_reshape_e2e.exe").string();
     const std::string outTxt = (base / "nk_reshape_e2e_out.txt").string();
@@ -3754,7 +3754,7 @@ TEST(CodegenE2E, RuntimeReshape)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 20.0 + 300.0 + 6000.0 + 60000.0);  // 66321
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6]; m=2; n=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -3780,7 +3780,7 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_blockmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_blockmat_e2e_out.txt").string();
@@ -3801,7 +3801,7 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     ASSERT_EQ(got.size(), 1u);
     // M(1,1)=1, M(1,3)=5, M(3,1)=5, M(3,3)=1, M(2,4)=8, numel=16
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 50.0 + 500.0 + 1000.0 + 80000.0 + 1600000.0);  // 1681551
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
             .toScalar();
@@ -3823,7 +3823,7 @@ TEST(CodegenE2E, WholeArrayScalarFill)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_fillscalar_e2e.exe").string();
     const std::string outTxt = (base / "nk_fillscalar_e2e_out.txt").string();
@@ -3841,7 +3841,7 @@ TEST(CodegenE2E, WholeArrayScalarFill)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 7.0 + 70.0 + 700.0 + 4000.0);  // 4777
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -3863,7 +3863,7 @@ TEST(CodegenE2E, WholeMatrixCopy)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_matcopy_e2e.exe").string();
     const std::string outTxt = (base / "nk_matcopy_e2e_out.txt").string();
@@ -3881,7 +3881,7 @@ TEST(CodegenE2E, WholeMatrixCopy)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 40.0 + 200.0 + 4000.0);  // 4241
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -3904,7 +3904,7 @@ TEST(CodegenE2E, RowColScalarFill)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rowcolfill_e2e.exe").string();
     const std::string outTxt = (base / "nk_rowcolfill_e2e_out.txt").string();
@@ -3922,7 +3922,7 @@ TEST(CodegenE2E, RowColScalarFill)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5.0 + 30.0 + 500.0 + 9000.0 + 40000.0);  // 49535
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -3945,7 +3945,7 @@ TEST(CodegenE2E, WholeArrayArrayFill)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_fillarray_e2e.exe").string();
     const std::string outTxt = (base / "nk_fillarray_e2e_out.txt").string();
@@ -3963,7 +3963,7 @@ TEST(CodegenE2E, WholeArrayArrayFill)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 10.0 + 200.0 + 3000.0 + 40000.0 + 40000.0);  // 83210
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -3988,7 +3988,7 @@ TEST(CodegenE2E, CircshiftMatrixDim1)
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a3", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_circshift2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_circshift2d_e2e_out.txt").string();
@@ -4007,7 +4007,7 @@ TEST(CodegenE2E, CircshiftMatrixDim1)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 6426315.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; a3=[5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4030,7 +4030,7 @@ TEST(CodegenE2E, CircshiftMatrixDim2)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_circshift2d_dim2_e2e.exe").string();
     const std::string outTxt = (base / "nk_circshift2d_dim2_e2e_out.txt").string();
@@ -4048,7 +4048,7 @@ TEST(CodegenE2E, CircshiftMatrixDim2)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 6243.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4073,7 +4073,7 @@ TEST(CodegenE2E, MaxMinTwoArg)
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"y", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_maxmin2_e2e.exe").string();
     const std::string outTxt = (base / "nk_maxmin2_e2e_out.txt").string();
@@ -4091,7 +4091,7 @@ TEST(CodegenE2E, MaxMinTwoArg)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], -41197015.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[-2 3 -4]; y=[5 -1 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4113,7 +4113,7 @@ TEST(CodegenE2E, SignRealElementwise)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sign_e2e.exe").string();
     const std::string outTxt = (base / "nk_sign_e2e_out.txt").string();
@@ -4130,7 +4130,7 @@ TEST(CodegenE2E, SignRealElementwise)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 99099.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[-3 0 5 -0.5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4152,7 +4152,7 @@ TEST(CodegenE2E, MaskedWriteInlineRelational)
         std::string("function r = f(a)\n") + body + "end\n",
         {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_maskwrite_e2e.exe").string();
     const std::string outTxt = (base / "nk_maskwrite_e2e_out.txt").string();
@@ -4169,7 +4169,7 @@ TEST(CodegenE2E, MaskedWriteInlineRelational)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], -10102.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a=[-2 3 -4 5 -6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4192,7 +4192,7 @@ TEST(CodegenE2E, MaskedWrite2DMatrix)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_maskwrite2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_maskwrite2d_e2e_out.txt").string();
@@ -4210,7 +4210,7 @@ TEST(CodegenE2E, MaskedWrite2DMatrix)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5949699.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[-1 2 -3]; a2=[4 -5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4232,7 +4232,7 @@ TEST(CodegenE2E, MaskedRead2DMatrix)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_maskread2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_maskread2d_e2e_out.txt").string();
@@ -4250,7 +4250,7 @@ TEST(CodegenE2E, MaskedRead2DMatrix)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 3624.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[-1 2 -3]; a2=[4 -5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4272,7 +4272,7 @@ TEST(CodegenE2E, FindInlineRelational2DMatrix)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_find2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_find2d_e2e_out.txt").string();
@@ -4290,7 +4290,7 @@ TEST(CodegenE2E, FindInlineRelational2DMatrix)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 3632.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[-1 2 -3]; a2=[4 -5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4309,7 +4309,7 @@ TEST(CodegenE2E, MinMaxInlineExpr)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_minmaxinline_e2e.exe").string();
     const std::string outTxt = (base / "nk_minmaxinline_e2e_out.txt").string();
@@ -4326,7 +4326,7 @@ TEST(CodegenE2E, MinMaxInlineExpr)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 3602.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[-2 3 -4 5 -6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4345,7 +4345,7 @@ TEST(CodegenE2E, AnyAllInlineRelational)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_anyall_e2e.exe").string();
     const std::string outTxt = (base / "nk_anyall_e2e_out.txt").string();
@@ -4362,7 +4362,7 @@ TEST(CodegenE2E, AnyAllInlineRelational)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1001.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[-2 3 -4 5 -6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4382,7 +4382,7 @@ TEST(CodegenE2E, MaskedReadInlineRelational)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_maskread_e2e.exe").string();
     const std::string outTxt = (base / "nk_maskread_e2e_out.txt").string();
@@ -4399,7 +4399,7 @@ TEST(CodegenE2E, MaskedReadInlineRelational)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 2053.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[-2 3 -4 5 -6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4420,7 +4420,7 @@ TEST(CodegenE2E, NumericGatherRead)
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"idx", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_gather_e2e.exe").string();
     const std::string outTxt = (base / "nk_gather_e2e_out.txt").string();
@@ -4438,7 +4438,7 @@ TEST(CodegenE2E, NumericGatherRead)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5130.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[10 20 30 40 50]; idx=[3 1 2];\n") + body + "r", true)
             .toScalar();
@@ -4459,7 +4459,7 @@ TEST(CodegenE2E, FindInlineRelational)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_findinline_e2e.exe").string();
     const std::string outTxt = (base / "nk_findinline_e2e_out.txt").string();
@@ -4476,7 +4476,7 @@ TEST(CodegenE2E, FindInlineRelational)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 2042.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[-2 3 -4 5 -6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4498,7 +4498,7 @@ TEST(CodegenE2E, WholeArrayElementwiseExprFill)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_colonexpr_e2e.exe").string();
     const std::string outTxt = (base / "nk_colonexpr_e2e_out.txt").string();
@@ -4516,7 +4516,7 @@ TEST(CodegenE2E, WholeArrayElementwiseExprFill)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 6813.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4541,7 +4541,7 @@ TEST(CodegenE2E, NumericScatterWrite)
          {"idx", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"vals", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_scatter_e2e.exe").string();
     const std::string outTxt = (base / "nk_scatter_e2e_out.txt").string();
@@ -4560,7 +4560,7 @@ TEST(CodegenE2E, NumericScatterWrite)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 7503200.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a=[10 20 30 40 50]; idx=[4 1 4]; vals=[100 200 300];\n")
                     + body + "r", true)
@@ -4588,7 +4588,7 @@ TEST(CodegenE2E, CatDimMatrices)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cat_e2e.exe").string();
     const std::string outTxt = (base / "nk_cat_e2e_out.txt").string();
@@ -4608,7 +4608,7 @@ TEST(CodegenE2E, CatDimMatrices)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5.0 + 80.0 + 500.0 + 8000.0 + 80000.0);  // 88585
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
             .toScalar();
@@ -4635,7 +4635,7 @@ TEST(CodegenE2E, KronMatrix)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_kron_e2e.exe").string();
     const std::string outTxt = (base / "nk_kron_e2e_out.txt").string();
@@ -4673,7 +4673,7 @@ TEST(CodegenE2E, DiagVectorOffset)
         std::string("function r = f(v)\n") + body + "end\n",
         {{"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_diagoff_e2e.exe").string();
     const std::string outTxt = (base / "nk_diagoff_e2e_out.txt").string();
@@ -4690,7 +4690,7 @@ TEST(CodegenE2E, DiagVectorOffset)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5.0 + 70.0 + 500.0 + 7000.0 + 160000.0 + 2500000.0);  // 2667575
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("v=[5 6 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -4714,7 +4714,7 @@ TEST(CodegenE2E, TrilTriuOffsetRuntimeDim2D)
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a3", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_triltriu_e2e.exe").string();
     const std::string outTxt = (base / "nk_triltriu_e2e_out.txt").string();
@@ -4733,7 +4733,7 @@ TEST(CodegenE2E, TrilTriuOffsetRuntimeDim2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 70.0 + 200.0 + 0.0 + 30000.0 + 0.0);  // 30271
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6]; a3=[7 8 9];\n") + body + "r", true)
             .toScalar();
@@ -4756,7 +4756,7 @@ TEST(CodegenE2E, Rot90Matrix)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rot90_e2e.exe").string();
     const std::string outTxt = (base / "nk_rot90_e2e_out.txt").string();
@@ -4774,7 +4774,7 @@ TEST(CodegenE2E, Rot90Matrix)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 3.0 + 60.0 + 200.0 + 1000.0 + 40000.0 + 600000.0);  // 641263
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4797,7 +4797,7 @@ TEST(CodegenE2E, FliplrFlipudMatrix)
         {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_flip2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_flip2d_e2e_out.txt").string();
@@ -4815,7 +4815,7 @@ TEST(CodegenE2E, FliplrFlipudMatrix)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 3.0 + 10.0 + 400.0 + 3000.0 + 60000.0);  // 63413
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4838,7 +4838,7 @@ TEST(CodegenE2E, VertcatMatrixWithRowAppended)
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"r", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_vrowapp_e2e.exe").string();
     const std::string outTxt = (base / "nk_vrowapp_e2e_out.txt").string();
@@ -4857,7 +4857,7 @@ TEST(CodegenE2E, VertcatMatrixWithRowAppended)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 500.0 + 6000.0 + 60000.0);  // 66531
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; r=[5 6];\n") + body + "s", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4880,7 +4880,7 @@ TEST(CodegenE2E, HorzcatMatrixWithColumnAugmented)
          {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_augmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_augmat_e2e_out.txt").string();
@@ -4899,7 +4899,7 @@ TEST(CodegenE2E, HorzcatMatrixWithColumnAugmented)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 40.0 + 500.0 + 6000.0 + 60000.0);  // 66541
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; b=[5;6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -4922,7 +4922,7 @@ TEST(CodegenE2E, RuntimeEye)
         std::string("function r = f(n)\n") + body + "end\n",
         {{"n", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_eye_e2e.exe").string();
     const std::string outTxt = (base / "nk_eye_e2e_out.txt").string();
@@ -4939,7 +4939,7 @@ TEST(CodegenE2E, RuntimeEye)
     ASSERT_EQ(got.size(), 1u);
     // 1 + 10 + 0 + 9000 + 100000 + 6000000 = 6109011
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 10.0 + 0.0 + 9000.0 + 100000.0 + 6000000.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -4959,7 +4959,7 @@ TEST(CodegenE2E, RuntimeDim2DConstructor)
         {{"m", InferredType::scalar(ValueType::DOUBLE)},
          {"n", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rt2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_rt2d_e2e_out.txt").string();
@@ -4991,7 +4991,7 @@ TEST(CodegenE2E, CrossProduct)
         {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cross_e2e.exe").string();
     const std::string outTxt = (base / "nk_cross_e2e_out.txt").string();
@@ -5027,7 +5027,7 @@ TEST(CodegenE2E, VertcatScalars)
     EXPECT_NE(emitted.source.find(".push_back("), std::string::npos)
         << "vertcat of scalars must build a 1-D column via push_back, not refuse";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_vcat_e2e.exe").string();
     const std::string outTxt = (base / "nk_vcat_e2e_out.txt").string();
@@ -5059,7 +5059,7 @@ TEST(CodegenE2E, RepmatColTile)
         "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_repmatc_e2e.exe").string();
     const std::string outTxt = (base / "nk_repmatc_e2e_out.txt").string();
@@ -5092,7 +5092,7 @@ TEST(CodegenE2E, RepmatRowTile)
         "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_repmatv_e2e.exe").string();
     const std::string outTxt = (base / "nk_repmatv_e2e_out.txt").string();
@@ -5134,7 +5134,7 @@ TEST(CodegenE2E, Integration2DCapstone)
     EXPECT_NE(emitted.source.find("_nk_off"), std::string::npos)
         << "the 2-D capstone must exercise a native column slice";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cap2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_cap2d_e2e_out.txt").string();
@@ -5182,7 +5182,7 @@ TEST(CodegenE2E, IntegrationCapstone)
     EXPECT_NE(emitted.source.find("_nk_fld_rec_data"), std::string::npos)
         << "the capstone must exercise a struct array field-local";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_capstone_e2e.exe").string();
     const std::string outTxt = (base / "nk_capstone_e2e_out.txt").string();
@@ -5220,8 +5220,8 @@ TEST(CodegenE2E, RecursiveCallCompilesAndRuns)
         "    y = n * fact(n - 1);\n"
         "  end\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5234,7 +5234,7 @@ TEST(CodegenE2E, RecursiveCallCompilesAndRuns)
     EXPECT_EQ(emitted.source.find("nk_rt::"), std::string::npos)
         << "a typed self-call must compile STANDALONE (no Value-ABI bridge)";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_recursion_e2e.exe").string();
     const std::string outTxt = (base / "nk_recursion_e2e_out.txt").string();
@@ -5270,8 +5270,8 @@ TEST(CodegenE2E, BareLhsMultiOutputBindsFirstOutput)
         "  a = x + 1;\n"
         "  b = x * 2;\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5286,7 +5286,7 @@ TEST(CodegenE2E, BareLhsMultiOutputBindsFirstOutput)
     ASSERT_NE(emitted.source.find("_nk_ignore_1"), std::string::npos)
         << "the unrequested 2nd output must get a throwaway out-param";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_barelhs_multiout_e2e.exe").string();
     const std::string outTxt = (base / "nk_barelhs_multiout_e2e_out.txt").string();
@@ -5320,8 +5320,8 @@ TEST(CodegenE2E, CellCommaListRefusedUnderBridge)
         "  v = [c{:}];\n"  // c{:} -> a comma-separated list (multi-value) -> refused
         "  r = sum(v);\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5351,8 +5351,8 @@ TEST(CodegenE2E, ClosureCapturingArrayLocalRefusedUnderBridge)
         "  g = @(t) t + k(1);\n"  // captures the array k -> refused (v1: scalar captures only)
         "  r = g(5);\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5381,8 +5381,8 @@ TEST(CodegenE2E, InterprocComplexArrayReturnEmits)
         "function r = g(x)\n"
         "  r = x + 1i;\n"    // double 1-D + 1i -> complex 1-D (elementwise)
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5390,7 +5390,7 @@ TEST(CodegenE2E, InterprocComplexArrayReturnEmits)
     collectFunctions(*root, ft);
     registerUserFunctions(reg, ft);
     const InferredType vec =
-        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::rowVector());
+        InferredType::concrete(ValueType::DOUBLE, nk::codegen::Shape::rowVector());
     const EmittedFunction emitted = emitProgram(*ft.find("f"), {{"x", vec}}, ft, reg);
     EXPECT_NE(emitted.source.find("std::vector<std::complex<double>> "), std::string::npos)
         << "complex 1-D interproc result should return std::vector<std::complex<double>>";
@@ -5406,8 +5406,8 @@ TEST(CodegenE2E, MultiOutputCall)
     const char *src =
         "function [a, b] = divmod(x, d)\n  a = floor(x / d);\n  b = x - a * d;\nend\n"
         "function y = run(x, d)\n  [q, r] = divmod(x, d);\n  y = q * 100 + r;\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5421,7 +5421,7 @@ TEST(CodegenE2E, MultiOutputCall)
         ft, reg);
     ASSERT_TRUE(emitted.source.find("double& a, double& b") != std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_multiout_e2e.exe").string();
     const std::string outTxt = (base / "nk_multiout_e2e_out.txt").string();
@@ -5450,8 +5450,8 @@ TEST(CodegenE2E, MultiOutputIgnoredTarget)
     const char *src =
         "function [a, b] = f(x)\n  a = x + 1;\n  b = x * 2;\nend\n"
         "function y = run(x)\n  [~, b] = f(x);\n  y = b;\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5464,7 +5464,7 @@ TEST(CodegenE2E, MultiOutputIgnoredTarget)
     ASSERT_TRUE(emitted.source.find("_nk_ignore_0") != std::string::npos)
         << "expected a throwaway local for the ignored (~) output";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_multiign_e2e.exe").string();
     const std::string outTxt = (base / "nk_multiign_e2e_out.txt").string();
@@ -5493,8 +5493,8 @@ TEST(CodegenE2E, InterproceduralArrayArg)
         "function s = mysum(v)\n  n = numel(v);\n  s = 0;\n"
         "  for k = 1:n\n    s = s + v(k);\n  end\nend\n"
         "function y = run(v)\n  y = mysum(v);\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5507,7 +5507,7 @@ TEST(CodegenE2E, InterproceduralArrayArg)
         ft, reg, nullptr);
     ASSERT_TRUE(emitted.source.find("mysum") != std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_arrarg_e2e.exe").string();
     const std::string outTxt = (base / "nk_arrarg_e2e_out.txt").string();
@@ -5542,8 +5542,8 @@ TEST(CodegenE2E, HandleVoidMutator)
         "    function r = getv(obj)\n      r = obj.v;\n    end\n"
         "  end\nend\n"
         "function y = run(b)\n  b.setv(7);\n  y = b.getv();\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5561,7 +5561,7 @@ TEST(CodegenE2E, HandleVoidMutator)
     ASSERT_TRUE(emitted.source.find("void Box_0_0setv") != std::string::npos)
         << "void mutator should emit a void specialisation";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_voidmut_e2e.exe").string();
     const std::string outTxt = (base / "nk_voidmut_e2e_out.txt").string();
@@ -5595,8 +5595,8 @@ TEST(CodegenE2E, ExplicitConstructor)
         "    function r = area(o)\n      r = o.w * o.h;\n    end\n"
         "  end\nend\n"
         "function y = demo()\n  r = Rect(3, 4);\n  y = r.area();\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5612,7 +5612,7 @@ TEST(CodegenE2E, ExplicitConstructor)
     ASSERT_TRUE(emitted.source.find("Rect_0_0ctor") != std::string::npos)
         << "expected an explicit constructor specialisation";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ctor_e2e.exe").string();
     const std::string outTxt = (base / "nk_ctor_e2e_out.txt").string();
@@ -5643,8 +5643,8 @@ TEST(CodegenE2E, HandleClassMethodCall)
         "classdef Box < handle\n  properties\n    v = 0\n  end\n"
         "  methods\n    function r = getv(obj)\n      r = obj.v;\n    end\n  end\nend\n"
         "function y = run(b)\n  y = b.getv();\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5662,7 +5662,7 @@ TEST(CodegenE2E, HandleClassMethodCall)
     ASSERT_TRUE(emitted.source.find("nk_rt::handle<Box>") != std::string::npos)
         << "handle class should use the handle<T> wrapper";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_handle_e2e.exe").string();
     const std::string outTxt = (base / "nk_handle_e2e_out.txt").string();
@@ -5694,8 +5694,8 @@ TEST(CodegenE2E, ValueClassFieldRoundTrip)
     const char *src =
         "classdef Point\n  properties\n    x = 0\n    y = 0\n  end\nend\n"
         "function y = getx(p)\n  y = p.x;\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5703,16 +5703,16 @@ TEST(CodegenE2E, ValueClassFieldRoundTrip)
     collectClasses(*root, creg, reg);
     const int id = creg.idOf("Point");
     ASSERT_GE(id, 0);
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     const EmittedFunction emitted =
         emitFunction(*fn, {{"p", InferredType::object(id)}}, reg, &creg);
     ASSERT_EQ(emitted.signature, "double getx(Point p)");
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_valueclass_e2e.exe").string();
     const std::string outTxt = (base / "nk_valueclass_e2e_out.txt").string();
@@ -5742,8 +5742,8 @@ TEST(CodegenE2E, InterproceduralRunsCorrectly)
     const char *src =
         "function y = f(x)\n  y = g(x) + 1;\nend\n"
         "function y = g(x)\n  y = x*2;\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     FunctionTable  table;
     collectFunctions(*root, table);
@@ -5755,7 +5755,7 @@ TEST(CodegenE2E, InterproceduralRunsCorrectly)
         emitProgram(*table.find("f"), {{"x", InferredType::scalar(ValueType::DOUBLE)}},
                     table, reg);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_interproc_e2e.exe").string();
     const std::string outTxt = (base / "nk_interproc_e2e_out.txt").string();
@@ -5788,7 +5788,7 @@ TEST(CodegenE2E, ArrayLocalRunsCorrectly)
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
     ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_arrlocal_e2e.exe").string();
     const std::string outTxt = (base / "nk_arrlocal_e2e_out.txt").string();
@@ -5825,8 +5825,8 @@ TEST(CodegenE2E, ArrayLocalAsCallArgAndNumel)
         "  y = g(z) + numel(z);\nend\n"
         "function s = g(v)\n  m = numel(v);\n  s = 0;\n"
         "  for k = 1:m\n    s = s + v(k);\n  end\nend\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -5840,7 +5840,7 @@ TEST(CodegenE2E, ArrayLocalAsCallArgAndNumel)
     ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);
     ASSERT_NE(emitted.source.find("z.data(), z.size()"), std::string::npos);  // local as call arg
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_arrlocal_arg_e2e.exe").string();
     const std::string outTxt = (base / "nk_arrlocal_arg_e2e_out.txt").string();
@@ -5872,7 +5872,7 @@ TEST(CodegenE2E, ElementwiseArrayArithmeticRunsCorrectly)
     ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);  // array local
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);         // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ewise_e2e.exe").string();
     const std::string outTxt = (base / "nk_ewise_e2e_out.txt").string();
@@ -5909,7 +5909,7 @@ TEST(CodegenE2E, ScalarScalingRunsCorrectly)
     ASSERT_NE(emitted.source.find("(v[_nk_i] / 2.0)"), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_scale_e2e.exe").string();
     const std::string outTxt = (base / "nk_scale_e2e_out.txt").string();
@@ -5941,7 +5941,7 @@ TEST(CodegenE2E, Elementwise2DRunsCorrectly)
     ASSERT_NE(emitted.source.find("B[_nk_i] = ((2.0 * A[_nk_i]) + 1.0);"), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ewise2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_ewise2d_e2e_out.txt").string();
@@ -5975,7 +5975,7 @@ TEST(CodegenE2E, Elementwise2DTwoMatrixRunsCorrectly)
     ASSERT_NE(emitted.source.find("B[_nk_i] = (A[_nk_i] + C[_nk_i]);"), std::string::npos);
     ASSERT_NE(emitted.source.find("_nk_A_rows != _nk_B_rows"), std::string::npos);  // per-dim guard
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ewise2d2_e2e.exe").string();
     const std::string outTxt = (base / "nk_ewise2d2_e2e_out.txt").string();
@@ -6005,11 +6005,11 @@ TEST(CodegenE2E, ElementwiseNDRunsCorrectly)
 
     const EmittedFunction emitted = transpile(
         "function B = f(A)\n  B = 2 * A + 1;\nend\n",
-        {{"A", InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 3, 4}))}});
+        {{"A", InferredType::concrete(ValueType::DOUBLE, nk::codegen::Shape::ndShape({2, 3, 4}))}});
     ASSERT_NE(emitted.source.find("B[_nk_i] = ((2.0 * A[_nk_i]) + 1.0);"), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ewisend_e2e.exe").string();
     const std::string outTxt = (base / "nk_ewisend_e2e_out.txt").string();
@@ -6036,13 +6036,13 @@ TEST(CodegenE2E, ElementwiseNDMultiOperandRunsCorrectly)
         GTEST_SKIP() << "no external compiler configured for this build";
 
     const InferredType nd =
-        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 3, 4}));
+        InferredType::concrete(ValueType::DOUBLE, nk::codegen::Shape::ndShape({2, 3, 4}));
     const EmittedFunction emitted =
         transpile("function B = f(A, C)\n  B = A + C;\nend\n", {{"A", nd}, {"C", nd}});
     ASSERT_NE(emitted.source.find("B[_nk_i] = (A[_nk_i] + C[_nk_i]);"), std::string::npos);
     ASSERT_NE(emitted.source.find("_nk_A_d0 != _nk_B_d0"), std::string::npos);  // per-axis guard
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ewisendmul_e2e.exe").string();
     const std::string outTxt = (base / "nk_ewisendmul_e2e_out.txt").string();
@@ -6075,7 +6075,7 @@ TEST(CodegenE2E, Matrix2DLocalWriteRunsCorrectly)
     ASSERT_NE(emitted.source.find("std::vector<double> A;"), std::string::npos);
     ASSERT_NE(emitted.source.find("nk_rt::index2_set(A.data(), 3, 3"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_mat2dwrite_e2e.exe").string();
     const std::string outTxt = (base / "nk_mat2dwrite_e2e_out.txt").string();
@@ -6105,7 +6105,7 @@ TEST(CodegenE2E, NDArrayLocalWriteRunsCorrectly)
         {});
     ASSERT_NE(emitted.source.find("nk_rt::indexN_set"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ndwrite_e2e.exe").string();
     const std::string outTxt = (base / "nk_ndwrite_e2e_out.txt").string();
@@ -6135,7 +6135,7 @@ TEST(CodegenE2E, NDParamReadRunsCorrectly)
     ASSERT_NE(emitted.source.find("std::size_t _nk_A_d0, std::size_t _nk_A_d1, std::size_t _nk_A_d2"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ndparam_e2e.exe").string();
     const std::string outTxt = (base / "nk_ndparam_e2e_out.txt").string();
@@ -6167,7 +6167,7 @@ TEST(CodegenE2E, NDShapeQueriesRunCorrectly)
         "  s = ndims(A) * 1000 + size(A,1) * 100 + size(A,2) * 10 + size(A,3) + numel(A);\nend\n",
         {});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ndshape_e2e.exe").string();
     const std::string outTxt = (base / "nk_ndshape_e2e_out.txt").string();
@@ -6201,7 +6201,7 @@ TEST(CodegenE2E, NDOutputRunsCorrectly)
     ASSERT_NE(emitted.source.find("double* __restrict y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ndout_e2e.exe").string();
     const std::string outTxt = (base / "nk_ndout_e2e_out.txt").string();
@@ -6238,7 +6238,7 @@ TEST(CodegenE2E, Matrix2DOutputRunsCorrectly)
     ASSERT_NE(emitted.source.find("double* __restrict M, std::size_t _nk_M_rows, std::size_t _nk_M_cols"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_mat2dout_e2e.exe").string();
     const std::string outTxt = (base / "nk_mat2dout_e2e_out.txt").string();
@@ -6275,7 +6275,7 @@ TEST(CodegenE2E, OneDSizeOrientationRunsCorrectly)
     ASSERT_NE(emitted.source.find("static_cast<double>(_nk_x_len)"), std::string::npos);  // size(.,2)
     ASSERT_NE(emitted.source.find("static_cast<double>(1) * 100.0"), std::string::npos);  // size(.,1)
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_1dsize_e2e.exe").string();
     const std::string outTxt = (base / "nk_1dsize_e2e_out.txt").string();
@@ -6307,7 +6307,7 @@ TEST(CodegenE2E, SizeNoDimRunsCorrectly)
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
     ASSERT_NE(emitted.source.find("s.assign(2, 0.0)"), std::string::npos);  // 1x2 row local
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sizenodim_e2e.exe").string();
     const std::string outTxt = (base / "nk_sizenodim_e2e_out.txt").string();
@@ -6336,7 +6336,7 @@ TEST(CodegenE2E, SizeTwoOutputRunsCorrectly)
 
     auto run = [](const EmittedFunction &emitted, const std::string &tag,
                   const std::string &call) -> std::vector<double> {
-        auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+        auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
         std::filesystem::create_directories(base);
         const std::string exe    = (base / ("nk_" + tag + ".exe")).string();
         const std::string outTxt = (base / ("nk_" + tag + "_out.txt")).string();
@@ -6364,7 +6364,7 @@ TEST(CodegenE2E, SizeTwoOutputRunsCorrectly)
     {  // N-D: c folds the trailing dims (d1*d2 = 3*4 = 12)
         const EmittedFunction emitted = transpile(
             src, {{"A", InferredType::concrete(ValueType::DOUBLE,
-                                               numkit::codegen::Shape::ndShape({2, 3, 4}))}});
+                                               nk::codegen::Shape::ndShape({2, 3, 4}))}});
         ASSERT_NE(emitted.source.find("_nk_A_d1 * _nk_A_d2"), std::string::npos);
         const std::vector<double> got = run(emitted, "size2nd_e2e", emitted.name + "(A, 2, 3, 4)");
         ASSERT_EQ(got.size(), 1u);
@@ -6390,7 +6390,7 @@ TEST(CodegenE2E, NDRuntimeLocalRunsCorrectly)
          {"p", InferredType::scalar(ValueType::DOUBLE)}});
     ASSERT_NE(emitted.source.find("A.assign(_nk_A_d0 * _nk_A_d1 * _nk_A_d2"), std::string::npos);  // runtime size
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ndrt_e2e.exe").string();
     const std::string outTxt = (base / "nk_ndrt_e2e_out.txt").string();
@@ -6424,7 +6424,7 @@ TEST(CodegenE2E, NDRuntimeOutputRunsCorrectly)
     ASSERT_NE(emitted.source.find("double* __restrict y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ndrtout_e2e.exe").string();
     const std::string outTxt = (base / "nk_ndrtout_e2e_out.txt").string();
@@ -6462,7 +6462,7 @@ TEST(CodegenE2E, CompanionUserVarCoexistRunsCorrectly)
     ASSERT_NE(emitted.source.find("std::size_t _nk_x_len"), std::string::npos);  // companion
     ASSERT_NE(emitted.source.find("double x_len"), std::string::npos);           // user var coexists
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_companion_coexist_e2e.exe").string();
     const std::string outTxt = (base / "nk_companion_coexist_e2e_out.txt").string();
@@ -6496,7 +6496,7 @@ TEST(CodegenE2E, NegativeDimClampsToEmpty)
         {{"n", InferredType::scalar(ValueType::DOUBLE)}});
     ASSERT_NE(emitted.source.find("nk_rt::dim("), std::string::npos);  // guarded conversion, no UB cast
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_negdim_e2e.exe").string();
     const std::string outTxt = (base / "nk_negdim_e2e_out.txt").string();
@@ -6515,7 +6515,7 @@ TEST(CodegenE2E, NegativeDimClampsToEmpty)
     EXPECT_DOUBLE_EQ(got[1], 0.0);  // numel(zeros(1,-1)) = numel(1x0) = 0 (clamped, no throw)
 
     // Cross-check: the interpreter clamps identically (codegen == interpreter).
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     EXPECT_DOUBLE_EQ(engine.eval("numel(zeros(1,-1))", true).toScalar(), 0.0);
 }
 
@@ -6533,7 +6533,7 @@ TEST(CodegenE2E, ElementwiseArrayMathRunsCorrectly)
     ASSERT_NE(emitted.source.find("std::sin("), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained!
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ewise_math_e2e.exe").string();
     const std::string outTxt = (base / "nk_ewise_math_e2e_out.txt").string();
@@ -6569,7 +6569,7 @@ TEST(CodegenE2E, ComplexAccessorsRunCorrectly)
     ASSERT_NE(emitted.source.find("std::conj("), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cxaccess_e2e.exe").string();
     const std::string outTxt = (base / "nk_cxaccess_e2e_out.txt").string();
@@ -6601,7 +6601,7 @@ TEST(CodegenE2E, ComplexElementwiseRunsCorrectly)
     ASSERT_NE(emitted.source.find("std::complex<double>* __restrict y"), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cxewise_e2e.exe").string();
     const std::string outTxt = (base / "nk_cxewise_e2e_out.txt").string();
@@ -6634,7 +6634,7 @@ TEST(CodegenE2E, RealVectorTransposeRunsCorrectly)
     ASSERT_NE(emitted.source.find("y[_nk_i] = x[_nk_i];"), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_transp_e2e.exe").string();
     const std::string outTxt = (base / "nk_transp_e2e_out.txt").string();
@@ -6666,7 +6666,7 @@ TEST(CodegenE2E, ComplexConjTransposeRunsCorrectly)
         {{"x", InferredType::concrete(ValueType::COMPLEX, Shape::rowVector())}});
     ASSERT_NE(emitted.source.find("y[_nk_i] = std::conj(x[_nk_i]);"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_conjtransp_e2e.exe").string();
     const std::string outTxt = (base / "nk_conjtransp_e2e_out.txt").string();
@@ -6700,7 +6700,7 @@ TEST(CodegenE2E, MatrixTransposeRunsCorrectly)
     ASSERT_NE(emitted.source.find("[_nk_i + _nk_j * _nk_y_rows] = A[_nk_j + _nk_i * _nk_A_rows];"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_mattransp_e2e.exe").string();
     const std::string outTxt = (base / "nk_mattransp_e2e_out.txt").string();
@@ -6736,7 +6736,7 @@ TEST(CodegenE2E, MatrixProductRunsCorrectly)
     ASSERT_NE(emitted.source.find("_nk_acc += "), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_matmul_e2e.exe").string();
     const std::string outTxt = (base / "nk_matmul_e2e_out.txt").string();
@@ -6772,7 +6772,7 @@ TEST(CodegenE2E, MatrixTimesVectorRunsCorrectly)
               std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_matvec_e2e.exe").string();
     const std::string outTxt = (base / "nk_matvec_e2e_out.txt").string();
@@ -6806,7 +6806,7 @@ TEST(CodegenE2E, VectorTimesMatrixRunsCorrectly)
     ASSERT_NE(emitted.source.find("_nk_acc += r[_nk_l] * A[_nk_l + _nk_j * _nk_A_rows];"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_vecmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_vecmat_e2e_out.txt").string();
@@ -6841,7 +6841,7 @@ TEST(CodegenE2E, InnerProductRunsCorrectly)
     ASSERT_NE(emitted.source.find("_nk_acc += r[_nk_l] * c[_nk_l];"), std::string::npos);
     ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dot_e2e.exe").string();
     const std::string outTxt = (base / "nk_dot_e2e_out.txt").string();
@@ -6874,7 +6874,7 @@ TEST(CodegenE2E, OuterProductRunsCorrectly)
     ASSERT_NE(emitted.source.find("y[_nk_i + _nk_j * _nk_y_d0] = c[_nk_i] * r[_nk_j];"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_outer_e2e.exe").string();
     const std::string outTxt = (base / "nk_outer_e2e_out.txt").string();
@@ -6906,7 +6906,7 @@ TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)
          {"w", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
     ASSERT_NE(emitted.source.find("array dimensions must match"), std::string::npos);  // guard
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_multiewise_e2e.exe").string();
     const std::string outTxt = (base / "nk_multiewise_e2e_out.txt").string();
@@ -6941,12 +6941,12 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = gamma(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(x)\n  y = gamma(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -6956,7 +6956,7 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
         emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
     ASSERT_NE(emitted.source.find("nk_rt::bridge_scalar(\"gamma\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_bridged_e2e.exe").string();
     const std::string outTxt = (base / "nk_bridged_e2e_out.txt").string();
@@ -7000,7 +7000,7 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
 
     // Reference: the interpreter's gamma over the same inputs (the bridge calls the same
     // runtime gamma, so this is the canonical diff-vs-interpreter check).
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     EXPECT_DOUBLE_EQ(got[0], engine.eval("gamma(1.5)", true).toScalar());
     EXPECT_DOUBLE_EQ(got[1], engine.eval("gamma(3.0)", true).toScalar());
     EXPECT_DOUBLE_EQ(got[2], engine.eval("gamma(4.5)", true).toScalar());
@@ -7018,12 +7018,12 @@ TEST(CodegenBridge, BridgedNum2strCharArrayRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer lex("function r = f(x)\n  s = num2str(x);\n  r = s(1) + numel(s) * 1000;\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer lex("function r = f(x)\n  s = num2str(x);\n  r = s(1) + numel(s) * 1000;\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7034,7 +7034,7 @@ TEST(CodegenBridge, BridgedNum2strCharArrayRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::bridge_to_vec_char(\"num2str\""), std::string::npos)
         << "a CHAR-array bridged result must unbox via bridge_to_vec_char";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_bridged_num2str_e2e.exe").string();
     const std::string outTxt = (base / "nk_bridged_num2str_e2e_out.txt").string();
@@ -7070,7 +7070,7 @@ TEST(CodegenBridge, BridgedNum2strCharArrayRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval("s = num2str(42); s(1) + numel(s) * 1000", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
     EXPECT_DOUBLE_EQ(got[0], 2052.0);  // num2str(42)='42': '4'=52, numel=2 -> 52 + 2000
@@ -7086,13 +7086,13 @@ TEST(CodegenBridge, BridgedSprintfRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  s = sprintf('%d!', x);\n"
+    nk::Lexer  lex("function r = f(x)\n  s = sprintf('%d!', x);\n"
                        "  r = s(1) + numel(s) * 1000;\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7104,7 +7104,7 @@ TEST(CodegenBridge, BridgedSprintfRunsAndMatchesInterpreter)
         << "the sprintf format literal must box via nk_box_string";
     ASSERT_NE(emitted.source.find("nk_rt::bridge_to_vec_char(\"sprintf\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_bridged_sprintf_e2e.exe").string();
     const std::string outTxt = (base / "nk_bridged_sprintf_e2e_out.txt").string();
@@ -7140,7 +7140,7 @@ TEST(CodegenBridge, BridgedSprintfRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval("s = sprintf('%d!', 42); s(1) + numel(s) * 1000", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -7159,13 +7159,13 @@ TEST(CodegenBridge, BridgedCellLiteralAndContentGetRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  c = {x, x + 1, x * 10};\n"
+    nk::Lexer  lex("function r = f(x)\n  c = {x, x + 1, x * 10};\n"
                        "  r = c{1} + c{2} + c{3};\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7178,7 +7178,7 @@ TEST(CodegenBridge, BridgedCellLiteralAndContentGetRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::cell_get("), std::string::npos)
         << "c{i} must extract content via the runtime";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cell_e2e.exe").string();
     const std::string outTxt = (base / "nk_cell_e2e_out.txt").string();
@@ -7216,7 +7216,7 @@ TEST(CodegenBridge, BridgedCellLiteralAndContentGetRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval("c = {5, 6, 50}; c{1} + c{2} + c{3}", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
     EXPECT_DOUBLE_EQ(got[0], 61.0);  // {5, 6, 50}: 5 + 6 + 50
@@ -7232,13 +7232,13 @@ TEST(CodegenBridge, BridgedCellContentStoreRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  c = {};\n  c{1} = x;\n  c{2} = x * 2;\n"
+    nk::Lexer  lex("function r = f(x)\n  c = {};\n  c{1} = x;\n  c{2} = x * 2;\n"
                        "  c{3} = x + 100;\n  r = c{1} + c{2} + c{3};\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7249,7 +7249,7 @@ TEST(CodegenBridge, BridgedCellContentStoreRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::cell_set("), std::string::npos)
         << "c{i}=v must store via the runtime";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cellset_e2e.exe").string();
     const std::string outTxt = (base / "nk_cellset_e2e_out.txt").string();
@@ -7287,7 +7287,7 @@ TEST(CodegenBridge, BridgedCellContentStoreRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval("c = {}; c{1} = 5; c{2} = 10; c{3} = 105; c{1} + c{2} + c{3}", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -7304,13 +7304,13 @@ TEST(CodegenBridge, BridgedCellSliceRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  c = {x, x * 2, x + 100};\n"
+    nk::Lexer  lex("function r = f(x)\n  c = {x, x * 2, x + 100};\n"
                        "  d = c(2);\n  r = d{1};\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7321,7 +7321,7 @@ TEST(CodegenBridge, BridgedCellSliceRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::index_dyn("), std::string::npos)
         << "c(i) cell-slice must ride the Dynamic-index path";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cellslice_e2e.exe").string();
     const std::string outTxt = (base / "nk_cellslice_e2e_out.txt").string();
@@ -7359,7 +7359,7 @@ TEST(CodegenBridge, BridgedCellSliceRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval("c = {5, 10, 105}; d = c(2); d{1}", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
     EXPECT_DOUBLE_EQ(got[0], 10.0);  // c(2) = {10}; {10}{1} = 10
@@ -7377,12 +7377,12 @@ TEST(CodegenBridge, BridgedNamedFunctionHandleRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function r = f(x)\n  g = @abs;\n  r = g(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function r = f(x)\n  g = @abs;\n  r = g(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7395,7 +7395,7 @@ TEST(CodegenBridge, BridgedNamedFunctionHandleRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::index_dyn("), std::string::npos)
         << "g(x) must call the handle via the Dynamic-index path";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_handle_e2e.exe").string();
     const std::string outTxt = (base / "nk_handle_e2e_out.txt").string();
@@ -7433,7 +7433,7 @@ TEST(CodegenBridge, BridgedNamedFunctionHandleRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval("g = @abs; g(-5)", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
     EXPECT_DOUBLE_EQ(got[0], 5.0);  // abs(-5)
@@ -7450,13 +7450,13 @@ TEST(CodegenBridge, Bridged2DCellLiteralRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  c = {x, x + 1; x + 2, x + 3};\n"
+    nk::Lexer  lex("function r = f(x)\n  c = {x, x + 1; x + 2, x + 3};\n"
                        "  r = c{1} * 1000 + c{2} * 100 + c{3} * 10 + c{4};\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7467,7 +7467,7 @@ TEST(CodegenBridge, Bridged2DCellLiteralRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::val::cell_2d({"), std::string::npos)
         << "a 2-D cell literal must build via cell_2d";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cell2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_cell2d_e2e_out.txt").string();
@@ -7505,7 +7505,7 @@ TEST(CodegenBridge, Bridged2DCellLiteralRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval("c = {1, 2; 3, 4}; c{1} * 1000 + c{2} * 100 + c{3} * 10 + c{4}", true)
             .toScalar();
@@ -7523,13 +7523,13 @@ TEST(CodegenBridge, Bridged2DCellContentGetRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  c = {x, x + 1; x + 2, x + 3};\n"
+    nk::Lexer  lex("function r = f(x)\n  c = {x, x + 1; x + 2, x + 3};\n"
                        "  r = c{1,1} * 1000 + c{2,1} * 100 + c{1,2} * 10 + c{2,2};\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7540,7 +7540,7 @@ TEST(CodegenBridge, Bridged2DCellContentGetRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::cell_get_2d("), std::string::npos)
         << "c{i,j} must extract via the 2-D content path";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cell2dget_e2e.exe").string();
     const std::string outTxt = (base / "nk_cell2dget_e2e_out.txt").string();
@@ -7578,7 +7578,7 @@ TEST(CodegenBridge, Bridged2DCellContentGetRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval("c = {1, 2; 3, 4}; c{1,1} * 1000 + c{2,1} * 100 + c{1,2} * 10 + c{2,2}", true)
             .toScalar();
@@ -7596,14 +7596,14 @@ TEST(CodegenBridge, Bridged2DCellContentStoreRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  c = {};\n  c{1,1} = x;\n  c{2,1} = x + 1;\n"
+    nk::Lexer  lex("function r = f(x)\n  c = {};\n  c{1,1} = x;\n  c{2,1} = x + 1;\n"
                        "  c{1,2} = x + 2;\n  c{2,2} = x + 3;\n"
                        "  r = c{1,1} * 1000 + c{2,1} * 100 + c{1,2} * 10 + c{2,2};\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7614,7 +7614,7 @@ TEST(CodegenBridge, Bridged2DCellContentStoreRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::cell_set_2d("), std::string::npos)
         << "c{i,j}=v must store via the 2-D content path";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cell2dset_e2e.exe").string();
     const std::string outTxt = (base / "nk_cell2dset_e2e_out.txt").string();
@@ -7652,7 +7652,7 @@ TEST(CodegenBridge, Bridged2DCellContentStoreRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine
             .eval("c = {}; c{1,1}=1; c{2,1}=2; c{1,2}=3; c{2,2}=4; "
@@ -7675,12 +7675,12 @@ TEST(CodegenBridge, BridgedCaptureFreeClosureRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function r = f(x)\n  g = @(t) t*t + 1;\n  r = g(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function r = f(x)\n  g = @(t) t*t + 1;\n  r = g(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7693,7 +7693,7 @@ TEST(CodegenBridge, BridgedCaptureFreeClosureRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::index_dyn("), std::string::npos)
         << "g(x) must call the closure via the Dynamic-index path";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_closure_e2e.exe").string();
     const std::string outTxt = (base / "nk_closure_e2e_out.txt").string();
@@ -7731,7 +7731,7 @@ TEST(CodegenBridge, BridgedCaptureFreeClosureRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval("g = @(t) t*t + 1; g(3)", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
     EXPECT_DOUBLE_EQ(got[0], 10.0);  // 3*3 + 1
@@ -7748,12 +7748,12 @@ TEST(CodegenBridge, BridgedCapturingClosureRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function r = f(x)\n  k = x + 100;\n  g = @(t) t + k;\n  r = g(5);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer  lex("function r = f(x)\n  k = x + 100;\n  g = @(t) t + k;\n  r = g(5);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &ch : root->children)
-        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+        if (ch && ch->type == nk::NodeType::FUNCTION_DEF) fn = ch.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7766,7 +7766,7 @@ TEST(CodegenBridge, BridgedCapturingClosureRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::val::scalar(k)"), std::string::npos)
         << "the captured local k must be boxed by value";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_closure_cap_e2e.exe").string();
     const std::string outTxt = (base / "nk_closure_cap_e2e_out.txt").string();
@@ -7804,7 +7804,7 @@ TEST(CodegenBridge, BridgedCapturingClosureRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval("k = 2 + 100; g = @(t) t + k; g(5)", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
     EXPECT_DOUBLE_EQ(got[0], 107.0);  // k = 102; g(5) = 5 + 102
@@ -7822,7 +7822,7 @@ TEST(CodegenBridge, DynamicScalarTierRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n"
+    nk::Lexer          lex("function y = f(x)\n"
                                "  z = mod(x, 3);\n"   // no transfer -> z Dynamic (boxed)
                                "  w = z;\n"            // Dynamic-to-Dynamic copy (val clone)
                                "  if w > 1.5\n"        // Value-tier comparison -> truth sink
@@ -7831,11 +7831,11 @@ TEST(CodegenBridge, DynamicScalarTierRunsAndMatchesInterpreter)
                                "    y = 20.0;\n"
                                "  end\n"
                                "end\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7846,7 +7846,7 @@ TEST(CodegenBridge, DynamicScalarTierRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::call_dyn(\"mod\""), std::string::npos);
     ASSERT_NE(emitted.source.find(".truth()"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dyntier_e2e.exe").string();
     const std::string outTxt = (base / "nk_dyntier_e2e_out.txt").string();
@@ -7890,7 +7890,7 @@ TEST(CodegenBridge, DynamicScalarTierRunsAndMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[3], 10.0);  // mod(2,3)=2      -> 10
 
     // Cross-check: the interpreter computes the same (mod + the same branch).
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     EXPECT_DOUBLE_EQ(
         engine.eval("z=mod(5,3); y=20; if z>1.5, y=10; end; y", true).toScalar(), got[0]);
 }
@@ -7907,7 +7907,7 @@ TEST(CodegenBridge, TryCatchRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function y = f(n)\n"
+    nk::Lexer  lex("function y = f(n)\n"
                        "  z = 0;\n"
                        "  try\n"
                        "    z = n + 1;\n"
@@ -7920,11 +7920,11 @@ TEST(CodegenBridge, TryCatchRunsAndMatchesInterpreter)
                        "    y = 20;\n"
                        "  end\n"
                        "end\n");
-    numkit::Parser parser(lex.tokenize());
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -7935,7 +7935,7 @@ TEST(CodegenBridge, TryCatchRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("try {"), std::string::npos);
     ASSERT_NE(emitted.source.find("catch (...)"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_trycatch_e2e.exe").string();
     const std::string outTxt = (base / "nk_trycatch_e2e_out.txt").string();
@@ -7982,13 +7982,13 @@ TEST(CodegenE2E, TryCatchBoundVarRefused)
 {
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer  lex("function y = f(n)\n  try\n    y = n + 1;\n"
+    nk::Lexer  lex("function y = f(n)\n  try\n    y = n + 1;\n"
                        "  catch err\n    y = -1;\n  end\nend\n");
-    numkit::Parser parser(lex.tokenize());
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
     BridgeOptions bridge;
     bridge.enabled = true;
@@ -8008,7 +8008,7 @@ TEST(CodegenBridge, DynamicCallArgRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n"
+    nk::Lexer          lex("function y = f(x)\n"
                                "  z = mod(x, 3);\n"   // Dynamic
                                "  w = mod(z, 2);\n"   // Dynamic ARG z -> call_dynv
                                "  if w > 0.5\n"
@@ -8017,11 +8017,11 @@ TEST(CodegenBridge, DynamicCallArgRunsAndMatchesInterpreter)
                                "    y = 0.0;\n"
                                "  end\n"
                                "end\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8033,7 +8033,7 @@ TEST(CodegenBridge, DynamicCallArgRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::call_dynv(\"mod\", {z, nk_rt::val::scalar(2.0)})"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dynarg_e2e.exe").string();
     const std::string outTxt = (base / "nk_dynarg_e2e_out.txt").string();
@@ -8088,12 +8088,12 @@ TEST(CodegenBridge, DynamicBoxedReturnRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = mod(x, 3);\nend\n");  // y Dynamic
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(x)\n  y = mod(x, 3);\nend\n");  // y Dynamic
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8104,7 +8104,7 @@ TEST(CodegenBridge, DynamicBoxedReturnRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_val f("), std::string::npos);   // boxed return signature
     ASSERT_NE(emitted.source.find("return y.take();"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dynret_e2e.exe").string();
     const std::string outTxt = (base / "nk_dynret_e2e_out.txt").string();
@@ -8163,12 +8163,12 @@ TEST(CodegenBridge, DynamicArrayArgAndReturnRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = mod(x, 3);\nend\n");  // x ARRAY -> y Dynamic array
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(x)\n  y = mod(x, 3);\nend\n");  // x ARRAY -> y Dynamic array
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8181,7 +8181,7 @@ TEST(CodegenBridge, DynamicArrayArgAndReturnRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::call_dynv(\"mod\""), std::string::npos);
     ASSERT_NE(emitted.source.find("return y.take();"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dynarr_e2e.exe").string();
     const std::string outTxt = (base / "nk_dynarr_e2e_out.txt").string();
@@ -8239,15 +8239,15 @@ TEST(CodegenBridge, DynamicIndexRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n"
+    nk::Lexer          lex("function y = f(x)\n"
                                "  z = mod(x, 3);\n"   // Dynamic array
                                "  y = z(2);\n"         // index a Dynamic -> Dynamic scalar
                                "end\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8259,7 +8259,7 @@ TEST(CodegenBridge, DynamicIndexRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::index_dyn(z, {nk_rt::val::scalar(2.0)})"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dynidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_dynidx_e2e_out.txt").string();
@@ -8313,12 +8313,12 @@ TEST(CodegenBridge, DynamicParamRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(z)\n  y = z + 1;\nend\n");  // z Dynamic param
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(z)\n  y = z + 1;\nend\n");  // z Dynamic param
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8329,7 +8329,7 @@ TEST(CodegenBridge, DynamicParamRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::val z"), std::string::npos);  // by-value Dynamic param
     ASSERT_NE(emitted.source.find("nk_val f("), std::string::npos);     // boxed Dynamic return
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dynparam_e2e.exe").string();
     const std::string outTxt = (base / "nk_dynparam_e2e_out.txt").string();
@@ -8383,12 +8383,12 @@ TEST(CodegenBridge, DynamicMatrixRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(M)\n  y = mod(M, 3);\nend\n");  // M 2-D -> y Dynamic matrix
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(M)\n  y = mod(M, 3);\nend\n");  // M 2-D -> y Dynamic matrix
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8400,7 +8400,7 @@ TEST(CodegenBridge, DynamicMatrixRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("nk_rt::val::matrix(M, _nk_M_rows, _nk_M_cols)"),
               std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dynmat_e2e.exe").string();
     const std::string outTxt = (base / "nk_dynmat_e2e_out.txt").string();
@@ -8460,16 +8460,16 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n"
+    nk::Lexer          lex("function y = f(x)\n"
                                "  b = [50 20 70];\n"
                                "  [tf, loc] = ismember(x, b);\n"  // bridged 2-output -> tf,loc Dynamic
                                "  y = tf(1) + loc(1);\n"           // Dynamic indexing + arithmetic
                                "end\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8480,7 +8480,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
         bridge);
     ASSERT_NE(emitted.source.find("nk_rt::call_dyn_multi(\"ismember\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_multiout_bridge_e2e.exe").string();
     const std::string outTxt = (base / "nk_multiout_bridge_e2e_out.txt").string();
@@ -8534,12 +8534,12 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = sign(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(x)\n  y = sign(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8550,7 +8550,7 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
         bridge);
     ASSERT_NE(emitted.source.find("nk_rt::bridge_into(\"sign\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_bridged_arr_e2e.exe").string();
     const std::string outTxt = (base / "nk_bridged_arr_e2e_out.txt").string();
@@ -8609,12 +8609,12 @@ TEST(CodegenBridge, ReductionSumBridgedMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function s = f(x)\n  s = sum(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function s = f(x)\n  s = sum(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8625,7 +8625,7 @@ TEST(CodegenBridge, ReductionSumBridgedMatchesInterpreter)
         bridge);
     ASSERT_NE(emitted.source.find("nk_rt::bridge_scalar_arr(\"sum\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_redsum_e2e.exe").string();
     const std::string outTxt = (base / "nk_redsum_e2e_out.txt").string();
@@ -8663,7 +8663,7 @@ TEST(CodegenBridge, ReductionSumBridgedMatchesInterpreter)
     }
     ASSERT_EQ(got.size(), 1u);
 
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
         const double ref = engine.eval("sum([1.5 2.5 3.5 4.5 5.5]);").toScalar();
     EXPECT_NEAR(got[0], ref, 1e-12);  // == runtime sum (here 17.5)
 }
@@ -8677,12 +8677,12 @@ TEST(CodegenBridge, CumsumBridgedMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = cumsum(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(x)\n  y = cumsum(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -8693,7 +8693,7 @@ TEST(CodegenBridge, CumsumBridgedMatchesInterpreter)
         bridge);
     ASSERT_NE(emitted.source.find("nk_rt::bridge_into(\"cumsum\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cumsum_e2e.exe").string();
     const std::string outTxt = (base / "nk_cumsum_e2e_out.txt").string();
@@ -8735,7 +8735,7 @@ TEST(CodegenBridge, CumsumBridgedMatchesInterpreter)
 }
 
 // Ops-kernel lowering end-to-end: C = A*B with OpsKernelOptions enabled emits
-// numkit::ops::matmulDouble and links the nk_ops_kernels shared facade (one
+// nk::ops::matmulDouble and links the nk_ops_kernels shared facade (one
 // import lib + DLL, mirroring nk_codegen_rt — no static transitive-dep
 // enumeration). Proves the whole "codegen takes a kernel from ops" path links
 // and runs. A (2x3) col-major {1..6}, B (3x2) {1..6} -> C (2x2) {22,28,49,64}.
@@ -8746,12 +8746,12 @@ TEST(CodegenOpsKernel, MatrixProductViaOpsKernelRunsCorrectly)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function C = f(A, B)\n  C = A * B;\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function C = f(A, B)\n  C = A * B;\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     OpsKernelOptions      ops{true};
@@ -8759,10 +8759,10 @@ TEST(CodegenOpsKernel, MatrixProductViaOpsKernelRunsCorrectly)
         *fn, {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))},
               {"B", InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 2))}},
         reg, nullptr, {}, ops);
-    ASSERT_NE(emitted.source.find("numkit::ops::matmulDouble("), std::string::npos);
-    ASSERT_NE(emitted.source.find("#include <numkit/ops/kernels.hpp>"), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk::ops::matmulDouble("), std::string::npos);
+    ASSERT_NE(emitted.source.find("#include <nk/ops/kernels.hpp>"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_opskernel_e2e.exe").string();
     const std::string outTxt = (base / "nk_opskernel_e2e_out.txt").string();
@@ -8805,7 +8805,7 @@ TEST(CodegenOpsKernel, MatrixProductViaOpsKernelRunsCorrectly)
     for (int i = 0; i < 4; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
-// Element-wise binary op via the ops kernel: z = x + y -> numkit::ops::plusDouble,
+// Element-wise binary op via the ops kernel: z = x + y -> nk::ops::plusDouble,
 // linked through the same nk_ops_kernels shared facade. x=[1,2,3], y=[10,20,30]
 // -> z=[11,22,33].
 TEST(CodegenOpsKernel, ElementwiseBinaryViaOpsKernelRunsCorrectly)
@@ -8815,21 +8815,21 @@ TEST(CodegenOpsKernel, ElementwiseBinaryViaOpsKernelRunsCorrectly)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function z = f(x, y)\n  z = x + y;\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function z = f(x, y)\n  z = x + y;\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     OpsKernelOptions      ops{true};
     const InferredType    row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
     const EmittedFunction emitted =
         emitFunction(*fn, {{"x", row}, {"y", row}}, reg, nullptr, {}, ops);
-    ASSERT_NE(emitted.source.find("numkit::ops::plusDouble(x, y, z,"), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk::ops::plusDouble(x, y, z,"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_opsewise_e2e.exe").string();
     const std::string outTxt = (base / "nk_opsewise_e2e_out.txt").string();
@@ -8871,7 +8871,7 @@ TEST(CodegenOpsKernel, ElementwiseBinaryViaOpsKernelRunsCorrectly)
 }
 
 // Complex matrix product via the ops kernel: C = A*B (complex) ->
-// numkit::ops::matmulComplex. A=B=diag(i) (2x2) -> C=diag(i*i)=diag(-1),
+// nk::ops::matmulComplex. A=B=diag(i) (2x2) -> C=diag(i*i)=diag(-1),
 // exercising complex multiply across the kernel + shared facade.
 TEST(CodegenOpsKernel, ComplexMatrixProductViaOpsKernelRunsCorrectly)
 {
@@ -8880,21 +8880,21 @@ TEST(CodegenOpsKernel, ComplexMatrixProductViaOpsKernelRunsCorrectly)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function C = f(A, B)\n  C = A * B;\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function C = f(A, B)\n  C = A * B;\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     OpsKernelOptions      ops{true};
     const InferredType    mat = InferredType::concrete(ValueType::COMPLEX, Shape::dims(2, 2));
     const EmittedFunction emitted =
         emitFunction(*fn, {{"A", mat}, {"B", mat}}, reg, nullptr, {}, ops);
-    ASSERT_NE(emitted.source.find("numkit::ops::matmulComplex("), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk::ops::matmulComplex("), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_opscxmm_e2e.exe").string();
     const std::string outTxt = (base / "nk_opscxmm_e2e_out.txt").string();
@@ -8937,7 +8937,7 @@ TEST(CodegenOpsKernel, ComplexMatrixProductViaOpsKernelRunsCorrectly)
     for (int i = 0; i < 8; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
-// SIMD transcendental via the ops kernel: y = sin(x) -> numkit::ops::sinDouble
+// SIMD transcendental via the ops kernel: y = sin(x) -> nk::ops::sinDouble
 // (the same fusedTransAffine the runtime's fusion uses). Compared bin-for-bin to
 // the interpreter's own sin — the SIMD kernel matches to high precision.
 TEST(CodegenOpsKernel, TranscendentalViaOpsKernelMatchesInterpreter)
@@ -8947,20 +8947,20 @@ TEST(CodegenOpsKernel, TranscendentalViaOpsKernelMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = sin(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(x)\n  y = sin(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     OpsKernelOptions      ops{true};
     const InferredType    row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
     const EmittedFunction emitted = emitFunction(*fn, {{"x", row}}, reg, nullptr, {}, ops);
-    ASSERT_NE(emitted.source.find("numkit::ops::sinDouble(x, y,"), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk::ops::sinDouble(x, y,"), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_opssin_e2e.exe").string();
     const std::string outTxt = (base / "nk_opssin_e2e_out.txt").string();
@@ -8998,8 +8998,8 @@ TEST(CodegenOpsKernel, TranscendentalViaOpsKernelMatchesInterpreter)
     }
     ASSERT_EQ(got.size(), 4u);
 
-    numkit::StandardEngine engine;
-        numkit::Value yv = engine.eval("sin([0.5 1.0 1.5 2.0]);");
+    nk::StandardEngine engine;
+        nk::Value yv = engine.eval("sin([0.5 1.0 1.5 2.0]);");
     ASSERT_EQ(yv.numel(), 4u);
     for (int i = 0; i < 4; ++i)
         EXPECT_NEAR(got[i], yv.doubleData()[i], 1e-12) << "at " << i;
@@ -9017,12 +9017,12 @@ TEST(CodegenBridge, ComplexFftBridgedMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = fft(x);\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Lexer          lex("function y = f(x)\n  y = fft(x);\nend\n");
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -9033,7 +9033,7 @@ TEST(CodegenBridge, ComplexFftBridgedMatchesInterpreter)
         bridge);
     ASSERT_NE(emitted.source.find("nk_rt::bridge_into_cx(\"fft\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cxfft_e2e.exe").string();
     const std::string outTxt = (base / "nk_cxfft_e2e_out.txt").string();
@@ -9071,8 +9071,8 @@ TEST(CodegenBridge, ComplexFftBridgedMatchesInterpreter)
     }
     ASSERT_EQ(got.size(), 8u);  // re,im per element
 
-    numkit::StandardEngine engine;
-        numkit::Value yv = engine.eval("fft([1 2 3 4]);");
+    nk::StandardEngine engine;
+        nk::Value yv = engine.eval("fft([1 2 3 4]);");
     ASSERT_EQ(yv.numel(), 4u);
     for (int i = 0; i < 4; ++i) {
         const std::complex<double> ref =
@@ -9092,13 +9092,13 @@ TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  n = numel(x);\n  z = sign(x);\n"
+    nk::Lexer          lex("function y = f(x)\n  n = numel(x);\n  z = sign(x);\n"
                                "  y = zeros(1, n);\n  for k = 1:n\n    y(k) = z(k) * 2;\n  end\nend\n");
-    numkit::Parser         parser(lex.tokenize());
+    nk::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
-    const numkit::ASTNode *fn   = nullptr;
+    const nk::ASTNode *fn   = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     ASSERT_NE(fn, nullptr);
 
     BridgeOptions bridge;
@@ -9110,7 +9110,7 @@ TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
     ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);   // owned local
     ASSERT_NE(emitted.source.find("nk_rt::bridge_to_vec(\"sign\""), std::string::npos);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_bridged_local_e2e.exe").string();
     const std::string outTxt = (base / "nk_bridged_local_e2e_out.txt").string();
@@ -9173,7 +9173,7 @@ TEST(CodegenE2E, PermuteRank3)
     const EmittedFunction emitted =
         transpile(std::string("function s = f()\n") + body + "end\n", {});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_permute3_e2e.exe").string();
     const std::string outTxt = (base / "nk_permute3_e2e_out.txt").string();
@@ -9189,7 +9189,7 @@ TEST(CodegenE2E, PermuteRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 802531.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string(body) + "s", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -9213,7 +9213,7 @@ TEST(CodegenE2E, Cat3StackMatrices)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cat3_e2e.exe").string();
     const std::string outTxt = (base / "nk_cat3_e2e_out.txt").string();
@@ -9233,7 +9233,7 @@ TEST(CodegenE2E, Cat3StackMatrices)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 88541.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
             .toScalar();
@@ -9260,7 +9260,7 @@ TEST(CodegenE2E, PageSliceReadRank3)
          {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_pageslice_e2e.exe").string();
     const std::string outTxt = (base / "nk_pageslice_e2e_out.txt").string();
@@ -9280,7 +9280,7 @@ TEST(CodegenE2E, PageSliceReadRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 4685.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
             .toScalar();
@@ -9304,7 +9304,7 @@ TEST(CodegenE2E, PageSliceWriteRank3)
         {{"m1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"m2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_pagewrite_e2e.exe").string();
     const std::string outTxt = (base / "nk_pagewrite_e2e_out.txt").string();
@@ -9322,7 +9322,7 @@ TEST(CodegenE2E, PageSliceWriteRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 10410.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("m1=[10 20]; m2=[30 40];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9342,7 +9342,7 @@ TEST(CodegenE2E, ReshapeToRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_reshape3_e2e.exe").string();
     const std::string outTxt = (base / "nk_reshape3_e2e_out.txt").string();
@@ -9359,7 +9359,7 @@ TEST(CodegenE2E, ReshapeToRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 88521.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9385,7 +9385,7 @@ TEST(CodegenE2E, Cat3Rank3Operands)
          {"q1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"q2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cat3r3_e2e.exe").string();
     const std::string outTxt = (base / "nk_cat3r3_e2e_out.txt").string();
@@ -9405,7 +9405,7 @@ TEST(CodegenE2E, Cat3Rank3Operands)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 168181.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("p1=[1 2]; p2=[3 4]; q1=[5 6]; q2=[7 8];\n") + body + "r", true)
             .toScalar();
@@ -9427,7 +9427,7 @@ TEST(CodegenE2E, PageRangeReadRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_pagerange_e2e.exe").string();
     const std::string outTxt = (base / "nk_pagerange_e2e_out.txt").string();
@@ -9444,7 +9444,7 @@ TEST(CodegenE2E, PageRangeReadRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 92985.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9465,7 +9465,7 @@ TEST(CodegenE2E, LeadingScalarSliceRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_leadslice_e2e.exe").string();
     const std::string outTxt = (base / "nk_leadslice_e2e_out.txt").string();
@@ -9482,7 +9482,7 @@ TEST(CodegenE2E, LeadingScalarSliceRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 72642.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9503,7 +9503,7 @@ TEST(CodegenE2E, MiddleScalarSliceRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_midslice_e2e.exe").string();
     const std::string outTxt = (base / "nk_midslice_e2e_out.txt").string();
@@ -9520,7 +9520,7 @@ TEST(CodegenE2E, MiddleScalarSliceRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 72743.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9541,7 +9541,7 @@ TEST(CodegenE2E, FiberSliceRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_fiber_e2e.exe").string();
     const std::string outTxt = (base / "nk_fiber_e2e_out.txt").string();
@@ -9558,7 +9558,7 @@ TEST(CodegenE2E, FiberSliceRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 4062.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9579,7 +9579,7 @@ TEST(CodegenE2E, RowOfPageSliceRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rowofpage_e2e.exe").string();
     const std::string outTxt = (base / "nk_rowofpage_e2e_out.txt").string();
@@ -9596,7 +9596,7 @@ TEST(CodegenE2E, RowOfPageSliceRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 330.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9617,7 +9617,7 @@ TEST(CodegenE2E, ColOfPageSliceRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_colofpage_e2e.exe").string();
     const std::string outTxt = (base / "nk_colofpage_e2e_out.txt").string();
@@ -9634,7 +9634,7 @@ TEST(CodegenE2E, ColOfPageSliceRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 331.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9658,7 +9658,7 @@ TEST(CodegenE2E, Rank4FoundationAndPermute)
     const EmittedFunction emitted =
         transpile(std::string("function s = f()\n") + body + "end\n", {});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rank4_e2e.exe").string();
     const std::string outTxt = (base / "nk_rank4_e2e_out.txt").string();
@@ -9674,7 +9674,7 @@ TEST(CodegenE2E, Rank4FoundationAndPermute)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 417621.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string(body) + "s", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -9693,7 +9693,7 @@ TEST(CodegenE2E, ReshapeToRank4)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_reshape4_e2e.exe").string();
     const std::string outTxt = (base / "nk_reshape4_e2e_out.txt").string();
@@ -9711,7 +9711,7 @@ TEST(CodegenE2E, ReshapeToRank4)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 176921.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16];\n") + body + "r", true)
             .toScalar();
@@ -9735,7 +9735,7 @@ TEST(CodegenE2E, Cat4StackRank3)
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
          {"y", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cat4_e2e.exe").string();
     const std::string outTxt = (base / "nk_cat4_e2e_out.txt").string();
@@ -9753,7 +9753,7 @@ TEST(CodegenE2E, Cat4StackRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 179181.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8]; y=[11 12 13 14 15 16 17 18];\n") + body + "r",
                     true)
@@ -9778,7 +9778,7 @@ TEST(CodegenE2E, GeneralSliceRank4)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_genslice4_e2e.exe").string();
     const std::string outTxt = (base / "nk_genslice4_e2e_out.txt").string();
@@ -9796,7 +9796,7 @@ TEST(CodegenE2E, GeneralSliceRank4)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 896369.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16];\n") + body + "r", true)
             .toScalar();
@@ -9825,7 +9825,7 @@ TEST(CodegenE2E, GeneralSliceWriteRank4)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_slicewr4_e2e.exe").string();
     const std::string outTxt = (base / "nk_slicewr4_e2e_out.txt").string();
@@ -9843,7 +9843,7 @@ TEST(CodegenE2E, GeneralSliceWriteRank4)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 278181.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9867,7 +9867,7 @@ TEST(CodegenE2E, CatDim3ThreeOperands)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cat3x3_e2e.exe").string();
     const std::string outTxt = (base / "nk_cat3x3_e2e_out.txt").string();
@@ -9885,7 +9885,7 @@ TEST(CodegenE2E, CatDim3ThreeOperands)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 145141.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9909,7 +9909,7 @@ TEST(CodegenE2E, CatDim4ThreeOperands)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cat4x3_e2e.exe").string();
     const std::string outTxt = (base / "nk_cat4x3_e2e_out.txt").string();
@@ -9927,7 +9927,7 @@ TEST(CodegenE2E, CatDim4ThreeOperands)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 269181.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9950,7 +9950,7 @@ TEST(CodegenE2E, PageRangeWriteRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_pgrangewr_e2e.exe").string();
     const std::string outTxt = (base / "nk_pgrangewr_e2e_out.txt").string();
@@ -9968,7 +9968,7 @@ TEST(CodegenE2E, PageRangeWriteRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 160081.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -9993,7 +9993,7 @@ TEST(CodegenE2E, SlabRangeReadWriteRank4)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_slabrange4_e2e.exe").string();
     const std::string outTxt = (base / "nk_slabrange4_e2e_out.txt").string();
@@ -10011,7 +10011,7 @@ TEST(CodegenE2E, SlabRangeReadWriteRank4)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 33601149.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:32;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10036,7 +10036,7 @@ TEST(CodegenE2E, ColumnRangeReadWrite2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_colrange2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_colrange2d_e2e_out.txt").string();
@@ -10054,7 +10054,7 @@ TEST(CodegenE2E, ColumnRangeReadWrite2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 12609494.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10079,7 +10079,7 @@ TEST(CodegenE2E, RowRangeReadWrite2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rowrange2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_rowrange2d_e2e_out.txt").string();
@@ -10097,7 +10097,7 @@ TEST(CodegenE2E, RowRangeReadWrite2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 12611312.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10122,7 +10122,7 @@ TEST(CodegenE2E, BlockRangeReadWrite2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_blockrange2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_blockrange2d_e2e_out.txt").string();
@@ -10140,7 +10140,7 @@ TEST(CodegenE2E, BlockRangeReadWrite2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 16615756.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:16;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10163,7 +10163,7 @@ TEST(CodegenE2E, FlipWithDim2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_flipdim2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_flipdim2d_e2e_out.txt").string();
@@ -10181,7 +10181,7 @@ TEST(CodegenE2E, FlipWithDim2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 61215.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:6;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10205,7 +10205,7 @@ TEST(CodegenE2E, Cumsum2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cumsum2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_cumsum2d_e2e_out.txt").string();
@@ -10223,7 +10223,7 @@ TEST(CodegenE2E, Cumsum2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 763013.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:6;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10246,7 +10246,7 @@ TEST(CodegenE2E, Cummax2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cummax2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_cummax2d_e2e_out.txt").string();
@@ -10263,7 +10263,7 @@ TEST(CodegenE2E, Cummax2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 61393.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5 9];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10286,7 +10286,7 @@ TEST(CodegenE2E, Diff2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_diff2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_diff2d_e2e_out.txt").string();
@@ -10303,7 +10303,7 @@ TEST(CodegenE2E, Diff2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 885981.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 4 8 16 32 64 128 256];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10326,7 +10326,7 @@ TEST(CodegenE2E, ColumnMaxMin2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_colmaxmin2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_colmaxmin2d_e2e_out.txt").string();
@@ -10343,7 +10343,7 @@ TEST(CodegenE2E, ColumnMaxMin2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 302164.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5 9 2 6 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10367,7 +10367,7 @@ TEST(CodegenE2E, MaxMinWithDim2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_maxmindim_e2e.exe").string();
     const std::string outTxt = (base / "nk_maxmindim_e2e_out.txt").string();
@@ -10384,7 +10384,7 @@ TEST(CodegenE2E, MaxMinWithDim2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 344963.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5 9 2 6 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10406,7 +10406,7 @@ TEST(CodegenE2E, AnyAllRowwise2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_anyallrow_e2e.exe").string();
     const std::string outTxt = (base / "nk_anyallrow_e2e_out.txt").string();
@@ -10423,7 +10423,7 @@ TEST(CodegenE2E, AnyAllRowwise2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 300101.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 0 1 1 0 0 1 0 1];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10446,7 +10446,7 @@ TEST(CodegenE2E, ColumnAnyAll2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_anyall2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_anyall2d_e2e_out.txt").string();
@@ -10463,7 +10463,7 @@ TEST(CodegenE2E, ColumnAnyAll2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 301010.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[0 0 0 1 2 3 4 0 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10488,7 +10488,7 @@ TEST(CodegenE2E, FlipRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_fliprank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_fliprank3_e2e_out.txt").string();
@@ -10506,7 +10506,7 @@ TEST(CodegenE2E, FlipRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 8131215.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10529,7 +10529,7 @@ TEST(CodegenE2E, Sort2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sort2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_sort2d_e2e_out.txt").string();
@@ -10546,7 +10546,7 @@ TEST(CodegenE2E, Sort2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 643431.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 2 6 4 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10568,7 +10568,7 @@ TEST(CodegenE2E, Unique2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_unique2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_unique2d_e2e_out.txt").string();
@@ -10585,7 +10585,7 @@ TEST(CodegenE2E, Unique2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 45321.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 3 2 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10608,7 +10608,7 @@ TEST(CodegenE2E, FliplrFlipudRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_fliplrud3_e2e.exe").string();
     const std::string outTxt = (base / "nk_fliplrud3_e2e_out.txt").string();
@@ -10626,7 +10626,7 @@ TEST(CodegenE2E, FliplrFlipudRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 81213.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10648,7 +10648,7 @@ TEST(CodegenE2E, Rot90Rank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rot90rank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_rot90rank3_e2e_out.txt").string();
@@ -10666,7 +10666,7 @@ TEST(CodegenE2E, Rot90Rank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 86713.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10691,7 +10691,7 @@ TEST(CodegenE2E, Rot90WithK)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_rot90k_e2e.exe").string();
     const std::string outTxt = (base / "nk_rot90k_e2e_out.txt").string();
@@ -10709,7 +10709,7 @@ TEST(CodegenE2E, Rot90WithK)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 6522516.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 2 3 4 5 6];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10733,7 +10733,7 @@ TEST(CodegenE2E, ColumnArgMaxMin2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_argmaxmin2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_argmaxmin2d_e2e_out.txt").string();
@@ -10750,7 +10750,7 @@ TEST(CodegenE2E, ColumnArgMaxMin2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 3112634.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5 9 2 6 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10773,7 +10773,7 @@ TEST(CodegenE2E, SortWithIndex)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sortidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_sortidx_e2e_out.txt").string();
@@ -10790,7 +10790,7 @@ TEST(CodegenE2E, SortWithIndex)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5555521.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10813,7 +10813,7 @@ TEST(CodegenE2E, SortWithIndex2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sortidx2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_sortidx2d_e2e_out.txt").string();
@@ -10830,7 +10830,7 @@ TEST(CodegenE2E, SortWithIndex2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 6143231.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 2 6 4 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10852,7 +10852,7 @@ TEST(CodegenE2E, UniqueWithIndices)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_uniqueidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_uniqueidx_e2e_out.txt").string();
@@ -10869,7 +10869,7 @@ TEST(CodegenE2E, UniqueWithIndices)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 4121510.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10892,7 +10892,7 @@ TEST(CodegenE2E, UniqueWithIndices2D)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_uniqueidx2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_uniqueidx2d_e2e_out.txt").string();
@@ -10909,7 +10909,7 @@ TEST(CodegenE2E, UniqueWithIndices2D)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 6421510.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[30 10 40 10 50 10];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10930,7 +10930,7 @@ TEST(CodegenE2E, UnionVectors)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_union_e2e.exe").string();
     const std::string outTxt = (base / "nk_union_e2e_out.txt").string();
@@ -10947,7 +10947,7 @@ TEST(CodegenE2E, UnionVectors)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 6621.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -10970,7 +10970,7 @@ TEST(CodegenE2E, IntersectSetdiffVectors)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_setdiff_e2e.exe").string();
     const std::string outTxt = (base / "nk_setdiff_e2e_out.txt").string();
@@ -10987,7 +10987,7 @@ TEST(CodegenE2E, IntersectSetdiffVectors)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 225341.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11009,7 +11009,7 @@ TEST(CodegenE2E, IsmemberMask)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_ismember_e2e.exe").string();
     const std::string outTxt = (base / "nk_ismember_e2e_out.txt").string();
@@ -11026,7 +11026,7 @@ TEST(CodegenE2E, IsmemberMask)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 50110.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11048,7 +11048,7 @@ TEST(CodegenE2E, IntersectWithIndices)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_isectidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_isectidx_e2e_out.txt").string();
@@ -11065,7 +11065,7 @@ TEST(CodegenE2E, IntersectWithIndices)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 2233610.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11087,7 +11087,7 @@ TEST(CodegenE2E, SetdiffWithIndices)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_setdiffidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_setdiffidx_e2e_out.txt").string();
@@ -11104,7 +11104,7 @@ TEST(CodegenE2E, SetdiffWithIndices)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 25630.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11127,7 +11127,7 @@ TEST(CodegenE2E, UnionWithIndices)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_unionidx_e2e.exe").string();
     const std::string outTxt = (base / "nk_unionidx_e2e_out.txt").string();
@@ -11144,7 +11144,7 @@ TEST(CodegenE2E, UnionWithIndices)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 4511410.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11166,7 +11166,7 @@ TEST(CodegenE2E, Sortrows)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sortrows_e2e.exe").string();
     const std::string outTxt = (base / "nk_sortrows_e2e_out.txt").string();
@@ -11183,7 +11183,7 @@ TEST(CodegenE2E, Sortrows)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 81321.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 3 1 1 2 0 2];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11207,7 +11207,7 @@ TEST(CodegenE2E, Median2D)
     ASSERT_EQ(emitted.source.find("nk_call"), std::string::npos)
         << "median(matrix) must lower to a native per-column sort+middle, not bridge";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_median2d_e2e.exe").string();
     const std::string outTxt = (base / "nk_median2d_e2e_out.txt").string();
@@ -11245,7 +11245,7 @@ TEST(CodegenE2E, Mode)
     ASSERT_EQ(emitted.source.find("nk_call"), std::string::npos)
         << "mode must lower to a native sort+longest-run, not bridge";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_mode_e2e.exe").string();
     const std::string outTxt = (base / "nk_mode_e2e_out.txt").string();
@@ -11285,7 +11285,7 @@ TEST(CodegenE2E, CumsumCumprodRank3Dim3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cumrank3dim3_e2e.exe").string();
     const std::string outTxt = (base / "nk_cumrank3dim3_e2e_out.txt").string();
@@ -11303,7 +11303,7 @@ TEST(CodegenE2E, CumsumCumprodRank3Dim3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5087551.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11330,7 +11330,7 @@ TEST(CodegenE2E, CumsumRank3Dim1Dim2)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cumrank3d12_e2e.exe").string();
     const std::string outTxt = (base / "nk_cumrank3d12_e2e_out.txt").string();
@@ -11348,7 +11348,7 @@ TEST(CodegenE2E, CumsumRank3Dim1Dim2)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 13224373.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11376,7 +11376,7 @@ TEST(CodegenE2E, CummaxCumminRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_cummmrank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_cummmrank3_e2e_out.txt").string();
@@ -11393,7 +11393,7 @@ TEST(CodegenE2E, CummaxCumminRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1272474.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11420,7 +11420,7 @@ TEST(CodegenE2E, CircshiftRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_circshiftrank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_circshiftrank3_e2e_out.txt").string();
@@ -11438,7 +11438,7 @@ TEST(CodegenE2E, CircshiftRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1289422.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11465,7 +11465,7 @@ TEST(CodegenE2E, SortRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_sortrank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_sortrank3_e2e_out.txt").string();
@@ -11482,7 +11482,7 @@ TEST(CodegenE2E, SortRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 1282142.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11508,7 +11508,7 @@ TEST(CodegenE2E, DiffRank3Dim1Dim2)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_diffrank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_diffrank3_e2e_out.txt").string();
@@ -11525,7 +11525,7 @@ TEST(CodegenE2E, DiffRank3Dim1Dim2)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 649358.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11552,7 +11552,7 @@ TEST(CodegenE2E, MaxMinReduceRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_maxminreducerank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_maxminreducerank3_e2e_out.txt").string();
@@ -11569,7 +11569,7 @@ TEST(CodegenE2E, MaxMinReduceRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 4792184.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11596,7 +11596,7 @@ TEST(CodegenE2E, AnyAllReduceRank3)
         std::string("function r = f(x)\n") + body + "end\n",
         {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_anyallreducerank3_e2e.exe").string();
     const std::string outTxt = (base / "nk_anyallreducerank3_e2e_out.txt").string();
@@ -11613,7 +11613,7 @@ TEST(CodegenE2E, AnyAllReduceRank3)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 453.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[1 0 1 1 1 0 0 0 1 1 0 1];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
@@ -11644,8 +11644,8 @@ TEST(CodegenE2E, PartialNargoutUserCall)
         "  b = n + 1;\n"
         "  c = n + 2;\n"          // unrequested -> throwaway out-param
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -11656,7 +11656,7 @@ TEST(CodegenE2E, PartialNargoutUserCall)
     const EmittedFunction emitted =
         emitProgram(*ft.find("g"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_partialnargout_e2e.exe").string();
     const std::string outTxt = (base / "nk_partialnargout_e2e_out.txt").string();
@@ -11692,8 +11692,8 @@ TEST(CodegenE2E, StructParamAcrossABI)
         "function r = ff(s)\n"
         "  r = s.a * 10 + s.b;\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -11705,7 +11705,7 @@ TEST(CodegenE2E, StructParamAcrossABI)
     EXPECT_NE(emitted.source.find("_nk_fld_s_a"), std::string::npos)
         << "the struct param must explode into per-field params";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_structparam_e2e.exe").string();
     const std::string outTxt = (base / "nk_structparam_e2e_out.txt").string();
@@ -11740,8 +11740,8 @@ TEST(CodegenE2E, StructReturnAcrossABI)
         "  s.a = 5;\n"
         "  s.b = 7;\n"
         "end\n";
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -11753,7 +11753,7 @@ TEST(CodegenE2E, StructReturnAcrossABI)
     EXPECT_NE(emitted.source.find("_nk_fld_t_a"), std::string::npos)
         << "the struct-returning call must bind the caller's per-field locals";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_structret_e2e.exe").string();
     const std::string outTxt = (base / "nk_structret_e2e_out.txt").string();
@@ -11790,7 +11790,7 @@ TEST(CodegenE2E, GrowLocalVectorByIndex)
     EXPECT_NE(emitted.source.find("index_set_grow"), std::string::npos)
         << "a 1-D local indexed store must use the growing helper";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_grow1d_e2e.exe").string();
     const std::string outTxt = (base / "nk_grow1d_e2e_out.txt").string();
@@ -11806,7 +11806,7 @@ TEST(CodegenE2E, GrowLocalVectorByIndex)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 5990.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -11828,7 +11828,7 @@ TEST(CodegenE2E, AppendViaEndPlusOne)
         std::string("function r = f(n)\n") + body + "end\n",
         {{"n", InferredType::scalar(ValueType::DOUBLE)}});
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_append_e2e.exe").string();
     const std::string outTxt = (base / "nk_append_e2e_out.txt").string();
@@ -11844,7 +11844,7 @@ TEST(CodegenE2E, AppendViaEndPlusOne)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 669.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -11869,7 +11869,7 @@ TEST(CodegenE2E, EmptyInitLoopBuild)
     EXPECT_NE(emitted.source.find(".clear()"), std::string::npos)
         << "x = [] must empty the local vector";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_emptybuild_e2e.exe").string();
     const std::string outTxt = (base / "nk_emptybuild_e2e_out.txt").string();
@@ -11885,7 +11885,7 @@ TEST(CodegenE2E, EmptyInitLoopBuild)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 391.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -11915,7 +11915,7 @@ TEST(CodegenE2E, StructArraySoA)
     EXPECT_NE(emitted.source.find("index_set_grow"), std::string::npos)
         << "an out-of-range struct-array field store must grow the field-array";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_structarr_soa_e2e.exe").string();
     const std::string outTxt = (base / "nk_structarr_soa_e2e_out.txt").string();
@@ -11931,7 +11931,7 @@ TEST(CodegenE2E, StructArraySoA)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 87065.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string(body) + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
@@ -11956,7 +11956,7 @@ TEST(CodegenE2E, ConstDynamicField)
     EXPECT_NE(emitted.source.find("_nk_fld_s_a"), std::string::npos)
         << "a constant dynamic field must fold to the static field-local";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
     const std::string exe    = (base / "nk_dynfield_e2e.exe").string();
     const std::string outTxt = (base / "nk_dynfield_e2e_out.txt").string();
@@ -11972,7 +11972,7 @@ TEST(CodegenE2E, ConstDynamicField)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 57.0);
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     const double interp = engine.eval(std::string(body) + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }

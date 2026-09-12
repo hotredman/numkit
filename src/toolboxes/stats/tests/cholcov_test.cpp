@@ -3,10 +3,10 @@
 // Regression guard for cholcov() — Cholesky-like factor of (possibly
 // singular) covariance matrix.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CholcovTest : public ::testing::Test
 {

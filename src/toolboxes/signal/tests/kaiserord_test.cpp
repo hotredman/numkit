@@ -3,10 +3,10 @@
 // Regression guard for kaiserord (Phase 4.5).
 // Bit-equal MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class KaiserordTest : public ::testing::Test
 {

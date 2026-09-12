@@ -3,10 +3,10 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/matlab_mt19937.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/matlab_mt19937.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -25,9 +25,9 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace nk { namespace ops { class RngContext; } }
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -41,7 +41,7 @@ inline double sq_dist(const double *a, const double *b, size_t D) {
 // (flattened K*D-length buffer).
 ScratchVec<double> kmeanspp_init(const ScratchVec<double> &X,
                                  size_t N, size_t D, int K,
-                                 numkit::ops::MatlabMT19937 &gen,
+                                 nk::ops::MatlabMT19937 &gen,
                                  std::pmr::memory_resource *scratch_mr)
 {
     ScratchVec<double> C((size_t)K * D, scratch_mr);
@@ -166,7 +166,7 @@ struct KmeansResult {
     Value sumd;
     Value D;     // optional N×K
 };
-KmeansResult kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
+KmeansResult kmeans_full(::nk::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
                          std::pmr::memory_resource *mr);
 
-} // namespace numkit::stats
+} // namespace nk::stats

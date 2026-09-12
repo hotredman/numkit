@@ -14,20 +14,20 @@
 // All entries comparisons are exact (== 0).
 // Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/predicates.cpp.
 
-#include <numkit/linalg/predicates.hpp>
+#include <nk/linalg/predicates.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The is*/bandwidth
 // builtins (CallContext wrappers) live in predicates_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <string>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -37,7 +37,7 @@ inline void requireMatrix(const Value &A, const char *who)
 {
     if (A.dims().is3D())
         throw Error(std::string(who) + ": input must be 2D",
-                    0, 0, who, "", std::string("numkit:") + who + ":Not2D");
+                    0, 0, who, "", std::string("nk:") + who + ":Not2D");
 }
 
 bool isbandedImpl(const Value &A, long lower, long upper)
@@ -152,7 +152,7 @@ Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource
     requireMatrix(A, "isbanded");
     if (lower < 0 || upper < 0)
         throw Error("isbanded: bandwidths must be non-negative",
-                    0, 0, "isbanded", "", "numkit:isbanded:NegBand");
+                    0, 0, "isbanded", "", "nk:isbanded:NegBand");
     return Value::logicalScalar(isbandedImpl(A, lower, upper), mr);
 }
 
@@ -202,11 +202,11 @@ Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_re
     if (which == "lower") return Value::scalar(static_cast<double>(lo), mr);
     if (which == "upper") return Value::scalar(static_cast<double>(up), mr);
     throw Error("bandwidth: option must be 'lower' or 'upper'",
-                0, 0, "bandwidth", "", "numkit:bandwidth:BadOpt");
+                0, 0, "bandwidth", "", "nk:bandwidth:BadOpt");
 }
 
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

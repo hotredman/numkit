@@ -25,7 +25,7 @@ end
 
 fprintf('\n=== Poisson regression ===\n');
 % Deterministic exact-mean Poisson surrogate (vector poissrnd not yet
-% available in numkit's stats library — KNOWN GAP in poissrnd).
+% available in nk's stats library — KNOWN GAP in poissrnd).
 x2 = linspace(-1, 1, 200)';
 lambda = exp(0.7 + 0.5 * x2);
 y2 = round(lambda);

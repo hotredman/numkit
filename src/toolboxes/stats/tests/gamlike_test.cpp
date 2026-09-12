@@ -2,11 +2,11 @@
 // Backfill gtest + gamlike. Reference values
 // from MATLAB R2025b probe.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GamlikeTest : public ::testing::Test
 {

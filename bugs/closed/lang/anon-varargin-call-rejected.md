@@ -4,7 +4,7 @@
 - **Severity:** P2 → raised on triage: the gap was engine-wide, not anon-only
 - **Kind:** bug
 - **Found:** 2026-08-31 via the fieldtest graphics-shim experiment (the shim
-  idea was dropped — numkit executes graphics natively — but this surfaced)
+  idea was dropped — nk executes graphics natively — but this surfaced)
 
 ## Symptom (as filed)
 
@@ -13,7 +13,7 @@ clear;
 f = @(varargin) numel(varargin);
 disp(f(1, 2))
 disp(f())
-% numkit (before): Error: Too many input arguments for function '__anon_1' (both calls)
+% nk (before): Error: Too many input arguments for function '__anon_1' (both calls)
 % MATLAB R2025b:  2 / 0
 ```
 

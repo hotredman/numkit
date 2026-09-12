@@ -10,9 +10,9 @@
 
 #include <cstddef>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // Reverse the low `bits` bits of `v` (the bit-reversal permutation index).
 std::size_t bitReverse(std::size_t v, std::size_t bits);
 
-} // namespace numkit::signal
+} // namespace nk::signal

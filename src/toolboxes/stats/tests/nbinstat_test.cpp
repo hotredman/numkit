@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/nbinstat_test.cpp
 // nbinstat.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class NbinstatTest : public ::testing::Test
 {

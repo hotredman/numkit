@@ -3,15 +3,15 @@
 // Unit tests for blocked LU decomposition (Phase 4.1).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 #include <complex>
 #include <random>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(BlockedLuTest, BlockedLu256Real) {
     const size_t n = 256;

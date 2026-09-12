@@ -2,13 +2,13 @@
 // regression in the 3-D renderer.
 //
 // Pre-fix: Composite3DPlot.jsx had `preserveDrawingBuffer:
-// process.env.NUMKIT_E2E === '1'`. Vite doesn't define `process` in the
+// process.env.NK_E2E === '1'`. Vite doesn't define `process` in the
 // browser bundle (no `define` block in vite.config), so any 3-D figure
 // (surf / mesh / plot3 / scatter3 / waterfall / etc.) crashed with
 // "process is not defined" and the figure window showed
 // "figure render error" instead of the plot.
 //
-// Fix replaced the reference with `import.meta.env.VITE_NUMKIT_E2E === '1'`
+// Fix replaced the reference with `import.meta.env.VITE_NK_E2E === '1'`
 // — replaced at build time, never undefined at runtime.
 //
 // We assert: 3-D figure renders without console errors AND without

@@ -11,11 +11,11 @@
 // All flagged "no major gap detected". Bit-identical MATLAB R2025b
 // (12 verified, 1 deferred — imoverlay arg validation differs).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImageBatch5Test : public ::testing::Test
 {
@@ -65,7 +65,7 @@ TEST_F(ImageBatch5Test, Misc)
 
 // DEEP-PROBE c177: imquantize [quant, index] 2nd output + the 'values' arg.
 // index is the 1-based bin (1..N+1); quant = values(index) when 'values' is
-// given, else quant == index. numkit previously returned only quant and
+// given, else quant == index. nk previously returned only quant and
 // threw on the 2nd output / ignored 'values'. vs MATLAB R2025b.
 TEST_F(ImageBatch5Test, ImquantizeIndexAndValues)
 {

@@ -1,18 +1,18 @@
 // toolboxes/builtin/src/datatypes/strings/print.cpp
 
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/builtin/strfun.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/builtin/strfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/shape_ops.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/shape_ops.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <cstring>
 #include <cstdint>
 #include <sstream>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -124,4 +124,4 @@ std::string dispFormat(const Value &a)
     return os.str();
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

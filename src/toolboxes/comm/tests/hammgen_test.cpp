@@ -4,11 +4,11 @@
 // matrices and code dimensions from the MATLAB R2025b probe:
 //   hammgen(3) -> (7,4) Hamming code; hammgen(4) -> (15,11).
 
-#include <numkit/comm/coding/blockcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/blockcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class HammgenTest : public ::testing::Test
 {

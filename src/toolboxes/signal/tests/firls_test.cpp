@@ -3,10 +3,10 @@
 // Regression guard for signal::firls (Type-I least-squares FIR design).
 // Hardcoded expected values captured from MATLAB R2025b parity probe.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FirlsTest : public ::testing::Test
 {

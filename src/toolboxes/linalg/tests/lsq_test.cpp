@@ -4,12 +4,12 @@
 //   lsqminnorm(A, B [, tol])  pinv-based minimum-norm LS
 //   lsqnonneg(C, d)           Lawson-Hanson active-set NNLS
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class LsqTest : public ::testing::Test
 {

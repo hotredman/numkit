@@ -11,11 +11,11 @@
 // 10 verified bit-identical MATLAB R2025b; 2 deferred (bwarea pixel-count
 // vs MATLAB pattern-weighted; col2im arg-shape validation differs).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImageBatch1Test : public ::testing::Test
 {

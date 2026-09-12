@@ -4,11 +4,11 @@
 // fixed; remove `DISABLED_` to turn into a live regression guard.
 // MATLAB R2025b reference values.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WaveletKnownBug : public ::testing::Test
 {

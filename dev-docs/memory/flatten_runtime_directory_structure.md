@@ -5,11 +5,11 @@ The `src/runtime` module previously contained historical, deeply nested director
 
 These nested directories were artifacts from an older monolithic layout before `builtin` and `toolboxes` separation.
 
-Since `runtime` (L2) is a compact, cohesive scripting and execution environment, both its public headers (`src/runtime/include/numkit/runtime/`) and source files (`src/runtime/src/`) were flattened into single-level directories.
+Since `runtime` (L2) is a compact, cohesive scripting and execution environment, both its public headers (`src/runtime/include/nk/runtime/`) and source files (`src/runtime/src/`) were flattened into single-level directories.
 
 ## Final Structure
 
-### Headers: `src/runtime/include/numkit/runtime/`
+### Headers: `src/runtime/include/nk/runtime/`
 - `cell.hpp`
 - `containers.hpp`
 - `diagnostics.hpp`

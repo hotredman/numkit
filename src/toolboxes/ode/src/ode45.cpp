@@ -10,10 +10,10 @@
 //     formulae", J. Comput. Appl. Math. 6(1), pp. 19-26.
 //   • Shampine & Reichelt (1997), "The MATLAB ODE Suite", §3.
 
-#include <numkit/ode/solvers.hpp>
-#include <numkit/ode/options.hpp>
+#include <nk/ode/solvers.hpp>
+#include <nk/ode/options.hpp>
 
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include "ode_detail.hpp"
 
@@ -23,7 +23,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::ode {
+namespace nk::ode {
 
 namespace {
 
@@ -136,19 +136,19 @@ ode45(FnHandle rhs, const Value &tspan, const Value &y0,
     const std::size_t nspan = tspan.numel();
     if (nspan < 2)
         throw Error("ode45: tspan must have at least 2 elements",
-                    0, 0, "ode45", "", "numkit:ode45:tspanShort");
+                    0, 0, "ode45", "", "nk:ode45:tspanShort");
     std::vector<double> ts(nspan);
     for (std::size_t i = 0; i < nspan; ++i) ts[i] = tspan.elemAsDouble(i);
     const double t0 = ts.front();
     const double tf = ts.back();
     if (t0 == tf)
         throw Error("ode45: tspan(end) must differ from tspan(1)",
-                    0, 0, "ode45", "", "numkit:ode45:tspanDegenerate");
+                    0, 0, "ode45", "", "nk:ode45:tspanDegenerate");
     const double dir = (tf > t0) ? 1.0 : -1.0;
     for (std::size_t i = 1; i < nspan; ++i) {
         if ((ts[i] - ts[i - 1]) * dir <= 0.0)
             throw Error("ode45: tspan must be strictly monotonic",
-                        0, 0, "ode45", "", "numkit:ode45:tspanMono");
+                        0, 0, "ode45", "", "nk:ode45:tspanMono");
     }
 
     const std::size_t d = y0.numel();
@@ -158,7 +158,7 @@ ode45(FnHandle rhs, const Value &tspan, const Value &y0,
     OdeOpts O = read_opts(opts, 4);
     if (O.abs_tol.size() != 1 && O.abs_tol.size() != d)
         throw Error("ode45: AbsTol must be scalar or match length(y0)",
-                    0, 0, "ode45", "", "numkit:ode45:absTolSize");
+                    0, 0, "ode45", "", "nk:ode45:absTolSize");
     auto atol_i = [&](std::size_t i) {
         return (O.abs_tol.size() == 1) ? O.abs_tol[0] : O.abs_tol[i];
     };
@@ -336,15 +336,15 @@ ode45(FnHandle rhs, const Value &tspan, const Value &y0,
             if (failed_in_a_row > 10)
                 throw Error("ode45: 10 consecutive step rejections; "
                             "tolerances may be too tight or RHS too stiff",
-                            0, 0, "ode45", "", "numkit:ode45:tooManyFailures");
+                            0, 0, "ode45", "", "nk:ode45:tooManyFailures");
             if (h < std::fabs(t) * 1e-15)
                 throw Error("ode45: step size underflow",
-                            0, 0, "ode45", "", "numkit:ode45:stepUnderflow");
+                            0, 0, "ode45", "", "nk:ode45:stepUnderflow");
         }
     }
     if (step_count >= max_steps)
         throw Error("ode45: exceeded " + std::to_string(max_steps)
-                  + " integration steps", 0, 0, "ode45", "", "numkit:ode45:tooManySteps");
+                  + " integration steps", 0, 0, "ode45", "", "nk:ode45:tooManySteps");
 
     // Assemble output: t (m × 1) and y (m × d).
     const std::size_t m = t_out.size();
@@ -357,4 +357,4 @@ ode45(FnHandle rhs, const Value &tspan, const Value &y0,
     return {std::move(t_val), std::move(y_val)};
 }
 
-} // namespace numkit::ode
+} // namespace nk::ode

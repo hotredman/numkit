@@ -3,10 +3,10 @@
 // Regression guard for image/reducepoly (Ramer-Douglas-Peucker).
 // Fingerprints from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ReducepolyTest : public ::testing::Test
 {

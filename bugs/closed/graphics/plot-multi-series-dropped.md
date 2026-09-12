@@ -18,7 +18,7 @@ remaining arguments were consumed by the N/V parser (or ignored), silently.
 clear;
 hs = plot(1:5, 1:5, 1:5, 2:6);
 disp(numel(hs))
-% numkit (before):  1   (one line rendered; second pair dropped)
+% nk (before):  1   (one line rendered; second pair dropped)
 % MATLAB R2025b:    2   (two Line objects, two lines rendered)
 ```
 

@@ -4,10 +4,10 @@
 //   int_x = cumsum(x) / Fs
 //   y = cos(2π·Fc·t + 2π·freqdev·int_x + ini_phase)
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FmmodTest : public ::testing::Test
 {

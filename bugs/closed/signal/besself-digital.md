@@ -12,9 +12,9 @@ of `(s+Wo)^n` (all poles at −Wo) instead of the Bessel filter. Only
 
 ## Repro (pre-fix)
 ```matlab
-besself(3, 1)        % numkit (pre-fix): a = [1 3 3 1]   (WRONG, (s+1)^3)
+besself(3, 1)        % nk (pre-fix): a = [1 3 3 1]   (WRONG, (s+1)^3)
                      % MATLAB:           a = [1 2.432881 2.466212 1]
-besself(2, 1)        % numkit (pre-fix): a = [1 2 1]     MATLAB: [1 1.732051 1]
+besself(2, 1)        % nk (pre-fix): a = [1 2 1]     MATLAB: [1 1.732051 1]
 ```
 
 ## Root cause

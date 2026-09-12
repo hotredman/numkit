@@ -5,11 +5,11 @@
 // threw "expected tf/zpk/ss struct" for e.g. feedback(sys,1) (unity
 // feedback). Expected dcgain values verified vs MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ConnectNumericTest : public ::testing::Test
 {

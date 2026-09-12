@@ -1,16 +1,16 @@
 // toolboxes/builtin/src/programming/errors/diagnostics.cpp
 
-#include <numkit/runtime/diagnostics.hpp>
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/runtime/diagnostics.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/core/engine.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 
-namespace numkit::runtime {
-using numkit::builtin::formatOnce;
+namespace nk::runtime {
+using nk::builtin::formatOnce;
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -92,7 +92,7 @@ Value mexception(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.size() < 2)
         throw Error("MException requires identifier and message", 0, 0,
-                     "MException", "", "numkit:MException:nargin");
+                     "MException", "", "nk:MException:nargin");
     std::string id = args[0].toString();
     std::string msg = (args.size() > 2) ? formatOnce(args[1].toString(), args, 2)
                                         : args[1].toString();
@@ -106,10 +106,10 @@ void rethrowStruct(const Value &me)
 {
     if (!me.isStruct())
         throw Error("rethrow requires an MException struct", 0, 0, "rethrow", "",
-                     "numkit:rethrow:notStruct");
+                     "nk:rethrow:notStruct");
     std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
     std::string id =
-        me.hasField("identifier") ? me.field("identifier").toString() : "numkit:error";
+        me.hasField("identifier") ? me.field("identifier").toString() : "nk:error";
     throw Error(msg, 0, 0, "", "", id);
 }
 
@@ -117,11 +117,11 @@ void assertCond(Span<const Value> args)
 {
     if (args.empty())
         throw Error("assert requires at least one argument", 0, 0, "assert", "",
-                     "numkit:assert:nargin");
+                     "nk:assert:nargin");
     if (args[0].toBool())
         return; // assertion passed
     if (args.size() == 1)
-        throw Error("Assertion failed.", 0, 0, "", "", "numkit:assert");
+        throw Error("Assertion failed.", 0, 0, "", "", "nk:assert");
 
     // assert(cond, MException struct)
     if (args[1].isStruct()) {
@@ -130,7 +130,7 @@ void assertCond(Span<const Value> args)
                               : "Assertion failed.";
         std::string id = args[1].hasField("identifier")
                              ? args[1].field("identifier").toString()
-                             : "numkit:assert";
+                             : "nk:assert";
         throw Error(msg, 0, 0, "", "", id);
     }
 
@@ -147,7 +147,7 @@ void assertCond(Span<const Value> args)
 
     // assert(cond, msg) / assert(cond, msg, arg1, ...)
     std::string msg = (args.size() > 2) ? formatOnce(first, args, 2) : first;
-    throw Error(msg, 0, 0, "", "", "numkit:assert");
+    throw Error(msg, 0, 0, "", "", "nk:assert");
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -180,13 +180,13 @@ void lastwarn_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     // Set form: lastwarn(msg) or lastwarn(msg, id).
     if (!args[0].isChar() && !args[0].isString())
         throw Error("lastwarn: msg must be a char or string",
-                     0, 0, "lastwarn", "", "numkit:lastwarn:badArg");
+                     0, 0, "lastwarn", "", "nk:lastwarn:badArg");
     std::string msg = args[0].toString();
     std::string id;
     if (args.size() >= 2) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("lastwarn: id must be a char or string",
-                         0, 0, "lastwarn", "", "numkit:lastwarn:badId");
+                         0, 0, "lastwarn", "", "nk:lastwarn:badId");
         id = args[1].toString();
     }
     lastwarnSet(msg, id);
@@ -203,7 +203,7 @@ void rethrow_reg(Span<const Value> args, size_t, Span<Value>, CallContext &)
 {
     if (args.empty())
         throw Error("rethrow requires an MException struct", 0, 0, "rethrow", "",
-                     "numkit:rethrow:nargin");
+                     "nk:rethrow:nargin");
     rethrowStruct(args[0]);
 }
 
@@ -211,7 +211,7 @@ void throw_reg(Span<const Value> args, size_t, Span<Value>, CallContext &)
 {
     if (args.empty())
         throw Error("throw requires an MException struct", 0, 0, "throw", "",
-                     "numkit:throw:nargin");
+                     "nk:throw:nargin");
     rethrowStruct(args[0]);
 }
 
@@ -233,4 +233,4 @@ void registerDiagnosticsRuntime(Engine &engine)
     engine.registerFunction("assert",     &detail::assert_reg);
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

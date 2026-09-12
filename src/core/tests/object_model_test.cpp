@@ -5,10 +5,10 @@
 // are unit tests of the core infrastructure via the C++ API — script-
 // level construct / dispatch arrives in P2/P3.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/value/object.hpp>
-#include <numkit/runtime/containers.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/object.hpp>
+#include <nk/runtime/containers.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -16,7 +16,7 @@
 #include <memory>
 #include <memory_resource>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 
@@ -2208,7 +2208,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, SealedHiddenClassdefTest,
 TEST(ClassdefMFile, LoadFromFile)
 {
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_classdef_mfile_test";
+    fs::path dir = fs::temp_directory_path() / "nk_classdef_mfile_test";
     fs::create_directories(dir);
     {
         std::ofstream f(dir / "Vec2.m");
@@ -2238,7 +2238,7 @@ TEST(ClassdefMFile, LoadFromFile)
 TEST(ClassdefMFile, RehashReloadsEditedClass)
 {
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_classdef_rehash_test";
+    fs::path dir = fs::temp_directory_path() / "nk_classdef_rehash_test";
     fs::create_directories(dir);
     auto writeVer = [&](int k) {
         std::ofstream f(dir / "RhVec.m", std::ios::trunc);
@@ -2272,7 +2272,7 @@ TEST(ClassdefMFile, RehashReloadsEditedClass)
 TEST(ClassdefMFile, PackagedClassQualifiedIdentity)
 {
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_pkgclass_test";
+    fs::path dir = fs::temp_directory_path() / "nk_pkgclass_test";
     fs::create_directories(dir / "+geo");
     auto writeVer = [&](int k) {
         std::ofstream f(dir / "+geo" / "Vec.m", std::ios::trunc);
@@ -2310,7 +2310,7 @@ TEST(ClassdefMFile, PackagedClassQualifiedIdentity)
 TEST(ClassdefMFile, RehashBaseRefreshesInlineSubclass)
 {
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_rehash_inline_sub_test";
+    fs::path dir = fs::temp_directory_path() / "nk_rehash_inline_sub_test";
     fs::create_directories(dir);
     auto writeBase = [&](int k) {
         std::ofstream f(dir / "RBaseF.m", std::ios::trunc);
@@ -2343,7 +2343,7 @@ TEST(ClassdefMFile, RehashBaseRefreshesInlineSubclass)
 TEST(ClassdefMFile, RehashPackagedBaseRefreshesInlineSubclass)
 {
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_pkg_inherit_rehash_test";
+    fs::path dir = fs::temp_directory_path() / "nk_pkg_inherit_rehash_test";
     fs::create_directories(dir / "+geo");
     auto writeBase = [&](int k) {
         std::ofstream f(dir / "+geo" / "Shape.m", std::ios::trunc);
@@ -2374,7 +2374,7 @@ TEST(ClassdefMFile, RehashPackagedBaseRefreshesInlineSubclass)
 TEST(ClassdefMFile, InheritanceOrderIndependent)
 {
     namespace fs = std::filesystem;
-    fs::path dir = fs::temp_directory_path() / "numkit_classdef_inh_test";
+    fs::path dir = fs::temp_directory_path() / "nk_classdef_inh_test";
     fs::create_directories(dir);
     {
         std::ofstream(dir / "AnimalB.m")
@@ -2415,10 +2415,10 @@ TEST(ObjectArrayDisplay, ArrayHeaderAndProps)
 
 // ============================================================
 // Public engine-free C++ API for the container objects
-// (numkit::containers::map/dictionary/set/get/...). No Engine — just
+// (nk::containers::map/dictionary/set/get/...). No Engine — just
 // Value + memory_resource, like the rest of toolboxes/builtin.
 // ============================================================
-namespace c = numkit::containers;
+namespace c = nk::containers;
 
 static Value S(const char *s) { return Value::fromString(s, std::pmr::get_default_resource()); }
 static Value N(double d) { return Value::scalar(d, std::pmr::get_default_resource()); }

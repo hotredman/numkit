@@ -3,14 +3,14 @@
 // Phase 8 VFS extension: listDir / stat / mkdir / rmdir / unlink / tempArea.
 // Tests use NativeFS against a temp directory.
 
-#include <numkit/fs/vfs.hpp>
+#include <nk/fs/vfs.hpp>
 
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 
@@ -25,7 +25,7 @@ protected:
         // Each test gets its own temp subdir to avoid cross-pollination.
         const auto *info = ::testing::UnitTest::GetInstance()->current_test_info();
         workDir = std::filesystem::temp_directory_path()
-                  / (std::string{"numkit-vfs-test-"} + info->name());
+                  / (std::string{"nk-vfs-test-"} + info->name());
         std::error_code ec;
         std::filesystem::remove_all(workDir, ec);
         std::filesystem::create_directories(workDir);

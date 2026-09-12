@@ -6,7 +6,7 @@
 //   histogram2(X, Y, n)         — n×n
 //   histogram2(X, Y, nx, ny)    — separate args
 //
-// numkit: builtin bins (X, Y) and delegates to imagesc, so the existing
+// nk: builtin bins (X, Y) and delegates to imagesc, so the existing
 // heatmap renderer (LUT + colormap + tile overlay) handles display.
 // Tests assert:
 //   1. Figure renders without console errors for each calling form

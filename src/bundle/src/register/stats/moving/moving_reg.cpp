@@ -3,17 +3,17 @@
 // CallContext register half of moving/moving.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/moving/moving.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
+#include <nk/core/engine.hpp>
+#include <nk/stats/moving/moving.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
 #include "moving/moving_detail.hpp"
-#include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // nk::ops::firstNonSingletonDim, validateDim
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void movmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("movmean: requires at least 2 arguments (x, k)",
-                     0, 0, "movmean", "", "numkit:movmean:nargin");
+                     0, 0, "movmean", "", "nk:movmean:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmean", scratch);
@@ -45,7 +45,7 @@ void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movsum: requires at least 2 arguments (x, k)",
-                     0, 0, "movsum", "", "numkit:movsum:nargin");
+                     0, 0, "movsum", "", "nk:movsum:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movsum", scratch);
@@ -57,7 +57,7 @@ void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmin: requires at least 2 arguments (x, k)",
-                     0, 0, "movmin", "", "numkit:movmin:nargin");
+                     0, 0, "movmin", "", "nk:movmin:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmin", scratch);
@@ -69,7 +69,7 @@ void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmax: requires at least 2 arguments (x, k)",
-                     0, 0, "movmax", "", "numkit:movmax:nargin");
+                     0, 0, "movmax", "", "nk:movmax:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmax", scratch);
@@ -81,7 +81,7 @@ void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("movprod: requires at least 2 arguments (x, k)",
-                     0, 0, "movprod", "", "numkit:movprod:nargin");
+                     0, 0, "movprod", "", "nk:movprod:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movprod", scratch);
@@ -93,7 +93,7 @@ void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("movmedian: requires at least 2 arguments (x, k)",
-                     0, 0, "movmedian", "", "numkit:movmedian:nargin");
+                     0, 0, "movmedian", "", "nk:movmedian:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmedian", scratch);
@@ -105,7 +105,7 @@ void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movvar: requires at least 2 arguments (x, k)",
-                     0, 0, "movvar", "", "numkit:movvar:nargin");
+                     0, 0, "movvar", "", "nk:movvar:nargin");
     int normFlag = 0;
     size_t extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
@@ -128,7 +128,7 @@ void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movstd: requires at least 2 arguments (x, k)",
-                     0, 0, "movstd", "", "numkit:movstd:nargin");
+                     0, 0, "movstd", "", "nk:movstd:nargin");
     int normFlag = 0;
     size_t extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
@@ -150,7 +150,7 @@ void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmad: requires at least 2 arguments (x, k)",
-                     0, 0, "movmad", "", "numkit:movmad:nargin");
+                     0, 0, "movmad", "", "nk:movmad:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmad", scratch);
@@ -162,7 +162,7 @@ void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("smoothdata: requires at least 1 argument",
-                     0, 0, "smoothdata", "", "numkit:smoothdata:nargin");
+                     0, 0, "smoothdata", "", "nk:smoothdata:nargin");
     std::string method = "movmean";
     int k = 0;
     if (args.size() >= 2) {
@@ -182,7 +182,7 @@ void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("hampel: requires at least 1 argument",
-                     0, 0, "hampel", "", "numkit:hampel:nargin");
+                     0, 0, "hampel", "", "nk:hampel:nargin");
     const int k = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 3;
     const double nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
     auto *mr = ctx.engine->resource();
@@ -215,4 +215,4 @@ void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

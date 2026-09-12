@@ -5,11 +5,11 @@
 // expression is a core gap, so matrix fields are pulled into intermediate
 // variables before indexing.)
 
-#include <numkit/comm/coding/convcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/convcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Poly2trellisTest : public ::testing::Test
 {

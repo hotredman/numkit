@@ -25,14 +25,14 @@
 // chirp-z for non-pow2 winLen). The 'periodic' hamming definition
 // (cos arg 2π·n/N rather than 2π·n/(N-1)) matches MATLAB exactly.
 
-#include <numkit/audio/spectral/melspec_delta.hpp>
+#include <nk/audio/spectral/melspec_delta.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The melSpectrogram
 // / audioDelta builtins (CallContext wrappers) live in
 // spectral/melspec_delta_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include "fft_one_sided.hpp"
 
@@ -44,7 +44,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::audio {
+namespace nk::audio {
 
 namespace {
 
@@ -187,7 +187,7 @@ Value audioDelta(const Value &x, int windowLength, std::pmr::memory_resource *mr
 {
     if (windowLength < 3 || (windowLength % 2) == 0)
         throw Error("audioDelta: windowLength must be odd integer ≥ 3",
-                    0, 0, "audioDelta", "", "numkit:audioDelta:BadWin");
+                    0, 0, "audioDelta", "", "nk:audioDelta:BadWin");
 
     const int M = windowLength / 2;
     // Coefficients [M, M-1, ..., 1, 0, -1, ..., -M] / sum((1:M)^2)
@@ -222,4 +222,4 @@ Value audioDelta(const Value &x, int windowLength, std::pmr::memory_resource *mr
 }
 
 
-} // namespace numkit::audio
+} // namespace nk::audio

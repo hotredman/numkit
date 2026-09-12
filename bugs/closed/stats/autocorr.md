@@ -17,20 +17,20 @@ confidence bounds.
 ```matlab
 ac = autocorr([1 2 3 2 1 2 3 2 1]);   % default NumLags
 % MATLAB: numel(ac)=9, ac(1)=1, ac(2)=0.0202020202020202
-% numkit: Error — VM: undefined function 'autocorr'
-parcorr([1 2 3 2 1 2 3 2 1])          % MATLAB: pc(1)=1 ; undefined in numkit
+% nk: Error — VM: undefined function 'autocorr'
+parcorr([1 2 3 2 1 2 3 2 1])          % MATLAB: pc(1)=1 ; undefined in nk
 crosscorr([1 2 3 4],[4 3 2 1],'NumLags',2)
-% MATLAB: numel=5, zero-lag (index 3) = -1 ; undefined in numkit
+% MATLAB: numel=5, zero-lag (index 3) = -1 ; undefined in nk
 ```
 
 ## Root cause
-Not implemented. numkit has `xcorr` (raw/biased/unbiased cross-correlation)
+Not implemented. nk has `xcorr` (raw/biased/unbiased cross-correlation)
 but not the correlation-normalised ACF/PACF/CCF with the econometrics
 conventions (lag-0 normalisation, default lag count, ±1.96/√N bounds).
 
 ## Fix (2026-06-18) — autocorr + crosscorr
 Implemented in `src/toolboxes/stats/src/descriptive/sample_corr.cpp`
-(`numkit::stats::autocorr` / `crosscorr`), registered under `descriptive`:
+(`nk::stats::autocorr` / `crosscorr`), registered under `descriptive`:
 - `autocorr(y, NumLags, NumSTD)`: biased `acf(k) = c(k)/c(0)`,
   `c(k) = (1/N) Σ (y_t-ȳ)(y_{t+k}-ȳ)`; default `NumLags = min(20, N-1)`;
   bounds `±NumSTD/√N`, **NumSTD default 2** (MATLAB R2025b uses 2, not the
@@ -45,13 +45,13 @@ bounds=±0.666667; `crosscorr([1 2 3 4],[4 3 2 1],'NumLags',2)` =
 `sample_corr_smoke.m`.
 
 ## Fix (2026-06-18) — parcorr
-Implemented `numkit::stats::parcorr` in the same file. **Matches MATLAB's default
+Implemented `nk::stats::parcorr` in the same file. **Matches MATLAB's default
 `parcorr` Method (OLS), NOT Durbin-Levinson**: for each lag `k` it fits the AR(k)
 model `y_t = c + Σ_{j=1..k} φ_j·y_{t-j}` by least squares on `t = k+1..N` and
 returns `PACF(k) = φ_k` (lag-0 = 1; bounds `±NumSTD/√N`). Solved via the normal
 equations + a small Gaussian-elimination solver — reproduces MATLAB's QR to full
 precision on **well-conditioned** lags (`N-k ≥ k+1`). Deeper, rank-deficient lags
-are numerically unstable in both engines (MATLAB warns "rank deficient"); numkit
+are numerically unstable in both engines (MATLAB warns "rank deficient"); nk
 leaves a near-singular lag at 0 rather than emitting QR-implementation-specific
 noise — these lags aren't statistically meaningful anyway.
 
@@ -64,8 +64,8 @@ separate spelling not wired here; the default OLS is what `parcorr(y)` uses.)
 
 ## References
 - `src/toolboxes/stats/src/descriptive/sample_corr.cpp`,
-  `.../include/numkit/stats/descriptive/descriptive.hpp`,
+  `.../include/nk/stats/descriptive/descriptive.hpp`,
   `src/bundle/src/register/stats/descriptive/sample_corr_reg.cpp`.
 - `tools/parity/specs/autocorr.json`, `tools/parity/specs/crosscorr.json`.
-- for parcorr: numkit ships `qr` / `\` (least-squares) + `levinson`/`aryule`.
+- for parcorr: nk ships `qr` / `\` (least-squares) + `levinson`/`aryule`.
 - MATLAB `doc autocorr`, `doc parcorr`, `doc crosscorr` (Econometrics TB)

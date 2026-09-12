@@ -4,12 +4,12 @@
 // 4th-order free dense-output interpolant. Pinned against MATLAB
 // R2025b (tools/parity/specs/ode45.json) and analytical solutions.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class Ode45Test : public ::testing::Test
 {

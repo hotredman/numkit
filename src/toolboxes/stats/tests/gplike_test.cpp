@@ -7,11 +7,11 @@
 //   per-point support violation → +Inf (not NaN)
 //   x < 0 OK as long as 1 + k*x/sigma > 0
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GplikeTest : public ::testing::Test
 {

@@ -3,7 +3,7 @@ clear
 % normalize's 'scale','iqr' and 'medianiqr' methods compute the interquartile
 % range. They previously used the R-type-7 (n-1)*p linear-interpolation
 % quantile rule, which gives a DIFFERENT IQR than MATLAB for small n. MATLAB
-% (and numkit's own iqr/prctile) use the prctile (k-0.5)/n convention. For
+% (and nk's own iqr/prctile) use the prctile (k-0.5)/n convention. For
 % [1 2 4 8 16 32]: prctile Q1=2, Q3=16, IQR=14 (NOT the old 2.5/14/11.5).
 
 x = [1 2 4 8 16 32];

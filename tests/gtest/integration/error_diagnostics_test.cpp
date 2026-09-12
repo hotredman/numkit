@@ -2,10 +2,10 @@
 // Parameterized: runs on both TreeWalker and VM backends
 
 #include "dual_engine_fixture.hpp"
-#include <numkit/core/stack_guard.hpp>
+#include <nk/core/stack_guard.hpp>
 
 using namespace m_test;
-using namespace numkit;
+using namespace nk;
 
 class ErrorDiagnosticsTest : public DualEngineTest
 {};
@@ -265,7 +265,7 @@ TEST_P(ErrorDiagnosticsTest, DeepIfBlockNestingReturnsCleanError)
 TEST_P(ErrorDiagnosticsTest, StackGuardWatermarkApiCheck)
 {
     EXPECT_NO_THROW({
-        numkit::StackGuard::check("unit test");
+        nk::StackGuard::check("unit test");
     });
 }
 

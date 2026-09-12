@@ -7,7 +7,7 @@
 // initial-condition forms of filter().
 //
 // The raw-buffer IIR recurrence kernels (applyFilterDf2t / ...Complex) moved to
-// the kernel layer — numkit::ops::applyFilterDf2t{,Complex} (numkit/ops/
+// the kernel layer — nk::ops::applyFilterDf2t{,Complex} (nk/ops/
 // iir_filter.hpp). They are re-exported here as signal-scope aliases so the
 // existing unqualified call sites (filter.cpp, filtfilt, filter_reg.cpp) need
 // no churn. The Value-level marshalling helpers stay in signal.
@@ -15,18 +15,18 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/ops/iir_filter.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/ops/iir_filter.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <cstddef>
 #include <memory_resource>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // IIR recurrence kernels now live in ops; re-export under the signal namespace.
-using numkit::ops::applyFilterDf2t;
-using numkit::ops::applyFilterDf2tComplex;
+using nk::ops::applyFilterDf2t;
+using nk::ops::applyFilterDf2tComplex;
 
 // Marshal a Value's first n elements into a complex scratch buffer.
 ScratchVec<Complex> toComplexBuf(const Value &v, size_t n,
@@ -35,4 +35,4 @@ ScratchVec<Complex> toComplexBuf(const Value &v, size_t n,
 // Length of x along its first non-singleton dimension.
 size_t firstNonSingletonExtent(const Value &x);
 
-} // namespace numkit::signal
+} // namespace nk::signal

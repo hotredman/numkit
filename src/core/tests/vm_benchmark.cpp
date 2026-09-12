@@ -1,19 +1,19 @@
 // tests/vm_benchmark.cpp
 //
 // Direct timing comparison: TreeWalker vs Bytecode VM
-// Run with: ./numkit_tests --gtest_filter="VMBenchmark.*"
+// Run with: ./nk_tests --gtest_filter="VMBenchmark.*"
 
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/vm.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/vm.hpp>
 #include <chrono>
 #include <gtest/gtest.h>
 #include <iostream>
 
-using namespace numkit;
+using namespace nk;
 
 class VMBenchmark : public ::testing::Test
 {

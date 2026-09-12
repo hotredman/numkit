@@ -4,14 +4,14 @@
 // contracts. Algorithms unchanged from the previous lambda form — only
 // moved into named free functions that take std::pmr::memory_resource* explicitly.
 
-#include <numkit/signal/convolution/convolution.hpp>
+#include <nk/signal/convolution/convolution.hpp>
 
-#include <numkit/ops/conv.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/ops/conv.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
-#include <numkit/value/value_type.hpp>
+#include <nk/value/value_type.hpp>
 
 #include "../dsp_helpers.hpp"
 
@@ -19,7 +19,7 @@
 #include <cmath>
 #include <memory_resource>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // ── conv ──────────────────────────────────────────────────────────────
 // Choose direct vs FFT convolution by ACTUAL cost, not na·nb alone. Direct
@@ -111,7 +111,7 @@ Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pm
             outStartC = std::min(na, nb) - 1;
         } else if (shape != "full") {
             throw Error("conv: shape must be 'full', 'same', or 'valid'",
-                         0, 0, "conv", "", "numkit:conv:badShape");
+                         0, 0, "conv", "", "nk:conv:badShape");
         }
         auto rc = convRowOut(a, b)
                       ? Value::matrix(1, outLenC, ValueType::COMPLEX, mr)
@@ -140,7 +140,7 @@ Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pm
         outStart = std::min(na, nb) - 1;
     } else if (shape != "full") {
         throw Error("conv: shape must be 'full', 'same', or 'valid'",
-                     0, 0, "conv", "", "numkit:conv:badShape");
+                     0, 0, "conv", "", "nk:conv:badShape");
     }
 
     auto r = convRowOut(a, b)
@@ -191,7 +191,7 @@ deconv(const Value &bIn, const Value &aIn, std::pmr::memory_resource *mr)
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw Error("deconv: leading coefficient is zero",
-                     0, 0, "deconv", "", "numkit:deconv:zeroLead");
+                     0, 0, "deconv", "", "nk:deconv:zeroLead");
 
     for (size_t i = 0; i < nq; ++i) {
         q[i] = rem[i] / a0;
@@ -301,7 +301,7 @@ xcov(const Value &x, const Value &y, int maxlag,
             for (size_t i = 0; i < nc; ++i) cd[i] /= denom;
     } else if (!(opt.empty() || opt == "none")) {
         throw Error("xcov: scaleopt must be 'none', 'biased', 'unbiased', or 'coeff'",
-                     0, 0, "xcov", "", "numkit:xcov:badScaleopt");
+                     0, 0, "xcov", "", "nk:xcov:badScaleopt");
     }
 
     const int fullMaxLag = (N > 0) ? static_cast<int>(N) - 1 : 0;
@@ -328,7 +328,7 @@ xcov(const Value &x, const Value &y, int maxlag,
 
 // ── Pack 36: conv2 / filter2 / convn ─────────────────────────────────
 // The direct 2-D convolution kernel moved to the kernel layer —
-// numkit::ops::conv2Direct (numkit/ops/conv.hpp), the 2-D companion to
+// nk::ops::conv2Direct (nk/ops/conv.hpp), the 2-D companion to
 // ops::convDirect. The Value-level shape-crop + validation stay here.
 namespace {
 
@@ -372,17 +372,17 @@ Value cropConv2(const double *full, size_t fullR, size_t fullC, size_t M, size_t
         return out;
     }
     throw Error("conv2: shape must be 'full', 'same', or 'valid'",
-                 0, 0, "conv2", "", "numkit:conv2:badShape");
+                 0, 0, "conv2", "", "nk:conv2:badShape");
 }
 
 void requireDouble2D(const Value &v, const char *name)
 {
     if (v.type() != ValueType::DOUBLE)
         throw Error(std::string(name) + ": only DOUBLE inputs are supported",
-                     0, 0, name, "", std::string("numkit:") + name + ":notDouble");
+                     0, 0, name, "", std::string("nk:") + name + ":notDouble");
     if (v.dims().ndim() > 2)
         throw Error(std::string(name) + ": input must be 1-D or 2-D",
-                     0, 0, name, "", std::string("numkit:") + name + ":nd");
+                     0, 0, name, "", std::string("nk:") + name + ":nd");
 }
 
 } // namespace
@@ -427,7 +427,7 @@ Value convn(const Value &A, const Value &B, const std::string &shape, std::pmr::
 {
     if (A.type() != ValueType::DOUBLE || B.type() != ValueType::DOUBLE)
         throw Error("convn: only DOUBLE inputs are supported",
-                     0, 0, "convn", "", "numkit:convn:notDouble");
+                     0, 0, "convn", "", "nk:convn:notDouble");
     const int da = A.dims().ndim(), db = B.dims().ndim();
     const int nd = std::max(da, db);
     if (nd <= 1) {
@@ -438,7 +438,7 @@ Value convn(const Value &A, const Value &B, const std::string &shape, std::pmr::
     }
     if (nd != 3) {
         throw Error("convn: only 1-D, 2-D, 3-D inputs supported",
-                     0, 0, "convn", "", "numkit:convn:nd");
+                     0, 0, "convn", "", "nk:convn:nd");
     }
     // 3-D: direct nested-loop convolution.
     const size_t M = A.dims().rows(), N = A.dims().cols();
@@ -515,7 +515,7 @@ Value convn(const Value &A, const Value &B, const std::string &shape, std::pmr::
         return crop;
     }
     throw Error("convn: shape must be 'full', 'same', or 'valid'",
-                 0, 0, "convn", "", "numkit:convn:badShape");
+                 0, 0, "convn", "", "nk:convn:badShape");
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

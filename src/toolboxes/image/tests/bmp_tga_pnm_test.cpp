@@ -6,13 +6,13 @@
 #include "../src/io/bmp_codec.hpp"
 #include "../src/io/tga_codec.hpp"
 #include "../src/io/pnm_codec.hpp"
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <random>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::image;
+using namespace nk;
+using namespace nk::image;
 
 TEST(BmpCodecTest, Gray8RoundTrip) {
     const size_t H = 17, W = 23;

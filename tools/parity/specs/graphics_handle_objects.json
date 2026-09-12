@@ -21,5 +21,5 @@
     "gtype",
     "fparent"
   ],
-  "comment": "Text/Legend/Root handle objects vs MATLAB R2025b: title/xlabel return matlab.graphics.primitive.Text (String round-trip, FontSize default 10, gca.Title is the Text object), legend returns matlab.graphics.chart.legend.Legend (Location default northeast + set round-trip, Visible off/on incl. `legend show` preserving labels), groot is matlab.ui.Root (Type 'root', figure.Parent chain). NOTE: MATLAB forbids dot-indexing a call result without parens (gcf().Parent), so the spec uses temp vars; numkit deliberately accepts the bare gcf.Parent form as a permissive superset (bugs/closed/lang/dotted-rvalue-on-call-result.md). Portion 31."
+  "comment": "Text/Legend/Root handle objects vs MATLAB R2025b: title/xlabel return matlab.graphics.primitive.Text (String round-trip, FontSize default 10, gca.Title is the Text object), legend returns matlab.graphics.chart.legend.Legend (Location default northeast + set round-trip, Visible off/on incl. `legend show` preserving labels), groot is matlab.ui.Root (Type 'root', figure.Parent chain). NOTE: MATLAB forbids dot-indexing a call result without parens (gcf().Parent), so the spec uses temp vars; nk deliberately accepts the bare gcf.Parent form as a permissive superset (bugs/closed/lang/dotted-rvalue-on-call-result.md). Portion 31."
 }

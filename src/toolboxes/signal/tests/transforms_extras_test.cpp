@@ -2,12 +2,12 @@
 //
 // Tests for E2: dftmtx / bitrevorder / dst / idst / rceps / cceps / icceps.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TransformsExtrasTest : public ::testing::Test
 {

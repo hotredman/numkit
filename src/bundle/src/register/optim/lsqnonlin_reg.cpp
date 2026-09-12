@@ -11,21 +11,21 @@
 // lsqcurvefit(fun, p0, xdata, ydata) = lsqnonlin(@(p) fun(p,xdata)-ydata, p0).
 // Bound constraints (lb/ub) are deferred — rejected with a clear error.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
-namespace numkit::optim {
+namespace nk::optim {
 
 static const char *kLsqnonlinMSource = R"NKM(
 function [p, resnorm, residual, exitflag] = lsqnonlin(fn, p0, lb, ub, varargin)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:lsqnonlin:fnType', 'lsqnonlin: 1st argument must be a function handle');
+    error('nk:lsqnonlin:fnType', 'lsqnonlin: 1st argument must be a function handle');
   end
   if (nargin >= 3 && ~isempty(lb)) || (nargin >= 4 && ~isempty(ub))
-    error('numkit:lsqnonlin:bounds', 'lsqnonlin: bound constraints (lb/ub) are not yet supported');
+    error('nk:lsqnonlin:bounds', 'lsqnonlin: bound constraints (lb/ub) are not yet supported');
   end
   n = numel(p0);
   if n == 0
-    error('numkit:lsqnonlin:badP0', 'lsqnonlin: p0 must be non-empty');
+    error('nk:lsqnonlin:badP0', 'lsqnonlin: p0 must be non-empty');
   end
   isRow = (size(p0, 1) == 1);
   x = reshape(p0, n, 1);
@@ -42,10 +42,10 @@ end
 
 function [p, resnorm, residual, exitflag] = lsqcurvefit(fn, p0, xdata, ydata, lb, ub, varargin)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:lsqcurvefit:fnType', 'lsqcurvefit: 1st argument must be a function handle');
+    error('nk:lsqcurvefit:fnType', 'lsqcurvefit: 1st argument must be a function handle');
   end
   if (nargin >= 5 && ~isempty(lb)) || (nargin >= 6 && ~isempty(ub))
-    error('numkit:lsqcurvefit:bounds', 'lsqcurvefit: bound constraints (lb/ub) are not yet supported');
+    error('nk:lsqcurvefit:bounds', 'lsqcurvefit: bound constraints (lb/ub) are not yet supported');
   end
   yc = reshape(ydata, numel(ydata), 1);
   resfn = @(p) reshape(fn(p, xdata), numel(yc), 1) - yc;
@@ -110,4 +110,4 @@ void registerLsqnonlinM(Engine &engine)
     engine.registerBuiltinMSource(kLsqnonlinMSource);
 }
 
-} // namespace numkit::optim
+} // namespace nk::optim

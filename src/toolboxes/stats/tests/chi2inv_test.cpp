@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/chi2inv_test.cpp
 // chi2inv. Reference values from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Chi2invTest : public ::testing::Test
 {

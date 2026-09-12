@@ -2,20 +2,20 @@
 //
 // Vector-form wkeep and wextend (Wavelet Toolbox boundary helpers).
 
-#include <numkit/wavelet/dwt/wkeep_wextend.hpp>
+#include <nk/wavelet/dwt/wkeep_wextend.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The wkeep / wextend
 // builtins (CallContext wrappers) live in dwt/wkeep_wextend_reg.cpp. The
 // 1-D extension core detail::extend1D stays HERE — it is a compute helper
 // invoked by the public wextend(), not a register-side parser.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -62,7 +62,7 @@ Value wkeep(const Value &x, const Value &len, const Value &opt,
         if (R < 0 || C < 0 ||
             static_cast<size_t>(R) > rows || static_cast<size_t>(C) > cols)
             throw Error("wkeep: requested [R C] out of bounds",
-                        0, 0, "wkeep", "", "numkit:wkeep:range");
+                        0, 0, "wkeep", "", "nk:wkeep:range");
         long long fr1, fc1;  // 1-based corners
         if (!opt.isEmpty() && opt.numel() == 2) {
             fr1 = static_cast<long long>(opt.elemAsDouble(0));
@@ -76,7 +76,7 @@ Value wkeep(const Value &x, const Value &len, const Value &opt,
             fr1 + R - 1 > static_cast<long long>(rows) ||
             fc1 + C - 1 > static_cast<long long>(cols))
             throw Error("wkeep: 2-D window out of range",
-                        0, 0, "wkeep", "", "numkit:wkeep:range");
+                        0, 0, "wkeep", "", "nk:wkeep:range");
         Value y = Value::matrix(static_cast<size_t>(R),
                                 static_cast<size_t>(C), ValueType::DOUBLE, mr);
         if (R == 0 || C == 0) return y;
@@ -96,7 +96,7 @@ Value wkeep(const Value &x, const Value &len, const Value &opt,
     const long long n = static_cast<long long>(len.toScalar());
     if (n < 0 || static_cast<size_t>(n) > N)
         throw Error("wkeep: n must satisfy 0 ≤ n ≤ length(x)",
-                    0, 0, "wkeep", "", "numkit:wkeep:n");
+                    0, 0, "wkeep", "", "nk:wkeep:n");
 
     long long start1 = 1;                                  // 1-based start
     if (!opt.isEmpty()) {
@@ -111,7 +111,7 @@ Value wkeep(const Value &x, const Value &len, const Value &opt,
             else
                 throw Error("wkeep: unknown option '" + s +
                             "' (expected 'c', 'l', 'r' or a numeric start)",
-                            0, 0, "wkeep", "", "numkit:wkeep:opt");
+                            0, 0, "wkeep", "", "nk:wkeep:opt");
         } else {
             start1 = static_cast<long long>(opt.toScalar());
         }
@@ -120,7 +120,7 @@ Value wkeep(const Value &x, const Value &len, const Value &opt,
     }
     if (start1 < 1 || start1 + n - 1 > static_cast<long long>(N))
         throw Error("wkeep: requested window is out of range",
-                    0, 0, "wkeep", "", "numkit:wkeep:range");
+                    0, 0, "wkeep", "", "nk:wkeep:range");
 
     const bool col = isCol(rows, cols);
     size_t outRows, outCols;
@@ -277,12 +277,12 @@ Value wextend(const Value &type, const std::string &modeRaw, const Value &x,
         else if (s == "ac") { dim = 2; extRows = false; extCols = true; }
         else
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
-                        0, 0, "wextend", "", "numkit:wextend:dim");
+                        0, 0, "wextend", "", "nk:wextend:dim");
     } else {
         const int t = static_cast<int>(type.toScalar());
         if (t != 1 && t != 2)
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
-                        0, 0, "wextend", "", "numkit:wextend:dim");
+                        0, 0, "wextend", "", "nk:wextend:dim");
         dim = t;
     }
 
@@ -297,10 +297,10 @@ Value wextend(const Value &type, const std::string &modeRaw, const Value &x,
         throw Error("wextend: unsupported mode '" + mode +
                     "' (supported: sym/symh/symw, asym/asymh/asymw, "
                     "sp0/sp1, per, zpd, ppd)",
-                    0, 0, "wextend", "", "numkit:wextend:mode");
+                    0, 0, "wextend", "", "nk:wextend:mode");
     if (lf < 0)
         throw Error("wextend: lf must be ≥ 0",
-                    0, 0, "wextend", "", "numkit:wextend:lf");
+                    0, 0, "wextend", "", "nk:wextend:lf");
 
     char side = 'b';
     {
@@ -311,7 +311,7 @@ Value wextend(const Value &type, const std::string &modeRaw, const Value &x,
         else
             throw Error("wextend: unknown side '" + s +
                         "' (expected 'b', 'l' or 'r')",
-                        0, 0, "wextend", "", "numkit:wextend:side");
+                        0, 0, "wextend", "", "nk:wextend:side");
     }
 
     size_t rows, cols;
@@ -377,4 +377,4 @@ Value wextend(const Value &type, const std::string &modeRaw, const Value &x,
     return y;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

@@ -3,15 +3,15 @@
 // CallContext register half of cluster/distance.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/cluster/distance.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/cluster/distance.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "cluster/distance_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -54,7 +54,7 @@ void pdist_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("pdist: requires X[, metric[, p|C]]", 0, 0, "pdist", "",
-                    "numkit:pdist:nargin");
+                    "nk:pdist:nargin");
     auto a = parse_metric_args(args, 1);
     outs[0] = pdist(args[0], a.metric, a.p, a.C, ctx.engine->resource());
 }
@@ -64,7 +64,7 @@ void pdist2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pdist2: requires (X, Y[, metric[, p|C]])", 0, 0, "pdist2", "",
-                    "numkit:pdist2:nargin");
+                    "nk:pdist2:nargin");
 
     // Walk args[2..]: extract optional 'Smallest'/'Largest' N-V pair, then
     // pass the rest to the standard metric/p/C parser.
@@ -120,7 +120,7 @@ void squareform_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("squareform: requires d", 0, 0, "squareform", "",
-                    "numkit:squareform:nargin");
+                    "nk:squareform:nargin");
     outs[0] = squareform(args[0], ctx.engine->resource());
 }
 
@@ -129,10 +129,10 @@ void mahal_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("mahal: requires (Y, X)", 0, 0, "mahal", "",
-                    "numkit:mahal:nargin");
+                    "nk:mahal:nargin");
     outs[0] = mahal(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -16,8 +16,8 @@ and the other helpers built on the same routine share the latent gap.
 ```matlab
 fs = 1000; t = (0:fs-1)/fs; x = sin(2*pi*100*t) + 0.5*sin(2*pi*200*t);
 [P, F] = periodogram(x, [], 1000, fs);   % nfft = 1000 (non-pow2)
-[~, ix] = max(P); F(ix)         % numkit: ~256 (wrong)   MATLAB: 100
-sum(P) * (F(2)-F(1))            % numkit: ~21.5 (wrong)  MATLAB: 0.625 (= mean(x^2))
+[~, ix] = max(P); F(ix)         % nk: ~256 (wrong)   MATLAB: 100
+sum(P) * (F(2)-F(1))            % nk: ~21.5 (wrong)  MATLAB: 0.625 (= mean(x^2))
 ```
 
 ## Root cause

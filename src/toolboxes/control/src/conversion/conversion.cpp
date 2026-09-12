@@ -1,18 +1,18 @@
 // toolboxes/control/src/conversion/conversion.cpp
 //
 // Inter-form conversions tf ↔ zpk ↔ ss. Built on the existing
-// numkit::builtin::roots / numkit::builtin::poly polynomial primitives, plus a local
+// nk::builtin::roots / nk::builtin::poly polynomial primitives, plus a local
 // Faddeev–LeVerrier expansion for ss2tf.
 
-#include <numkit/control/conversion/conversion.hpp>
+#include <nk/control/conversion/conversion.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. conversion.cpp has no
 // CallContext builtins of its own (the tf2ss/ss2tf/etc. register wrappers live
 // in their caller toolboxes); it is pure inter-form numeric conversion.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -20,7 +20,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -68,15 +68,15 @@ Tf2ZpResult tf2zp(const Value &num, const Value &den,
     auto denV = stripLeading(coeffsReal(den));
     if (denV.empty() || denV[0] == 0.0)
         throw Error("tf2zp: denominator must have a nonzero leading coefficient",
-                    0, 0, "tf2zp", "", "numkit:tf2zp:den");
+                    0, 0, "tf2zp", "", "nk:tf2zp:den");
 
     // Gain is num(1)/den(1) (after stripping leading zeros).
     const double k = numV.empty() ? 0.0 : numV[0] / denV[0];
 
-    // Roots of num and den. The existing numkit::builtin::roots already
+    // Roots of num and den. The existing nk::builtin::roots already
     // handles both real-and-complex output and trailing-zero roots.
-    Value zRoots = numkit::builtin::roots(num, mr);
-    Value pRoots = numkit::builtin::roots(den, mr);
+    Value zRoots = nk::builtin::roots(num, mr);
+    Value pRoots = nk::builtin::roots(den, mr);
 
     return {std::move(zRoots), std::move(pRoots),
             Value::scalar(k, mr)};
@@ -86,14 +86,14 @@ std::pair<Value, Value>
 zp2tf(const Value &z, const Value &p, const Value &k,
       std::pmr::memory_resource *mr)
 {
-    // num = k * poly(z), den = poly(p). numkit::builtin::poly takes a column
+    // num = k * poly(z), den = poly(p). nk::builtin::poly takes a column
     // vector of roots and returns the row of polynomial coefficients
     // (leading 1, descending powers).
-    Value den = numkit::builtin::poly(p, mr);
-    Value num = numkit::builtin::poly(z, mr);
+    Value den = nk::builtin::poly(p, mr);
+    Value num = nk::builtin::poly(z, mr);
 
     // poly([]) of no zeros is the constant polynomial 1 (MATLAB: poly([])==1).
-    // numkit::builtin::poly returns an empty row for empty input, which would
+    // nk::builtin::poly returns an empty row for empty input, which would
     // collapse num to [] and silently drop the gain (bugs/control/zpk-empty-zeros).
     // Normalize the no-zero case to [1] so num scales to [k].
     if (num.numel() == 0) {
@@ -128,7 +128,7 @@ StateSpace tf2ss(const Value &num, const Value &den,
     auto denV = stripLeading(coeffsReal(den));
     if (denV.empty() || denV[0] == 0.0)
         throw Error("tf2ss: invalid denominator",
-                    0, 0, "tf2ss", "", "numkit:tf2ss:den");
+                    0, 0, "tf2ss", "", "nk:tf2ss:den");
     const double a0 = denV[0];
     // Normalise so leading coefficient of den is 1.
     std::vector<double> a(denV.size());
@@ -137,7 +137,7 @@ StateSpace tf2ss(const Value &num, const Value &den,
     auto numV = coeffsReal(num);
     if (numV.size() > a.size())
         throw Error("tf2ss: numerator longer than denominator (improper system)",
-                    0, 0, "tf2ss", "", "numkit:tf2ss:improper");
+                    0, 0, "tf2ss", "", "nk:tf2ss:improper");
     // Left-pad numerator with zeros so it has the same length as `a`.
     std::vector<double> b(a.size(), 0.0);
     const size_t pad = a.size() - numV.size();
@@ -196,19 +196,19 @@ ss2tf(const Value &A, const Value &B,
     const size_t n = A.dims().rows();
     if (A.dims().cols() != n)
         throw Error("ss2tf: A must be square",
-                    0, 0, "ss2tf", "", "numkit:ss2tf:A");
+                    0, 0, "ss2tf", "", "nk:ss2tf:A");
 
     // Columns of B, C and D referring to the iu-th input (1-based).
     const size_t nin = (B.dims().cols() == 0) ? 1 : B.dims().cols();
     if (iu < 1 || static_cast<size_t>(iu) > nin)
         throw Error("ss2tf: iu out of range",
-                    0, 0, "ss2tf", "", "numkit:ss2tf:iu");
+                    0, 0, "ss2tf", "", "nk:ss2tf:iu");
     const size_t inIdx = static_cast<size_t>(iu - 1);
     const size_t ny = C.dims().rows();
     if (ny != 1)
         throw Error("ss2tf: only single-output systems supported "
                     "(got C with rows != 1)",
-                    0, 0, "ss2tf", "", "numkit:ss2tf:miso");
+                    0, 0, "ss2tf", "", "nk:ss2tf:miso");
 
     // Read matrices into flat column-major double buffers.
     auto readMat = [&](const Value &v, size_t r, size_t c) {
@@ -327,7 +327,7 @@ double sampleTimeOf(const Value &sys) {
 
 std::vector<std::complex<double>>
 rootsComplex(const Value &polyV, std::pmr::memory_resource *mr) {
-    Value r = numkit::builtin::roots(polyV, mr);
+    Value r = nk::builtin::roots(polyV, mr);
     const size_t n = r.numel();
     std::vector<std::complex<double>> out(n);
     if (r.type() == ValueType::COMPLEX) {
@@ -372,7 +372,7 @@ cancelTf(const Value &numV, const Value &denV, double tol,
     auto denS = stripLeading(coeffsReal(denV));
     if (denS.empty())
         throw Error("minreal: denominator is identically zero",
-                    0, 0, "minreal", "", "numkit:minreal:den");
+                    0, 0, "minreal", "", "nk:minreal:den");
     const double numLead = numS.empty() ? 0.0 : numS.front();
     const double denLead = denS.front();
 
@@ -426,7 +426,7 @@ Value minreal(const Value &sys, double tol, std::pmr::memory_resource *mr) {
         const Value &C = sys.field("C");
         if (C.dims().rows() != 1 || B.dims().cols() != 1)
             throw Error("minreal: only SISO state-space is supported",
-                        0, 0, "minreal", "", "numkit:minreal:mimo");
+                        0, 0, "minreal", "", "nk:minreal:mimo");
         auto [num, den] = ss2tf(sys.field("A"), B, C, sys.field("D"), 1, mr);
         auto [n2, d2] = cancelTf(num, den, tol, mr);
         StateSpace r = tf2ss(n2, d2, mr);
@@ -438,7 +438,7 @@ Value minreal(const Value &sys, double tol, std::pmr::memory_resource *mr) {
         return s;
     }
     throw Error("minreal: expected an LTI struct (tf / zpk / ss)",
-                0, 0, "minreal", "", "numkit:minreal:kind");
+                0, 0, "minreal", "", "nk:minreal:kind");
 }
 
 // No `*_reg` adapters are provided here — every conversion entry
@@ -449,4 +449,4 @@ Value minreal(const Value &sys, double tol, std::pmr::memory_resource *mr) {
 // tax on the builtin lookup. (minreal's CallContext wrapper lives in
 // lti_reg.cpp alongside the other model-level builtins.)
 
-} // namespace numkit::control
+} // namespace nk::control

@@ -5,14 +5,14 @@
 // image::imreadFromBytes. The MATLAB-facing csvread/csvwrite (VFS read/write) are
 // covered separately by csv_test.cpp via eval().
 
-#include <numkit/io/text/csv.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/io/text/csv.hpp>
+#include <nk/value/value.hpp>
 
 #include <gtest/gtest.h>
 
 #include <string>
 
-using namespace numkit;
+using namespace nk;
 
 TEST(CsvCppApi, ReadFromStringEngineFree)
 {

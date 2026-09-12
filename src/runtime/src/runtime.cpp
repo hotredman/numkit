@@ -3,9 +3,9 @@
 // RuntimeLibrary orchestrator. Registers language runtime, containers,
 // cells, structures, reflection, and execution engines.
 
-#include <numkit/runtime/runtime.hpp>
+#include <nk/runtime/runtime.hpp>
 
-namespace numkit {
+namespace nk {
 
 namespace runtime {
 
@@ -42,4 +42,4 @@ void RuntimeLibrary::install(Engine &engine)
     runtime::registerSplitapplyCallbackBuiltin(engine);
 }
 
-} // namespace numkit
+} // namespace nk

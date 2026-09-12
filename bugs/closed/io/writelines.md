@@ -14,10 +14,10 @@ contract (and MATLAB R2025b) is one line per element.
 ```matlab
 writelines(["a";"b";"c"], 'out.txt');
 L = readlines('out.txt');
-numel(L)        % MATLAB: 3        numkit (before fix): 1
-% MATLAB file: a\nb\nc        numkit file (before fix): a
+numel(L)        % MATLAB: 3        nk (before fix): 1
+% MATLAB file: a\nb\nc        nk file (before fix): a
 ```
-Confirmed empirically via `numkit.exe` against the pre-fix binary:
+Confirmed empirically via `nk.exe` against the pre-fix binary:
 `numel=1`, `[1]=a` (b and c lost).
 
 ## Root cause

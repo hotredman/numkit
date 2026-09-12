@@ -2,7 +2,7 @@
 
 ## Context & Problem
 Previously, the help catalog (`HelpCatalog`) and documentation discovery functions were placed in:
-1. `src/runtime/include/numkit/runtime/help/help_catalog.hpp` and `src/runtime/src/help/help_catalog.cpp`.
+1. `src/runtime/include/nk/runtime/help/help_catalog.hpp` and `src/runtime/src/help/help_catalog.cpp`.
 2. `src/builtin/src/general/catalog.cpp` (which depended on `runtime::HelpCatalog`).
 
 This violated clean separation of concerns:
@@ -11,11 +11,11 @@ This violated clean separation of concerns:
 - `bundle` (L5) is the top-level aggregator that composes all toolboxes, `BuiltinLibrary`, `RuntimeLibrary`, and user-facing standard library facilities.
 
 ## Decisions & Implementation
-1. **Relocated `HelpCatalog` to `numkit::bundle`**:
-   - Header: `src/bundle/include/numkit/bundle/help/help_catalog.hpp`.
+1. **Relocated `HelpCatalog` to `nk::bundle`**:
+   - Header: `src/bundle/include/nk/bundle/help/help_catalog.hpp`.
    - Source: `src/bundle/src/help/help_catalog.cpp`.
 2. **Unified Help Library & Discovery API**:
-   - Header: `src/bundle/include/numkit/bundle/help.hpp`.
+   - Header: `src/bundle/include/nk/bundle/help.hpp`.
    - Source: `src/bundle/src/help/help.cpp`.
    - Declares `HelpLibrary::install(Engine &engine)` and pure C++ discovery functions `help(...)`, `what(...)`, `builtins(...)`, `categories(...)`.
    - Registers script built-ins: `"help"`, `"doc"`, `"what"`, `"builtins"`, `"categories"`, `"inmem"`.

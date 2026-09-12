@@ -1,8 +1,8 @@
-#include <numkit/core/play_manifest.hpp>
+#include <nk/core/play_manifest.hpp>
 
 #include <cctype>
 
-namespace numkit {
+namespace nk {
 
 namespace {
 
@@ -158,4 +158,4 @@ PlayManifest extractPlayManifest(const std::string &source)
     return m;
 }
 
-}  // namespace numkit
+}  // namespace nk

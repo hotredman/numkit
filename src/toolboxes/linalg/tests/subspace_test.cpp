@@ -3,11 +3,11 @@
 // Regression guard for builtin::subspace (angle between subspaces).
 // Backfilled in tech-debt cycle.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class SubspaceTest : public ::testing::Test
 {

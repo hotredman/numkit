@@ -1,16 +1,16 @@
 // src/builtin/src/timefun/clock.cpp
 //
-// Clock, current date, CPU time, and execution pausing for numkit::builtin.
+// Clock, current date, CPU time, and execution pausing for nk::builtin.
 
-#include <numkit/builtin/timefun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/builtin/timefun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <chrono>
 #include <ctime>
 #include <thread>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 double cputime() {
     return static_cast<double>(std::clock()) / static_cast<double>(CLOCKS_PER_SEC);
@@ -64,4 +64,4 @@ Value clock(std::pmr::memory_resource *mr) {
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

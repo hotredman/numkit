@@ -4,10 +4,10 @@
 // R2025b verified bit-equal (1e-9) on a 3×3 toy image across all
 // four MATLAB signatures and both name-value options.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GrayDiffWeightTest : public ::testing::Test
 {

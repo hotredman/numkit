@@ -3,16 +3,16 @@
 // CallContext register half of distributions/gp.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/gp.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/gp.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/gp_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void gppdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("gppdf: requires (x, k, sigma, theta)",
-                    0, 0, "gppdf", "", "numkit:gppdf:nargin");
+                    0, 0, "gppdf", "", "nk:gppdf:nargin");
     outs[0] = gppdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
@@ -44,7 +44,7 @@ void gpcdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("gpcdf: requires (x, k, sigma, theta[, 'upper'])",
-                    0, 0, "gpcdf", "", "numkit:gpcdf:nargin");
+                    0, 0, "gpcdf", "", "nk:gpcdf:nargin");
     Value v = gpcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -55,7 +55,7 @@ void gpinv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("gpinv: requires (p, k, sigma, theta)",
-                    0, 0, "gpinv", "", "numkit:gpinv:nargin");
+                    0, 0, "gpinv", "", "nk:gpinv:nargin");
     outs[0] = gpinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
@@ -64,7 +64,7 @@ void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("gprnd: requires (k, sigma, theta[, m, n])",
-                    0, 0, "gprnd", "", "numkit:gprnd:nargin");
+                    0, 0, "gprnd", "", "nk:gprnd:nargin");
     const double k     = args[0].toScalar();
     const double sigma = args[1].toScalar();
     const double theta = args[2].toScalar();
@@ -86,4 +86,4 @@ void gpstat_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

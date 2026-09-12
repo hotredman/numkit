@@ -3,18 +3,18 @@
 // biterr / symerr -- bit and symbol error counts/rates between two
 // arrays. MATLAB Communications Toolbox metrics.
 
-#include <numkit/comm/eq/errors.hpp>
+#include <nk/comm/eq/errors.hpp>
 
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -38,7 +38,7 @@ std::pair<Value, Value> biterr(const Value &x, const Value &y, int k,
     const std::size_t n = x.numel();
     if (y.numel() != n)
         throw Error("biterr: x and y must have the same number of elements",
-                    0, 0, "biterr", "", "numkit:biterr:size");
+                    0, 0, "biterr", "", "nk:biterr:size");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -51,7 +51,7 @@ std::pair<Value, Value> biterr(const Value &x, const Value &y, int k,
             const double xv = xd[i], yv = yd[i];
             if (xv < 0.0 || yv < 0.0)
                 throw Error("biterr: inputs must be non-negative integers",
-                            0, 0, "biterr", "", "numkit:biterr:negative");
+                            0, 0, "biterr", "", "nk:biterr:negative");
             const std::uint64_t xi = static_cast<std::uint64_t>(xv);
             const std::uint64_t yi = static_cast<std::uint64_t>(yv);
             mx = std::max(mx, std::max(xi, yi));
@@ -81,7 +81,7 @@ std::pair<Value, Value> symerr(const Value &x, const Value &y,
     const std::size_t n = x.numel();
     if (y.numel() != n)
         throw Error("symerr: x and y must have the same number of elements",
-                    0, 0, "symerr", "", "numkit:symerr:size");
+                    0, 0, "symerr", "", "nk:symerr:size");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -96,4 +96,4 @@ std::pair<Value, Value> symerr(const Value &x, const Value &y,
             Value::scalar(ratio, mr)};
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

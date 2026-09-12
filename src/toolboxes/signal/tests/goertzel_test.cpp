@@ -1,16 +1,16 @@
 // toolboxes/signal/tests/goertzel_test.cpp
 // signal/goertzel.
-// Pre-fix: numkit's adapter required (x, ind) and threw on the 1-arg
+// Pre-fix: nk's adapter required (x, ind) and threw on the 1-arg
 // form `goertzel(x)`. Per MATLAB R2025b, 1-arg form defaults
 // `ind = 1:N`, computing the full DFT via Goertzel. Adapter now
 // builds the default ind vector on the per-call ScratchArena and
 // dispatches into the same kernel.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class GoertzelTest : public ::testing::Test
 {
@@ -57,7 +57,7 @@ TEST_F(GoertzelTest, OneArgFormMatchesPartialBins)
 }
 
 // NOTE: a tempting cross-check `goertzel(x)` ≡ `fft(x)` was tried here
-// and removed: numkit's compat-aliased `fft` differs from MATLAB by a
+// and removed: nk's compat-aliased `fft` differs from MATLAB by a
 // per-bin imag sign on the same input where `goertzel` is bit-correct.
 // That's a separate gap in the FFT path — out of scope for this spec.
 

@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 0,
   "fingerprint": ["y1", "y2", "y3", "yv(1)", "yv(2)", "yv(3)"],
-  "comment": "MATLAB yyyymmdd: packed integer date Y*10000+M*100+D. MATLAB R2025b requires datetime input -- numkit accepts serial date directly as a convenience extension. Spec uses an engine-detecting shim ymd__ that wraps with datetime() on MATLAB and falls through on numkit. Year-0 case excluded (MATLAB datetime errors on dates before 0001-01-01); year-0 covered by gtest. Octave 11.1.0 doesn't ship yyyymmdd; reports N/A. Algorithm: Howard Hinnant civil_from_days then arithmetic packing."
+  "comment": "MATLAB yyyymmdd: packed integer date Y*10000+M*100+D. MATLAB R2025b requires datetime input -- nk accepts serial date directly as a convenience extension. Spec uses an engine-detecting shim ymd__ that wraps with datetime() on MATLAB and falls through on nk. Year-0 case excluded (MATLAB datetime errors on dates before 0001-01-01); year-0 covered by gtest. Octave 11.1.0 doesn't ship yyyymmdd; reports N/A. Algorithm: Howard Hinnant civil_from_days then arithmetic packing."
 }

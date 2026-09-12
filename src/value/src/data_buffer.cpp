@@ -1,10 +1,10 @@
 // core/src/data_buffer.cpp
-#include <numkit/value/data_buffer.hpp>
+#include <nk/value/data_buffer.hpp>
 
 #include <new>
 #include <stdexcept>
 
-namespace numkit {
+namespace nk {
 
 DataBuffer::DataBuffer(size_t bytes, std::pmr::memory_resource *mr)
     : bytes_(bytes)
@@ -48,4 +48,4 @@ int DataBuffer::refCount() const
     return refCount_.load(std::memory_order_acquire);
 }
 
-} // namespace numkit
+} // namespace nk

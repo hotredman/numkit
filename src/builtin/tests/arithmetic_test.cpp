@@ -266,7 +266,7 @@ TEST_P(ArithmeticTest, LogicalOnIntegerMatrix)
 }
 
 // abs() on integer types: MATLAB keeps the class and SATURATES, so
-// abs(intmin) -> intmax (abs(int8(-128))=127); numkit previously returned a
+// abs(intmin) -> intmax (abs(int8(-128))=127); nk previously returned a
 // DOUBLE (and the wrong value 128). DEEP-PROBE 2026-05-30.
 TEST_P(ArithmeticTest, AbsIntegerSaturates)
 {
@@ -292,7 +292,7 @@ TEST_P(ArithmeticTest, AbsIntegerSaturates)
     EXPECT_DOUBLE_EQ(evalScalar("abs(3-4i);"), 5.0);
 }
 
-// sign() on integer types keeps the class (sign(int8(-5))=-1 int8). numkit
+// sign() on integer types keeps the class (sign(int8(-5))=-1 int8). nk
 // previously returned double and threw on integer arrays. DEEP-PROBE 2026-05-30.
 TEST_P(ArithmeticTest, SignIntegerKeepsClass)
 {
@@ -319,7 +319,7 @@ TEST_P(ArithmeticTest, SignIntegerKeepsClass)
 }
 
 // sign() of a complex value: z/|z| for z != 0, else 0 (MATLAB R2025b).
-// numkit previously threw "Cannot convert complex ... to double scalar".
+// nk previously threw "Cannot convert complex ... to double scalar".
 // DEEP-PROBE 2026-05-30.
 TEST_P(ArithmeticTest, SignComplex)
 {

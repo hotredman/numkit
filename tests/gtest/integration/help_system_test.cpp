@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <numkit/bundle/standard_library.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_library.hpp>
+#include <nk/core/engine.hpp>
 
-using namespace numkit;
+using namespace nk;
 
 class HelpSystemTest : public ::testing::Test {
 protected:
@@ -18,7 +18,7 @@ TEST_F(HelpSystemTest, HelpAllCategoriesReturnString) {
     Value res = engine->eval("h = help();");
     EXPECT_TRUE(res.isChar() || res.isString());
     std::string text = res.toString();
-    EXPECT_NE(text.find("Numkit Help Topics:"), std::string::npos);
+    EXPECT_NE(text.find("NK Help Topics:"), std::string::npos);
     EXPECT_NE(text.find("elmat"), std::string::npos);
     EXPECT_NE(text.find("elfun"), std::string::npos);
     EXPECT_NE(text.find("matfun"), std::string::npos);

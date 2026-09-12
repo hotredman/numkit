@@ -6,7 +6,7 @@
 # (preset=bench-simd), then side-by-sides the numbers via Google
 # Benchmark's compare.py.
 #
-# Kernels covered — every numkit SIMD family with a portable-vs-Highway split:
+# Kernels covered — every nk SIMD family with a portable-vs-Highway split:
 #   unary math   abs sin cos tan exp log sqrt round floor ceil fix isfinite
 #   binary       plus minus times rdivide mod ; compares eq ne lt gt le ge
 #   matmul / fft mtimes ; fft
@@ -28,9 +28,9 @@ MIN_TIME='0.2s'
 # the exe sits directly in the bench dir. Pick whichever exists.
 find_exe() {
     local base="$1"
-    for p in "$base/benchmarks/Release/numkit_bench.exe" \
-             "$base/benchmarks/numkit_bench.exe" \
-             "$base/benchmarks/numkit_bench"; do
+    for p in "$base/benchmarks/Release/nk_bench.exe" \
+             "$base/benchmarks/nk_bench.exe" \
+             "$base/benchmarks/nk_bench"; do
         [ -x "$p" ] && { printf '%s' "$p"; return 0; }
     done
     return 1

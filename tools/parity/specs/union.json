@@ -11,5 +11,5 @@
     "imag(cs(2))", "real(cs(3))",
     "nr", "ncr", "u41", "u42", "u11"
   ],
-  "comment": "Sig union(A,B[,setOrder | 'rows']). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A)-order then new-of-B. COMPLEX (C output only): exact-equality, |z|+angle order. DEEP-PROBE 2026-05-31: added the 'rows' flag (was IGNORING it and flattening to a 1xN vector); returns sorted unique rows of [A;B]: union([1 2;3 4;5 6],[3 4;9 9;1 2],'rows')=[1 2;3 4;5 6;9 9] (4x2). 'rows' ia/ib outputs deferred. numkit previously IGNORED 'stable' (fixed) and threw on COMPLEX (added 2026-05-29)."
+  "comment": "Sig union(A,B[,setOrder | 'rows']). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A)-order then new-of-B. COMPLEX (C output only): exact-equality, |z|+angle order. DEEP-PROBE 2026-05-31: added the 'rows' flag (was IGNORING it and flattening to a 1xN vector); returns sorted unique rows of [A;B]: union([1 2;3 4;5 6],[3 4;9 9;1 2],'rows')=[1 2;3 4;5 6;9 9] (4x2). 'rows' ia/ib outputs deferred. nk previously IGNORED 'stable' (fixed) and threw on COMPLEX (added 2026-05-29)."
 }

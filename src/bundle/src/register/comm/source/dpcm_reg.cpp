@@ -7,15 +7,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/source/dpcm.hpp>
+#include <nk/comm/source/dpcm.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void dpcmenco_reg(Span<const Value> args, size_t nargout,
@@ -23,7 +23,7 @@ void dpcmenco_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("dpcmenco: requires (sig, codebook, partition, predictor)",
-                    0, 0, "dpcmenco", "", "numkit:dpcmenco:nargin");
+                    0, 0, "dpcmenco", "", "nk:dpcmenco:nargin");
     auto *mr = ctx.engine->resource();
     auto [indx, quanterr] = dpcmenco(args[0], args[1], args[2], args[3], mr);
     outs[0] = std::move(indx);
@@ -35,7 +35,7 @@ void dpcmdeco_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("dpcmdeco: requires (indx, codebook, predictor)",
-                    0, 0, "dpcmdeco", "", "numkit:dpcmdeco:nargin");
+                    0, 0, "dpcmdeco", "", "nk:dpcmdeco:nargin");
     auto *mr = ctx.engine->resource();
     auto [sig, quanterr] = dpcmdeco(args[0], args[1], args[2], mr);
     outs[0] = std::move(sig);
@@ -44,4 +44,4 @@ void dpcmdeco_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

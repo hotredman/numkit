@@ -7,21 +7,21 @@
 // outside the [-2^53, 2^53] safe integer range degrade like MATLAB:
 // the round-trip through double rounds.
 
-#include <numkit/builtin/ops.hpp>
+#include <nk/builtin/ops.hpp>
 
-#include <numkit/builtin/datatypes.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value_type.hpp>
+#include <nk/builtin/datatypes.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value_type.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <cstdint>
 
 #include "int_math_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 
 // ────────────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ Value bitcmp(const Value &a, int width, std::pmr::memory_resource *mr)
 {
     if (width != 8 && width != 16 && width != 32 && width != 64)
         throw Error("bitcmp: width must be 8, 16, 32, or 64",
-                     0, 0, "bitcmp", "", "numkit:bitcmp:badWidth");
+                     0, 0, "bitcmp", "", "nk:bitcmp:badWidth");
     const uint64_t mask = (width == 64) ? ~uint64_t{0}
                                         : ((uint64_t{1} << width) - 1);
     return unaryDouble(a, [mask](double xv) {
@@ -123,7 +123,7 @@ Value bitset(const Value &a, const Value &n, const Value &val, std::pmr::memory_
     const int v = val.isEmpty() ? 1 : static_cast<int>(val.toScalar());
     if (v != 0 && v != 1)
         throw Error("bitset: third argument must be 0 or 1",
-                     0, 0, "bitset", "", "numkit:bitset:badVal");
+                     0, 0, "bitset", "", "nk:bitset:badVal");
     return elementwiseDouble(a, n, [v](double xv, double nv) {
         const int64_t x = toInt64(xv);
         const int bit = static_cast<int>(nv);
@@ -147,4 +147,4 @@ Value bitget(const Value &a, const Value &n, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

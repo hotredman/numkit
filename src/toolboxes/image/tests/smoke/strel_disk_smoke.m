@@ -6,7 +6,7 @@ clear
 % (default N=4), then pads with horizontal/vertical line strels. For R<3 or
 % N=0 it falls back to the true Euclidean disk (xx^2+yy^2 <= R^2).
 %
-% Previously numkit always returned the full Euclidean disk, so e.g.
+% Previously nk always returned the full Euclidean disk, so e.g.
 % strel('disk',5) gave an 11x11 mask (sum 81) instead of MATLAB's 9x9 (69).
 
 se5 = strel('disk',5);  nh5 = se5.Neighborhood;

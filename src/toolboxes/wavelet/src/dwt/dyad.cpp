@@ -2,18 +2,18 @@
 //
 // Dyadic upsample/downsample helpers and wmaxlev.
 
-#include <numkit/wavelet/dwt/dyad.hpp>
-#include <numkit/wavelet/filter/wfilters.hpp>
+#include <nk/wavelet/dwt/dyad.hpp>
+#include <nk/wavelet/filter/wfilters.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The dyaddown /
 // dyadup / wmaxlev builtins (CallContext wrappers) live in dwt/dyad_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <string>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -180,7 +180,7 @@ Value wmaxlev(const Value &N, const std::string &wname,
     const size_t k = N.numel();
     if (k == 0)
         throw Error("wmaxlev: N must not be empty",
-                    0, 0, "wmaxlev", "", "numkit:wmaxlev:empty");
+                    0, 0, "wmaxlev", "", "nk:wmaxlev:empty");
     double Nmin = N.elemAsDouble(0);
     for (size_t i = 1; i < k; ++i) {
         const double v = N.elemAsDouble(i);
@@ -191,7 +191,7 @@ Value wmaxlev(const Value &N, const std::string &wname,
     const size_t Lf = fb.Lo_D.size();
     if (Lf < 2)
         throw Error("wmaxlev: filter length must be ≥ 2",
-                    0, 0, "wmaxlev", "", "numkit:wmaxlev:filter");
+                    0, 0, "wmaxlev", "", "nk:wmaxlev:filter");
 
     double L = 0.0;
     if (Nmin >= static_cast<double>(Lf - 1) + 1.0) {
@@ -202,4 +202,4 @@ Value wmaxlev(const Value &N, const std::string &wname,
     return Value::scalar(L, mr);
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

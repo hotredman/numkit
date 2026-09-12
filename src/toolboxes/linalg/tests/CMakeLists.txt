@@ -1,10 +1,10 @@
 # toolboxes/linalg/tests/CMakeLists.txt
 #
 # Gtest unit tests for toolboxes/linalg. Each *_test.cpp is appended to
-# the global numkit_gtest target. Smoke .m files in tests/smoke/ are
-# hand-runnable demos for numkit (not built into gtest).
+# the global nk_gtest target. Smoke .m files in tests/smoke/ are
+# hand-runnable demos for nk (not built into gtest).
 
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/condeig_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/condest_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cholupdate_test.cpp
@@ -43,7 +43,7 @@ target_sources(numkit_gtest PRIVATE
 )
 
 # Relocated from tests/builtin (layer split 2026-06-17).
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/balance_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/colperm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eig_test.cpp

@@ -2,20 +2,20 @@
 //
 // Regression guard for bugs/builtin/diff-zero-order.md (FIXED): diff's
 // difference order N must be a positive integer scalar — a zero, negative,
-// fractional or non-scalar N is an error (numkit previously treated N=0 as an
+// fractional or non-scalar N is an error (nk previously treated N=0 as an
 // identity copy). Valid orders are unchanged. MATLAB R2025b: the rejected
 // forms all error "Difference order N must be a positive integer scalar".
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class DiffOrderTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 

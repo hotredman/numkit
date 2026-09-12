@@ -13,11 +13,11 @@
 // Functions land here per migration group as they move out of
 // toolboxes/builtin/src/language/arrays/.
 
-#include <numkit/linalg/library.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/linalg/library.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::linalg::detail {
+namespace nk::linalg::detail {
 // vector_ops.cpp
 void cross_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void dot_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -100,9 +100,9 @@ void pagenorm_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pagemldivide_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pagemrdivide_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pagelsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-} // namespace numkit::linalg::detail
+} // namespace nk::linalg::detail
 
-namespace numkit {
+namespace nk {
 
 // funm — general matrix function via the eigendecomposition:
 //   F = V·diag(fun(eig(A)))·V⁻¹  (valid for diagonalizable A).
@@ -113,10 +113,10 @@ namespace numkit {
 static const char *kFunmMSource = R"NKM(
 function F = funm(A, fun)
   if nargin < 2
-    error('numkit:funm:nargin', 'funm: requires (A, fun)');
+    error('nk:funm:nargin', 'funm: requires (A, fun)');
   end
   if ~(ismatrix(A) && size(A,1) == size(A,2))
-    error('numkit:funm:square', 'funm: A must be a square matrix');
+    error('nk:funm:square', 'funm: A must be a square matrix');
   end
   [V, D] = eig(A);
   F = V * diag(fun(diag(D))) / V;
@@ -290,4 +290,4 @@ void LinalgLibrary::install(Engine &engine)
     engine.registerBuiltinMSource(kDecompositionMSource);
 }
 
-} // namespace numkit
+} // namespace nk

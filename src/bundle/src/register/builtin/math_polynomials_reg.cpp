@@ -1,18 +1,18 @@
 // toolboxes/builtin/src/math/poly/polynomials_reg.cpp
 //
 // CallContext register half (Phase 2b multi-block split).
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elmat.hpp>  // poly_of_matrix
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/poly_helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elmat.hpp>  // poly_of_matrix
+#include <nk/builtin/polyfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/poly_helpers.hpp>
 #include "polyfun/polynomials_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,9 +26,9 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c cross-area (reshape/poly_of_matrix)
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c cross-area (reshape/poly_of_matrix)
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -36,7 +36,7 @@ void roots_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("roots: requires 1 argument",
-                     0, 0, "roots", "", "numkit:roots:nargin");
+                     0, 0, "roots", "", "nk:roots:nargin");
     outs[0] = roots(args[0], ctx.engine->resource());
 }
 
@@ -44,7 +44,7 @@ void polyder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("polyder: requires at least 1 argument",
-                     0, 0, "polyder", "", "numkit:polyder:nargin");
+                     0, 0, "polyder", "", "nk:polyder:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = polyder(args[0], mr);
@@ -75,7 +75,7 @@ void polyint_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("polyint: requires at least 1 argument",
-                     0, 0, "polyint", "", "numkit:polyint:nargin");
+                     0, 0, "polyint", "", "nk:polyint:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     double k = 0.0;
     if (args.size() >= 2) k = args[1].toScalar();
@@ -86,7 +86,7 @@ void tf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 2)
         throw Error("tf2zp: requires 2 arguments (b, a)",
-                     0, 0, "tf2zp", "", "numkit:tf2zp:nargin");
+                     0, 0, "tf2zp", "", "nk:tf2zp:nargin");
     auto [zr, pr, kr] = tf2zp(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(zr);
     if (nargout > 1) outs[1] = std::move(pr);
@@ -97,7 +97,7 @@ void zp2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 3)
         throw Error("zp2tf: requires 3 arguments (z, p, k)",
-                     0, 0, "zp2tf", "", "numkit:zp2tf:nargin");
+                     0, 0, "zp2tf", "", "nk:zp2tf:nargin");
     auto [bv, av] = zp2tf(args[0], args[1], args[2].toScalar(), ctx.engine->resource());
     outs[0] = std::move(bv);
     if (nargout > 1) outs[1] = std::move(av);
@@ -154,7 +154,7 @@ void polyfitCore(const double *xx, const double *yd, size_t m, int deg,
         const double pivot = aug[k * (np + 1) + k];
         if (std::abs(pivot) < 1e-15)
             throw Error("polyfit: singular matrix",
-                         0, 0, "polyfit", "", "numkit:polyfit:singular");
+                         0, 0, "polyfit", "", "nk:polyfit:singular");
         for (int c = k; c <= np; ++c) aug[k * (np + 1) + c] /= pivot;
         for (int r = 0; r < np; ++r) {
             if (r == k) continue;
@@ -201,7 +201,7 @@ void polyfit_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 3)
         throw Error("polyfit: requires 3 arguments",
-                     0, 0, "polyfit", "", "numkit:polyfit:nargin");
+                     0, 0, "polyfit", "", "nk:polyfit:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0], &y = args[1];
     const int deg = static_cast<int>(args[2].toScalar());
@@ -215,7 +215,7 @@ void polyfit_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     const int np = deg + 1;
     if (static_cast<size_t>(np) > m)
         throw Error("polyfit: not enough data points",
-                     0, 0, "polyfit", "", "numkit:polyfit:tooFewPoints");
+                     0, 0, "polyfit", "", "nk:polyfit:tooFewPoints");
 
     ScratchArena scratch(mr);
     const bool center = (nargout >= 3);       // centering is gated on mu (3rd output)
@@ -274,7 +274,7 @@ void polyval_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("polyval: requires 2 arguments",
-                     0, 0, "polyval", "", "numkit:polyval:nargin");
+                     0, 0, "polyval", "", "nk:polyval:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = args[0];
     const Value &x = args[1];
@@ -299,7 +299,7 @@ void polyval_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
     if (!hasS)
         throw Error("polyval: the error-estimate output requires the S structure",
-                     0, 0, "polyval", "", "numkit:polyval:noStruct");
+                     0, 0, "polyval", "", "nk:polyval:noStruct");
 
     // delta = normr/sqrt(df) · sqrt(1 + rowSum((V·inv(R)).^2)).
     const Value &S = args[2];
@@ -340,7 +340,7 @@ void poly_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("poly: requires 1 argument",
-                     0, 0, "poly", "", "numkit:poly:nargin");
+                     0, 0, "poly", "", "nk:poly:nargin");
     // Dispatch (matches MATLAB behavior):
     //   square matrix (n×n, n>1) -> characteristic polynomial via Souriau-Faddeev
     //   anything else (vector of roots) -> expand (λ - r_1)(λ - r_2)...
@@ -359,7 +359,7 @@ void polyvalm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("polyvalm: requires (p, A)",
-                     0, 0, "polyvalm", "", "numkit:polyvalm:nargin");
+                     0, 0, "polyvalm", "", "nk:polyvalm:nargin");
     outs[0] = polyvalm(args[0], args[1], ctx.engine->resource());
 }
 
@@ -368,7 +368,7 @@ void padecoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("padecoef: requires 2 arguments (T, N)",
-                     0, 0, "padecoef", "", "numkit:padecoef:nargin");
+                     0, 0, "padecoef", "", "nk:padecoef:nargin");
     const double T = args[0].toScalar();
     const int    N = static_cast<int>(args[1].toScalar());
     auto p = padecoef(T, N, ctx.engine->resource());
@@ -380,7 +380,7 @@ void polydiv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("polydiv: requires (b, a)",
-                     0, 0, "polydiv", "", "numkit:polydiv:nargin");
+                     0, 0, "polydiv", "", "nk:polydiv:nargin");
     auto res = polydiv(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(res.q);
     if (nargout > 1) outs[1] = std::move(res.r);
@@ -394,7 +394,7 @@ void residue_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("residue: requires (b, a)",
-                     0, 0, "residue", "", "numkit:residue:nargin");
+                     0, 0, "residue", "", "nk:residue:nargin");
     auto res = residue(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(res.r);
     if (nargout > 1) outs[1] = std::move(res.p);
@@ -405,7 +405,7 @@ void residuez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("residuez: requires (b, a)",
-                     0, 0, "residuez", "", "numkit:residuez:nargin");
+                     0, 0, "residuez", "", "nk:residuez:nargin");
     auto res = residuez(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(res.r);
     if (nargout > 1) outs[1] = std::move(res.p);
@@ -414,4 +414,4 @@ void residuez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

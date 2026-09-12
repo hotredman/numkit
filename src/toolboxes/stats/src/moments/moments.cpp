@@ -4,22 +4,22 @@
 // during the MATLAB-taxonomy refactor — they're Statistics Toolbox
 // content (var/std/median stay in toolboxes/builtin as base MATLAB).
 
-#include <numkit/stats/moments/moments.hpp>
+#include <nk/stats/moments/moments.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
 
 #include <cmath>
 #include <utility>
 
-namespace numkit::stats {
+namespace nk::stats {
 
-using ::numkit::ops::applyAlongDim;
-using ::numkit::ops::resolveDim;
-using ::numkit::createForDims;
+using ::nk::ops::applyAlongDim;
+using ::nk::ops::resolveDim;
+using ::nk::createForDims;
 
 namespace {
 
@@ -96,10 +96,10 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+                     0, 0, fn, "", std::string("nk:") + fn + ":complex");
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);
@@ -130,4 +130,4 @@ Value kurtosis(const Value &x, int normFlag, int dim, std::pmr::memory_resource 
     return dispatchMomentReduction(x, dim, normFlag, "kurtosis", kurtosisFromSlice, mr);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

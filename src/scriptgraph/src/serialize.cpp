@@ -30,11 +30,11 @@
 //     ]
 //   }
 
-#include <numkit/scriptgraph/serialize.hpp>
+#include <nk/scriptgraph/serialize.hpp>
 
 #include <sstream>
 
-namespace numkit::scriptgraph {
+namespace nk::scriptgraph {
 namespace {
 
 void escapeTo(std::ostringstream &os, const std::string &s)
@@ -186,4 +186,4 @@ std::string toJSON(const NodeGraph &g)
     return os.str();
 }
 
-} // namespace numkit::scriptgraph
+} // namespace nk::scriptgraph

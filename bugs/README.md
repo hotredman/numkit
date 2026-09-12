@@ -1,7 +1,7 @@
 # `bugs/` — one file per bug
 
 Structured bug catalog. **Every bug gets its own `.md` file** here, with a
-self-contained repro (numkit output vs MATLAB R2025b) so any session can
+self-contained repro (nk output vs MATLAB R2025b) so any session can
 pick it up cold. This is the sole bug tracker (the old flat BUGS.md was retired —
 its open items migrated here). The full MATLAB parity-gap inventory (missing / partial
 functions) lives in [missing.md](missing.md).
@@ -66,7 +66,7 @@ What is wrong, in one or two sentences.
 ## Repro
 ​```matlab
 <exact call>
-% numkit: <output>
+% nk: <output>
 % MATLAB: <output>
 ​```
 
@@ -122,7 +122,7 @@ real bugs isn't inflated by unimplemented functions:
   it is stale; no `Repro`, no gtest — `**Guard:** deferred — cleanup
   entry, code-health not behavior`. Closes by deleting the code.
 
-  **When to flag as `perf`** (numkit is single-threaded; MATLAB is often
+  **When to flag as `perf`** (nk is single-threaded; MATLAB is often
   multithreaded + MKL/FFTW, so a 1.5–3× gap on parallelisable ops is normal,
   not a bug):
   - **< 1.5×** — don't flag (noise / inherent).
@@ -159,7 +159,7 @@ regression guard with zero extra work.
 
 Run all known-bug tests (to watch them fail until fixed):
 ```
-numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
+nk_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 ```
 
 ## Lifecycle
@@ -192,10 +192,10 @@ When probing or fuzzing functions, systematically test these 5 dimensions:
 
 ## Self-Contained Repro Rule
 Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste runnable**:
-- Start with `clear;` — numkit runs the snippet with `--compat` (implicit
+- Start with `clear;` — nk runs the snippet with `--compat` (implicit
   `import compat.*`), so the block stays copy-paste valid in MATLAB too.
 - Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
-- Include the exact function call and comment the expected MATLAB vs NumKit output.
+- Include the exact function call and comment the expected MATLAB vs NK output.
 
 ## Catalog & Status
 
@@ -223,5 +223,5 @@ FAIL (it reproduces its open bug); a passing guard means a silently-fixed
 bug or a stale guard:
 
 ```bash
-python tools/bugs_audit.py --guards build/<preset>/tests/gtest/Release/numkit_gtest.exe
+python tools/bugs_audit.py --guards build/<preset>/tests/gtest/Release/nk_gtest.exe
 ```

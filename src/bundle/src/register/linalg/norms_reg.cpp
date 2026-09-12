@@ -7,22 +7,22 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/norms.hpp>
+#include <nk/linalg/norms.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty() || args.size() > 2)
         throw Error("norm: requires (X) or (X, p)",
-                    0, 0, "norm", "", "numkit:norm:nargin");
+                    0, 0, "norm", "", "nk:norm:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = norm_value(args[0], 2.0, mr);
@@ -40,7 +40,7 @@ void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
             return;
         }
         throw Error("norm: string p must be 'fro' or 'inf'",
-                    0, 0, "norm", "", "numkit:norm:badStringP");
+                    0, 0, "norm", "", "nk:norm:badStringP");
     }
     const double pv = p.toScalar();
     if (std::isinf(pv)) {
@@ -57,7 +57,7 @@ void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         if (!isVec)
             throw Error("norm: the only matrix norms available are 1, 2, "
                         "Inf, and 'fro'",
-                        0, 0, "norm", "", "numkit:norm:badMatrixP");
+                        0, 0, "norm", "", "nk:norm:badMatrixP");
         outs[0] = vecnorm(X, pv, 0, mr);  // vecnorm handles -Inf = min(|v|)
         return;
     }
@@ -69,7 +69,7 @@ void vecnorm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("vecnorm: requires (A [, p [, dim]])",
-                    0, 0, "vecnorm", "", "numkit:vecnorm:nargin");
+                    0, 0, "vecnorm", "", "nk:vecnorm:nargin");
     double p = 2.0;
     int dim = 0;
     if (args.size() >= 2) p = args[1].toScalar();
@@ -78,4 +78,4 @@ void vecnorm_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

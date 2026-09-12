@@ -5,12 +5,12 @@
 > historical decision record.
 
 ## Context & Objectives
-As part of the decomposition of the monolithic standard library into modular categories under `src/builtin/` (`elmat`, `elfun`, `matfun`, `datafun`, `specfun`, `polyfun`, `strfun`, `timefun`, `datatypes`, `iofun`, `general`, `ops`, `lang`), we provide clean, engine-free public C++ APIs in `numkit::builtin::...`.
+As part of the decomposition of the monolithic standard library into modular categories under `src/builtin/` (`elmat`, `elfun`, `matfun`, `datafun`, `specfun`, `polyfun`, `strfun`, `timefun`, `datatypes`, `iofun`, `general`, `ops`, `lang`), we provide clean, engine-free public C++ APIs in `nk::builtin::...`.
 
 To guarantee maximum developer productivity, clear IDE tooltips (via IntelliSense/Clangd), and consistent library ergonomics across all modules, we establish this formal standard for all public C++ headers.
 
 ## Decision: Full Doxygen Documentation Standard
-Every function exposed in `include/numkit/builtin/*.hpp` must provide full Doxygen comments:
+Every function exposed in `include/nk/builtin/*.hpp` must provide full Doxygen comments:
 1. **Mathematical & Algebraic Formula**: Mention explicit notation in `@brief` (e.g. `Elementwise right division (y = a ./ b)`).
 2. **Behavioral Semantics**:
    - Singleton expansion / automatic broadcasting across N-D shapes.
@@ -34,8 +34,8 @@ Where MATLAB builtin names collide with reserved C++ keywords (`and`, `or`, `not
 - `logical_xor` and `xor_op`
 
 ## Engine Decoupling
-Public builtin headers (`include/numkit/builtin/*.hpp`) must NOT include `<numkit/core/engine.hpp>`. Instead:
-- Forward-declare `namespace numkit { class Engine; }`.
+Public builtin headers (`include/nk/builtin/*.hpp`) must NOT include `<nk/core/engine.hpp>`. Instead:
+- Forward-declare `namespace nk { class Engine; }`.
 - Only registration functions (`void register_<category>(Engine &engine);`) accept `Engine &`.
 - All operational builtins operate purely on `Value`, `Span<const Value>`, and PMR memory resources.
 

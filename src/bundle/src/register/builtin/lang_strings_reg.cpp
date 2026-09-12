@@ -1,18 +1,18 @@
 // toolboxes/builtin/src/language/strings/strings_reg.cpp
 //
 // CallContext register half (Phase 2b multi-block split).
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
 #include "strfun/strings_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,15 +26,15 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
 void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "numkit:num2str:nargin");
+        throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "nk:num2str:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() < 2) {
         outs[0] = num2str(args[0], mr);
@@ -50,7 +50,7 @@ void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 void int2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("int2str: requires 1 argument", 0, 0, "int2str", "", "numkit:int2str:nargin");
+        throw Error("int2str: requires 1 argument", 0, 0, "int2str", "", "nk:int2str:nargin");
     outs[0] = int2str(args[0], ctx.engine->resource());
 }
 
@@ -61,14 +61,14 @@ void validatestring_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     // match, so we accept and ignore them.
     if (args.size() < 2)
         throw Error("validatestring: requires at least 2 arguments (str, validStrings)",
-                     0, 0, "validatestring", "", "numkit:validatestring:nargin");
+                     0, 0, "validatestring", "", "nk:validatestring:nargin");
     outs[0] = validatestring(args[0], args[1], ctx.engine->resource());
 }
 
 void str2num_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "numkit:str2num:nargin");
+        throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "nk:str2num:nargin");
     // MATLAB str2num evaluates the (bracket-wrapped) string as an expression,
     // so it parses matrices, ranges and arithmetic — str2num('[1 2;3 4]')=
     // [1 2;3 4], '1:5'=1..5, '2+3'=5. Any parse/eval failure (or a non-numeric
@@ -98,7 +98,7 @@ void str2double_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
 {
     if (args.empty())
         throw Error("str2double: requires 1 argument", 0, 0, "str2double", "",
-                     "numkit:str2double:nargin");
+                     "nk:str2double:nargin");
     outs[0] = str2double(args[0], ctx.engine->resource());
 }
 
@@ -115,14 +115,14 @@ void string_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
 void char_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("char requires an argument", 0, 0, "char", "", "numkit:char:nargin");
+        throw Error("char requires an argument", 0, 0, "char", "", "nk:char:nargin");
     outs[0] = toChar(args[0], ctx.engine->resource());
 }
 
 void strcmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "numkit:strcmp:nargin");
+        throw Error("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "nk:strcmp:nargin");
     outs[0] = strcmp(args[0], args[1], ctx.engine->resource());
 }
 
@@ -130,21 +130,21 @@ void strcmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("strcmpi: requires 2 arguments", 0, 0, "strcmpi", "",
-                     "numkit:strcmpi:nargin");
+                     "nk:strcmpi:nargin");
     outs[0] = strcmpi(args[0], args[1], ctx.engine->resource());
 }
 
 void upper_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("upper: requires 1 argument", 0, 0, "upper", "", "numkit:upper:nargin");
+        throw Error("upper: requires 1 argument", 0, 0, "upper", "", "nk:upper:nargin");
     outs[0] = upper(args[0], ctx.engine->resource());
 }
 
 void lower_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("lower: requires 1 argument", 0, 0, "lower", "", "numkit:lower:nargin");
+        throw Error("lower: requires 1 argument", 0, 0, "lower", "", "nk:lower:nargin");
     outs[0] = lower(args[0], ctx.engine->resource());
 }
 
@@ -152,7 +152,7 @@ void strtrim_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("strtrim: requires 1 argument", 0, 0, "strtrim", "",
-                     "numkit:strtrim:nargin");
+                     "nk:strtrim:nargin");
     outs[0] = strtrim(args[0], ctx.engine->resource());
 }
 
@@ -160,7 +160,7 @@ void strsplit_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("strsplit: requires 1 argument", 0, 0, "strsplit", "",
-                     "numkit:strsplit:nargin");
+                     "nk:strsplit:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     ScratchVec<std::string> delims(&scratch);
@@ -205,14 +205,14 @@ void strlength_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("strlength: requires 1 argument", 0, 0, "strlength", "",
-                     "numkit:strlength:nargin");
+                     "nk:strlength:nargin");
     outs[0] = strlength(args[0], ctx.engine->resource());
 }
 
 void strrep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("strrep requires 3 arguments", 0, 0, "strrep", "", "numkit:strrep:nargin");
+        throw Error("strrep requires 3 arguments", 0, 0, "strrep", "", "nk:strrep:nargin");
     outs[0] = strrep(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -235,7 +235,7 @@ void contains_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("contains requires 2 arguments", 0, 0, "contains", "",
-                     "numkit:contains:nargin");
+                     "nk:contains:nargin");
     outs[0] = contains(args[0], args[1], parseIgnoreCaseOption(args, 2),
                        ctx.engine->resource());
 }
@@ -244,7 +244,7 @@ void startsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
 {
     if (args.size() < 2)
         throw Error("startsWith requires 2 arguments", 0, 0, "startsWith", "",
-                     "numkit:startsWith:nargin");
+                     "nk:startsWith:nargin");
     outs[0] = startsWith(args[0], args[1], parseIgnoreCaseOption(args, 2),
                          ctx.engine->resource());
 }
@@ -253,7 +253,7 @@ void endsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("endsWith requires 2 arguments", 0, 0, "endsWith", "",
-                     "numkit:endsWith:nargin");
+                     "nk:endsWith:nargin");
     outs[0] = endsWith(args[0], args[1], parseIgnoreCaseOption(args, 2),
                        ctx.engine->resource());
 }
@@ -262,7 +262,7 @@ void strncmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 3)
         throw Error("strncmp: requires 3 arguments", 0, 0, "strncmp", "",
-                     "numkit:strncmp:nargin");
+                     "nk:strncmp:nargin");
     const size_t n = static_cast<size_t>(args[2].toScalar());
     outs[0] = strncmp(args[0], args[1], n, ctx.engine->resource());
 }
@@ -271,7 +271,7 @@ void strncmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 3)
         throw Error("strncmpi: requires 3 arguments", 0, 0, "strncmpi", "",
-                     "numkit:strncmpi:nargin");
+                     "nk:strncmpi:nargin");
     const size_t n = static_cast<size_t>(args[2].toScalar());
     outs[0] = strncmpi(args[0], args[1], n, ctx.engine->resource());
 }
@@ -280,7 +280,7 @@ void strfind_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("strfind: requires 2 arguments", 0, 0, "strfind", "",
-                     "numkit:strfind:nargin");
+                     "nk:strfind:nargin");
     outs[0] = strfind(args[0], args[1], ctx.engine->resource());
 }
 
@@ -288,7 +288,7 @@ void blanks_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
 {
     if (args.empty())
         throw Error("blanks: requires 1 argument", 0, 0, "blanks", "",
-                     "numkit:blanks:nargin");
+                     "nk:blanks:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     outs[0] = blanks(n, ctx.engine->resource());
 }
@@ -297,7 +297,7 @@ void deblank_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("deblank: requires 1 argument", 0, 0, "deblank", "",
-                     "numkit:deblank:nargin");
+                     "nk:deblank:nargin");
     outs[0] = deblank(args[0], ctx.engine->resource());
 }
 
@@ -305,7 +305,7 @@ void mat2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("mat2str: requires at least 1 argument", 0, 0, "mat2str", "",
-                     "numkit:mat2str:nargin");
+                     "nk:mat2str:nargin");
     auto *mr = ctx.engine->resource();
     int prec = 15;
     bool withClass = false;
@@ -336,7 +336,7 @@ void strjoin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("strjoin: requires at least 1 argument", 0, 0, "strjoin", "",
-                     "numkit:strjoin:nargin");
+                     "nk:strjoin:nargin");
     const Value &delim = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = strjoin(args[0], delim, ctx.engine->resource());
 }
@@ -350,7 +350,7 @@ void count_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.size() < 2)
         throw Error("count: requires (s, pat)",
-                     0, 0, "count", "", "numkit:count:nargin");
+                     0, 0, "count", "", "nk:count:nargin");
     outs[0] = count(args[0], args[1], ctx.engine->resource());
 }
 
@@ -358,7 +358,7 @@ void erase_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.size() < 2)
         throw Error("erase: requires (s, pat)",
-                     0, 0, "erase", "", "numkit:erase:nargin");
+                     0, 0, "erase", "", "nk:erase:nargin");
     outs[0] = erase(args[0], args[1], ctx.engine->resource());
 }
 
@@ -366,7 +366,7 @@ void replace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 3)
         throw Error("replace: requires (s, old, new)",
-                     0, 0, "replace", "", "numkit:replace:nargin");
+                     0, 0, "replace", "", "nk:replace:nargin");
     outs[0] = replace(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -374,7 +374,7 @@ void reverse_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("reverse: requires 1 argument",
-                     0, 0, "reverse", "", "numkit:reverse:nargin");
+                     0, 0, "reverse", "", "nk:reverse:nargin");
     outs[0] = reverse(args[0], ctx.engine->resource());
 }
 
@@ -382,7 +382,7 @@ void splitlines_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
 {
     if (args.empty())
         throw Error("splitlines: requires 1 argument",
-                     0, 0, "splitlines", "", "numkit:splitlines:nargin");
+                     0, 0, "splitlines", "", "nk:splitlines:nargin");
     outs[0] = splitlines(args[0], ctx.engine->resource());
 }
 
@@ -414,7 +414,7 @@ void pad_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("pad: requires (s[, n][, side[, ch]])",
-                     0, 0, "pad", "", "numkit:pad:nargin");
+                     0, 0, "pad", "", "nk:pad:nargin");
     // The 2nd arg is the width n when numeric; a string there is the side
     // (with the width defaulting to the longest element). pad(s) with no
     // 2nd arg also uses the default width.
@@ -439,7 +439,7 @@ void strip_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.empty())
         throw Error("strip: requires (s[, side[, ch]])",
-                     0, 0, "strip", "", "numkit:strip:nargin");
+                     0, 0, "strip", "", "nk:strip:nargin");
     const Value &side = (args.size() >= 2 && !args[1].isEmpty()) ? args[1] : Value::Empty;
     const Value &ch   = (args.size() >= 3 && !args[2].isEmpty()) ? args[2] : Value::Empty;
     outs[0] = strip(args[0], side, ch, ctx.engine->resource());
@@ -449,7 +449,7 @@ void matches_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("matches: requires (s, pat)",
-                     0, 0, "matches", "", "numkit:matches:nargin");
+                     0, 0, "matches", "", "nk:matches:nargin");
     outs[0] = matches(args[0], args[1], ctx.engine->resource());
 }
 
@@ -457,7 +457,7 @@ void convertCharsToStrings_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("convertCharsToStrings: requires 1 argument",
-                     0, 0, "convertCharsToStrings", "", "numkit:convertCharsToStrings:nargin");
+                     0, 0, "convertCharsToStrings", "", "nk:convertCharsToStrings:nargin");
     outs[0] = convertCharsToStrings(args[0], ctx.engine->resource());
 }
 
@@ -465,7 +465,7 @@ void convertStringsToChars_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("convertStringsToChars: requires 1 argument",
-                     0, 0, "convertStringsToChars", "", "numkit:convertStringsToChars:nargin");
+                     0, 0, "convertStringsToChars", "", "nk:convertStringsToChars:nargin");
     outs[0] = convertStringsToChars(args[0], ctx.engine->resource());
 }
 
@@ -473,7 +473,7 @@ void isstringscalar_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("isstringscalar: requires 1 argument",
-                     0, 0, "isstringscalar", "", "numkit:isstringscalar:nargin");
+                     0, 0, "isstringscalar", "", "nk:isstringscalar:nargin");
     outs[0] = isstringscalar(args[0], ctx.engine->resource());
 }
 
@@ -481,7 +481,7 @@ void isstrprop_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.size() < 2)
         throw Error("isstrprop: requires (s, category)",
-                     0, 0, "isstrprop", "", "numkit:isstrprop:nargin");
+                     0, 0, "isstrprop", "", "nk:isstrprop:nargin");
     outs[0] = isstrprop(args[0], args[1], ctx.engine->resource());
 }
 
@@ -489,7 +489,7 @@ void isletter_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.empty())
         throw Error("isletter: requires 1 argument",
-                     0, 0, "isletter", "", "numkit:isletter:nargin");
+                     0, 0, "isletter", "", "nk:isletter:nargin");
     outs[0] = isletter(args[0], ctx.engine->resource());
 }
 
@@ -497,7 +497,7 @@ void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("isspace: requires 1 argument",
-                     0, 0, "isspace", "", "numkit:isspace:nargin");
+                     0, 0, "isspace", "", "nk:isspace:nargin");
     outs[0] = isspaceFn(args[0], ctx.engine->resource());
 }
 
@@ -507,7 +507,7 @@ void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     {                                                                             \
         if (args.size() < 2)                                                      \
             throw Error(#FN " requires 2 arguments",                             \
-                         0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
+                         0, 0, #FN, "", "nk:" #FN ":nargin");                      \
         outs[0] = FN(args[0], args[1], ctx.engine->resource());                  \
     }
 
@@ -520,7 +520,7 @@ void extractBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
 {
     if (args.size() < 3)
         throw Error("extractBetween requires (s, start, end)",
-                     0, 0, "extractBetween", "", "numkit:extractBetween:nargin");
+                     0, 0, "extractBetween", "", "nk:extractBetween:nargin");
     outs[0] = extractBetween(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -530,7 +530,7 @@ void extractBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     {                                                                             \
         if (args.size() < 3)                                                      \
             throw Error(#FN " requires 3 arguments",                             \
-                         0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
+                         0, 0, #FN, "", "nk:" #FN ":nargin");                      \
         outs[0] = FN(args[0], args[1], args[2], ctx.engine->resource());         \
     }
 
@@ -544,7 +544,7 @@ void replaceBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
 {
     if (args.size() < 4)
         throw Error("replaceBetween requires (s, start, end, new)",
-                     0, 0, "replaceBetween", "", "numkit:replaceBetween:nargin");
+                     0, 0, "replaceBetween", "", "nk:replaceBetween:nargin");
     outs[0] = replaceBetween(args[0], args[1], args[2], args[3], ctx.engine->resource());
 }
 
@@ -552,7 +552,7 @@ void dec2bin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("dec2bin requires (d[, n])",
-                     0, 0, "dec2bin", "", "numkit:dec2bin:nargin");
+                     0, 0, "dec2bin", "", "nk:dec2bin:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty())
               ? static_cast<int>(args[1].toScalar()) : 0;
     outs[0] = dec2bin(args[0], n, ctx.engine->resource());
@@ -562,7 +562,7 @@ void dec2hex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("dec2hex requires (d[, n])",
-                     0, 0, "dec2hex", "", "numkit:dec2hex:nargin");
+                     0, 0, "dec2hex", "", "nk:dec2hex:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty())
               ? static_cast<int>(args[1].toScalar()) : 0;
     outs[0] = dec2hex(args[0], n, ctx.engine->resource());
@@ -572,7 +572,7 @@ void bin2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("bin2dec requires 1 argument",
-                     0, 0, "bin2dec", "", "numkit:bin2dec:nargin");
+                     0, 0, "bin2dec", "", "nk:bin2dec:nargin");
     outs[0] = bin2dec(args[0], ctx.engine->resource());
 }
 
@@ -580,7 +580,7 @@ void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("hex2dec requires 1 argument",
-                     0, 0, "hex2dec", "", "numkit:hex2dec:nargin");
+                     0, 0, "hex2dec", "", "nk:hex2dec:nargin");
     outs[0] = hex2dec(args[0], ctx.engine->resource());
 }
 
@@ -588,7 +588,7 @@ void hex2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("hex2num requires 1 argument",
-                     0, 0, "hex2num", "", "numkit:hex2num:nargin");
+                     0, 0, "hex2num", "", "nk:hex2num:nargin");
     outs[0] = hex2num(args[0], ctx.engine->resource());
 }
 
@@ -596,7 +596,7 @@ void num2hex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("num2hex requires 1 argument",
-                     0, 0, "num2hex", "", "numkit:num2hex:nargin");
+                     0, 0, "num2hex", "", "nk:num2hex:nargin");
     outs[0] = num2hex(args[0], ctx.engine->resource());
 }
 
@@ -604,7 +604,7 @@ void dec2base_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("dec2base requires (d, base[, len])",
-                     0, 0, "dec2base", "", "numkit:dec2base:nargin");
+                     0, 0, "dec2base", "", "nk:dec2base:nargin");
     const int base = static_cast<int>(args[1].toScalar());
     const int len  = (args.size() >= 3 && !args[2].isEmpty())
                        ? static_cast<int>(args[2].toScalar()) : 0;
@@ -615,7 +615,7 @@ void base2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("base2dec requires (s, base)",
-                     0, 0, "base2dec", "", "numkit:base2dec:nargin");
+                     0, 0, "base2dec", "", "nk:base2dec:nargin");
     const int base = static_cast<int>(args[1].toScalar());
     outs[0] = base2dec(args[0], base, ctx.engine->resource());
 }
@@ -624,7 +624,7 @@ void rat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.empty())
         throw Error("rat requires (x[, tol])",
-                     0, 0, "rat", "", "numkit:rat:nargin");
+                     0, 0, "rat", "", "nk:rat:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const double user_tol = (args.size() >= 2 && !args[1].isEmpty())
@@ -632,7 +632,7 @@ void rat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 
     if (nargout <= 1) {
         // 1-output form: continued-fraction string. MATLAB's vector
-        // version returns a multi-line char array; numkit only emits
+        // version returns a multi-line char array; nk only emits
         // the scalar form for now (matrix-of-strings is a separate
         // edge — never hit by realistic call sites).
         outs[0] = rat(x, user_tol > 0 ? user_tol : 0.0, mr);
@@ -677,7 +677,7 @@ void rats_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
 {
     if (args.empty())
         throw Error("rats requires (x[, len])",
-                     0, 0, "rats", "", "numkit:rats:nargin");
+                     0, 0, "rats", "", "nk:rats:nargin");
     int len = (args.size() >= 2 && !args[1].isEmpty())
                   ? static_cast<int>(args[1].toScalar()) : 13;
     outs[0] = rats(args[0], len, ctx.engine->resource());
@@ -689,11 +689,11 @@ void strtok_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("strtok: requires 1 argument", 0, 0, "strtok", "",
-                     "numkit:strtok:nargin");
+                     "nk:strtok:nargin");
     const std::string delim = (args.size() >= 2)
                                   ? args[1].toString()
                                   : std::string(" \t\r\n\f\v");
-    auto [tok, rem] = numkit::builtin::strtok(args[0], delim,
+    auto [tok, rem] = nk::builtin::strtok(args[0], delim,
                                               ctx.engine->resource());
     outs[0] = std::move(tok);
     if (nargout > 1) outs[1] = std::move(rem);
@@ -720,7 +720,7 @@ void compose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("compose: requires 2 arguments (fmt, x)",
-                     0, 0, "compose", "", "numkit:compose:nargin");
+                     0, 0, "compose", "", "nk:compose:nargin");
     outs[0] = compose(args[0], args[1], ctx.engine->resource());
 }
 
@@ -729,12 +729,12 @@ void strjust_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("strjust: requires at least 1 argument",
-                     0, 0, "strjust", "", "numkit:strjust:nargin");
+                     0, 0, "strjust", "", "nk:strjust:nargin");
     std::string side = "right";
     if (args.size() >= 2) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("strjust: side must be a char or string",
-                         0, 0, "strjust", "", "numkit:strjust:badSide");
+                         0, 0, "strjust", "", "nk:strjust:badSide");
         side = args[1].toString();
     }
     outs[0] = strjust(args[0], side, ctx.engine->resource());
@@ -745,7 +745,7 @@ void extract_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("extract: requires 2 arguments (s, pat)",
-                     0, 0, "extract", "", "numkit:extract:nargin");
+                     0, 0, "extract", "", "nk:extract:nargin");
     outs[0] = extract(args[0], args[1], ctx.engine->resource());
 }
 
@@ -754,7 +754,7 @@ void split_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("split: requires at least 1 argument",
-                     0, 0, "split", "", "numkit:split:nargin");
+                     0, 0, "split", "", "nk:split:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         // Default delimiter is whitespace per MATLAB; we use ' '.
@@ -770,11 +770,11 @@ void join_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("join: requires at least 1 argument",
-                     0, 0, "join", "", "numkit:join:nargin");
+                     0, 0, "join", "", "nk:join:nargin");
     const Value &delim = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = join(args[0], delim, ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

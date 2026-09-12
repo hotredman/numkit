@@ -9,7 +9,7 @@
 ## Symptom
 
 ```bash
-$ npx numkit -e "clear; close all; disp(42)"
+$ npx nk -e "clear; close all; disp(42)"
 __FIGURE_CLOSE_ALL__
 42
 ```
@@ -21,7 +21,7 @@ AI agents parsing stdout.
 
 ## Repro
 
-`node packages/numkit/bin/cli.js -e "clear; close all; disp(42)"` — first
+`node packages/nk/bin/cli.js -e "clear; close all; disp(42)"` — first
 line is `__FIGURE_CLOSE_ALL__` (and `__CLEAR__` for `clear` in other
 scripts). MATLAB prints only `42`.
 

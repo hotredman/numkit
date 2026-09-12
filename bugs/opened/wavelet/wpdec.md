@@ -13,7 +13,7 @@ it the packet family `wprec`, `wpcoef`, `wpsplt`, `besttree`).
 ```matlab
 clear;
 t = wpdec([1 2 3 4 5 6 7 8], 2, 'db1')
-% numkit: Error — VM: undefined function 'wpdec'
+% nk: Error — VM: undefined function 'wpdec'
 % MATLAB: wavelet-packet tree object (2 levels, full binary tree)
 ```
 
@@ -23,7 +23,7 @@ Not implemented.
 ## Suggested fix
 Wavelet packet decomposition recursively applies the DWT low- AND high-pass
 filters to BOTH the approximation and detail at each node (full binary
-tree), unlike `wavedec` (only the approximation). numkit has the DWT
+tree), unlike `wavedec` (only the approximation). nk has the DWT
 primitives (`dwt`, `wfilters`). The blocker is the **tree representation**:
 MATLAB returns a packet-tree object — needs the engine's object model (see
 dev-docs/handbook/object_model.md) or a struct-based tree encoding. Medium-large; decide the

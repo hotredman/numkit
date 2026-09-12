@@ -10,22 +10,22 @@
 // builtins, which needs the engine; the codegen lib itself stays
 // engine-free.
 
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/transfer.hpp>
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
 #include <vector>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 class TransferDiff : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     TransferRegistry       reg;
 
     void SetUp() override
@@ -33,7 +33,7 @@ public:
                 registerStandardTransfers(reg);
     }
 
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
 
     // Assert the registered transfer for `name` predicts exactly the
     // type/shape the engine produces for `expr` (precision check).
@@ -41,7 +41,7 @@ public:
                      const std::vector<ArgInfo> &args,
                      const std::string &expr)
     {
-        const numkit::Value actual = eval(expr);
+        const nk::Value actual = eval(expr);
         const InferredType  pred   = reg.apply(name, args);
 
         ASSERT_TRUE(pred.isConcrete()) << name << ": predicted non-concrete";
@@ -65,14 +65,14 @@ public:
                      const std::vector<ArgInfo> &args,
                      const std::string &expr)
     {
-        const numkit::Value actual = eval(expr);
+        const nk::Value actual = eval(expr);
         const InferredType  pred   = reg.apply(name, args);
 
         if (pred.isDynamic()) return;  // top — over-approximates everything
         ASSERT_TRUE(pred.isConcrete()) << name << ": Bottom is never sound here";
         EXPECT_EQ(pred.dtype, actual.type())
             << name << " UNSOUND: predicted " << pred.str()
-            << " but runtime produced " << numkit::mtypeName(actual.type());
+            << " but runtime produced " << nk::mtypeName(actual.type());
         if (pred.shape.kind == ShapeKind::KnownDims) {
             EXPECT_EQ(pred.shape.rows, actual.dims().rows()) << name << ": rows";
             EXPECT_EQ(pred.shape.cols, actual.dims().cols()) << name << ": cols";

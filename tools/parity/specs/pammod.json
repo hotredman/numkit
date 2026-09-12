@@ -10,5 +10,5 @@
     "real(yg(3))", "real(yg(4))",
     "real(y8(2))", "real(y8(8))"
   ],
-  "comment": "Sig y=pammod(x,M[,ini_phase,symorder]): M-PAM amplitudes 2k-(M-1). DEFAULT symbol order is 'bin' (binary), NOT gray: pammod([0 1 2 3],4)=[-3 -1 1 3]. Explicit 'gray' reorders: [-3 -1 3 1] (y(3)=3, y(4)=1). M=8 bin: y(2)=-5, y(8)=7. numkit previously defaulted to 'gray' for pammod -- fixed (per-function defaults: pammod->bin, qammod->gray)."
+  "comment": "Sig y=pammod(x,M[,ini_phase,symorder]): M-PAM amplitudes 2k-(M-1). DEFAULT symbol order is 'bin' (binary), NOT gray: pammod([0 1 2 3],4)=[-3 -1 1 3]. Explicit 'gray' reorders: [-3 -1 3 1] (y(3)=3, y(4)=1). M=8 bin: y(2)=-5, y(8)=7. nk previously defaulted to 'gray' for pammod -- fixed (per-function defaults: pammod->bin, qammod->gray)."
 }

@@ -5,12 +5,12 @@
 // multi-target / inliner-budget cost, so there is no reason to split them.
 // Semantics match the SIMD versions bit-for-bit (std::fmin/fmax NaN rules).
 
-#include <numkit/ops/fused/fused_kernels.hpp>
+#include <nk/ops/fused/fused_kernels.hpp>
 
 #include <cmath>
 #include <cstddef>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 void fusedAffineClamp(const double *x, double scale, double offset,
                       double lo, double hi, double *out, std::size_t n) {
@@ -154,7 +154,7 @@ void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n) {
 
 void fusedTransAffine(const double *x, double scale, double offset,
                       TransAffineFn fn, double *out, std::size_t n) {
-    // Non-SIMD build: numkit's exp/expm1 are scalar std:: here too, so the
+    // Non-SIMD build: nk's exp/expm1 are scalar std:: here too, so the
     // affine + scalar transcendental matches the per-op path bit-for-bit.
     switch (fn) {
         case TransAffineFn::Exp:
@@ -241,4 +241,4 @@ void fusedTransShiftDiv(const double *x, double sub, double div,
     }
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

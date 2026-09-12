@@ -4,10 +4,10 @@
 // date components. Exact bit-for-bit MATLAB match expected since the
 // algorithm is integer-arithmetic civil-to-serial-day conversion.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DatenumTest : public ::testing::Test
 {

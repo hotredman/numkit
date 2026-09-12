@@ -4,13 +4,13 @@
 // freqs. Top-level cheby1 / cheby2 / ellip / besself functions
 // compose these.
 
-#include <numkit/signal/filter_design/analog_filters.hpp>
+#include <nk/signal/filter_design/analog_filters.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/signal/filter_implementation/conversions_extras.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/signal/filter_implementation/conversions_extras.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -23,7 +23,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -732,7 +732,7 @@ impinvar(const Value &b, const Value &a, double fs, double /*tol*/, std::pmr::me
     const double T = 1.0 / fs;
 
     // 1) Roots of a → analog poles.
-    Value pV = ::numkit::builtin::roots(a, mr);
+    Value pV = ::nk::builtin::roots(a, mr);
     auto pv = readComplexVec(pV);
     if (static_cast<int>(pv.size()) != N)
         throw std::runtime_error("impinvar: roots() returned unexpected count");
@@ -911,4 +911,4 @@ Value freqs(const Value &b, const Value &a, const Value &w, std::pmr::memory_res
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

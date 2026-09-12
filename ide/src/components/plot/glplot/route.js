@@ -22,13 +22,13 @@ export function glRoutable(flag, webgl2) {
 }
 
 // The GL overlay is ON by default; users opt OUT by setting
-// localStorage 'numkit.plot.gl' = '0' (any other value, or unset, keeps it
+// localStorage 'nk.plot.gl' = '0' (any other value, or unset, keeps it
 // on). `storage` is window.localStorage (or null when unavailable, e.g. SSR)
 // so this stays a pure, unit-testable derivation.
 // → boolean
 export function glFlagFromStorage(storage) {
   if (!storage) return true;
-  return storage.getItem('numkit.plot.gl') !== '0';
+  return storage.getItem('nk.plot.gl') !== '0';
 }
 
 // Scatter routes to GL much earlier than lines: SVG draws one DOM node per

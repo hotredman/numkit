@@ -2,7 +2,7 @@ clear
 
 % geomean / harmmean 'omitnan' nanflag (2026-05-30): MATLAB geomean and
 % harmmean accept a trailing 'omitnan' (or default 'includenan') nanflag
-% that removes NaN per slice. numkit previously ignored it (geomean) or
+% that removes NaN per slice. nk previously ignored it (geomean) or
 % errored (harmmean). vs MATLAB R2025b.
 
 Mn = [1 5; 2 NaN; 3 7; 4 100; 5 8];

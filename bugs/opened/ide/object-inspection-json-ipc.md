@@ -33,14 +33,14 @@ EOF
 echo '__END_OF_INPUT__'
 echo '__INSPECT_PATH__:x'
 echo '__QUIT__'
-} | build/windows/release/apps/numkit/Release/numkit_repl.exe --ide-session
+} | build/windows/release/apps/nk/Release/nk_repl.exe --ide-session
 ```
 
 ## Root cause — missing OBJECT branch in the JSON IPC (three sites)
 
 1. `emitInspectPayload` handles only struct / cell / else-matrix, in BOTH
    serialization sites that must stay format-identical:
-   - `apps/numkit/ide_serializer.hpp` (~line 203, native `--ide-session`)
+   - `apps/nk/ide_serializer.hpp` (~line 203, native `--ide-session`)
    - `wasm/src/repl_bindings.cpp` (~line 279, the WASM engine the IDE uses)
    → OBJECT falls into the matrix branch; `valuePreview` stringifies it as
    "[1x1 object]".

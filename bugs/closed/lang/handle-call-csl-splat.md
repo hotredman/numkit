@@ -19,10 +19,10 @@ clear;
 f = @(a,b) a + b;
 c = {2, 3};
 disp(f(c{:}))
-% numkit:  Error: Too many values: a comma-separated list expanded to 2
+% nk:  Error: Too many values: a comma-separated list expanded to 2
 %          values where 1 is required
 % MATLAB R2025b: 5
-% (feval(f, c{:}) WORKS in numkit — the named-callee flatten path)
+% (feval(f, c{:}) WORKS in nk — the named-callee flatten path)
 ```
 
 ## Root cause

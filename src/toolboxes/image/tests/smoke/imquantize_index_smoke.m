@@ -3,7 +3,7 @@ clear
 % imquantize now returns the second output (the quantization INDEX) and
 % accepts the third 'values' argument. The index is the 1-based bin number
 % (1..numel(levels)+1) for each pixel. quant = values(index) when 'values'
-% is supplied, otherwise quant == index. numkit previously returned only the
+% is supplied, otherwise quant == index. nk previously returned only the
 % index as 'quant' and threw "Index exceeds array dimensions" on [q, idx].
 
 I = [1 5 10; 15 20 25];

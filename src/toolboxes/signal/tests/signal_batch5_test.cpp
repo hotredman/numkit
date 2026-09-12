@@ -5,11 +5,11 @@
 //
 // All bit-identical MATLAB R2025b on probed inputs.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SignalBatch5Test : public ::testing::Test
 {

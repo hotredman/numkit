@@ -1,17 +1,17 @@
 // src/builtin/src/elfun/trig_portable.cpp
 //
-// Reference scalar implementations of trig family for numkit::builtin.
+// Reference scalar implementations of trig family for nk::builtin.
 
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/helpers.hpp>
 #include "sinpi_kernel.hpp"
 
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -278,4 +278,4 @@ Value cospi(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return cospi_scalar_p(v); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

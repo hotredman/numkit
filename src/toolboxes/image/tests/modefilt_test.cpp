@@ -2,13 +2,13 @@
 //
 // Regression guard for image/modefilt. Fingerprints from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class ModefiltTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override
     {
                 engine.eval("A = uint8([1 1 2 2; 1 3 2 4; 5 5 6 6; 5 7 6 8]);");

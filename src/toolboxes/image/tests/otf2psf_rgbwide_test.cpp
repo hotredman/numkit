@@ -6,12 +6,12 @@
 //   * rgbwide2ycbcr — new function, bit-equal MATLAB R2025b on the
 //     BT.2020-2 / BT.2100-2 10-bit and 12-bit narrow-range encoder.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class Otf2psfRgbWideTest : public ::testing::Test
 {

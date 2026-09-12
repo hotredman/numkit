@@ -3,11 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -54,7 +54,7 @@ Metric parse_metric(const std::string &raw) {
     if (s == "seuclidean")       return Metric::Seuclidean;
     if (s == "spearman")         return Metric::Spearman;
     throw Error("pdist: unknown metric '" + raw + "'", 0, 0, "pdist", "",
-                "numkit:pdist:badmetric");
+                "nk:pdist:badmetric");
 }
 
 // Invert a small dense matrix in-place (D × D, row-major in `A`) using
@@ -80,7 +80,7 @@ inline void invert_small(double *A, size_t D,
         if (pmax < 1e-14)
             throw Error("pdist: covariance matrix is singular for "
                         "Mahalanobis distance",
-                        0, 0, "pdist", "", "numkit:pdist:singular");
+                        0, 0, "pdist", "", "nk:pdist:singular");
         if (piv != k) {
             for (size_t c = 0; c < 2 * D; ++c)
                 std::swap(aug[k * 2 * D + c], aug[piv * 2 * D + c]);
@@ -322,4 +322,4 @@ void pdist2_topk(const Value &X, const Value &Y, const std::string &metric,
                  double p, const Value *C_opt, std::size_t k, bool largest,
                  Value &Dout, Value &Iout, std::pmr::memory_resource *mr);
 
-} // namespace numkit::stats
+} // namespace nk::stats

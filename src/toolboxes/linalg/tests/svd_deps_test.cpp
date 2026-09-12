@@ -3,10 +3,10 @@
 // Regression guard for the 6 SVD-dependent functions:
 //   rank, pinv, cond, orth, null, normest
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SvdDepsTest : public ::testing::Test
 {

@@ -17,10 +17,10 @@
 // Cell-of-string fn argument deferred until our cell-string handling
 // is uniform across libs.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -47,7 +47,7 @@ Agg parseFnName(const std::string &name)
     if (name == "sem")   return Agg::Sem;
     throw Error("grpstats: unsupported fn name (got '" + name
                 + "'); expected one of {mean,std,sum,numel,min,max,var,sem}",
-                0, 0, "grpstats", "", "numkit:grpstats:UnsupportedFn");
+                0, 0, "grpstats", "", "nk:grpstats:UnsupportedFn");
 }
 
 // Apply aggregator to a vector of values (NaN excluded).
@@ -121,7 +121,7 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
     const size_t Ncols = X.dims().cols();
     if (group.numel() != Nrows && !(Nrows == 1 && group.numel() == Ncols))
         throw Error("grpstats: group length must match number of rows of X",
-                    0, 0, "grpstats", "", "numkit:grpstats:LenMismatch");
+                    0, 0, "grpstats", "", "nk:grpstats:LenMismatch");
 
     // For row-vector input, MATLAB applies per-element groups (treating
     // X as length(X) observations of 1 column).
@@ -179,4 +179,4 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
     return outs;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

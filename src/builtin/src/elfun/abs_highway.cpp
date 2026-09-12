@@ -2,17 +2,17 @@
 //
 // Highway dynamic-dispatch version of abs(). This file is re-included
 // by <hwy/foreach_target.h> once per SIMD target; the per-target copy
-// lives inside numkit::builtin::HWY_NAMESPACE, and the final
+// lives inside nk::builtin::HWY_NAMESPACE, and the final
 // HWY_ONCE pass at the bottom publishes the single external abs().
 // See abs_portable.cpp for the scalar reference.
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/parallel_for.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/parallel_for.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -29,7 +29,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace nk::builtin {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -72,13 +72,13 @@ void AbsLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace nk::builtin
 HWY_AFTER_NAMESPACE();
 
 // ── Single external definition (only compiled on the final pass) ────────
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 HWY_EXPORT(AbsLoop);
 
@@ -115,14 +115,14 @@ Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
     }
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
-    numkit::detail::parallel_for(x.numel(), numkit::detail::kCheapElementwiseThreshold,
+    nk::detail::parallel_for(x.numel(), nk::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(AbsLoop)(in + s, out + s, e - s);
-        }, numkit::detail::kElementwiseMaxWorkers);
+        }, nk::detail::kElementwiseMaxWorkers);
     hwy::FlushStream();   // single sfence after all NT-store chunks
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin
 
 #endif // HWY_ONCE

@@ -10,17 +10,17 @@
 // register here too. Toolbox-grade entries may live under namespaced
 // `optim.*` instead — that decision is made per function as they land.
 
-#include <numkit/optim/library.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/optim/library.hpp>
+#include <nk/core/engine.hpp>
 
-#include <numkit/core/types.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::optim::detail {
+namespace nk::optim::detail {
 void fminbnd_reg   (Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fminsearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
-} // namespace numkit::optim::detail
+} // namespace nk::optim::detail
 
-namespace numkit::optim {
+namespace nk::optim {
 // Defined in local/fzero.cpp — install the `.m` optimizer wrappers (pausable
 // objective; the C++ `Value fzero/fminsearch(...)` APIs remain the synchronous
 // embedder path).
@@ -32,9 +32,9 @@ void registerFminuncM(Engine &engine);      // fminunc_reg.cpp
 void registerQuadprogM(Engine &engine);     // quadprog_reg.cpp
 void registerLinprogM(Engine &engine);      // linprog_reg.cpp
 void registerFminconM(Engine &engine);      // fmincon_reg.cpp
-} // namespace numkit::optim
+} // namespace nk::optim
 
-namespace numkit {
+namespace nk {
 
 void OptimLibrary::install(Engine &engine)
 {
@@ -66,4 +66,4 @@ void OptimLibrary::install(Engine &engine)
     optim::registerFminconM(engine);
 }
 
-} // namespace numkit
+} // namespace nk

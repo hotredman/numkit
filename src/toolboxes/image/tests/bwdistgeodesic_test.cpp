@@ -4,11 +4,11 @@
 // transform via Dijkstra with chamfer edge weights. Bit-equal
 // MATLAB R2025b (SINGLE precision, 1e-6 tolerance).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class BwdistgeodesicTest : public ::testing::Test
 {

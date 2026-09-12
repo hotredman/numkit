@@ -10,5 +10,5 @@
     "ip3", "cip", "ip2c",
     "real(cp(2))", "imag(cp(2))", "real(cp(3))", "imag(cp(3))"
   ],
-  "comment": "Sig cumprod(X[,dim][,direction][,nanflag]). forward cumprod([1 2 3 4])(4)=24. 'reverse' = [24 24 12 4]. 'omitnan' treats NaN as 1: cumprod([2 NaN 4],'omitnan')=[2 2 8]. INTEGER input keeps the class and accumulates NATIVELY with saturation: cumprod(int8([5 10 10]))=[5 50 127] int8 (500 saturates to 127), cumprod(int8([2 3 4]))=[2 6 24]. numkit previously threw 'Not a double array' on integer input; fixed 2026-05-30. COMPLEX (fixed 2026-06-05): accumulates Complex products: cumprod([1+1i 1-1i 2i])=[1+1i 2+0i 0+4i]. (Earlier: 'reverse'/'omitnan' flag parsing.)"
+  "comment": "Sig cumprod(X[,dim][,direction][,nanflag]). forward cumprod([1 2 3 4])(4)=24. 'reverse' = [24 24 12 4]. 'omitnan' treats NaN as 1: cumprod([2 NaN 4],'omitnan')=[2 2 8]. INTEGER input keeps the class and accumulates NATIVELY with saturation: cumprod(int8([5 10 10]))=[5 50 127] int8 (500 saturates to 127), cumprod(int8([2 3 4]))=[2 6 24]. nk previously threw 'Not a double array' on integer input; fixed 2026-05-30. COMPLEX (fixed 2026-06-05): accumulates Complex products: cumprod([1+1i 1-1i 2i])=[1+1i 2+0i 0+4i]. (Earlier: 'reverse'/'omitnan' flag parsing.)"
 }

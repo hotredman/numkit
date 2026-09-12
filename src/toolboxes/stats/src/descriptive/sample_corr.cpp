@@ -11,16 +11,16 @@
 // rank-robust least-squares path — deferred to its own change. See
 // bugs/stats/autocorr.md.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -122,7 +122,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
     const size_t N = y1.numel();
     if (y2.numel() != N)
         throw Error("crosscorr: y1 and y2 must have the same length",
-                    0, 0, "crosscorr", "", "numkit:crosscorr:lengthMismatch");
+                    0, 0, "crosscorr", "", "nk:crosscorr:lengthMismatch");
     const size_t K = (numLags >= 0) ? static_cast<size_t>(numLags) : defaultNumLags(N);
 
     std::vector<double> c1, c2;
@@ -189,4 +189,4 @@ parcorr(const Value &y, int numLags, double numSTD, std::pmr::memory_resource *m
     return std::make_tuple(colVec(pacf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

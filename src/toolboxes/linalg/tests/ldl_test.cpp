@@ -3,12 +3,12 @@
 // Regression guard for ldl — block LDL' factorization (v1: Crout
 // LDL' without pivoting).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class LdlTest : public ::testing::Test
 {

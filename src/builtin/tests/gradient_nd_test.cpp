@@ -6,16 +6,16 @@
 // output ordering, single-spacing broadcast, and per-dim spacing. MATLAB
 // R2025b reference values.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class GradientNdTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
@@ -109,7 +109,7 @@ TEST_F(GradientNdTest, Complex3D)
 TEST_F(GradientNdTest, TooManyOutputsThrows)
 {
     EXPECT_THROW(eval("A = reshape(1:8,2,2,2); [a,b,c,d] = gradient(A);"),
-                 numkit::Error);
+                 nk::Error);
 }
 
 // 2-D and vector inputs are unaffected by the N-D routing.

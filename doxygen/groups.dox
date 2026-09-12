@@ -1,7 +1,7 @@
 // doxygen/groups.dox
 //
 // Structured MATLAB-authentic topic hierarchy for Doxygen documentation.
-// Organizes all NumKit free functions, structs, and toolboxes into discoverable modules.
+// Organizes all NK free functions, structs, and toolboxes into discoverable modules.
 
 /**
  * @defgroup group_matlab Fundamentals

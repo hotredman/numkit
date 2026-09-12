@@ -6,29 +6,29 @@
 // resolveEvalScope helper moved with them. Behaviour is unchanged; only the
 // owning translation unit / layer differs. registerEvalFamily is composed by
 // installRuntimeLibrary (runtime.cpp), which bundle/installStandardLibrary calls.
-#include <numkit/runtime/function_file.hpp>
-#include <numkit/runtime/runtime.hpp>
+#include <nk/runtime/function_file.hpp>
+#include <nk/runtime/runtime.hpp>
 
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/value.hpp>
 
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 void registerEvalFamily(Engine &engine)
 {
-    // Legacy compat: env var NUMKIT_LEGACY_EVAL_SCOPE=1 reverts to the
+    // Legacy compat: env var NK_LEGACY_EVAL_SCOPE=1 reverts to the
     // pre-2026-05 behaviour where eval/run from inside a function
     // leaked variables and imports into workspaceEnv. Provided as an
     // escape hatch for code that depended on the old (buggy) scope.
     auto resolveEvalScope = [](CallContext &ctx) -> Environment * {
-        const char *legacy = std::getenv("NUMKIT_LEGACY_EVAL_SCOPE");
+        const char *legacy = std::getenv("NK_LEGACY_EVAL_SCOPE");
         if (legacy && legacy[0] == '1' && legacy[1] == '\0')
             return &ctx.engine->workspaceEnv();
         return ctx.env;
@@ -66,7 +66,7 @@ void registerEvalFamily(Engine &engine)
             // "not enough input arguments" (bugs/opened/lang/run-invokes-
             // nullary-function-file.md; MATLAB-verified via the corpus).
             std::string primaryFn;
-            bool isFunctionFile = numkit::runtime::primaryFunctionOfFile(content, primaryFn);
+            bool isFunctionFile = nk::runtime::primaryFunctionOfFile(content, primaryFn);
             try {
                 ctx.engine->eval(content, resolveEvalScope(ctx));
                 if (isFunctionFile)
@@ -184,4 +184,4 @@ void registerEvalFamily(Engine &engine)
         });
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

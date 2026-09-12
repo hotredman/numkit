@@ -1,22 +1,22 @@
 // toolboxes/builtin/src/math/exp_log/exp_log_portable.cpp
 //
 // Reference scalar implementations of exp / log. Compiled when
-// NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
+// NK_WITH_SIMD=OFF; the Highway-dispatched variant lives in
 // exp_log_highway.cpp and matches this file bit-for-bit on complex
 // inputs (SIMD only helps the real-vector fast path).
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <complex>
 #include <stdexcept>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -188,4 +188,4 @@ Value pow2(const Value &y, std::pmr::memory_resource *mr)
     return unaryDouble(y, [](double v) { return std::exp2(v); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -7,15 +7,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/modulation/fsk_ofdm.hpp>
+#include <nk/comm/modulation/fsk_ofdm.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 namespace {
@@ -31,7 +31,7 @@ void fskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 5)
         throw Error("fskmod: requires (x, M, freq_sep, nsamp, fs[, phase_cont, order])",
-                    0, 0, "fskmod", "", "numkit:fskmod:nargin");
+                    0, 0, "fskmod", "", "nk:fskmod:nargin");
     const int    M   = (int)args[1].toScalar();
     const double sep = args[2].toScalar();
     const int    n   = (int)args[3].toScalar();
@@ -54,7 +54,7 @@ void fskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 5)
         throw Error("fskdemod: requires (y, M, freq_sep, nsamp, fs[, order])",
-                    0, 0, "fskdemod", "", "numkit:fskdemod:nargin");
+                    0, 0, "fskdemod", "", "nk:fskdemod:nargin");
     const int    M   = (int)args[1].toScalar();
     const double sep = args[2].toScalar();
     const int    n   = (int)args[3].toScalar();
@@ -68,7 +68,7 @@ void ofdmmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ofdmmod: requires (in, nfft, cplen)",
-                    0, 0, "ofdmmod", "", "numkit:ofdmmod:nargin");
+                    0, 0, "ofdmmod", "", "nk:ofdmmod:nargin");
     const int nfft  = (int)args[1].toScalar();
     const int cplen = (int)args[2].toScalar();
     outs[0] = ofdmmod(args[0], nfft, cplen, ctx.engine->resource());
@@ -79,7 +79,7 @@ void ofdmdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ofdmdemod: requires (in, nfft, cplen[, symoffset])",
-                    0, 0, "ofdmdemod", "", "numkit:ofdmdemod:nargin");
+                    0, 0, "ofdmdemod", "", "nk:ofdmdemod:nargin");
     const int nfft  = (int)args[1].toScalar();
     const int cplen = (int)args[2].toScalar();
     const int sym   = (args.size() >= 4 && !args[3].isEmpty())
@@ -88,4 +88,4 @@ void ofdmdemod_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::comm
+} // namespace nk::comm

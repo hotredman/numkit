@@ -3,10 +3,10 @@
 // Regression guard for the generic distribution dispatchers cdf/pdf/icdf/random.
 // Expected values from MATLAB R2025b. bugs/stats/distribution-dispatchers.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DistDispatchTest : public ::testing::Test
 {

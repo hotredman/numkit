@@ -20,7 +20,7 @@ complex". Even all-real-valued data stored complex-typed fails.
 clear;
 s = num2str(complex([1 2; 3 4]));
 disp(s)
-% numkit:  Error: complex array formatting not supported
+% nk:  Error: complex array formatting not supported
 % MATLAB R2025b: '13    24'  (imag==0 elements print as real)
 ```
 

@@ -9,25 +9,25 @@
 // between the two forms (e.g. interpreting Schur output from one
 // algorithm and feeding it to another that expects the other form).
 //
-// Practical note: numkit's eig_general_VD currently throws on
+// Practical note: nk's eig_general_VD currently throws on
 // matrices with complex eigenvalues (Francis QR deferred), so the
 // complex-input branches here are exercised only when the user
 // constructs (V, D) manually or imports them from another source.
 
-#include <numkit/linalg/schur_convert.hpp>
+#include <nk/linalg/schur_convert.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The cdf2rdf/rsf2csf
 // builtins (CallContext wrappers) live in schur_convert_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -50,15 +50,15 @@ cdf2rdf(const Value &V, const Value &D, std::pmr::memory_resource *mr)
 {
     if (V.dims().ndim() != 2 || D.dims().ndim() != 2)
         throw Error("cdf2rdf: V and D must be 2-D matrices",
-                    0, 0, "cdf2rdf", "", "numkit:cdf2rdf:notMatrix");
+                    0, 0, "cdf2rdf", "", "nk:cdf2rdf:notMatrix");
     const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
     if (n != static_cast<std::size_t>(D.dims().dim(1)))
         throw Error("cdf2rdf: D must be square",
-                    0, 0, "cdf2rdf", "", "numkit:cdf2rdf:notSquare");
+                    0, 0, "cdf2rdf", "", "nk:cdf2rdf:notSquare");
     if (static_cast<std::size_t>(V.dims().dim(0)) != n
         || static_cast<std::size_t>(V.dims().dim(1)) != n)
         throw Error("cdf2rdf: V and D shape mismatch",
-                    0, 0, "cdf2rdf", "", "numkit:cdf2rdf:shapeMismatch");
+                    0, 0, "cdf2rdf", "", "nk:cdf2rdf:shapeMismatch");
     if (n == 0)
         return std::make_tuple(
             Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -100,11 +100,11 @@ cdf2rdf(const Value &V, const Value &D, std::pmr::memory_resource *mr)
         // Expect a conjugate pair at (i, i+1).
         if (i + 1 >= n)
             throw Error("cdf2rdf: dangling complex eigenvalue at end of D",
-                        0, 0, "cdf2rdf", "", "numkit:cdf2rdf:badPair");
+                        0, 0, "cdf2rdf", "", "nk:cdf2rdf:badPair");
         Complex lam2 = getD(i + 1, i + 1);
         if (!isApproxConj(lam, lam2, kPairTol))
             throw Error("cdf2rdf: complex eigenvalues must come in conjugate pairs",
-                        0, 0, "cdf2rdf", "", "numkit:cdf2rdf:badPair");
+                        0, 0, "cdf2rdf", "", "nk:cdf2rdf:badPair");
         const double a = lam.real();
         const double b = lam.imag();   // assume b > 0; swap if not
         const double bb = (b >= 0.0) ? b : -b;
@@ -135,15 +135,15 @@ rsf2csf(const Value &UR, const Value &TR, std::pmr::memory_resource *mr)
 {
     if (UR.dims().ndim() != 2 || TR.dims().ndim() != 2)
         throw Error("rsf2csf: UR and TR must be 2-D matrices",
-                    0, 0, "rsf2csf", "", "numkit:rsf2csf:notMatrix");
+                    0, 0, "rsf2csf", "", "nk:rsf2csf:notMatrix");
     const std::size_t n = static_cast<std::size_t>(TR.dims().dim(0));
     if (n != static_cast<std::size_t>(TR.dims().dim(1)))
         throw Error("rsf2csf: TR must be square",
-                    0, 0, "rsf2csf", "", "numkit:rsf2csf:notSquare");
+                    0, 0, "rsf2csf", "", "nk:rsf2csf:notSquare");
     if (static_cast<std::size_t>(UR.dims().dim(0)) != n
         || static_cast<std::size_t>(UR.dims().dim(1)) != n)
         throw Error("rsf2csf: UR and TR shape mismatch",
-                    0, 0, "rsf2csf", "", "numkit:rsf2csf:shapeMismatch");
+                    0, 0, "rsf2csf", "", "nk:rsf2csf:shapeMismatch");
     if (n == 0)
         return std::make_tuple(
             Value::matrix(0, 0, ValueType::COMPLEX, mr),
@@ -244,4 +244,4 @@ rsf2csf(const Value &UR, const Value &TR, std::pmr::memory_resource *mr)
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════════
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

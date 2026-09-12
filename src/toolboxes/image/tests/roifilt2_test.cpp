@@ -3,10 +3,10 @@
 // Regression guard for image/roifilt2 (filter a region of interest).
 // Fingerprints from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Roifilt2Test : public ::testing::Test
 {

@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: s = formattedDisplayText(x). KNOWN GAP: numkit does NOT implement formattedDisplayText (undefined function). Documented as separate \u0422\u0417."
+  "comment": "Sig: s = formattedDisplayText(x). KNOWN GAP: nk does NOT implement formattedDisplayText (undefined function). Documented as separate \u0422\u0417."
 }

@@ -12,7 +12,7 @@ the stopband). low/high/bandpass work.
 ## Repro
 ```matlab
 [n, Wn] = ellipord([0.1 0.6], [0.2 0.5], 3, 40)   % bandstop edges
-% numkit: Error — ellipord: bandstop case not yet supported
+% nk: Error — ellipord: bandstop case not yet supported
 ```
 
 ## Root cause
@@ -33,7 +33,7 @@ reciprocal mapping. Validate `n` and `Wn` against MATLAB. Moderate.
   (WS[i]² - WP1·WP2)` for each prewarped stopband edge, then the worst-case
   edge is selected by `findElliporderImpl` (`WAmin = min|WA|`, `k = 1/WAmin`,
   `N = ceil(K(k²)·K(1-k1²)/(K(1-k²)·K(k1²)))`). This mirrors the bandstop
-  transform already used by numkit's `buttord`/`cheb1ord`/`cheb2ord`
+  transform already used by nk's `buttord`/`cheb1ord`/`cheb2ord`
   (`normaliseOrd`, `Ω_LP = Bw·Ω/(Ω²-Ω0²)`) — clean-room, derived from the
   standard elliptic-order / frequency-transform identities, not MATLAB source.
   `Wn` returns the original passband edges (digital `wp`, analog `WP`).

@@ -21,7 +21,7 @@ hinfnorm(ss(-1,1,1,0))
 Not implemented.
 
 ## Fix (2026-06-19)
-Implemented `numkit::control::hinfnorm` (`analyze/hinfnorm.cpp`) by the
+Implemented `nk::control::hinfnorm` (`analyze/hinfnorm.cpp`) by the
 **Bruinsma–Steinbuch Hamiltonian test with bisection on γ**. For a
 candidate γ, form
 
@@ -58,7 +58,7 @@ With this the original lqr/hinfnorm/dlqr/gram cluster is fully closed.
 
 ## References
 - `src/toolboxes/control/src/analyze/hinfnorm.cpp`,
-  `.../include/numkit/control/analyze/analyze.hpp` (`hinfnorm`),
+  `.../include/nk/control/analyze/analyze.hpp` (`hinfnorm`),
   `src/bundle/src/register/control/analyze/analyze_reg.cpp` (`hinfnorm_reg`).
 - `tools/parity/specs/hinfnorm.json`.
 - related: control/lqr-dlqr-gram.md (the rest of the original cluster),

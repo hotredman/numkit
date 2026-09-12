@@ -1,5 +1,5 @@
 # src/builtin/benchmarks/CMakeLists.txt
-target_sources(numkit_bench PRIVATE
+target_sources(nk_bench PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/binaryops_bench.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/elementwise_bench.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/interp_bench.cpp

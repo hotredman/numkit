@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Push the local main branch to the public GitHub mirror (hotredman/numkit).
+# Push the local main branch to the public GitHub mirror (hotredman/nk).
 # Usage: ./scripts/linux/code-publish.sh [--force]
 set -euo pipefail
 cd "$(dirname "$0")/../.."

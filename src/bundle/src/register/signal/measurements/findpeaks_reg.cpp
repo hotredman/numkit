@@ -3,15 +3,15 @@
 // CallContext register half of measurements/findpeaks.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/measurements/findpeaks.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/measurements/findpeaks.hpp>
 #include "measurements/findpeaks_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -32,13 +32,13 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("findpeaks: requires at least 1 argument",
-                     0, 0, "findpeaks", "", "numkit:findpeaks:nargin");
+                     0, 0, "findpeaks", "", "nk:findpeaks:nargin");
     auto *mr = ctx.engine->resource();
     const Value &y = args[0];
 
     if (nargout > 4)
         throw Error("findpeaks: at most 4 outputs (pks, locs, w, p)",
-                     0, 0, "findpeaks", "", "numkit:findpeaks:nargout");
+                     0, 0, "findpeaks", "", "nk:findpeaks:nargout");
 
     PeakOpts opt;
     ScratchArena locScratch(mr);
@@ -56,7 +56,7 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
             const double fs = second.toScalar();
             if (!(fs > 0.0))
                 throw Error("findpeaks: sample rate Fs must be positive",
-                             0, 0, "findpeaks", "", "numkit:findpeaks:badFs");
+                             0, 0, "findpeaks", "", "nk:findpeaks:badFs");
             locStore.assign(n, 0.0);
             for (std::size_t i = 0; i < n; ++i)
                 locStore[i] = static_cast<double>(i) / fs;
@@ -64,7 +64,7 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         } else {
             if (second.numel() != n)
                 throw Error("findpeaks: X must have the same length as Y",
-                             0, 0, "findpeaks", "", "numkit:findpeaks:badX");
+                             0, 0, "findpeaks", "", "nk:findpeaks:badX");
             locArr = second.doubleData();
         }
         argi = 2;
@@ -74,13 +74,13 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     for (; argi < args.size(); argi += 2) {
         if (!args[argi].isChar() && !args[argi].isString())
             throw Error("findpeaks: expected an option name",
-                         0, 0, "findpeaks", "", "numkit:findpeaks:badOpt");
+                         0, 0, "findpeaks", "", "nk:findpeaks:badOpt");
         std::string name = args[argi].toString();
         for (char &c : name)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (argi + 1 >= args.size())
             throw Error("findpeaks: option '" + args[argi].toString() + "' needs a value",
-                         0, 0, "findpeaks", "", "numkit:findpeaks:badOpt");
+                         0, 0, "findpeaks", "", "nk:findpeaks:badOpt");
         const Value &v = args[argi + 1];
 
         if (name == "minpeakheight") {
@@ -104,12 +104,12 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
             else if (s == "descend") opt.sortMode = 2;
             else
                 throw Error("findpeaks: SortStr must be 'none'/'ascend'/'descend'",
-                             0, 0, "findpeaks", "", "numkit:findpeaks:badOpt");
+                             0, 0, "findpeaks", "", "nk:findpeaks:badOpt");
         } else {
             // MinPeakWidth / WidthReference / Annotate / DoubleSided are not
             // yet supported — fail loudly rather than silently ignore.
             throw Error("findpeaks: option '" + args[argi].toString() + "' not supported",
-                         0, 0, "findpeaks", "", "numkit:findpeaks:unsupportedOpt");
+                         0, 0, "findpeaks", "", "nk:findpeaks:unsupportedOpt");
         }
     }
 
@@ -122,4 +122,4 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

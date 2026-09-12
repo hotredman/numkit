@@ -20,14 +20,14 @@ describe('CurrentFolderBar render tests', () => {
       <CurrentFolderBar
         fsMode="virtual"
         onFsModeChange={onFsModeChange}
-        cwd="/numkit_ide/examples/audio_io"
+        cwd="/nk_ide/examples/audio_io"
         onCwdChange={onCwdChange}
         onNavigateUp={onNavigateUp}
         onOpenNavigator={onOpenNavigator}
       />
     );
 
-    const input = getByDisplayValue('/numkit_ide/examples/audio_io');
+    const input = getByDisplayValue('/nk_ide/examples/audio_io');
     expect(input).toBeTruthy();
 
     const upBtn = getByTitle('Up One Level (..)');

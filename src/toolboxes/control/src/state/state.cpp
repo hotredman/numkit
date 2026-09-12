@@ -5,14 +5,14 @@
 // they work without an LTI struct; the 1-arg forms peel A,B,C out
 // of the cycle-31 sys struct (going through ss form for tf/zpk).
 
-#include <numkit/control/state/state.hpp>
-#include <numkit/control/conversion/conversion.hpp>
-#include <numkit/control/lyapunov/lyapunov.hpp>   // gram delegates to lyap / dlyap
+#include <nk/control/state/state.hpp>
+#include <nk/control/conversion/conversion.hpp>
+#include <nk/control/lyapunov/lyapunov.hpp>   // gram delegates to lyap / dlyap
 
 // Compute-only TU: Value substrate + Error, no engine. The ctrb / obsv
 // builtins (CallContext wrappers) live in state/state_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -20,7 +20,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -49,7 +49,7 @@ ABC pullABC(const Value &sys, std::pmr::memory_resource *mr) {
         out.C = std::move(ss.C); out.D = std::move(ss.D);
     } else {
         throw Error("ctrb/obsv: expected an LTI struct (tf/zpk/ss)",
-                    0, 0, "control", "", "numkit:control:kind");
+                    0, 0, "control", "", "nk:control:kind");
     }
     return out;
 }
@@ -74,11 +74,11 @@ Value ctrb_AB(const Value &Av, const Value &Bv, std::pmr::memory_resource *mr)
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
         throw Error("ctrb: A must be square",
-                    0, 0, "ctrb", "", "numkit:ctrb:A");
+                    0, 0, "ctrb", "", "nk:ctrb:A");
     const size_t m = Bv.dims().cols();
     if (Bv.dims().rows() != n)
         throw Error("ctrb: B must have the same row count as A",
-                    0, 0, "ctrb", "", "numkit:ctrb:B");
+                    0, 0, "ctrb", "", "nk:ctrb:B");
 
     auto A = readMat(Av, n, n);
     auto B = readMat(Bv, n, m);
@@ -117,11 +117,11 @@ Value obsv_AC(const Value &Av, const Value &Cv, std::pmr::memory_resource *mr)
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
         throw Error("obsv: A must be square",
-                    0, 0, "obsv", "", "numkit:obsv:A");
+                    0, 0, "obsv", "", "nk:obsv:A");
     const size_t p = Cv.dims().rows();
     if (Cv.dims().cols() != n)
         throw Error("obsv: C must have the same column count as A",
-                    0, 0, "obsv", "", "numkit:obsv:C");
+                    0, 0, "obsv", "", "nk:obsv:C");
 
     auto A = readMat(Av, n, n);
     auto C = readMat(Cv, p, n);
@@ -175,7 +175,7 @@ Value gram(const Value &sys, const std::string &type, std::pmr::memory_resource 
                  : static_cast<char>(std::tolower(static_cast<unsigned char>(type[0])));
     if (t != 'c' && t != 'o')
         throw Error("gram: type must be 'c' (controllability) or 'o' (observability)",
-                    0, 0, "gram", "", "numkit:gram:type");
+                    0, 0, "gram", "", "nk:gram:type");
 
     // gram solves a Lyapunov equation; the controllability / observability
     // gramian differs only in which (A, Q) pair is fed to lyap / dlyap:
@@ -278,4 +278,4 @@ CovarResult covar(const Value &sys, const Value &Wv, std::pmr::memory_resource *
     return out;
 }
 
-} // namespace numkit::control
+} // namespace nk::control

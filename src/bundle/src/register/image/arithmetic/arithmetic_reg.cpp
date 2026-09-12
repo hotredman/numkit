@@ -7,23 +7,23 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/arithmetic/arithmetic.hpp>
+#include <nk/image/arithmetic/arithmetic.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cstddef>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 namespace detail {
 
 namespace {
 ValueType classFromString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("imlincomb: output_class must be a string",
-                    0, 0, "imlincomb", "", "numkit:imlincomb:badclass");
+                    0, 0, "imlincomb", "", "nk:imlincomb:badclass");
     auto s = v.toString();
     if (s == "double") return ValueType::DOUBLE;
     if (s == "single") return ValueType::SINGLE;
@@ -32,7 +32,7 @@ ValueType classFromString(const Value &v) {
     if (s == "int16")  return ValueType::INT16;
     if (s == "logical")return ValueType::LOGICAL;
     throw Error("imlincomb: unrecognised output_class", 0, 0, "imlincomb", "",
-                "numkit:imlincomb:badclass");
+                "nk:imlincomb:badclass");
 }
 } // anonymous
 
@@ -42,7 +42,7 @@ ValueType classFromString(const Value &v) {
     {                                                                              \
         if (args.size() < 2)                                                       \
             throw Error(#name ": requires (X, Y)",                                \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                  \
+                         0, 0, #name, "", "nk:" #name ":nargin");                  \
         outs[0] = fn(args[0], args[1], ctx.engine->resource());                   \
     }
 
@@ -59,7 +59,7 @@ void imcomplement_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imcomplement: requires X", 0, 0, "imcomplement", "",
-                    "numkit:imcomplement:nargin");
+                    "nk:imcomplement:nargin");
     outs[0] = imcomplement(args[0], ctx.engine->resource());
 }
 
@@ -68,7 +68,7 @@ void imlincomb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imlincomb: requires (k1, A1, k2, A2, ..., [output_class])",
-                    0, 0, "imlincomb", "", "numkit:imlincomb:nargin");
+                    0, 0, "imlincomb", "", "nk:imlincomb:nargin");
 
     // Trailing string argument (optional) is the output class.
     size_t end = args.size();
@@ -83,7 +83,7 @@ void imlincomb_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if ((end & 1) == 1 && end < 3) // need at least k1, A1
         throw Error("imlincomb: arguments must come in (coef, image) pairs",
-                    0, 0, "imlincomb", "", "numkit:imlincomb:nargin");
+                    0, 0, "imlincomb", "", "nk:imlincomb:nargin");
 
     std::vector<double> coefs;
     std::vector<Value>  images;
@@ -101,7 +101,7 @@ void imapplymatrix_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imapplymatrix: requires (M, X[, output_class])",
-                    0, 0, "imapplymatrix", "", "numkit:imapplymatrix:nargin");
+                    0, 0, "imapplymatrix", "", "nk:imapplymatrix:nargin");
     ValueType out_class = (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         ? classFromString(args[2])
         : args[1].type();
@@ -109,4 +109,4 @@ void imapplymatrix_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::image
+} // namespace nk::image

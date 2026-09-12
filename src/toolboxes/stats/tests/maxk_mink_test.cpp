@@ -2,11 +2,11 @@
 // ComparisonMethod real/auto/abs
 // all supported ('abs' added DEEP-PROBE c171).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MaxkMinkTest : public ::testing::Test
 {
@@ -85,12 +85,12 @@ TEST_F(MaxkMinkTest, AbsMatrixAlongDim1)
 TEST_F(MaxkMinkTest, BadComparisonMethodErrors)
 {
     EXPECT_THROW(eval("maxk([3 1 4], 2, 'ComparisonMethod', 'unknown');"),
-                 numkit::Error);
+                 nk::Error);
 }
 
 TEST_F(MaxkMinkTest, BadNVErrors)
 {
-    EXPECT_THROW(eval("maxk([3 1 4], 2, 'Foo', 'bar');"), numkit::Error);
+    EXPECT_THROW(eval("maxk([3 1 4], 2, 'Foo', 'bar');"), nk::Error);
 }
 
 // ── second output: indices [M, I] = mink/maxk(...) ──────────────────────

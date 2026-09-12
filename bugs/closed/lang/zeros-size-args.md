@@ -8,18 +8,18 @@
 
 ## Symptom
 The array-creation builtins that share the dimension parser
-(`parseDimsArgs` / `parseDimsArgsND` in `numkit::ops` — `zeros`, `ones`,
+(`parseDimsArgs` / `parseDimsArgsND` in `nk::ops` — `zeros`, `ones`,
 `nan`, `inf`, `true`, `false`, `eye`, …) diverged from MATLAB R2025b on
 edge-case size arguments:
 
 ```matlab
-numel(zeros(-1, 3))   % numkit: ERROR "bad allocation (in call to 'zeros')"
+numel(zeros(-1, 3))   % nk: ERROR "bad allocation (in call to 'zeros')"
                       % MATLAB:  0   (a 0x3 empty array)
-zeros(2, 3, -1)       % numkit: bad_alloc
+zeros(2, 3, -1)       % nk: bad_alloc
                       % MATLAB:  2x3x0 empty array
-zeros(2.5)            % numkit: 2x2 (silently truncated)
+zeros(2.5)            % nk: 2x2 (silently truncated)
                       % MATLAB:  ERROR "Size inputs must be integers."
-zeros(1e300)          % numkit: 0x0 (UB cast of an out-of-range double -> 0)
+zeros(1e300)          % nk: 0x0 (UB cast of an out-of-range double -> 0)
                       % MATLAB:  ERROR (requested array too large)
 ```
 
@@ -31,7 +31,7 @@ The dim parser converted each `double` size argument with a bare
 - a **non-integer** dim → truncated toward zero instead of MATLAB's error.
 
 ## Fix
-Added `numkit::ops::toDim(double)` (in `src/ops/include/numkit/ops/helpers.hpp`)
+Added `nk::ops::toDim(double)` (in `src/ops/include/nk/ops/helpers.hpp`)
 and routed every dim conversion in `parseDimsArgs` + `parseDimsArgsND` through
 it:
 - non-integer or non-finite size → `throw std::runtime_error("Size inputs must

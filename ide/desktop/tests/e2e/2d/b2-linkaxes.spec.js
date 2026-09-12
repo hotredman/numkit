@@ -6,7 +6,7 @@
 //   linkaxes(h, 'y')   — link only y
 //   linkaxes(h, 'off') — unlink
 //
-// numkit doesn't model graphics handles, so the builtin ignores the
+// nk doesn't model graphics handles, so the builtin ignores the
 // first arg and links every subplot cell in the current figure.
 //
 // Tests assert:

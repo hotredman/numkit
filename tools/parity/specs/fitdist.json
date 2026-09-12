@@ -3,4 +3,4 @@
  "expr": "pd = fitdist(x, 'Normal'); mu = pd.ParameterValues(1); sigma = pd.ParameterValues(2); name_ok = double(strcmp(pd.DistributionName, 'Normal'));",
  "iters": 5, "tol": 1e-12,
  "fingerprint": ["mu", "sigma", "name_ok"],
- "comment": "Sig: pd = fitdist(x, 'Name'). numkit returns a struct (.DistributionName, .ParameterValues, .ParameterNames, .NumObservations). MATLAB returns a probability-distribution OBJECT with same .ParameterValues/.DistributionName fields. ParameterValues bit-identical (delegates to mle). MATLAB's class methods (.pdf/.cdf/.icdf) deferred."}
+ "comment": "Sig: pd = fitdist(x, 'Name'). nk returns a struct (.DistributionName, .ParameterValues, .ParameterNames, .NumObservations). MATLAB returns a probability-distribution OBJECT with same .ParameterValues/.DistributionName fields. ParameterValues bit-identical (delegates to mle). MATLAB's class methods (.pdf/.cdf/.icdf) deferred."}

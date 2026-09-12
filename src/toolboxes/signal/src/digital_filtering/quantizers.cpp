@@ -21,17 +21,17 @@
 //
 // PMR HARD RULE.
 
-#include <numkit/signal/digital_filtering/quantizers.hpp>
+#include <nk/signal/digital_filtering/quantizers.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -72,10 +72,10 @@ Value uencode(const Value &u, int N, double V, bool signedOutput, std::pmr::memo
 {
     if (N < 2 || N > 32)
         throw Error("uencode: N must be in [2, 32]",
-                    0, 0, "uencode", "", "numkit:uencode:NeedIntegerOutBits");
+                    0, 0, "uencode", "", "nk:uencode:NeedIntegerOutBits");
     if (V <= 0.0)
         throw Error("uencode: V must be positive",
-                    0, 0, "uencode", "", "numkit:uencode:NeedPosRealScalar");
+                    0, 0, "uencode", "", "nk:uencode:NeedPosRealScalar");
 
     const double Q = std::pow(2.0, N) - 1.0;
     const double T = (Q + 1.0) / (2.0 * V);
@@ -119,10 +119,10 @@ Value udecode(const Value &u, int N, double V, bool wrapOnOverflow, std::pmr::me
 {
     if (N < 2 || N > 32)
         throw Error("udecode: N must be in [2, 32]",
-                    0, 0, "udecode", "", "numkit:udecode:BadN");
+                    0, 0, "udecode", "", "nk:udecode:BadN");
     if (V <= 0.0)
         throw Error("udecode: V must be positive",
-                    0, 0, "udecode", "", "numkit:udecode:NeedPosRealScalar");
+                    0, 0, "udecode", "", "nk:udecode:NeedPosRealScalar");
 
     // Detect signed vs unsigned from input type.
     const ValueType ut = u.type();
@@ -132,7 +132,7 @@ Value udecode(const Value &u, int N, double V, bool wrapOnOverflow, std::pmr::me
                               || ut == ValueType::UINT32);
     if (!isSigned && !isUnsigned)
         throw Error("udecode: input must be int8/16/32 or uint8/16/32",
-                    0, 0, "udecode", "", "numkit:udecode:BadInputType");
+                    0, 0, "udecode", "", "nk:udecode:BadInputType");
 
     const double W = isSigned ? std::pow(2.0, N - 1) : 0.0;
     const double T = V * std::pow(2.0, 1.0 - N);
@@ -166,4 +166,4 @@ Value udecode(const Value &u, int N, double V, bool wrapOnOverflow, std::pmr::me
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -3,10 +3,10 @@
 // Regression guard for weekday() — MATLAB day-of-week index
 // (1=Sun .. 7=Sat) with optional name string output.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WeekdayTest : public ::testing::Test
 {

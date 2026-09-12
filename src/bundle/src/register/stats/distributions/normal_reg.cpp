@@ -3,16 +3,16 @@
 // CallContext register half of distributions/normal.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/stats/distributions/normal.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <nk/stats/distributions/normal.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"            // stripUpperFlag / applyUpperInPlace
 #include "distributions/normal_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -32,7 +32,7 @@ void normpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("normpdf: requires at least 1 argument",
-                     0, 0, "normpdf", "", "numkit:normpdf:nargin");
+                     0, 0, "normpdf", "", "nk:normpdf:nargin");
     auto *mr = ctx.engine->resource();
     Value hmu, hsig;
     const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
@@ -44,7 +44,7 @@ void normcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("normcdf: requires at least 1 argument",
-                     0, 0, "normcdf", "", "numkit:normcdf:nargin");
+                     0, 0, "normcdf", "", "nk:normcdf:nargin");
     auto *mr = ctx.engine->resource();
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
@@ -60,7 +60,7 @@ void norminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("norminv: requires at least 1 argument",
-                     0, 0, "norminv", "", "numkit:norminv:nargin");
+                     0, 0, "norminv", "", "nk:norminv:nargin");
     auto *mr = ctx.engine->resource();
     Value hmu, hsig;
     const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
@@ -72,7 +72,7 @@ void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("normrnd: requires (mu, sigma[, sz...])",
-                     0, 0, "normrnd", "", "numkit:normrnd:nargin");
+                     0, 0, "normrnd", "", "nk:normrnd:nargin");
     const double mu = args[0].toScalar();
     const double sigma = args[1].toScalar();
     size_t rows, cols;
@@ -88,4 +88,4 @@ void normstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

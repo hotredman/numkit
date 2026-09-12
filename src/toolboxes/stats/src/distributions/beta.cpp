@@ -3,13 +3,13 @@
 // Beta distribution. pdf via log-form using lbeta = lgamma(a)+lgamma(b)-lgamma(a+b);
 // cdf is betainc(x, a, b); icdf is betaincinv(p, a, b); rnd via two Gamma draws.
 
-#include <numkit/stats/distributions/beta.hpp>
+#include <nk/stats/distributions/beta.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -20,7 +20,7 @@
 
 #include "beta_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value betapdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
@@ -54,7 +54,7 @@ Value betacdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
         if (xi >= 1.0) return 1.0;
         return xi;
     }, mr);
-    return ::numkit::builtin::betainc(xc, av, bv, mr);
+    return ::nk::builtin::betainc(xc, av, bv, mr);
 }
 
 Value betainv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
@@ -63,10 +63,10 @@ Value betainv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
-    return ::numkit::builtin::betaincinv(p, av, bv, mr);
+    return ::nk::builtin::betaincinv(p, av, bv, mr);
 }
 
-Value betarnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value betarnd(::nk::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -96,4 +96,4 @@ std::tuple<double, double> betastat(double a, double b)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

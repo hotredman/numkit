@@ -1,20 +1,20 @@
 // codegen/src/driver.cpp — see driver.hpp.
 
-#include <numkit/codegen/driver.hpp>
+#include <nk/codegen/driver.hpp>
 
-#include <numkit/codegen/classinfo.hpp>
-#include <numkit/codegen/monomorphize.hpp>
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/classinfo.hpp>
+#include <nk/codegen/monomorphize.hpp>
+#include <nk/codegen/transfer.hpp>
 
-#include <numkit/core/ast.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/ast.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
 #include <cctype>
 #include <stdexcept>
 #include <unordered_map>
 
-namespace numkit::codegen::driver {
+namespace nk::codegen::driver {
 
 namespace {
 
@@ -37,7 +37,7 @@ ValueType dtypeFromString(const std::string &name)
         {"uint32", ValueType::UINT32},  {"uint64", ValueType::UINT64}};
     const auto it = kMap.find(name);
     if (it == kMap.end())
-        throw std::runtime_error("numkit build: unknown argument type '" + name + "'");
+        throw std::runtime_error("nk build: unknown argument type '" + name + "'");
     return it->second;
 }
 
@@ -56,7 +56,7 @@ std::vector<InferredType> parseTypeSpec(const std::string &spec)
                                                          ? std::string::npos
                                                          : comma - pos));
         if (tok.empty())
-            throw std::runtime_error("numkit build: empty argument type in spec");
+            throw std::runtime_error("nk build: empty argument type in spec");
 
         bool isArray = false;
         if (tok.size() >= 2 && tok.substr(tok.size() - 2) == "[]") {
@@ -87,7 +87,7 @@ auto withPrepared(const std::string &source, const std::string &entry,
     Lexer  lex(source);
     Parser parser(lex.tokenize());
     auto   root = parser.parse();
-    if (!root) throw std::runtime_error("numkit build: failed to parse source");
+    if (!root) throw std::runtime_error("nk build: failed to parse source");
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
@@ -105,16 +105,16 @@ auto withPrepared(const std::string &source, const std::string &entry,
     const ASTNode *fn = nullptr;
     if (!entry.empty()) {
         fn = table.find(entry);
-        if (!fn) throw std::runtime_error("numkit build: no function named '" + entry + "'");
+        if (!fn) throw std::runtime_error("nk build: no function named '" + entry + "'");
     } else if (table.size() == 1) {
         fn = table.entries().begin()->second;
     } else {
-        throw std::runtime_error("numkit build: source has " + std::to_string(table.size())
+        throw std::runtime_error("nk build: source has " + std::to_string(table.size())
                                  + " functions — specify the entry with --entry");
     }
 
     if (paramTypes.size() != fn->paramNames.size())
-        throw std::runtime_error("numkit build: entry '" + fn->strValue + "' takes "
+        throw std::runtime_error("nk build: entry '" + fn->strValue + "' takes "
                                  + std::to_string(fn->paramNames.size())
                                  + " argument(s) but the type spec has "
                                  + std::to_string(paramTypes.size()));
@@ -188,7 +188,7 @@ std::string buildHarnessMain(const EmittedFunction &em)
                "    std::printf(\"%.17g%+.17gi\\n\", _r.real(), _r.imag());\n";
     } else {
         throw std::runtime_error(
-            "numkit build: cannot build a run harness for return type '" + retty +
+            "nk build: cannot build a run harness for return type '" + retty +
             "' (v1 supports only scalar / complex / void returns). Use `coder` / "
             "`-o` to get the C++ and write your own main().");
     }
@@ -200,4 +200,4 @@ std::string buildHarnessMain(const EmittedFunction &em)
            "}\n";
 }
 
-} // namespace numkit::codegen::driver
+} // namespace nk::codegen::driver

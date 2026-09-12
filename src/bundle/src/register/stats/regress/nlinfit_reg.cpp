@@ -2,13 +2,13 @@
 // the stats toolbox in Phase E (callback decoupling): the FnHandle LM kernels
 // (nlinfit/nlpredci) stay core-free in the toolbox; this Engine-coupled glue
 // (the @handle->FnHandle bridge + the pausable .m wrapper) lives in bundle.
-#include <numkit/stats/regress/regress.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/stats/regress/regress.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 // ── Adapters ─────────────────────────────────────────────────────────
 namespace detail {
@@ -18,10 +18,10 @@ void nlinfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("nlinfit: requires (X, y, fun, beta0)",
-                    0, 0, "nlinfit", "", "numkit:nlinfit:nargin");
+                    0, 0, "nlinfit", "", "nk:nlinfit:nargin");
     if (!args[2].isFuncHandle())
         throw Error("nlinfit: `fun` must be a function handle",
-                    0, 0, "nlinfit", "", "numkit:nlinfit:notFuncHandle");
+                    0, 0, "nlinfit", "", "nk:nlinfit:notFuncHandle");
     const Value &fun = args[2];
     auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
                               std::pmr::memory_resource * /*mr*/) {
@@ -42,7 +42,7 @@ void nlparci_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("nlparci: requires (beta, R, J [, alpha])",
-                    0, 0, "nlparci", "", "numkit:nlparci:nargin");
+                    0, 0, "nlparci", "", "nk:nlparci:nargin");
     double alpha = 0.05;
     if (args.size() >= 4 && !args[3].isEmpty())
         alpha = args[3].toScalar();
@@ -55,13 +55,13 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 5)
         throw Error("nlpredci: requires (fun, X, beta, R, J [, alpha])",
-                    0, 0, "nlpredci", "", "numkit:nlpredci:nargin");
+                    0, 0, "nlpredci", "", "nk:nlpredci:nargin");
     double alpha = 0.05;
     if (args.size() >= 6 && !args[5].isEmpty())
         alpha = args[5].toScalar();
     if (!args[0].isFuncHandle())
         throw Error("nlpredci: `fun` must be a function handle",
-                    0, 0, "nlpredci", "", "numkit:nlpredci:notFuncHandle");
+                    0, 0, "nlpredci", "", "nk:nlpredci:notFuncHandle");
     const Value &fun = args[0];
     auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
                               std::pmr::memory_resource * /*mr*/) {
@@ -93,12 +93,12 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
 static const char *kNlinfitMSource = R"NKM(
 function [beta, R, J, CovB, MSE] = nlinfit(X, y, fun, beta0)
   if ~(strcmp(class(fun), 'function_handle') || iscell(fun))
-    error('numkit:nlinfit:notFuncHandle', 'nlinfit: `fun` must be a function handle');
+    error('nk:nlinfit:notFuncHandle', 'nlinfit: `fun` must be a function handle');
   end
   n = numel(y);
   p = numel(beta0);
   if p == 0
-    error('numkit:nlinfit:emptyBeta0', 'nlinfit: beta0 cannot be empty');
+    error('nk:nlinfit:emptyBeta0', 'nlinfit: beta0 cannot be empty');
   end
   beta = beta0(:);
   yv = y(:);
@@ -164,4 +164,4 @@ void registerNlinfitM(Engine &engine)
 }
 
 
-} // namespace numkit::stats
+} // namespace nk::stats

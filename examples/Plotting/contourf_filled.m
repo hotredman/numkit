@@ -11,7 +11,7 @@ close all
 
 % Classic "peaks"-like function on a 60×60 grid.
 [X, Y] = meshgrid(linspace(-3, 3, 60));
-% Pre-calculate squared terms to avoid AST depth/scratch memory limits in Numkit engine
+% Pre-calculate squared terms to avoid AST depth/scratch memory limits in NK engine
 X2 = X.^2;
 Y2 = Y.^2;
 Z = 3 * (1 - X).^2 .* exp(-X2 - (Y + 1).^2) ...

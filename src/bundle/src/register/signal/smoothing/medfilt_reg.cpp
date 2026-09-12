@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/smoothing/medfilt.hpp>
+#include <nk/signal/smoothing/medfilt.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void medfilt1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("medfilt1: requires at least 1 argument",
-                     0, 0, "medfilt1", "", "numkit:medfilt1:nargin");
+                     0, 0, "medfilt1", "", "nk:medfilt1:nargin");
     size_t k = 3;
     if (args.size() >= 2 && !args[1].isEmpty()
         && !args[1].isChar() && !args[1].isString())
@@ -59,4 +59,4 @@ void medfilt1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

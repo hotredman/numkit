@@ -1,16 +1,16 @@
 // math/src/geom/geom_reg.cpp
 //
 // CallContext register half (Phase 2b multi-block split).
-#include <numkit/core/engine.hpp>
-#include <numkit/figure/figure_manager.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/figure/figure_manager.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -24,8 +24,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -48,7 +48,7 @@ void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("inpolygon: requires (xq, yq, xv, yv)",
-                     0, 0, "inpolygon", "", "numkit:inpolygon:nargin");
+                     0, 0, "inpolygon", "", "nk:inpolygon:nargin");
     outs[0] = inpolygon(args[0], args[1], args[2], args[3], ctx.engine->resource());
 }
 
@@ -81,13 +81,13 @@ void boundary_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("boundary: requires (x, y)",
-                     0, 0, "boundary", "", "numkit:boundary:nargin");
+                     0, 0, "boundary", "", "nk:boundary:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("boundary: x and y must have the same numel",
-                     0, 0, "boundary", "", "numkit:boundary:shape");
+                     0, 0, "boundary", "", "nk:boundary:shape");
     double shrink = 0.0;
     if (args.size() >= 3) shrink = args[2].toScalar();
     if (!std::isfinite(shrink)) shrink = 0.0;
@@ -117,7 +117,7 @@ void polyarea_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("polyarea: requires (x, y)",
-                     0, 0, "polyarea", "", "numkit:polyarea:nargin");
+                     0, 0, "polyarea", "", "nk:polyarea:nargin");
     outs[0] = polyarea(args[0], args[1], ctx.engine->resource());
 }
 
@@ -137,7 +137,7 @@ void convhull_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("convhull: requires (x, y)",
-                     0, 0, "convhull", "", "numkit:convhull:nargin");
+                     0, 0, "convhull", "", "nk:convhull:nargin");
     Value K = convhull(args[0], args[1], ctx.engine->resource());
     if (nargout != 0) {
         outs[0] = std::move(K);
@@ -182,7 +182,7 @@ void histcounts2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("histcounts2: requires (x, y)",
-                     0, 0, "histcounts2", "", "numkit:histcounts2:nargin");
+                     0, 0, "histcounts2", "", "nk:histcounts2:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = std::min(xv.numel(), yv.numel());
@@ -286,7 +286,7 @@ void delaunay_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("delaunay: requires (x, y)",
-                     0, 0, "delaunay", "", "numkit:delaunay:nargin");
+                     0, 0, "delaunay", "", "nk:delaunay:nargin");
     outs[0] = delaunay(args[0], args[1], ctx.engine->resource());
 }
 
@@ -307,7 +307,7 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 5)
         throw Error("griddata: requires (x, y, v, xq, yq)",
-                     0, 0, "griddata", "", "numkit:griddata:nargin");
+                     0, 0, "griddata", "", "nk:griddata:nargin");
     // NOTE: a trailing method arg (args[5], e.g. 'nearest') is currently
     // ignored — only 'linear' is implemented (v1 gap, see header).
     outs[0] = griddata(args[0], args[1], args[2], args[3], args[4],
@@ -323,7 +323,7 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("griddatan: requires (X, v, xi [, method])",
-                     0, 0, "griddatan", "", "numkit:griddatan:nargin");
+                     0, 0, "griddatan", "", "nk:griddatan:nargin");
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
         method = args[3].toString();
@@ -340,7 +340,7 @@ void matchpairs_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("matchpairs: requires (Cost, costUnmatched [, 'min'|'max'])",
-                     0, 0, "matchpairs", "", "numkit:matchpairs:nargin");
+                     0, 0, "matchpairs", "", "nk:matchpairs:nargin");
     const double cU = args[1].toScalar();
     std::string mode = "min";
     if (args.size() >= 3 && args[2].isChar())
@@ -353,4 +353,4 @@ void matchpairs_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -2,13 +2,13 @@
 //
 // Regression guard for signal/fwht + ifwht. Fingerprints from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class FwhtTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override
     {
                 engine.eval("x = [1 2 3 4 5 6 7 8];");

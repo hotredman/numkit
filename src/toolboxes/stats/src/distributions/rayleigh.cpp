@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/rayleigh.cpp
 
-#include <numkit/stats/distributions/rayleigh.hpp>
+#include <nk/stats/distributions/rayleigh.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -20,7 +20,7 @@
 
 #include "rayleigh_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value raylpdf(const Value &x, double b, std::pmr::memory_resource *mr)
@@ -57,7 +57,7 @@ Value raylinv(const Value &p, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value raylrnd(::numkit::ops::RngContext &rng, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value raylrnd(::nk::ops::RngContext &rng, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -85,4 +85,4 @@ std::tuple<double, double> raylstat(double b)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

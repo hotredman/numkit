@@ -6,11 +6,11 @@
 // Value-level marshalling helpers (toComplexBuf, firstNonSingletonExtent). The
 // recurrence is sequential — no SIMD backend. See iir_filter.hpp.
 
-#include <numkit/ops/iir_filter.hpp>
+#include <nk/ops/iir_filter.hpp>
 
 #include <algorithm>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 ScratchVec<double> applyFilterDf2t(const double *bn, std::size_t nb, const double *an,
                                    std::size_t na, const double *input, std::size_t len,
@@ -86,4 +86,4 @@ void biquadDf2tWithState(double b0, double b1, double b2, double a1, double a2,
     }
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

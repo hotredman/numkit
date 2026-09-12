@@ -2,7 +2,7 @@
 //
 // Internal contract for SIMD prefix-op family (cumsum / cumprod /
 // cummax / cummin) on contiguous double vectors. SIMD-dispatched
-// (Highway) when NUMKIT_WITH_SIMD=ON, scalar otherwise. The data
+// (Highway) when NK_WITH_SIMD=ON, scalar otherwise. The data
 // dependency `acc = op(acc, x[i]); r[i] = acc;` makes the scalar loop
 // fundamentally serial — Hillis-Steele parallel scan within each SIMD
 // vector breaks the chain into log2(lanes) steps, then propagates a
@@ -18,7 +18,7 @@
 
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // Inclusive prefix sum over [src, src+n) into [dst, dst+n).
 void cumsumScan(const double *src, double *dst, std::size_t n);
@@ -33,4 +33,4 @@ void cumprodScan(const double *src, double *dst, std::size_t n);
 void cummaxScan(const double *src, double *dst, std::size_t n);
 void cumminScan(const double *src, double *dst, std::size_t n);
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

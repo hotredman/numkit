@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/filter/filter.hpp>
+#include <nk/image/filter/filter.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -31,7 +31,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
     if (args.empty())
         throw Error("imreducehaze: requires (I [, AMOUNT] [, NV...])",
                     0, 0, "imreducehaze", "",
-                    "numkit:imreducehaze:nargin");
+                    "nk:imreducehaze:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -52,7 +52,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
         if (!is_string(args[i]))
             throw Error("imreducehaze: expected NV-pair name string",
                         0, 0, "imreducehaze", "",
-                        "numkit:imreducehaze:badNv");
+                        "nk:imreducehaze:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -70,7 +70,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
         } else {
             throw Error("imreducehaze: unknown option '" + name + "'",
                         0, 0, "imreducehaze", "",
-                        "numkit:imreducehaze:unknownNv");
+                        "nk:imreducehaze:unknownNv");
         }
         i += 2;
     }
@@ -84,7 +84,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
             throw Error("imreducehaze: BoostAmount may only be specified "
                         "when ContrastEnhancement is 'boost'",
                         0, 0, "imreducehaze", "",
-                        "numkit:imreducehaze:boostNotAllowed");
+                        "nk:imreducehaze:boostNotAllowed");
     }
 
     Value T, L;
@@ -96,4 +96,4 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
 }
 
 }  // namespace detail
-}  // namespace numkit::image
+}  // namespace nk::image

@@ -1,4 +1,4 @@
-% bench_linalg.m - MATLAB performance comparison script for NumKit Linalg
+% bench_linalg.m - MATLAB performance comparison script for NK Linalg
 sizes = [64, 128, 256, 512, 1024, 2048];
 fprintf('=== MATLAB Linear Algebra Benchmark ===\n');
 fprintf('Date: %s\n', char(datetime('now')));

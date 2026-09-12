@@ -3,17 +3,17 @@
 // CallContext register half of distributions/students_t.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/stats/distributions/students_t.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/students_t_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,14 +25,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void tpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("tpdf: requires (x, nu)", 0, 0, "tpdf", "", "numkit:tpdf:nargin");
+        throw Error("tpdf: requires (x, nu)", 0, 0, "tpdf", "", "nk:tpdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &nu = args[1];
     if (nu.isScalar())
@@ -46,7 +46,7 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "numkit:tcdf:nargin");
+        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "nk:tcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &nu = a[1];
     Value v;
@@ -67,7 +67,7 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                 return nui / (nui + xi * xi);
             });
             Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
-            Value Iz = ::numkit::builtin::betainc(z, hnu, Value::scalar(0.5, mr), mr);
+            Value Iz = ::nk::builtin::betainc(z, hnu, Value::scalar(0.5, mr), mr);
             const Value &ref = (nnu == N) ? nu : x;
             v = dist_empty_like(ref, mr);
             double *od = v.doubleDataMut();
@@ -90,7 +90,7 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("tinv: requires (p, nu)", 0, 0, "tinv", "", "numkit:tinv:nargin");
+        throw Error("tinv: requires (p, nu)", 0, 0, "tinv", "", "nk:tinv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &nu = args[1];
     if (nu.isScalar()) {
@@ -111,7 +111,7 @@ void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
     }, mr);
     Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
-    Value zv = ::numkit::builtin::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
+    Value zv = ::nk::builtin::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
     const Value &ref = (nnu == N) ? nu : p;
     Value out = dist_empty_like(ref, mr);
     double *od = out.doubleDataMut();
@@ -136,7 +136,7 @@ void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("trnd: requires nu[, sz...]", 0, 0, "trnd", "", "numkit:trnd:nargin");
+        throw Error("trnd: requires nu[, sz...]", 0, 0, "trnd", "", "nk:trnd:nargin");
     const double nu = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
@@ -153,7 +153,7 @@ void nctpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("nctpdf: requires (x, nu, delta)",
-                    0, 0, "nctpdf", "", "numkit:nctpdf:nargin");
+                    0, 0, "nctpdf", "", "nk:nctpdf:nargin");
     outs[0] = nctpdf(args[0], args[1].toScalar(), args[2].toScalar(),
                      ctx.engine->resource());
 }
@@ -164,7 +164,7 @@ void nctcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("nctcdf: requires (x, nu, delta[, 'upper'])",
-                    0, 0, "nctcdf", "", "numkit:nctcdf:nargin");
+                    0, 0, "nctcdf", "", "nk:nctcdf:nargin");
     outs[0] = nctcdf(args[0], args[1].toScalar(), args[2].toScalar(), upper,
                      ctx.engine->resource());
 }
@@ -173,7 +173,7 @@ void nctinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("nctinv: requires (p, nu, delta)",
-                    0, 0, "nctinv", "", "numkit:nctinv:nargin");
+                    0, 0, "nctinv", "", "nk:nctinv:nargin");
     outs[0] = nctinv(args[0], args[1].toScalar(), args[2].toScalar(),
                      ctx.engine->resource());
 }
@@ -182,7 +182,7 @@ void nctstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("nctstat: requires (nu, delta)",
-                    0, 0, "nctstat", "", "numkit:nctstat:nargin");
+                    0, 0, "nctstat", "", "nk:nctstat:nargin");
     auto [m, v] = nctstat(args[0].toScalar(), args[1].toScalar());
     outs[0] = Value::scalar(m, ctx.engine->resource());
     if (nargout >= 2)
@@ -193,7 +193,7 @@ void nctrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("nctrnd: requires (nu, delta[, sz...])",
-                    0, 0, "nctrnd", "", "numkit:nctrnd:nargin");
+                    0, 0, "nctrnd", "", "nk:nctrnd:nargin");
     const double nu = args[0].toScalar();
     const double delta = args[1].toScalar();
     size_t rows, cols;
@@ -203,4 +203,4 @@ void nctrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

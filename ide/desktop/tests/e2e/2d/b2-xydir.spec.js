@@ -6,7 +6,7 @@
 //   axis('ij')                    → shorthand for YDir = reverse
 //   axis('xy')                    → shorthand for YDir = normal (default)
 //
-// Direct setters in numkit (until full `set(gca, ...)` lands):
+// Direct setters in nk (until full `set(gca, ...)` lands):
 //   xdir('reverse') / xdir('normal')
 //   ydir('reverse') / ydir('normal')
 //

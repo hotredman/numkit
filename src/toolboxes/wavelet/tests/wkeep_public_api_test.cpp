@@ -1,15 +1,15 @@
 // toolboxes/wavelet/tests/wkeep_public_api_test.cpp
 //
 // Direct C++ API guard for wkeep after the lift from adapter-only to the
-// public Value-polymorphic entry numkit::wavelet::wkeep (1-D keep + 2-D
+// public Value-polymorphic entry nk::wavelet::wkeep (1-D keep + 2-D
 // sub-matrix extraction). Reference values match wkeep_test.cpp / MATLAB.
 
-#include <numkit/wavelet/dwt/wkeep_wextend.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/wavelet/dwt/wkeep_wextend.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value wv(Engine &e, const char *expr, const char *name)

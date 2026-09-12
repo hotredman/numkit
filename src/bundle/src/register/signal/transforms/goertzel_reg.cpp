@@ -3,14 +3,14 @@
 // CallContext register half of transforms/goertzel.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/transforms/goertzel.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/transforms/goertzel.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -31,7 +31,7 @@ void goertzel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("goertzel: requires (x[, ind])",
-                     0, 0, "goertzel", "", "numkit:goertzel:nargin");
+                     0, 0, "goertzel", "", "nk:goertzel:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1 || args[1].isEmpty()) {
         // 1-arg form (or empty 2nd arg): MATLAB defaults `ind = 1:N`
@@ -56,4 +56,4 @@ void goertzel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

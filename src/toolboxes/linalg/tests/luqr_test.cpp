@@ -2,10 +2,10 @@
 //
 // Regression guard for builtin::lu / qr (Phase 0b).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class LuQrTest : public ::testing::Test
 {

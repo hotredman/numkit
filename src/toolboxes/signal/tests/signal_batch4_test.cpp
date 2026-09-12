@@ -8,11 +8,11 @@
 //
 // 14 verified bit-identical MATLAB R2025b; 1 deferred.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SignalBatch4Test : public ::testing::Test
 {

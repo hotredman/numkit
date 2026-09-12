@@ -1,4 +1,4 @@
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/io_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/saveload_mat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/csv_cpp_api_test.cpp  # Engine-free csvreadFromString/csvwriteToString
@@ -6,7 +6,7 @@ target_sources(numkit_gtest PRIVATE
 )
 
 # Relocated from tests/builtin (layer split 2026-06-17).
-target_sources(numkit_gtest PRIVATE
+target_sources(nk_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/csv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fileio_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vfs_test.cpp

@@ -3,11 +3,11 @@
 // Unit tests for eigs and svds.
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/eigs.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/eigs.hpp>
+#include <nk/value/value.hpp>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(EigsTest, EigsSubsetValues) {
     // A = [1 0 0; 0 5 0; 0 0 3]

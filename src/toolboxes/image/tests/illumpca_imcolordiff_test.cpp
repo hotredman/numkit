@@ -6,12 +6,12 @@
 // formulas and at ~1e-6 for RGB-input formulas (limited by rgb2lab
 // precision).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class IllumPcaImcdTest : public ::testing::Test
 {

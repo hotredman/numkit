@@ -3,15 +3,15 @@
 // zp2sos / tf2sos — convert filter representations to SOS form. The
 // cascade applicator sosfilt lives in digital_filtering/sosfilt.cpp.
 
-#include <numkit/signal/filter_implementation/conversions.hpp>
+#include <nk/signal/filter_implementation/conversions.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
 
 #include "../dsp_helpers.hpp"
-#include <numkit/ops/poly_helpers.hpp>
+#include <nk/ops/poly_helpers.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -22,13 +22,13 @@
 #include <memory_resource>
 #include <utility>
 
-namespace numkit::signal {
+namespace nk::signal {
 
-using numkit::Complex;
+using nk::Complex;
 
 namespace {
 
-using numkit::ops::polyRootsDurandKerner;
+using nk::ops::polyRootsDurandKerner;
 
 constexpr double kImagThresh = 1e-10;  // |Im(r)| below this → treat as real
 
@@ -85,7 +85,7 @@ bool popPair(ScratchVec<Complex> &pool, RootPair &out)
         }
         if (mateIdx >= pool.size())
             throw Error("zp2sos: complex root has no conjugate in input",
-                         0, 0, "zp2sos", "", "numkit:zp2sos:noConj");
+                         0, 0, "zp2sos", "", "nk:zp2sos:noConj");
         out = { pick, pool[mateIdx], true };
         const size_t hi = std::max(pickIdx, mateIdx);
         const size_t lo = std::min(pickIdx, mateIdx);
@@ -158,7 +158,7 @@ bool popClosestZeroPair(ScratchVec<Complex> &zeros, Complex target,
         }
         if (mateIdx >= zeros.size())
             throw Error("zp2sos: complex zero has no conjugate in input",
-                         0, 0, "zp2sos", "", "numkit:zp2sos:noConj");
+                         0, 0, "zp2sos", "", "nk:zp2sos:noConj");
         out = { pick, zeros[mateIdx], true };
         const size_t hi = std::max(pickIdx, mateIdx);
         const size_t lo = std::min(pickIdx, mateIdx);
@@ -181,7 +181,7 @@ ScratchVec<Complex> readComplexVec(const Value &v, const char *fn, std::pmr::mem
         for (size_t i = 0; i < v.numel(); ++i) out.push_back(Complex(p[i], 0.0));
     } else {
         throw Error(std::string(fn) + ": zeros/poles must be DOUBLE or COMPLEX",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
+                     0, 0, fn, "", std::string("nk:") + fn + ":type");
     }
     return out;
 }
@@ -220,7 +220,7 @@ inline ScratchVec<double> coeffsAsVector(const Value &v, std::pmr::memory_resour
 {
     if (v.type() != ValueType::DOUBLE || !v.dims().isVector())
         throw Error("tf2sos: b/a must be DOUBLE row/column vectors",
-                     0, 0, "tf2sos", "", "numkit:tf2sos:type");
+                     0, 0, "tf2sos", "", "nk:tf2sos:type");
     const size_t n = v.numel();
     ScratchVec<double> out(n, mr);
     const double *p = v.doubleData();
@@ -235,7 +235,7 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
 {
     if (polesV.isEmpty())
         throw Error("zp2sos: at least one pole is required",
-                     0, 0, "zp2sos", "", "numkit:zp2sos:noPoles");
+                     0, 0, "zp2sos", "", "nk:zp2sos:noPoles");
 
     ScratchArena scratch(mr);
     auto zeros = readComplexVec(zerosV, "zp2sos", &scratch);
@@ -252,7 +252,7 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
         RootPair polePair;
         if (!popPair(poles, polePair))
             throw Error("zp2sos: internal — ran out of poles",
-                         0, 0, "zp2sos", "", "numkit:zp2sos:internal");
+                         0, 0, "zp2sos", "", "nk:zp2sos:internal");
         const auto polQ = pairToQuad(polePair);
         a1s[s] = polQ.b1;
         a2s[s] = polQ.b2;
@@ -272,7 +272,7 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
     }
     if (!zeros.empty())
         throw Error("zp2sos: more zeros than poles is not supported",
-                     0, 0, "zp2sos", "", "numkit:zp2sos:moreZeros");
+                     0, 0, "zp2sos", "", "nk:zp2sos:moreZeros");
 
     // MATLAB's default 'up' section ordering: sections sorted by ASCENDING
     // pole radius — poles nearest the ORIGIN first, nearest the unit circle
@@ -307,10 +307,10 @@ tf2sosWithGain(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     auto av = coeffsAsVector(a, &scratch);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2sos: a(1) must be nonzero",
-                     0, 0, "tf2sos", "", "numkit:tf2sos:zeroLead");
+                     0, 0, "tf2sos", "", "nk:tf2sos:zeroLead");
     if (bv.empty())
         throw Error("tf2sos: b is empty",
-                     0, 0, "tf2sos", "", "numkit:tf2sos:emptyB");
+                     0, 0, "tf2sos", "", "nk:tf2sos:emptyB");
 
     const double gain = bv[0] / av[0];
     auto zeros = polyRootsDurandKerner(&scratch, bv.data(), bv.size());
@@ -340,4 +340,4 @@ Value tf2sos(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     return sos;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

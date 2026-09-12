@@ -3,12 +3,12 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
-#include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
+#include <nk/ops/reductions.hpp>  // nk::builtin::detail dim-infra (engine-free, ops re-export)
 #include "datafun/var_reduction.hpp" // varianceTwoPass (engine-free)
 
 #include <algorithm>
@@ -28,10 +28,10 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
-using namespace ::numkit::ops;
-using ::numkit::builtin::varianceTwoPass;
+using namespace ::nk::ops;
+using ::nk::builtin::varianceTwoPass;
 
 // Named (external-linkage) so the file-scope worker quantileWithOpts can
 // take it across the compute/register TU boundary.
@@ -43,7 +43,7 @@ void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
 }
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
@@ -147,7 +147,7 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
 //     dim whose size != 1 — MATLAB treats a size-0 dim as non-singleton)
 //     collapses to 1 and the result is NaN-filled.
 // A size-0 sibling dim keeps the result empty, e.g. var(zeros(3,0))=1x0,
-// median([],2)=0x1. numkit previously returned a 0x0 empty for all of these.
+// median([],2)=0x1. nk previously returned a 0x0 empty for all of these.
 inline Value emptyStatReductionFill(const Value &x, int dim, double fill,
                                     std::pmr::memory_resource *mr)
 {
@@ -257,7 +257,7 @@ double medianFromSlice(double *data, size_t n)
 } // namespace
 namespace {
 
-// Complex ordering: by magnitude, ties broken by phase angle (matches numkit
+// Complex ordering: by magnitude, ties broken by phase angle (matches nk
 // sort/max and MATLAB's complex median ordering).
 inline bool complexAbsAngleLess(const Complex &a, const Complex &b)
 {
@@ -365,7 +365,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyP");
+                     0, 0, fn, "", std::string("nk:") + fn + ":emptyP");
 
     ScratchArena scratch(mr);
 
@@ -376,7 +376,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
             throw Error(std::string(fn) + ": probabilities out of range",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":badProb");
+                         0, 0, fn, "", std::string("nk:") + fn + ":badProb");
     }
 
     const size_t k = probs.size();
@@ -706,10 +706,10 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
     case ValueType::CHAR:    return run(char    {}, ValueType::CHAR);
     case ValueType::COMPLEX:
         throw Error(std::string(fn) + ": not defined for complex inputs",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+                     0, 0, fn, "", std::string("nk:") + fn + ":complex");
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
+                     0, 0, fn, "", std::string("nk:") + fn + ":type");
     }
 }
 
@@ -720,17 +720,17 @@ void validateCovInputs(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+                     0, 0, fn, "", std::string("nk:") + fn + ":complex");
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": only vector and 2D matrix inputs are supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":rank");
+                     0, 0, fn, "", std::string("nk:") + fn + ":rank");
 }
 
 void validateNormFlagCov(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
 }
 
 // Build an n×p column-major DOUBLE buffer from x. Vector input is
@@ -812,10 +812,10 @@ Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     validateCovInputs(y, "cov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("cov: two-input form requires vector arguments",
-                     0, 0, "cov", "", "numkit:cov:notVector");
+                     0, 0, "cov", "", "nk:cov:notVector");
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
-                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
+                     0, 0, "cov", "", "nk:cov:lengthMismatch");
     const std::size_t n = x.numel();
     auto out = Value::matrix(n, 2, ValueType::DOUBLE, mr);
     double *o = out.doubleDataMut();
@@ -933,7 +933,7 @@ CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
             if (v == "complete") return CorrcoefRows::Complete;
             if (v == "pairwise") return CorrcoefRows::Pairwise;
             throw Error("corrcoef: Rows must be 'all', 'complete', or 'pairwise'",
-                        0, 0, "corrcoef", "", "numkit:corrcoef:BadRows");
+                        0, 0, "corrcoef", "", "nk:corrcoef:BadRows");
         }
     }
     return CorrcoefRows::All;
@@ -951,7 +951,7 @@ double parseCorrcoefAlpha(Span<const Value> args, std::size_t start)
             const double a = args[i + 1].toScalar();
             if (!(a > 0.0 && a < 1.0))
                 throw Error("corrcoef: Alpha must be in the interval (0,1)",
-                            0, 0, "corrcoef", "", "numkit:corrcoef:BadAlpha");
+                            0, 0, "corrcoef", "", "nk:corrcoef:BadAlpha");
             return a;
         }
     }
@@ -1029,7 +1029,7 @@ Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
-                     0, 0, "corrcoef", "", "numkit:corrcoef:internal");
+                     0, 0, "corrcoef", "", "nk:corrcoef:internal");
     const std::size_t p = C.dims().rows();
     auto R = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return R;
@@ -1139,7 +1139,7 @@ inline void rejectComplexOmitNan(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": 'omitnan' for complex input is not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complexOmitNan");
+                     0, 0, fn, "", std::string("nk:") + fn + ":complexOmitNan");
 }
 
 } // namespace
@@ -1148,4 +1148,4 @@ Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten,
                        QMethod method, double pScale, const char *fn,
                        std::pmr::memory_resource *mr);
 
-} // namespace numkit::stats
+} // namespace nk::stats

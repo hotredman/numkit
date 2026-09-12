@@ -8,8 +8,8 @@
 // adds FUSE_EWISE — running it here keeps the harness ready and confirms the VM
 // is unchanged.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
@@ -21,7 +21,7 @@
 namespace {
 
 // isequaln: exact, NaN-aware (NaN==NaN) — the right fused-vs-unfused comparator.
-bool sameOnOff(numkit::Engine &e, const char *expr) {
+bool sameOnOff(nk::Engine &e, const char *expr) {
     e.eval(std::string("nkfon = ") + expr + ";");          // fusion default-on
     e.setFusion(false);
     e.eval(std::string("nkfoff = ") + expr + ";");
@@ -32,9 +32,9 @@ bool sameOnOff(numkit::Engine &e, const char *expr) {
 } // namespace
 
 class FusionParityTest
-    : public ::testing::TestWithParam<numkit::Engine::Backend> {
+    : public ::testing::TestWithParam<nk::Engine::Backend> {
 protected:
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     void SetUp() override { e.setBackend(GetParam()); }
 };
 
@@ -357,7 +357,7 @@ TEST_P(FusionParityTest, UnaryAffineNaNInf) {
 }
 
 // fix (trunc toward zero) / round (half-away-from-zero) — same unary-affine
-// family as floor/ceil. round mirrors numkit's CopySign+Trunc, NOT round-even.
+// family as floor/ceil. round mirrors nk's CopySign+Trunc, NOT round-even.
 TEST_P(FusionParityTest, FixRoundAffine) {
     e.eval("x = reshape(linspace(-4.5, 4.5, 6000), 2000, 3); a = 1.5; b = 0.25;");
     EXPECT_TRUE(sameOnOff(e, "fix(a .* x + b)"));
@@ -485,7 +485,7 @@ TEST_P(FusionParityTest, SoftThresholdDifferentVarsFallBack) {
 // ---- transcendental-affine: exp/expm1(a.*x ± b) ------------------------
 // n = 6001 (not a multiple of the SIMD width) so the per-chunk scalar tail is
 // non-empty — this is exactly what would diverge if the kernel didn't mirror
-// numkit's exp loop (hn:: body + std:: tail, same chunking).
+// nk's exp loop (hn:: body + std:: tail, same chunking).
 
 TEST_P(FusionParityTest, ExpAffine) {
     e.eval("x = linspace(-2, 2, 6001)'; a = 1.5; b = 0.3;");
@@ -630,7 +630,7 @@ TEST_P(FusionParityTest, RareTransDivInner) {
     EXPECT_TRUE(e.eval("~isreal(asin(xbad ./ d))").toBool());
 }
 
-// tan — no Highway primitive; the fused kernel mirrors numkit's TanLoop (TanVec
+// tan — no Highway primitive; the fused kernel mirrors nk's TanLoop (TanVec
 // on |inner|<1e6, per-block std::tan otherwise). Always-real. n=6001 SIMD tail.
 TEST_P(FusionParityTest, TanAffine) {
     e.eval("x = linspace(-3, 3, 6001)'; a = 1.5; b = 0.2;");
@@ -641,7 +641,7 @@ TEST_P(FusionParityTest, TanAffine) {
     EXPECT_TRUE(sameOnOff(e, "tan(-x)"));             // NegLeaf
 }
 
-// Force the per-block |inner|>=1e6 scalar fallback (numkit's TanLoop drops to
+// Force the per-block |inner|>=1e6 scalar fallback (nk's TanLoop drops to
 // std::tan for the whole block there) AND a non-multiple length so the scalar
 // tail runs too. Large args + NaN/Inf are interleaved so blocks mix both paths.
 TEST_P(FusionParityTest, TanAffineLargeArgFallback) {
@@ -704,8 +704,8 @@ TEST_P(FusionParityTest, DivInnerSqAbsClampNaNInf) {
 // ---- complex inputs: arithmetic (affine / axpby / shift-scale / sq) -------
 // Fusion fires when the ARRAY is complex; scalar coefficients may be real or
 // complex. The complex kernels are scalar std::complex loops that mirror
-// numkit's per-op std::complex composition bit-for-bit (real coeff a → the FULL
-// complex mul Complex(a,0)*z, exactly as numkit's promoteToComplex path).
+// nk's per-op std::complex composition bit-for-bit (real coeff a → the FULL
+// complex mul Complex(a,0)*z, exactly as nk's promoteToComplex path).
 TEST_P(FusionParityTest, ComplexAffine) {
     e.eval("z = reshape(linspace(-3,4,6000),2000,3) + "
            "1i*reshape(linspace(2,-5,6000),2000,3); "
@@ -741,7 +741,7 @@ TEST_P(FusionParityTest, ComplexShiftScaleSq) {
     EXPECT_TRUE(sameOnOff(e, "(z - w) .^ 2"));         // two-array complex sq-diff
 }
 
-// NaN/Inf: numkit promotes a real coeff to Complex(a,0) and does the FULL
+// NaN/Inf: nk promotes a real coeff to Complex(a,0) and does the FULL
 // complex multiply, so inf*0=NaN appears — both fused and per-op the same way.
 TEST_P(FusionParityTest, ComplexArithNaNInf) {
     e.eval("z = [linspace(-2,2,5997)'; NaN; Inf; -Inf] + "
@@ -761,7 +761,7 @@ TEST_P(FusionParityTest, ComplexCoeffRealArrayFallsBack) {
 }
 
 // ---- complex inputs: unary (sqrt) + transcendentals -----------------------
-// sqrt(z) = std::sqrt(z); transcendentals mirror numkit's complex op per fn
+// sqrt(z) = std::sqrt(z); transcendentals mirror nk's complex op per fn
 // (std::F(z); log2 = log(z)/log(2); log1p = log(1+z)). Complex is total — no
 // domain declines. Product-kind inner only (shift/neg kinds decline on complex).
 TEST_P(FusionParityTest, ComplexUnaryTrans) {
@@ -943,15 +943,15 @@ TEST_P(FusionParityTest, ComplexDiffSumSqNaNInf) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
-                         ::testing::Values(numkit::Engine::Backend::TreeWalker,
-                                           numkit::Engine::Backend::VM));
+                         ::testing::Values(nk::Engine::Backend::TreeWalker,
+                                           nk::Engine::Backend::VM));
 
 // Manual probe (--gtest_also_run_disabled_tests): confirms the TreeWalker fused
 // path actually FIRES (parity alone can't — a silent no-match also passes). On
 // an 11.6 MP clamp, fusion-on should be clearly faster than fusion-off.
 TEST(FusionFiringProbe, DISABLED_TreeWalkerClampSpeedup) {
-    numkit::StandardEngine e;
-    e.setBackend(numkit::Engine::Backend::TreeWalker);
+    nk::StandardEngine e;
+    e.setBackend(nk::Engine::Backend::TreeWalker);
     e.eval("x = rand(3048*3816, 1);");
     auto run = [&](bool on) {
         e.setFusion(on);
@@ -973,8 +973,8 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerClampSpeedup) {
 // for the XMAP pipeline. fusion-on collapses EMUL+ADD (a temp + two passes) into
 // one streaming pass, so it must be clearly faster → proves it fired.
 namespace {
-void probeAffine(numkit::Engine::Backend backend, const char *tag) {
-    numkit::StandardEngine e;
+void probeAffine(nk::Engine::Backend backend, const char *tag) {
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval("x = rand(3048*3816, 1); a = 2.5; b = -0.75;");
     auto run = [&](bool on) {
@@ -994,17 +994,17 @@ void probeAffine(numkit::Engine::Backend backend, const char *tag) {
 } // namespace
 
 TEST(FusionFiringProbe, DISABLED_TreeWalkerAffineSpeedup) {
-    probeAffine(numkit::Engine::Backend::TreeWalker, "TW");
+    probeAffine(nk::Engine::Backend::TreeWalker, "TW");
 }
 TEST(FusionFiringProbe, DISABLED_VMAffineSpeedup) {
-    probeAffine(numkit::Engine::Backend::VM, "VM");
+    probeAffine(nk::Engine::Backend::VM, "VM");
 }
 
 // axpby `a.*x + b.*y`: fusion collapses two products + a temporary into one
 // streaming pass over three arrays. Confirms the two-array kernel fires.
 namespace {
-void probeAxpby(numkit::Engine::Backend backend, const char *tag) {
-    numkit::StandardEngine e;
+void probeAxpby(nk::Engine::Backend backend, const char *tag) {
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval("x = rand(3048*3816, 1); y = rand(3048*3816, 1); a = 0.3; b = 0.7;");
     auto run = [&](bool on) {
@@ -1024,17 +1024,17 @@ void probeAxpby(numkit::Engine::Backend backend, const char *tag) {
 } // namespace
 
 TEST(FusionFiringProbe, DISABLED_TreeWalkerAxpbySpeedup) {
-    probeAxpby(numkit::Engine::Backend::TreeWalker, "TW");
+    probeAxpby(nk::Engine::Backend::TreeWalker, "TW");
 }
 TEST(FusionFiringProbe, DISABLED_VMAxpbySpeedup) {
-    probeAxpby(numkit::Engine::Backend::VM, "VM");
+    probeAxpby(nk::Engine::Backend::VM, "VM");
 }
 
 // shift-scale `(x - c).*s`: fusion collapses subtract + temporary + scale into
 // one streaming pass. Confirms the center-then-scale kernel fires.
 namespace {
-void probeShiftScale(numkit::Engine::Backend backend, const char *tag) {
-    numkit::StandardEngine e;
+void probeShiftScale(nk::Engine::Backend backend, const char *tag) {
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval("x = rand(3048*3816, 1); c = 0.3; s = 2.0;");
     auto run = [&](bool on) {
@@ -1054,17 +1054,17 @@ void probeShiftScale(numkit::Engine::Backend backend, const char *tag) {
 } // namespace
 
 TEST(FusionFiringProbe, DISABLED_TreeWalkerShiftScaleSpeedup) {
-    probeShiftScale(numkit::Engine::Backend::TreeWalker, "TW");
+    probeShiftScale(nk::Engine::Backend::TreeWalker, "TW");
 }
 TEST(FusionFiringProbe, DISABLED_VMShiftScaleSpeedup) {
-    probeShiftScale(numkit::Engine::Backend::VM, "VM");
+    probeShiftScale(nk::Engine::Backend::VM, "VM");
 }
 
 // affine-clamp `max(0,min(1, a.*x+b))`: fusion collapses the whole 4-op
 // normalize-then-saturate chain into one streaming pass. Confirms it fires.
 namespace {
-void probeAffineClamp(numkit::Engine::Backend backend, const char *tag) {
-    numkit::StandardEngine e;
+void probeAffineClamp(nk::Engine::Backend backend, const char *tag) {
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval("x = rand(3048*3816, 1); a = 0.5; b = 0.25;");
     auto run = [&](bool on) {
@@ -1084,17 +1084,17 @@ void probeAffineClamp(numkit::Engine::Backend backend, const char *tag) {
 } // namespace
 
 TEST(FusionFiringProbe, DISABLED_TreeWalkerAffineClampSpeedup) {
-    probeAffineClamp(numkit::Engine::Backend::TreeWalker, "TW");
+    probeAffineClamp(nk::Engine::Backend::TreeWalker, "TW");
 }
 TEST(FusionFiringProbe, DISABLED_VMAffineClampSpeedup) {
-    probeAffineClamp(numkit::Engine::Backend::VM, "VM");
+    probeAffineClamp(nk::Engine::Backend::VM, "VM");
 }
 
 // min-outer clamp `min(hi, max(lo, x))` — same kernel as max-outer, so this
 // only confirms the min-outer matcher fires (parity passes even if it doesn't).
 TEST(FusionFiringProbe, DISABLED_VMClampMinOuterSpeedup) {
-    numkit::StandardEngine e;
-    e.setBackend(numkit::Engine::Backend::VM);
+    nk::StandardEngine e;
+    e.setBackend(nk::Engine::Backend::VM);
     e.eval("x = rand(3048*3816, 1);");
     auto run = [&](bool on) {
         e.setFusion(on);
@@ -1113,9 +1113,9 @@ TEST(FusionFiringProbe, DISABLED_VMClampMinOuterSpeedup) {
 
 // sq-affine `(a.*x+b).^2` and magnitude `sqrt(x.^2+y.^2)` firing probes.
 namespace {
-void probeFused(numkit::Engine::Backend backend, const char *tag,
+void probeFused(nk::Engine::Backend backend, const char *tag,
                 const char *setup, const char *expr) {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval(setup);
     auto run = [&](bool on) {
@@ -1137,44 +1137,44 @@ void probeFused(numkit::Engine::Backend backend, const char *tag,
 // implicit-1 axpby `x + b.*y` (one product + a same-shape array leaf). Routes
 // through affine_add to fusedAxpby; this confirms that routing actually fires.
 TEST(FusionFiringProbe, DISABLED_VMAxpbyImplicitOneSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM axpby-a1",
+    probeFused(nk::Engine::Backend::VM, "VM axpby-a1",
                "x = rand(3048*3816,1); y = rand(3048*3816,1); b = 0.7;",
                "x + b .* y");
 }
 TEST(FusionFiringProbe, DISABLED_VMSqAffineSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM sq-affine",
+    probeFused(nk::Engine::Backend::VM, "VM sq-affine",
                "x = rand(3048*3816,1); a = 1.5; b = 0.5;", "(a .* x + b) .^ 2");
 }
 TEST(FusionFiringProbe, DISABLED_VMSqrtSumSqSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM sqrt-sumsq",
+    probeFused(nk::Engine::Backend::VM, "VM sqrt-sumsq",
                "x = rand(3048*3816,1); y = rand(3048*3816,1);", "sqrt(x .^ 2 + y .^ 2)");
 }
 // clamp of a divide-inner — the rescale-then-saturate `max(0,min(1,(x-lo)./rng))`
 // collapses subtract + divide + temporary + clamp into one streaming pass.
 TEST(FusionFiringProbe, DISABLED_VMAffineClampDivSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM clamp-div",
+    probeFused(nk::Engine::Backend::VM, "VM clamp-div",
                "x = rand(3048*3816,1); lo = 0.2; rng = 0.5;",
                "max(0, min(1, (x - lo) ./ rng))");
 }
 // sq / abs of a divide-inner (squared z-score / normalized abs deviation).
 TEST(FusionFiringProbe, DISABLED_VMSqDivSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM sq-div",
+    probeFused(nk::Engine::Backend::VM, "VM sq-div",
                "x = rand(3048*3816,1); mu = 0.5; sg = 0.2;", "((x - mu) ./ sg) .^ 2");
 }
 TEST(FusionFiringProbe, DISABLED_VMAbsDivSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM abs-div",
+    probeFused(nk::Engine::Backend::VM, "VM abs-div",
                "x = rand(3048*3816,1); mu = 0.5; sg = 0.2;", "abs((x - mu) ./ sg)");
 }
 TEST(FusionFiringProbe, DISABLED_VMSoftThresholdSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM soft-threshold",
+    probeFused(nk::Engine::Backend::VM, "VM soft-threshold",
                "x = rand(3048*3816,1) * 10 - 5; t = 1.5;",
                "sign(x) .* max(0, abs(x) - t)");
 }
 // exp-affine: compute-bound on the polynomial, so the expected win is modest
 // (it saves the affine temporary, not the exp cost). 0.92 threshold accordingly.
 TEST(FusionFiringProbe, DISABLED_VMExpAffineSpeedup) {
-    numkit::StandardEngine e;
-    e.setBackend(numkit::Engine::Backend::VM);
+    nk::StandardEngine e;
+    e.setBackend(nk::Engine::Backend::VM);
     e.eval("x = rand(3048*3816,1); a = -0.5; b = 0.25;");
     auto run = [&](bool on) {
         e.setFusion(on);
@@ -1195,8 +1195,8 @@ TEST(FusionFiringProbe, DISABLED_VMExpAffineSpeedup) {
 // the win is modest — 0.99 threshold, just enough to prove the kernel fired.
 namespace {
 void probeTransModest(const char *tag, const char *setup, const char *expr) {
-    numkit::StandardEngine e;
-    e.setBackend(numkit::Engine::Backend::VM);
+    nk::StandardEngine e;
+    e.setBackend(nk::Engine::Backend::VM);
     e.eval(setup);
     auto run = [&](bool on) {
         e.setFusion(on);
@@ -1231,8 +1231,8 @@ TEST(FusionFiringProbe, DISABLED_VMTanAffineSpeedup) {
 // abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one
 // streaming pass over two arrays. Confirms the abs kernels fire.
 namespace {
-void probeAbsDiff(numkit::Engine::Backend backend, const char *tag) {
-    numkit::StandardEngine e;
+void probeAbsDiff(nk::Engine::Backend backend, const char *tag) {
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval("x = rand(3048*3816, 1); y = rand(3048*3816, 1);");
     auto run = [&](bool on) {
@@ -1252,17 +1252,17 @@ void probeAbsDiff(numkit::Engine::Backend backend, const char *tag) {
 } // namespace
 
 TEST(FusionFiringProbe, DISABLED_TreeWalkerAbsDiffSpeedup) {
-    probeAbsDiff(numkit::Engine::Backend::TreeWalker, "TW");
+    probeAbsDiff(nk::Engine::Backend::TreeWalker, "TW");
 }
 TEST(FusionFiringProbe, DISABLED_VMAbsDiffSpeedup) {
-    probeAbsDiff(numkit::Engine::Backend::VM, "VM");
+    probeAbsDiff(nk::Engine::Backend::VM, "VM");
 }
 
 // unary-affine `sqrt(a.*x+b)` (affine all-positive): fusion collapses the affine
 // temporary + the sqrt pass into one. Confirms the unary-affine kernel fires.
 namespace {
-void probeSqrtAffine(numkit::Engine::Backend backend, const char *tag) {
-    numkit::StandardEngine e;
+void probeSqrtAffine(nk::Engine::Backend backend, const char *tag) {
+    nk::StandardEngine e;
     e.setBackend(backend);
     e.eval("x = rand(3048*3816, 1) * 4 + 1; a = 2; b = 0.5;");  // affine in [2.5, 10.5]
     auto run = [&](bool on) {
@@ -1282,15 +1282,15 @@ void probeSqrtAffine(numkit::Engine::Backend backend, const char *tag) {
 } // namespace
 
 TEST(FusionFiringProbe, DISABLED_TreeWalkerSqrtAffineSpeedup) {
-    probeSqrtAffine(numkit::Engine::Backend::TreeWalker, "TW");
+    probeSqrtAffine(nk::Engine::Backend::TreeWalker, "TW");
 }
 TEST(FusionFiringProbe, DISABLED_VMSqrtAffineSpeedup) {
-    probeSqrtAffine(numkit::Engine::Backend::VM, "VM");
+    probeSqrtAffine(nk::Engine::Backend::VM, "VM");
 }
 
 // round-affine `round(a.*x+b)` — cheap op, memory-bound, so a clear speedup.
 TEST(FusionFiringProbe, DISABLED_VMRoundAffineSpeedup) {
-    probeFused(numkit::Engine::Backend::VM, "VM round-affine",
+    probeFused(nk::Engine::Backend::VM, "VM round-affine",
                "x = rand(3048*3816,1)*100 - 50; a = 1.5; b = 0.25;",
                "round(a .* x + b)");
 }
@@ -1298,8 +1298,8 @@ TEST(FusionFiringProbe, DISABLED_VMRoundAffineSpeedup) {
 // complex affine `ca.*z+cb` — scalar std::complex loop (no SIMD), so the win is
 // temp elimination over 16-byte complex elements (memory-bound).
 TEST(FusionFiringProbe, DISABLED_VMComplexAffineSpeedup) {
-    numkit::StandardEngine e;
-    e.setBackend(numkit::Engine::Backend::VM);
+    nk::StandardEngine e;
+    e.setBackend(nk::Engine::Backend::VM);
     e.eval("z = rand(3048*3816,1) + 1i*rand(3048*3816,1); ca = 1+2i; cb = 0.5-1i;");
     auto run = [&](bool on) {
         e.setFusion(on);
@@ -1318,8 +1318,8 @@ TEST(FusionFiringProbe, DISABLED_VMComplexAffineSpeedup) {
 
 // complex sqrt(ca.*z) — scalar std::complex unary; eliminates the ca.*z temp.
 TEST(FusionFiringProbe, DISABLED_VMComplexSqrtSpeedup) {
-    numkit::StandardEngine e;
-    e.setBackend(numkit::Engine::Backend::VM);
+    nk::StandardEngine e;
+    e.setBackend(nk::Engine::Backend::VM);
     e.eval("z = rand(3048*3816,1) + 1i*rand(3048*3816,1); ca = 1+2i;");
     auto run = [&](bool on) {
         e.setFusion(on);
@@ -1338,8 +1338,8 @@ TEST(FusionFiringProbe, DISABLED_VMComplexSqrtSpeedup) {
 
 // complex abs `abs(ca.*z)` → real magnitude; eliminates the ca.*z complex temp.
 TEST(FusionFiringProbe, DISABLED_VMComplexAbsSpeedup) {
-    numkit::StandardEngine e;
-    e.setBackend(numkit::Engine::Backend::VM);
+    nk::StandardEngine e;
+    e.setBackend(nk::Engine::Backend::VM);
     e.eval("z = rand(3048*3816,1) + 1i*rand(3048*3816,1); ca = 1+2i;");
     auto run = [&](bool on) {
         e.setFusion(on);

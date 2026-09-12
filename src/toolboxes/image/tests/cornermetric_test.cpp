@@ -5,10 +5,10 @@
 // (slight accumulated FP error from the imfilter pad-then-same
 // workaround for MATLAB's `full + replicate` behaviour).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CornermetricTest : public ::testing::Test
 {

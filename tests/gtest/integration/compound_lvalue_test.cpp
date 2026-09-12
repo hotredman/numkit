@@ -13,7 +13,7 @@
 #include <algorithm>
 
 using namespace m_test;
-using namespace numkit;
+using namespace nk;
 
 class CompoundLValue : public DualEngineTest
 {

@@ -31,13 +31,13 @@ product of two `int8` arrays is `int8`, of two `uint16` arrays is `uint16`,
 etc. A single integer operand combined with a real scalar double also keeps
 the integer class.
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
-kron(int8([1 2]), int8([1 1]))   % numkit: double [1 1 2 2]
+kron(int8([1 2]), int8([1 1]))   % nk: double [1 1 2 2]
 %                                  MATLAB: int8   [1 1 2 2]
-kron(int8(100), int8(2))         % numkit: double 200
+kron(int8(100), int8(2))         % nk: double 200
 %                                  MATLAB: int8   127   (saturates)
-kron(int8([2 3]), 2)             % numkit: double [4 6]
+kron(int8([2 3]), 2)             % nk: double [4 6]
 %                                  MATLAB: int8   [4 6] (scalar double cast)
 ```
 
@@ -51,7 +51,7 @@ matrix and wrote `double` element products, ignoring the operand classes.
   round-half-away then saturate);
 - different integer classes, integer + a **non-scalar** double, and
   integer + logical all **ERROR** ("Integers can only be combined with
-  integers of the same class, or scalar doubles"). numkit stays lenient on
+  integers of the same class, or scalar doubles"). nk stays lenient on
   those (returns double); matching MATLAB's error there is a separate concern
   and is not part of this fix.
 

@@ -3,15 +3,15 @@
 // CallContext register half of measurements/vibration.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/measurements/vibration.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/signal/transforms/hilbert.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/measurements/vibration.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/signal/transforms/hilbert.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -32,7 +32,7 @@ void envspectrum_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("envspectrum: requires 1 argument",
-                     0, 0, "envspectrum", "", "numkit:envspectrum:nargin");
+                     0, 0, "envspectrum", "", "nk:envspectrum:nargin");
     double fs = 0.0;
     if (args.size() >= 2 && !args[1].isEmpty()) fs = args[1].toScalar();
     auto [Es, F] = envspectrum(args[0], fs, ctx.engine->resource());
@@ -45,7 +45,7 @@ void tachorpm_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("tachorpm: requires (x, fs[, threshold[, ppr]])",
-                     0, 0, "tachorpm", "", "numkit:tachorpm:nargin");
+                     0, 0, "tachorpm", "", "nk:tachorpm:nargin");
     const double fs = args[1].toScalar();
     const Value &thr = (args.size() >= 3) ? args[2] : Value::Empty;
     int ppr = 1;
@@ -60,7 +60,7 @@ void rainflow_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rainflow: requires 1 argument",
-                     0, 0, "rainflow", "", "numkit:rainflow:nargin");
+                     0, 0, "rainflow", "", "nk:rainflow:nargin");
     outs[0] = rainflow(args[0], ctx.engine->resource());
 }
 
@@ -68,10 +68,10 @@ void rainflow_reg(Span<const Value> args, size_t /*nargout*/,
 // of pulse arrival times (seconds) defining revolutions. Output is
 // the average waveform over those revolutions.
 //
-// numkit historic convention: tsa(x, fs, rpm, fs_rpm[, n_per_rev])
+// nk historic convention: tsa(x, fs, rpm, fs_rpm[, n_per_rev])
 // where rpm is a continuously-sampled rotation-rate signal.
 //
-// Dispatcher: 3-arg call -> MATLAB form; 4+ arg call -> numkit form.
+// Dispatcher: 3-arg call -> MATLAB form; 4+ arg call -> nk form.
 namespace {
 
 std::tuple<Value, Value>
@@ -145,7 +145,7 @@ void tsa_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("tsa: requires (x, fs, tPulse) or (x, fs, rpm, fs_rpm[, n_per_rev])",
-                     0, 0, "tsa", "", "numkit:tsa:nargin");
+                     0, 0, "tsa", "", "nk:tsa:nargin");
     const double fs = args[1].toScalar();
     if (args.size() == 3) {
         // MATLAB form: tsa(x, fs, tPulse)
@@ -155,7 +155,7 @@ void tsa_reg(Span<const Value> args, size_t nargout,
         if (nargout > 1) outs[1] = std::move(th);
         return;
     }
-    // 4+ args -> legacy numkit form (continuous rpm signal).
+    // 4+ args -> legacy nk form (continuous rpm signal).
     const double fs_rpm = args[3].toScalar();
     int npr = 1024;
     if (args.size() >= 5 && !args[4].isEmpty()) npr = static_cast<int>(args[4].toScalar());
@@ -166,4 +166,4 @@ void tsa_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -6,8 +6,8 @@
 #include <cmath>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::audio;
+using namespace nk;
+using namespace nk::audio;
 
 TEST(AiffCodecTest, Pcm16And24RoundTrip) {
     const size_t N = 400;

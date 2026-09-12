@@ -12,7 +12,7 @@ fprintf('  y = [1 2 NaN 4 5 NaN 7]\n');
 fprintf('  fillmissing(y, ''previous'') = '); disp(fillmissing(y, 'previous'));
 fprintf('  fillmissing(y, ''next'') = '); disp(fillmissing(y, 'next'));
 fprintf('  fillmissing(y, ''constant'', 99) = '); disp(fillmissing(y, 'constant', 99));
-fprintf('  fillmissing(y, ''mean'') (numkit ext) = '); disp(fillmissing(y, 'mean'));
+fprintf('  fillmissing(y, ''mean'') (nk ext) = '); disp(fillmissing(y, 'mean'));
 
 fprintf('=== rmmissing ===\n');
 fprintf('  rmmissing(y) = '); disp(rmmissing(y));

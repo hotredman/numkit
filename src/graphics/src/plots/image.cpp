@@ -1,10 +1,10 @@
-// numkit/graphics — image.cpp
+// nk/graphics — image.cpp
 //
 // graphics.image.* builders (imagesc / pcolor / imshow), carved out of plots.cpp. Core-free bodies (GraphicsContext); shared
 // JSON/parse helpers come from plot_internal.hpp.
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildImagePlots(std::vector<PlotEntry> &table)
 {
@@ -76,7 +76,7 @@ void buildImagePlots(std::vector<PlotEntry> &table)
         // imshow('path/to/img.png') — decode the file by calling the registered
         // `imread` builtin THROUGH A HANDLE resolved by name at call time. This
         // keeps graphics free of any image-toolbox C++ dependency (no include,
-        // no numkit::image:: symbol); imread is installed by the image toolbox
+        // no nk::image:: symbol); imread is installed by the image toolbox
         // in the same standard library and resolves at runtime.
         Value decoded;   // owns the lifetime of the decoded value
         const Value *img0 = &args[0];
@@ -380,4 +380,4 @@ void buildImagePlots(std::vector<PlotEntry> &table)
     reg("image", "imshow", imshowImpl);
 }
 
-}  // namespace numkit
+}  // namespace nk

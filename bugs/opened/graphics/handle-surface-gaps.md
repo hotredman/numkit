@@ -1,7 +1,7 @@
 # graphics.handles — deferred property/return surface of the handle layer
 
 - **Status:** 🔴 OPEN (tracking stub — portion 29 shipped the core layer)
-- **Severity:** P3 (each item is a documented MATLAB behaviour numkit
+- **Severity:** P3 (each item is a documented MATLAB behaviour nk
   accepts-but-ignores or approximates; none breaks the common path)
 - **Kind:** stub
 - **Found:** 2026-09-07, portion 29 close-out review.
@@ -28,7 +28,7 @@ indexed dotted form `gca.Parent.Children(2)` works on both engines
 5. **`get(h,'ZData')`** on surface/contour records (2-D matrix payload —
    needs a nested-JSON matrix decoder).
 6. **`set(h)` listing output** — MATLAB prints the settable property
-   catalogue; numkit is silent.
+   catalogue; nk is silent.
 7. **Axes/figure property breadth** — only the render-effective subset
    is mapped; Text FontSize/Color/FontWeight on titles/labels store
    per-record without render effect (renderer has no per-label font
@@ -40,9 +40,9 @@ indexed dotted form `gca.Parent.Children(2)` works on both engines
 ```matlab
 clear;
 h = plot(1:5);
-matlab.graphics.chart.primitive.Line();   % numkit: error; MATLAB: constructs
-s = surf(peaks); get(s, 'ZData');         % numkit: ''; MATLAB: 49x49 matrix
-set(h);                                   % numkit: silent; MATLAB: property listing
+matlab.graphics.chart.primitive.Line();   % nk: error; MATLAB: constructs
+s = surf(peaks); get(s, 'ZData');         % nk: ''; MATLAB: 49x49 matrix
+set(h);                                   % nk: silent; MATLAB: property listing
 ```
 
 ## References

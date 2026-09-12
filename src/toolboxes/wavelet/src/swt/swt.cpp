@@ -23,19 +23,19 @@
 //   row 1..n : details   (level 1 = finest, level n = coarsest)
 //   row n+1  : approximation at level n
 
-#include <numkit/wavelet/swt/swt.hpp>
-#include <numkit/wavelet/filter/wfilters.hpp>
+#include <nk/wavelet/swt/swt.hpp>
+#include <nk/wavelet/filter/wfilters.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The swt / iswt /
 // modwt / imodwt builtins (CallContext wrappers) live in swt/swt_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -93,7 +93,7 @@ Value swt(const Value &x, int n, const std::string &wname, std::pmr::memory_reso
 {
     if (n < 1)
         throw Error("swt: level must be ≥ 1",
-                    0, 0, "swt", "", "numkit:swt:level");
+                    0, 0, "swt", "", "nk:swt:level");
     const size_t N = x.numel();
     if (N == 0)
         return Value::matrix(static_cast<size_t>(n + 1), 0,
@@ -102,7 +102,7 @@ Value swt(const Value &x, int n, const std::string &wname, std::pmr::memory_reso
     const size_t needed = static_cast<size_t>(1) << n;
     if (N % needed != 0)
         throw Error("swt: signal length must be divisible by 2^n",
-                    0, 0, "swt", "", "numkit:swt:size");
+                    0, 0, "swt", "", "nk:swt:size");
 
     auto fb = wavelet_filters(wname);
     std::vector<double> a(N);
@@ -131,7 +131,7 @@ Value iswt(const Value &swc, const std::string &wname, std::pmr::memory_resource
     const size_t N = swc.dims().cols();
     if (H < 2)
         throw Error("iswt: input must have at least 2 rows",
-                    0, 0, "iswt", "", "numkit:iswt:size");
+                    0, 0, "iswt", "", "nk:iswt:size");
     const int n = static_cast<int>(H) - 1;
     if (N == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
@@ -175,7 +175,7 @@ Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_re
 {
     if (n < 1)
         throw Error("modwt: level must be ≥ 1",
-                    0, 0, "modwt", "", "numkit:modwt:level");
+                    0, 0, "modwt", "", "nk:modwt:level");
     const size_t N = x.numel();
     if (N == 0)
         return Value::matrix(static_cast<size_t>(n + 1), 0,
@@ -221,7 +221,7 @@ Value imodwt(const Value &swc, const std::string &wname, std::pmr::memory_resour
     const size_t N = swc.dims().cols();
     if (H < 2)
         throw Error("imodwt: input must have at least 2 rows",
-                    0, 0, "imodwt", "", "numkit:imodwt:size");
+                    0, 0, "imodwt", "", "nk:imodwt:size");
     const int n = static_cast<int>(H) - 1;
     if (N == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
@@ -252,4 +252,4 @@ Value imodwt(const Value &swc, const std::string &wname, std::pmr::memory_resour
     return y;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

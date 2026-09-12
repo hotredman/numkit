@@ -5,15 +5,15 @@
 // extend x to a length-2N mirror y, take FFT(y), recover the DCT
 // coefficients from Re(Y * exp(-jπk/(2N))). Replaces the prior
 // O(N²) direct path (closed gap to MATLAB; bench reports ~50× win
-// vs prior numkit and beats Octave on small N).
+// vs prior nk and beats Octave on small N).
 
-#include <numkit/signal/transforms/dct.hpp>
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/signal/transforms/dct.hpp>
+#include <nk/signal/transforms/fft.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 #include "dct_detail.hpp"
 
 #include <cmath>
@@ -24,7 +24,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -33,7 +33,7 @@ using Cd = std::complex<double>;
 inline bool isPowerOfTwo(size_t n) { return n != 0 && (n & (n - 1)) == 0; }
 
 // Direct O(N²) reference implementation. Used as a fallback when N
-// isn't a power of two (numkit's fft pads non-pow2 inputs to the next
+// isn't a power of two (nk's fft pads non-pow2 inputs to the next
 // pow2 internally and slices the result, which doesn't match a true
 // length-N DFT — needed for the FFT-trick DCT to be exact).
 Value dctDirect(const Value &x, std::pmr::memory_resource *mr)
@@ -146,14 +146,14 @@ Value dct(const Value &x, std::pmr::memory_resource *mr)
         X[0] = xd[0];  // sqrt(1/1) * x[0]
         return r;
     }
-    // numkit's fft pads non-pow2 inputs to nextPow2 internally, so the
+    // nk's fft pads non-pow2 inputs to nextPow2 internally, so the
     // length-N output isn't a true length-N DFT for N≠pow2. Fall back
     // to the direct path in that case; modern bench inputs (image
     // tiling, audio frames, etc.) are typically pow2 so the FFT fast
     // path covers the common case.
     if (!isPowerOfTwo(N)) return dctDirect(x, mr);
 
-    // Build the length-2N mirrored signal y as a numkit Value so we
+    // Build the length-2N mirrored signal y as a nk Value so we
     // can call the existing FFT.
     const size_t M = 2 * N;
     auto y = Value::matrix(M, 1, ValueType::DOUBLE, mr);
@@ -372,4 +372,4 @@ Value dctTyped(const Value &x, int n, int dim, double type, bool inverse,
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

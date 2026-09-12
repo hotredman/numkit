@@ -2,10 +2,10 @@
 //
 // Regression guard for rgb2lightness — L* channel of CIELAB.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RGB2LightnessTest : public ::testing::Test
 {

@@ -4,10 +4,10 @@
 // pinned: DR_block = [[a b]; [-b a]], VR(:, k+1) = +Im(v) for positive
 // imag eigenvalue. Spec at tools/parity/specs/schur_convert.json.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SchurConvertTest : public ::testing::Test
 {

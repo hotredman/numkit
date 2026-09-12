@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: position-based string op (MATLAB canonical: replaceBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience."
+  "comment": "Sig: position-based string op (MATLAB canonical: replaceBetween). Bit-identical with MATLAB R2025b. NK also registers a lowercase alias for convenience."
 }

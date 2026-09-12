@@ -18,15 +18,15 @@
 // A-law expand,  |y|/V ≤ 1/(1 + log A): x = sign(y) · |y|·(1+log A)/A
 //                              else : x = sign(y) · V · exp((1+log A)·|y|/V − 1)/A
 
-#include <numkit/comm/eq/compand.hpp>
+#include <nk/comm/eq/compand.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <string>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 Value compand(const Value &x, double param, double V,
               const std::string &method,
@@ -34,10 +34,10 @@ Value compand(const Value &x, double param, double V,
 {
     if (param <= 0.0)
         throw Error("compand: param (μ or A) must be positive",
-                    0, 0, "compand", "", "numkit:compand:param");
+                    0, 0, "compand", "", "nk:compand:param");
     if (V <= 0.0)
         throw Error("compand: V (peak magnitude) must be positive",
-                    0, 0, "compand", "", "numkit:compand:V");
+                    0, 0, "compand", "", "nk:compand:V");
 
     const bool isMu = (method.size() >= 2
                        && (method[0] == 'm' || method[0] == 'M')
@@ -46,7 +46,7 @@ Value compand(const Value &x, double param, double V,
                        && (method[0] == 'a' || method[0] == 'A'));
     if (!isMu && !isA)
         throw Error("compand: method must start with 'mu/' or 'A/'",
-                    0, 0, "compand", "", "numkit:compand:method");
+                    0, 0, "compand", "", "nk:compand:method");
     const bool isCompress =
         method.find("compressor") != std::string::npos;
     const bool isExpand =
@@ -54,7 +54,7 @@ Value compand(const Value &x, double param, double V,
     if (!isCompress && !isExpand)
         throw Error("compand: method must end with '/compressor' or "
                     "'/expander'",
-                    0, 0, "compand", "", "numkit:compand:method");
+                    0, 0, "compand", "", "nk:compand:method");
 
     Value out = Value::matrix(x.dims().rows(), x.dims().cols(),
                               ValueType::DOUBLE, mr);
@@ -116,4 +116,4 @@ Value compand(const Value &x, double param, double V,
     return out;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

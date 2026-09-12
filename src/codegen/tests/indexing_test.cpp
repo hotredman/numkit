@@ -6,12 +6,12 @@
 // not provably a simple scalar / 2-D subscript on a typed buffer routes
 // to Runtime (the always-correct engine fallback).
 
-#include <numkit/codegen/indexing.hpp>
+#include <nk/codegen/indexing.hpp>
 
 #include <gtest/gtest.h>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 namespace {
 AbstractValue arr(ValueType dt, std::size_t r, std::size_t c)

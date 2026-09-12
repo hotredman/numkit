@@ -35,11 +35,11 @@ a mixed integer+double concatenation yields the integer class (the double
 operand is cast). Affects EVERY concat path: `cat(1/2/3,...)`, the `[;]` /
 `[,]` matrix-construction operators, `vertcat`, `horzcat`.
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
-cat(1, int8([1 2]), int8([3 4]))   % numkit: ERROR "Concatenation not supported for type 'int8'"
+cat(1, int8([1 2]), int8([3 4]))   % nk: ERROR "Concatenation not supported for type 'int8'"
 %                                    MATLAB: int8 [1 2; 3 4]
-[int8([1 2]); int8([3 4])]         % numkit: ERROR "... (in matrix construction)"
+[int8([1 2]); int8([3 4])]         % nk: ERROR "... (in matrix construction)"
 %                                    MATLAB: int8 [1 2; 3 4]
 [int8([1 2]), int8([3 4])]         % MATLAB: int8 [1 2 3 4]  (1x4)
 cat(1, uint16([10 20]), uint16([30 40]))   % MATLAB: uint16 [10 20; 30 40]

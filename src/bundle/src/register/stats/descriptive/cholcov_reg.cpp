@@ -3,16 +3,16 @@
 // CallContext register half of descriptive/cholcov.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/linalg/decompositions.hpp>   // chol (migrated)
-#include <numkit/linalg/eig.hpp>              // eig_symmetric (migrated)
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elmat.hpp>
+#include <nk/linalg/decompositions.hpp>   // chol (migrated)
+#include <nk/linalg/eig.hpp>              // eig_symmetric (migrated)
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void cholcov_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("cholcov: requires (SIGMA)",
-                    0, 0, "cholcov", "", "numkit:cholcov:nargin");
+                    0, 0, "cholcov", "", "nk:cholcov:nargin");
     auto *mr = ctx.engine->resource();
     auto [T, p] = cholcov(args[0], mr);
     outs[0] = std::move(T);
@@ -42,4 +42,4 @@ void cholcov_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

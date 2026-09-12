@@ -7,10 +7,10 @@
 // value) are accepted with a wide relative tolerance — see
 // tools/parity/specs/condest.json for the documented gap.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CondestTest : public ::testing::Test
 {

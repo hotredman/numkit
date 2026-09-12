@@ -19,14 +19,14 @@
 // by the anonymous-multi-output / varargout support (the objective and
 // nonlcon both run as bytecode, pausable).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
-namespace numkit::optim {
+namespace nk::optim {
 
 static const char *kFminconMSource = R"NKM(
 function [x, fval, exitflag] = fmincon(fn, x0, A, b, Aeq, beq, lb, ub, nonlcon, varargin)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:fmincon:fnType', 'fmincon: 1st argument must be a function handle');
+    error('nk:fmincon:fnType', 'fmincon: 1st argument must be a function handle');
   end
   n = numel(x0);
   if nargin < 3, A = []; end
@@ -160,4 +160,4 @@ void registerFminconM(Engine &engine)
     engine.registerBuiltinMSource(kFminconMSource);
 }
 
-} // namespace numkit::optim
+} // namespace nk::optim

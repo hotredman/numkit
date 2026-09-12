@@ -18,16 +18,16 @@
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr. Scratch
 // via ScratchArena/ScratchVec.
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -311,4 +311,4 @@ Value sigrangebinmask(const Value &x, double lo, double hi,
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

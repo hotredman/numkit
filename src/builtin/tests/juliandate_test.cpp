@@ -4,10 +4,10 @@
 // components. Bit-equality with MATLAB R2025b expected since the
 // algorithm is the same days_from_civil + a constant offset.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class JuliandateTest : public ::testing::Test
 {

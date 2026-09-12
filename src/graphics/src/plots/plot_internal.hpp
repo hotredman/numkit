@@ -1,24 +1,24 @@
 #pragma once
-// numkit/graphics — plots/plot_internal.hpp
+// nk/graphics — plots/plot_internal.hpp
 //
 // Private (src-only) header shared by the per-family plot-table builders carved
 // out of plots.cpp. NOT installed — only the graphics .cpp TUs include it.
 //
-// It declares (1) the pure JSON/parse helpers (numkit::detail) that many plot
+// It declares (1) the pure JSON/parse helpers (nk::detail) that many plot
 // bodies share, and (2) the per-family build*Plots(table) entry points that
 // buildPlotTable() dispatches to.
 
-#include <numkit/graphics/graphics_context.hpp>  // GraphicsContext, PlotEntry, GraphicsFn
-#include <numkit/figure/figure_manager.hpp>      // DatasetInfo
-#include <numkit/value/span.hpp>                 // Span
-#include <numkit/value/value.hpp>                // Value
+#include <nk/graphics/graphics_context.hpp>  // GraphicsContext, PlotEntry, GraphicsFn
+#include <nk/figure/figure_manager.hpp>      // DatasetInfo
+#include <nk/value/span.hpp>                 // Span
+#include <nk/value/value.hpp>                // Value
 
 #include <cstddef>
 #include <sstream>
 #include <string>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 namespace detail {
 
@@ -64,4 +64,4 @@ void buildLinePlots(std::vector<PlotEntry> &table);
 void buildBarPlots(std::vector<PlotEntry> &table);
 // BUILDER-DECLS — the family split appends new declarations directly above here.
 
-}  // namespace numkit
+}  // namespace nk

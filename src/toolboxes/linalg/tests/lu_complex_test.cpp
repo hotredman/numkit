@@ -3,15 +3,15 @@
 // Unit tests for complex LU decomposition, determinant, inverse, and mldivide.
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/linalg/properties.hpp>
-#include <numkit/linalg/solvers.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/linalg/properties.hpp>
+#include <nk/linalg/solvers.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(ComplexLinalgTest, DetComplex2x2) {
     // B = [1+1i, 2; 3, 4-1i]

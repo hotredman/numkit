@@ -1,11 +1,11 @@
 // tests/convolution_test.cpp
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ConvolutionTest : public ::testing::Test
 {
@@ -92,7 +92,7 @@ TEST_F(ConvolutionTest, ConvSameLength)
 }
 
 // 'same' = central part of length na, starting at floor(nb/2) of the full
-// convolution. Previously numkit used max(na,nb) + a centered offset, which
+// convolution. Previously nk used max(na,nb) + a centered offset, which
 // was off-by-one for EVEN kernels and wrong-length when na<nb. vs MATLAB
 // R2025b. DEEP-PROBE 2026-05-30.
 TEST_F(ConvolutionTest, ConvSameEvenKernelAndShortFirst)
@@ -395,7 +395,7 @@ TEST_F(ConvolutionTest, XcovTwoSignalsLength)
 
 // scaleopt: 'biased' divides every lag by N; 'unbiased' by (N-|lag|);
 // 'coeff' by sqrt(Cxx0*Cyy0). zero-lag sits at index 5 for length-5 inputs.
-// (Regression: numkit used to ignore scaleopt entirely.) vs MATLAB R2025b.
+// (Regression: nk used to ignore scaleopt entirely.) vs MATLAB R2025b.
 TEST_F(ConvolutionTest, XcovScaleopt)
 {
     eval("x = [1 3 -2 4 0]; y = [2 -1 0 3 1];");
@@ -409,7 +409,7 @@ TEST_F(ConvolutionTest, XcovScaleopt)
 }
 
 // maxlag crops the result to lags -maxlag..maxlag (length 2*maxlag+1).
-// (Regression: numkit used to ignore the maxlag scalar arg, returning
+// (Regression: nk used to ignore the maxlag scalar arg, returning
 // the full length-9 vector.) vs MATLAB R2025b.
 TEST_F(ConvolutionTest, XcovMaxlag)
 {

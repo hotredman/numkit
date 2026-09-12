@@ -6,5 +6,5 @@
   "iters": 3,
   "tol": 1e-12,
   "fingerprint": ["r", "c", "p", "v_max"],
-  "comment": "slice is display-only — fingerprint pins V's shape + extrema to confirm the call doesn't mutate the volume. MATLAB / numkit / Octave all produce a 3-D figure; visual fidelity (per-cell colour gradient via vertexColors) is covered by e2e in slice.spec.js."
+  "comment": "slice is display-only — fingerprint pins V's shape + extrema to confirm the call doesn't mutate the volume. MATLAB / nk / Octave all produce a 3-D figure; visual fidelity (per-cell colour gradient via vertexColors) is covered by e2e in slice.spec.js."
 }

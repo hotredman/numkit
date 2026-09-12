@@ -3,7 +3,7 @@ clear
 % imbinarize now accepts the method-string forms imbinarize(I,'global') and
 % imbinarize(I,'adaptive', ...). 'global' is the default Otsu threshold;
 % 'adaptive' rewires to adaptthresh(I, Sensitivity) and then the per-pixel
-% binarize comparison (BW = I > class-range-scaled T). numkit previously
+% binarize comparison (BW = I > class-range-scaled T). nk previously
 % misread 'adaptive' as a per-pixel threshold matrix and threw a shape error.
 % Optional NV: 'Sensitivity' (default 0.5), 'ForegroundPolarity' ('bright').
 

@@ -3,11 +3,11 @@
 // Regression guard for istrellis (Error Correction Codes). Validates that a
 // poly2trellis output is recognised and non-trellis values are rejected.
 
-#include <numkit/comm/coding/convcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/convcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class IstrellisTest : public ::testing::Test
 {

@@ -4,10 +4,10 @@
 // pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm.
 // Spec-validated against MATLAB R2025b (tools/parity/specs/page_family.json).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class PageFamilyTest : public ::testing::Test
 {

@@ -4,10 +4,10 @@
 // R2025b verified bit-equal on the 8×8 reshape(1:64) test image
 // with a 3×3 Gaussian (sigma=1) PSF.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class EdgetaperTest : public ::testing::Test
 {

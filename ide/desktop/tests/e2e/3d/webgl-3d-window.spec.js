@@ -129,7 +129,7 @@ test.describe('FigureWindow — 3-D layout', () => {
     await ide.runScript('import compat.*;\nplot3([1 2 3], [1 2 3], [1 2 3]);\n');
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     const wrapper = ide.figureCards.first().locator(
-      'canvas[data-numkit-3d]').locator('xpath=..');
+      'canvas[data-nk-3d]').locator('xpath=..');
     const bgStyle = await wrapper.evaluate((el) => el.style.background);
     expect(bgStyle).toContain('--plot-bg');
   });

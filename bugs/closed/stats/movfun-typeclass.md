@@ -34,7 +34,7 @@ accepts it, returning a double.
 
 ## Repro
 ```matlab
-movsum(int8([3 1 2 5 4]), 3)        % numkit: ERROR "Not a double array"
+movsum(int8([3 1 2 5 4]), 3)        % nk: ERROR "Not a double array"
 %                                     MATLAB: [4 6 8 11 9]  (class double)
 movmean(int8([3 1 2 5 4]), 3)       % MATLAB: [2 2 2.6667 3.6667 4.5] double
 movsum(logical([1 0 1 1 0]), 3)     % MATLAB: [1 2 2 2 1] double

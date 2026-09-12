@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/expfit_test.cpp
 // expfit.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ExpfitTest : public ::testing::Test
 {

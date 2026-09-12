@@ -8,7 +8,7 @@
 ## Symptom
 `cwt(x)` — the continuous wavelet transform (default: analytic Morse
 wavelet, returns complex coefficients over a log-spaced scale/frequency
-grid) — is not registered. numkit ships the *discrete* transforms
+grid) — is not registered. nk ships the *discrete* transforms
 (`dwt`/`wavedec`/`swt`/`modwt`) and the analyzing-wavelet shape functions
 (`morlet`/`mexihat`/`cmorwavf`/`morsewavf`-style helpers) but not the CWT
 itself.
@@ -21,7 +21,7 @@ cfs = cwt(x);
 % MATLAB: complex, size = [11 16]  (11 scales x 16 time samples)
 [cfs, f] = cwt(x);
 % MATLAB: numel(f) = 11  (one frequency per scale)
-% numkit (both): Error — VM: undefined function 'cwt'
+% nk (both): Error — VM: undefined function 'cwt'
 ```
 
 ## Root cause

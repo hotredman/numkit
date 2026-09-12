@@ -1,10 +1,10 @@
 // src/builtin/src/specfun/combinatorics.cpp
 
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -19,7 +19,7 @@
 
 #include "discrete_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Number theory
@@ -59,7 +59,7 @@ Value isprime(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("isprime: complex inputs are not supported",
-                     0, 0, "isprime", "", "numkit:isprime:complex");
+                     0, 0, "isprime", "", "nk:isprime:complex");
     auto out = createLike(x, ValueType::LOGICAL, mr);
     uint8_t *dst = out.logicalDataMut();
     const size_t N = x.numel();
@@ -75,7 +75,7 @@ Value factor(double n, std::pmr::memory_resource *mr)
     std::uint64_t u;
     if (!isExactNonnegInt(n, u))
         throw Error("factor: argument must be a non-negative integer scalar",
-                     0, 0, "factor", "", "numkit:factor:badArg");
+                     0, 0, "factor", "", "nk:factor:badArg");
     if (u == 0 || u == 1) {
         auto r = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = static_cast<double>(u);
@@ -110,18 +110,18 @@ Value perms(const Value &v, std::pmr::memory_resource *mr)
 {
     if (v.type() == ValueType::COMPLEX)
         throw Error("perms: complex inputs are not supported",
-                     0, 0, "perms", "", "numkit:perms:complex");
+                     0, 0, "perms", "", "nk:perms:complex");
     if (v.isEmpty()) {
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
     }
     if (!v.dims().isVector())
         throw Error("perms: argument must be a vector",
-                     0, 0, "perms", "", "numkit:perms:notVector");
+                     0, 0, "perms", "", "nk:perms:notVector");
 
     const size_t n = v.numel();
     if (n > static_cast<size_t>(kPermMaxN))
         throw Error("perms: numel(v) > 11 is not supported (n! is too large)",
-                     0, 0, "perms", "", "numkit:perms:tooLarge");
+                     0, 0, "perms", "", "nk:perms:tooLarge");
 
     ScratchArena scratch(mr);
     auto vals = ScratchVec<double>(n, &scratch);
@@ -149,7 +149,7 @@ Value factorial(const Value &n, std::pmr::memory_resource *mr)
 {
     if (n.type() == ValueType::COMPLEX)
         throw Error("factorial: complex inputs are not supported",
-                     0, 0, "factorial", "", "numkit:factorial:complex");
+                     0, 0, "factorial", "", "nk:factorial:complex");
     auto out = createLike(n, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t N = n.numel();
@@ -162,13 +162,13 @@ Value nchoosek(double n, double k, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(n) || !std::isfinite(k))
         throw Error("nchoosek: arguments must be finite",
-                     0, 0, "nchoosek", "", "numkit:nchoosek:badArg");
+                     0, 0, "nchoosek", "", "nk:nchoosek:badArg");
     if (n < 0 || k < 0 || n != std::floor(n) || k != std::floor(k))
         throw Error("nchoosek: arguments must be non-negative integers",
-                     0, 0, "nchoosek", "", "numkit:nchoosek:badArg");
+                     0, 0, "nchoosek", "", "nk:nchoosek:badArg");
     if (k > n)
         throw Error("nchoosek: k must satisfy 0 ≤ k ≤ n",
-                     0, 0, "nchoosek", "", "numkit:nchoosek:kTooLarge");
+                     0, 0, "nchoosek", "", "nk:nchoosek:kTooLarge");
 
     double kk = (k > n - k) ? n - k : k;
     if (kk == 0.0)
@@ -191,11 +191,11 @@ Value nchoosekCombinations(const Value &v, double kd, std::pmr::memory_resource 
     const size_t n = v.numel();
     if (!std::isfinite(kd) || kd < 0 || kd != std::floor(kd))
         throw Error("nchoosek: K must be a non-negative integer",
-                     0, 0, "nchoosek", "", "numkit:nchoosek:badArg");
+                     0, 0, "nchoosek", "", "nk:nchoosek:badArg");
     const size_t k = static_cast<size_t>(kd);
     if (k > n)
         throw Error("nchoosek: K must satisfy 0 <= K <= numel(V)",
-                     0, 0, "nchoosek", "", "numkit:nchoosek:kTooLarge");
+                     0, 0, "nchoosek", "", "nk:nchoosek:kTooLarge");
     if (k == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
 
@@ -238,7 +238,7 @@ Value colperm(const Value &s, std::pmr::memory_resource *mr)
 {
     const auto &d = s.dims();
     if (d.ndim() > 2)
-        throw Error("colperm: input must be 2-D", 0, 0, "colperm", "", "numkit:colperm:rank");
+        throw Error("colperm: input must be 2-D", 0, 0, "colperm", "", "nk:colperm:rank");
     const size_t rows = d.rows();
     const size_t cols = d.cols();
     if (cols == 0)
@@ -281,7 +281,7 @@ Value symrcm(const Value &s, std::pmr::memory_resource *mr)
 {
     const auto &d = s.dims();
     if (d.ndim() != 2 || d.rows() != d.cols())
-        throw Error("symrcm: S must be a square 2-D matrix", 0, 0, "symrcm", "", "numkit:symrcm:notSquare");
+        throw Error("symrcm: S must be a square 2-D matrix", 0, 0, "symrcm", "", "nk:symrcm:notSquare");
     const size_t n = d.rows();
     if (n == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
@@ -360,4 +360,4 @@ Value symrcm(const Value &s, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -1,12 +1,12 @@
 // toolboxes/stats/src/distributions/nakagami.cpp
 
-#include <numkit/stats/distributions/nakagami.hpp>
+#include <nk/stats/distributions/nakagami.hpp>
 
-#include <numkit/builtin/specfun.hpp>   // gammainc, gammaincinv
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>   // gammainc, gammaincinv
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -17,7 +17,7 @@
 
 #include "nakagami_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr)
@@ -60,7 +60,7 @@ Value nakainv(const Value &p, double mu, double omega, std::pmr::memory_resource
     }, mr);
 }
 
-Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value nakarnd(::nk::ops::RngContext &rng, double mu, double omega, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -85,4 +85,4 @@ std::tuple<double, double> nakastat(double mu, double omega)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

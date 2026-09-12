@@ -10,14 +10,14 @@
 // quantv  = codebook(indx + 1)
 // distor  = mean((sig - quantv).^2)
 
-#include <numkit/comm/source/quantiz.hpp>
+#include <nk/comm/source/quantiz.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -57,7 +57,7 @@ quantiz(const Value &sig, const Value &partition, const Value &codebook,
     if (codebook.numel() != partition.numel() + 1)
         throw Error("quantiz: length(codebook) must equal "
                     "length(partition) + 1",
-                    0, 0, "quantiz", "", "numkit:quantiz:invalidCodebook");
+                    0, 0, "quantiz", "", "nk:quantiz:invalidCodebook");
 
     Value indx = quantiz_indx(sig, partition, mr);
     const double *idx = indx.doubleData();
@@ -77,4 +77,4 @@ quantiz(const Value &sig, const Value &partition, const Value &codebook,
             N > 0 ? sse / static_cast<double>(N) : 0.0};
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

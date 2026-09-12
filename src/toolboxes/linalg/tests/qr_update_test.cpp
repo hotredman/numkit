@@ -6,10 +6,10 @@
 // unique only up to column sign convention. tools/parity/specs/
 // qrupdate.json covers the same identities against MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class QRUpdateTest : public ::testing::Test
 {

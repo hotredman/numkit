@@ -1,11 +1,11 @@
 // tests/parser_test.cpp
 
-#include <numkit/core/ast.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/ast.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 // ============================================================
 // Вспомогательная функция: source -> AST (Block)

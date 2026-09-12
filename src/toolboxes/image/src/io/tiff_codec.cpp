@@ -21,8 +21,8 @@
 #include "tiff_codec.hpp"
 #include "deflate.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -35,7 +35,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 bool isTiffBytes(const std::uint8_t *data, std::size_t len)
 {
@@ -69,7 +69,7 @@ struct ByteReader {
     void check(std::size_t off, std::size_t n, const char *what) const {
         if (off > size || off + n > size)
             throw Error(std::string("tiff: out-of-bounds read ") + what,
-                        0, 0, "imread", "", "numkit:imread:tiffEOF");
+                        0, 0, "imread", "", "nk:imread:tiffEOF");
     }
     std::uint16_t u16(std::size_t off) const {
         check(off, 2, "u16");
@@ -136,7 +136,7 @@ readEntryValues(const ByteReader &br, std::uint16_t type,
 {
     if (type == 0 || type > 18 || kTypeWidth[type] == 0)
         throw Error("tiff: unknown tag type " + std::to_string(type),
-                    0, 0, "imread", "", "numkit:imread:tiffType");
+                    0, 0, "imread", "", "nk:imread:tiffType");
     const std::size_t w     = kTypeWidth[type];
     const std::size_t total = w * static_cast<std::size_t>(count);
     const std::size_t inlineCap   = br.isBigTiff ? 8u : 4u;
@@ -245,14 +245,14 @@ decodePackBits(const std::uint8_t *src, std::size_t srcLen, std::size_t outHint)
             const std::size_t count = static_cast<std::size_t>(n) + 1;
             if (i + count > srcLen)
                 throw Error("tiff: PackBits literal run truncated",
-                            0, 0, "imread", "", "numkit:imread:tiffPackBits");
+                            0, 0, "imread", "", "nk:imread:tiffPackBits");
             out.insert(out.end(), src + i, src + i + count);
             i += count;
         } else {                                          // replicate run
             const std::size_t count = static_cast<std::size_t>(-n) + 1;
             if (i >= srcLen)
                 throw Error("tiff: PackBits replicate truncated",
-                            0, 0, "imread", "", "numkit:imread:tiffPackBits");
+                            0, 0, "imread", "", "nk:imread:tiffPackBits");
             out.insert(out.end(), count, src[i++]);
         }
     }
@@ -288,7 +288,7 @@ public:
                 entry.push_back(entry[0]);
             } else {
                 throw Error("tiff: LZW invalid code " + std::to_string(code),
-                            0, 0, "imread", "", "numkit:imread:tiffLZW");
+                            0, 0, "imread", "", "nk:imread:tiffLZW");
             }
             out_.insert(out_.end(), entry.begin(), entry.end());
 
@@ -429,7 +429,7 @@ void decompressBlock(const ByteReader &br, std::size_t off, std::size_t cnt,
         default:
             throw Error("tiff: compression " + std::to_string(compression)
                         + " not supported",
-                        0, 0, "imread", "", "numkit:imread:tiffCompression");
+                        0, 0, "imread", "", "nk:imread:tiffCompression");
     }
 }
 
@@ -486,7 +486,7 @@ decodeImage(const ByteReader &br, const TiffImage &img)
         if (img.tileOffsets.size() != tilesPerPlane * numPlanes
             || img.tileByteCounts.size() != tilesPerPlane * numPlanes)
             throw Error("tiff: malformed tile arrays", 0, 0, "imread", "",
-                        "numkit:imread:tiffTiles");
+                        "nk:imread:tiffTiles");
         const std::size_t tileBytes = static_cast<std::size_t>(img.tileWidth)
                                        * img.tileLength * spp_block * bps;
         const std::size_t srcStride = img.tileWidth * spp_block * bps;
@@ -516,11 +516,11 @@ decodeImage(const ByteReader &br, const TiffImage &img)
         if (img.stripOffsets.empty()
             || img.stripOffsets.size() != img.stripByteCounts.size())
             throw Error("tiff: malformed StripOffsets / StripByteCounts",
-                        0, 0, "imread", "", "numkit:imread:tiffStrips");
+                        0, 0, "imread", "", "nk:imread:tiffStrips");
         const std::size_t stripsPerPlane = img.stripOffsets.size() / numPlanes;
         if (img.stripOffsets.size() % numPlanes != 0)
             throw Error("tiff: strip count not divisible by plane count",
-                        0, 0, "imread", "", "numkit:imread:tiffStrips");
+                        0, 0, "imread", "", "nk:imread:tiffStrips");
         const std::size_t rpsEff = (img.rowsPerStrip > 0
                                      && img.rowsPerStrip < 0x80000000u)
                                      ? img.rowsPerStrip : H;
@@ -550,7 +550,7 @@ decodeImage(const ByteReader &br, const TiffImage &img)
     else if (img.predictor != 1)
         throw Error("tiff: Predictor " + std::to_string(img.predictor)
                     + " not supported (only 1=none and 2=horizontal)",
-                    0, 0, "imread", "", "numkit:imread:tiffPredictor");
+                    0, 0, "imread", "", "nk:imread:tiffPredictor");
     return dst;
 }
 
@@ -567,14 +567,14 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
         if (img.bitsPerSample == 32)      vt = ValueType::SINGLE;
         else if (img.bitsPerSample == 64) vt = ValueType::DOUBLE;
         else throw Error("tiff: float SampleFormat needs 32 or 64 bits",
-                         0, 0, "imread", "", "numkit:imread:tiffBits");
+                         0, 0, "imread", "", "nk:imread:tiffBits");
     } else if (img.sampleFormat == 2) {   // signed int
         switch (img.bitsPerSample) {
             case 8:  vt = ValueType::INT8;  break;
             case 16: vt = ValueType::INT16; break;
             case 32: vt = ValueType::INT32; break;
             default: throw Error("tiff: int SampleFormat needs 8/16/32 bits",
-                                 0, 0, "imread", "", "numkit:imread:tiffBits");
+                                 0, 0, "imread", "", "nk:imread:tiffBits");
         }
     } else {                              // unsigned int (or unspecified)
         switch (img.bitsPerSample) {
@@ -582,7 +582,7 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
             case 16: vt = ValueType::UINT16; break;
             case 32: vt = ValueType::UINT32; break;
             default: throw Error("tiff: uint SampleFormat needs 8/16/32 bits",
-                                 0, 0, "imread", "", "numkit:imread:tiffBits");
+                                 0, 0, "imread", "", "nk:imread:tiffBits");
         }
     }
 
@@ -676,13 +676,13 @@ std::vector<std::uint8_t> loadBytes(const std::string &path, const char *who)
     std::ifstream f(path, std::ios::binary);
     if (!f)
         throw Error(std::string(who) + ": cannot open '" + path + "'",
-                    0, 0, who, "", std::string("numkit:") + who + ":open");
+                    0, 0, who, "", std::string("nk:") + who + ":open");
     f.seekg(0, std::ios::end);
     const std::streamoff sz = f.tellg();
     f.seekg(0, std::ios::beg);
     if (sz < 8)
         throw Error(std::string(who) + ": file too small for TIFF header",
-                    0, 0, who, "", std::string("numkit:") + who + ":tiffShort");
+                    0, 0, who, "", std::string("nk:") + who + ":tiffShort");
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(sz));
     f.read(reinterpret_cast<char *>(buf.data()), sz);
     return buf;
@@ -695,7 +695,7 @@ ByteReader openTiff(std::vector<std::uint8_t> &buf, const char *who)
     else if (buf[0] == 'M' && buf[1] == 'M') be = true;
     else
         throw Error(std::string(who) + ": not a TIFF (bad byte-order mark)",
-                    0, 0, who, "", std::string("numkit:") + who + ":tiffMagic");
+                    0, 0, who, "", std::string("nk:") + who + ":tiffMagic");
     ByteReader br{buf.data(), buf.size(), be, /*isBigTiff=*/false};
     const std::uint16_t magic = br.u16(2);
     if (magic == 42) {
@@ -703,11 +703,11 @@ ByteReader openTiff(std::vector<std::uint8_t> &buf, const char *who)
     } else if (magic == 43) {
         if (br.u16(4) != 8 || br.u16(6) != 0)
             throw Error(std::string(who) + ": bad BigTIFF header",
-                        0, 0, who, "", std::string("numkit:") + who + ":tiffMagic");
+                        0, 0, who, "", std::string("nk:") + who + ":tiffMagic");
         br.isBigTiff = true;
     } else {
         throw Error(std::string(who) + ": bad TIFF magic", 0, 0, who, "",
-                    std::string("numkit:") + who + ":tiffMagic");
+                    std::string("nk:") + who + ":tiffMagic");
     }
     return br;
 }
@@ -721,7 +721,7 @@ std::uint64_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
 {
     if (page == 0)
         throw Error(std::string(who) + ": page index must be >= 1",
-                    0, 0, who, "", std::string("numkit:") + who + ":badPage");
+                    0, 0, who, "", std::string("nk:") + who + ":badPage");
     std::uint64_t off = firstIFDOffset(br);
     const std::size_t entrySize = br.isBigTiff ? 20u : 12u;
     const std::size_t countHdr  = br.isBigTiff ? 8u  : 2u;
@@ -731,7 +731,7 @@ std::uint64_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
                         + std::to_string(page)
                         + " is beyond end of TIFF (only "
                         + std::to_string(p - 1) + " pages found)",
-                        0, 0, who, "", std::string("numkit:") + who + ":pageRange");
+                        0, 0, who, "", std::string("nk:") + who + ":pageRange");
         if (p == page) return off;
         const std::uint64_t n = br.isBigTiff
             ? br.u64(static_cast<std::size_t>(off))
@@ -1039,7 +1039,7 @@ std::uint16_t parseCompression(const std::string &s)
     if (s == "lzw")                   return 5;
     if (s == "deflate")               return 8;
     throw Error("imwrite TIFF: unknown Compression '" + s + "' (use none, packbits, lzw, or deflate)",
-                0, 0, "imwrite", "", "numkit:imwrite:tiffCompression");
+                0, 0, "imwrite", "", "nk:imwrite:tiffCompression");
 }
 
 std::vector<std::uint8_t>
@@ -1052,7 +1052,7 @@ compressStrip(const std::uint8_t *src, std::size_t n, std::uint16_t compression)
         case 8:     return encodeDeflate(src, n);
         default:
             throw Error("imwrite TIFF: unsupported compression",
-                        0, 0, "imwrite", "", "numkit:imwrite:tiffCompression");
+                        0, 0, "imwrite", "", "nk:imwrite:tiffCompression");
     }
 }
 
@@ -1066,10 +1066,10 @@ void writePage(std::vector<std::uint8_t> &buf, const Value &A,
     const std::size_t S = (d.ndim() == 3) ? d.pages() : 1;
     if (H == 0 || W == 0)
         throw Error("imwrite TIFF: empty image", 0, 0, "imwrite", "",
-                    "numkit:imwrite:tiffShape");
+                    "nk:imwrite:tiffShape");
     if (S != 1 && S != 3 && S != 4)
         throw Error("imwrite TIFF: only 1, 3, or 4 channels supported",
-                    0, 0, "imwrite", "", "numkit:imwrite:tiffShape");
+                    0, 0, "imwrite", "", "nk:imwrite:tiffShape");
 
     const DtypeMap dm = mapDtype(A.type());
     const std::size_t bps = dm.bytesPerSample;
@@ -1175,13 +1175,13 @@ Value readTiff(std::vector<std::uint8_t> buf, std::uint32_t page,
     TiffImage img = parseIFD(br, static_cast<std::size_t>(ifdOff), &next);
     if (img.width == 0 || img.height == 0)
         throw Error("imread: TIFF has zero width or height",
-                    0, 0, "imread", "", "numkit:imread:tiffShape");
+                    0, 0, "imread", "", "nk:imread:tiffShape");
     if (img.photometric != 0 && img.photometric != 1 && img.photometric != 2
         && img.photometric != 3)
         throw Error("tiff: PhotometricInterpretation "
                     + std::to_string(img.photometric)
                     + " not supported (only 0/1=gray, 2=RGB, 3=palette)",
-                    0, 0, "imread", "", "numkit:imread:tiffPhotometric");
+                    0, 0, "imread", "", "nk:imread:tiffPhotometric");
 
     auto raw = decodeImage(br, img);
     return rowMajorToValue(raw, img, br.bigEndian, mr);
@@ -1205,13 +1205,13 @@ readTiffWithMap(std::vector<std::uint8_t> buf, std::uint32_t page,
     TiffImage img = parseIFD(br, static_cast<std::size_t>(ifdOff), &next);
     if (img.width == 0 || img.height == 0)
         throw Error("imread: TIFF has zero width or height",
-                    0, 0, "imread", "", "numkit:imread:tiffShape");
+                    0, 0, "imread", "", "nk:imread:tiffShape");
     if (img.photometric != 0 && img.photometric != 1 && img.photometric != 2
         && img.photometric != 3)
         throw Error("tiff: PhotometricInterpretation "
                     + std::to_string(img.photometric)
                     + " not supported (only 0/1=gray, 2=RGB, 3=palette)",
-                    0, 0, "imread", "", "numkit:imread:tiffPhotometric");
+                    0, 0, "imread", "", "nk:imread:tiffPhotometric");
 
     auto raw = decodeImage(br, img);
     Value indices = rowMajorToValue(raw, img, br.bigEndian, mr);
@@ -1222,7 +1222,7 @@ readTiffWithMap(std::vector<std::uint8_t> buf, std::uint32_t page,
         if (img.colorMap.size() != 3 * K)
             throw Error("imread: palette TIFF has malformed ColorMap "
                         "(expected 3 × " + std::to_string(K) + " entries)",
-                        0, 0, "imread", "", "numkit:imread:tiffColorMap");
+                        0, 0, "imread", "", "nk:imread:tiffColorMap");
         cmap = Value::matrix(K, 3, ValueType::DOUBLE, mr);
         double *cd = cmap.doubleDataMut();
         constexpr double kInv65535 = 1.0 / 65535.0;
@@ -1241,7 +1241,7 @@ void peekTiff(const std::vector<std::uint8_t> &bufIn, std::uint32_t &W,
     std::vector<std::uint8_t> buf = bufIn;
     if (buf.size() < 8)
         throw Error("imfinfo: file too small for TIFF header",
-                    0, 0, "imfinfo", "", "numkit:imfinfo:tiffShort");
+                    0, 0, "imfinfo", "", "nk:imfinfo:tiffShort");
     auto br = openTiff(buf, "imfinfo");
     std::uint64_t next = 0;
     TiffImage img = parseIFD(br, static_cast<std::size_t>(firstIFDOffset(br)), &next);
@@ -1287,7 +1287,7 @@ writeTiffToBytes(const Value &A, const std::string &compression,
         if (buf.size() < 8 || !(buf[0] == 'I' && buf[1] == 'I')
             || buf[2] != 0x2A || buf[3] != 0x00)
             throw Error("imwrite TIFF: append target is not a little-endian TIFF",
-                        0, 0, "imwrite", "", "numkit:imwrite:tiffMagic");
+                        0, 0, "imwrite", "", "nk:imwrite:tiffMagic");
         std::uint32_t off = static_cast<std::uint32_t>(
             buf[4] | (buf[5] << 8) | (buf[6] << 16) | (buf[7] << 24));
         std::size_t lastNextSlot = 4;
@@ -1322,7 +1322,7 @@ void writeTiff(const Value &A, const std::string &path,
     if (appendMode && std::filesystem::exists(path)) {
         std::ifstream in(path, std::ios::binary);
         if (!in) throw Error("imwrite TIFF: cannot reopen file for append",
-                              0, 0, "imwrite", "", "numkit:imwrite:open");
+                              0, 0, "imwrite", "", "nk:imwrite:open");
         in.seekg(0, std::ios::end);
         const std::streamoff sz = in.tellg();
         in.seekg(0, std::ios::beg);
@@ -1335,8 +1335,8 @@ void writeTiff(const Value &A, const std::string &path,
 
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) throw Error("imwrite TIFF: cannot open '" + path + "' for write",
-                          0, 0, "imwrite", "", "numkit:imwrite:open");
+                          0, 0, "imwrite", "", "nk:imwrite:open");
     out.write(reinterpret_cast<const char *>(buf.data()), buf.size());
 }
 
-} // namespace numkit::image
+} // namespace nk::image

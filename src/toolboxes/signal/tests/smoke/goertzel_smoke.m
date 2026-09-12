@@ -3,7 +3,7 @@ clear
 % goertzel — single-bin DFT via 2nd-order IIR.
 %
 % spec closure 2026-05-09:
-%   Pre-fix: numkit's adapter required (x, ind) and threw on the
+%   Pre-fix: nk's adapter required (x, ind) and threw on the
 %   1-arg form. After the fix, goertzel(x) defaults ind = 1:N
 %   (full DFT) per MATLAB R2025b.
 

@@ -4,11 +4,11 @@
 // white noise of intensity W. bugs/control/covar.md. Reference values from
 // MATLAB R2025b.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CovarTest : public ::testing::Test
 {

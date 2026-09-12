@@ -8,11 +8,11 @@
 // All  — bit-identical MATLAB R2025b
 // on probed inputs.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ShapeBatchTest : public ::testing::Test
 {
@@ -113,7 +113,7 @@ TEST_F(ShapeBatchTest, Rot90)
 
 TEST_F(ShapeBatchTest, Squeeze)
 {
-    // squeeze removes singleton dims (numkit 2D case: a 1×N row stays 1×N)
+    // squeeze removes singleton dims (nk 2D case: a 1×N row stays 1×N)
     eval("S = squeeze(ones(1, 5));");
     EXPECT_DOUBLE_EQ(evalScalar("numel(S)"), 5.0);
 }

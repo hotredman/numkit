@@ -20,13 +20,13 @@
 // Engine-free compute TU. The hinfnorm builtin (CallContext wrapper)
 // lives in analyze_reg.cpp.
 
-#include <numkit/control/analyze/analyze.hpp>
-#include <numkit/control/conversion/conversion.hpp>
-#include <numkit/control/internal/numerics.hpp>
+#include <nk/control/analyze/analyze.hpp>
+#include <nk/control/conversion/conversion.hpp>
+#include <nk/control/internal/numerics.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/builtin/polyfun.hpp>   // numkit::builtin::roots
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/builtin/polyfun.hpp>   // nk::builtin::roots
 
 #include <algorithm>
 #include <cmath>
@@ -34,7 +34,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -66,7 +66,7 @@ StateSpace pullABCD(const Value &sys, std::pmr::memory_resource *mr) {
         out = tf2ss(num, den, mr);
     } else {
         throw Error("hinfnorm: expected an LTI struct (tf/zpk/ss)",
-                    0, 0, "hinfnorm", "", "numkit:hinfnorm:kind");
+                    0, 0, "hinfnorm", "", "nk:hinfnorm:kind");
     }
     return out;
 }
@@ -153,7 +153,7 @@ std::vector<Cd> eigOf(const Mat &M, size_t n, std::pmr::memory_resource *mr) {
     auto cp = charPoly(M, n);                    // [1, c1, …, cn]
     Value row = Value::matrix(1, cp.size(), ValueType::DOUBLE, mr);
     if (!cp.empty()) std::copy(cp.begin(), cp.end(), row.doubleDataMut());
-    Value r = numkit::builtin::roots(row, mr);
+    Value r = nk::builtin::roots(row, mr);
     const size_t N = r.numel();
     std::vector<Cd> out(N);
     if (r.type() == ValueType::COMPLEX) {
@@ -228,7 +228,7 @@ Value hinfnorm(const Value &sys, std::pmr::memory_resource *mr)
     if (sampleTime(sys) != 0.0)
         throw Error("hinfnorm: discrete-time systems are not yet supported "
                     "(continuous-time only)",
-                    0, 0, "hinfnorm", "", "numkit:hinfnorm:discrete");
+                    0, 0, "hinfnorm", "", "nk:hinfnorm:discrete");
 
     StateSpace ss = pullABCD(sys, mr);
     const size_t n = ss.A.dims().rows();
@@ -236,7 +236,7 @@ Value hinfnorm(const Value &sys, std::pmr::memory_resource *mr)
     const size_t p = ss.C.dims().rows();
     if (ss.A.dims().cols() != n)
         throw Error("hinfnorm: A must be square",
-                    0, 0, "hinfnorm", "", "numkit:hinfnorm:A");
+                    0, 0, "hinfnorm", "", "nk:hinfnorm:A");
 
     const double inf = std::numeric_limits<double>::infinity();
     Value g = Value::scalar(0.0, mr);
@@ -292,4 +292,4 @@ Value hinfnorm(const Value &sys, std::pmr::memory_resource *mr)
     return g;
 }
 
-} // namespace numkit::control
+} // namespace nk::control

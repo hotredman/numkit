@@ -6,14 +6,14 @@
 //   • lastProducer correctness for indexed / field LHS (read-modify-
 //     write should count the root identifier as BOTH input AND output)
 
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
-#include <numkit/scriptgraph/lowering.hpp>
-#include <numkit/scriptgraph/serialize.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
+#include <nk/scriptgraph/lowering.hpp>
+#include <nk/scriptgraph/serialize.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 

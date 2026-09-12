@@ -7,15 +7,15 @@
 //                nchoosek · perms
 // Total: 18 functions. All  — bit-
 // identical MATLAB R2025b on probed inputs.
-// Known sub-gap: numkit's arrayfun does NOT apply the function —
+// Known sub-gap: nk's arrayfun does NOT apply the function —
 // returns the input unchanged for both anonymous lambda (@(x) x*2)
 // and named-fn (@sin) handles. Real bug; only structural shape pinned.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CellStructNumtheoryBatchTest : public ::testing::Test
 {

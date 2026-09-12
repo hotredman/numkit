@@ -12,7 +12,7 @@
 
 #include "dual_engine_fixture.hpp"
 
-#include <numkit/figure/figure_manager.hpp>
+#include <nk/figure/figure_manager.hpp>
 
 using namespace m_test;
 

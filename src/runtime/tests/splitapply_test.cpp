@@ -4,10 +4,10 @@
 // gtest/parity coverage; this closes the gap and flips the PROGRESS
 // row from ❌ to ✅.)
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SplitApplyTest : public ::testing::Test
 {

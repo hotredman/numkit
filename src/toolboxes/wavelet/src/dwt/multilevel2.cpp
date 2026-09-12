@@ -17,13 +17,13 @@
 //
 // Sizes satisfy size(A_k) = S(N-k+2, :) for k = 1..N, and size(A_N) = S(1,:).
 
-#include <numkit/wavelet/dwt/multilevel2.hpp>
-#include <numkit/wavelet/dwt/dwt2.hpp>
+#include <nk/wavelet/dwt/multilevel2.hpp>
+#include <nk/wavelet/dwt/dwt2.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The CallContext
 // builtins live in dwt/multilevel2_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -31,7 +31,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -44,7 +44,7 @@ void appendBand(std::vector<double> &c, const Value &band) {
 }
 
 // Reshape a flat segment c[off, off+rows*cols) into a rows×cols matrix
-// (column-major, matching numkit/MATLAB storage).
+// (column-major, matching nk/MATLAB storage).
 Value reshapeSeg(const std::vector<double> &c, size_t off, Sz sz,
                  std::pmr::memory_resource *mr) {
     Value m = Value::matrix(sz.rows, sz.cols, ValueType::DOUBLE, mr);
@@ -74,7 +74,7 @@ Wavedec2Result wavedec2(const Value &X, int n, const std::string &wname,
 {
     if (n < 1)
         throw Error("wavedec2: level must be >= 1",
-                    0, 0, "wavedec2", "", "numkit:wavedec2:level");
+                    0, 0, "wavedec2", "", "nk:wavedec2:level");
 
     const Sz xsz{ X.dims().rows(), X.dims().cols() };
 
@@ -127,11 +127,11 @@ static Value appcoef2_impl(const Value &C, const Value &S,
     const int N = static_cast<int>(S.dims().rows()) - 2;
     if (N < 1)
         throw Error("appcoef2: S must have at least 3 rows (1 level)",
-                    0, 0, "appcoef2", "", "numkit:appcoef2:size");
+                    0, 0, "appcoef2", "", "nk:appcoef2:size");
     if (level < 0) level = N;                 // default = coarsest
     if (level < 0 || level > N)
         throw Error("appcoef2: level out of range [0, N]",
-                    0, 0, "appcoef2", "", "numkit:appcoef2:level");
+                    0, 0, "appcoef2", "", "nk:appcoef2:level");
 
     auto Cv = vecFromValue(C);
 
@@ -178,10 +178,10 @@ Value detcoef2(const std::string &type, const Value &C, const Value &S,
     const int N = static_cast<int>(S.dims().rows()) - 2;
     if (N < 1)
         throw Error("detcoef2: S must have at least 3 rows (1 level)",
-                    0, 0, "detcoef2", "", "numkit:detcoef2:size");
+                    0, 0, "detcoef2", "", "nk:detcoef2:size");
     if (level < 1 || level > N)
         throw Error("detcoef2: level out of range [1, N]",
-                    0, 0, "detcoef2", "", "numkit:detcoef2:level");
+                    0, 0, "detcoef2", "", "nk:detcoef2:level");
 
     int which;   // 0 = H, 1 = V, 2 = D
     if      (type == "h" || type == "H") which = 0;
@@ -189,7 +189,7 @@ Value detcoef2(const std::string &type, const Value &C, const Value &S,
     else if (type == "d" || type == "D") which = 2;
     else
         throw Error("detcoef2: type must be 'h', 'v' or 'd' (got '" + type + "')",
-                    0, 0, "detcoef2", "", "numkit:detcoef2:type");
+                    0, 0, "detcoef2", "", "nk:detcoef2:type");
 
     auto Cv = vecFromValue(C);
 
@@ -203,4 +203,4 @@ Value detcoef2(const std::string &type, const Value &C, const Value &S,
     return reshapeSeg(Cv, off, dsz, mr);
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

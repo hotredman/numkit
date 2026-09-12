@@ -1,6 +1,6 @@
 # Linear Algebra Performance Plan — Competing with MATLAB
 
-**Goal:** bring `numkit` linear algebra performance to a competitive level
+**Goal:** bring `nk` linear algebra performance to a competitive level
 with MATLAB on the same machine. MATLAB is backed by Intel MKL: packed,
 register-blocked, cache-blocked, multithreaded kernels running near
 hardware peak. A vectorized textbook kernel cannot compete; this plan
@@ -36,7 +36,7 @@ What exists and is honest:
 - Factorizations: blocked LU routes trailing updates through `ops::gemm`
   (real + complex). QR is unblocked scalar Householder; Cholesky is
   blocked but fully scalar (`cholUpperFactorBlocked`). Bench harness
-  (Google Benchmark, `numkit_bench.exe`) exists with committed raw output
+  (Google Benchmark, `nk_bench.exe`) exists with committed raw output
   in `src/toolboxes/linalg/benchmarks/results/`.
 
 ---
@@ -80,7 +80,7 @@ skip work when a B element equals 0.0 inside the microkernel path
 
 ## P2 — Threading via parallel_for  [L, CRITICAL]
 
-MATLAB uses all cores; single-threaded numkit cannot compete on n ≥ 512.
+MATLAB uses all cores; single-threaded nk cannot compete on n ≥ 512.
 
 - Reuse the existing `parallel_for` infrastructure from `src/ops` (already
   used by the fused kernels and SoA-SIMD FFT); do not invent a new pool.
@@ -125,14 +125,14 @@ Needed by blocked Cholesky/QR (P5) and to close the trsm landmine.
 - **trsm:** implement ALL side/uplo/trans/diag combinations. Structure:
   scalar (or small-SIMD) solve on nb×nb diagonal blocks + `gemm` for the
   off-diagonal rank-nb updates (blocked trsm). Until a combination is
-  implemented, `NUMKIT_ASSERT`/throw — never silently return scaled B
+  implemented, `NK_ASSERT`/throw — never silently return scaled B
   (the current behavior for 13 of 16 combos is a correctness landmine).
 - **syrk:** `C := beta·C + alpha·A·Aᵀ` (upper/lower), rank-kc updates via
   the P1 microkernel with a triangular jr/ir guard. Real + complex (herk
   semantics for complex: `A·Aᴴ`).
 
 **Acceptance:** trsm parity vs scalar reference for all 16 combos on
-odd sizes; syrk residual test; both reachable via `numkit::ops::` and
+odd sizes; syrk residual test; both reachable via `nk::ops::` and
 covered in `src/bundle/tests/simd_parity_test.cpp`.
 
 ## P5 — Route factorizations through the kernel stack  [L, HIGH]
@@ -164,17 +164,17 @@ Competing requires measuring the competitor — no invented baselines
   matrices, same sizes (n = 256/512/1024/2048), `timeit`-based, prints a
   machine-readable table. The AGENT runs it headlessly once per cycle on
   this machine and commits the output to `benchmarks/results/` next to
-  the numkit output from the same day. Headless run recipe (the sandbox
+  the nk output from the same day. Headless run recipe (the sandbox
   account cannot use the real user profile; verified working 2026-08-06,
   prints 25.2.0/R2025b, 24 threads):
 
   ```powershell
-  $h = 'C:\Users\User\Projects\megahard\numkit\build\mlhome'
+  $h = 'C:\Users\User\Projects\megahard\nk\build\mlhome'
   New-Item -ItemType Directory -Force -Path $h, "$h\prefs", "$h\temp" | Out-Null
   $env:USERPROFILE = $h; $env:APPDATA = "$h\prefs"; $env:LOCALAPPDATA = "$h\prefs"
   $env:TEMP = "$h\temp"; $env:TMP = "$h\temp"; $env:MATLAB_PREFDIR = "$h\prefs\matlab"
   & 'C:\Program Files\MATLAB\R2025b\bin\matlab.exe' `
-      -sd 'C:\Users\User\Projects\megahard\numkit\src\toolboxes\linalg\benchmarks\matlab' `
+      -sd 'C:\Users\User\Projects\megahard\nk\src\toolboxes\linalg\benchmarks\matlab' `
       -batch "bench_linalg" *> <results-file>.txt
   ```
 
@@ -190,20 +190,20 @@ Competing requires measuring the competitor — no invented baselines
     invocations (`-batch "bench_linalg(512)"` etc.), one output file per
     size, each under ~90 s wall time; MATLAB cold start is ~15-30 s.
 - Gates (per size, median of ≥ 10 iters, same machine, Release):
-  - **Required (bug threshold):** numkit ≤ 3× MATLAB — else file an
+  - **Required (bug threshold):** nk ≤ 3× MATLAB — else file an
     S-scale perf bug per `bugs/README.md`.
   - **Cycle target:** gemm ≤ 1.3×, lu/chol ≤ 1.5×, qr ≤ 2×,
     mldivide ≤ 1.5× at n = 512 and 1024.
   - **Stretch:** parity (≤ 1.1×) on gemm and chol at n ≥ 1024.
-- README table format: numkit ms | MATLAB ms | ratio | gate | status,
+- README table format: nk ms | MATLAB ms | ratio | gate | status,
   one row per (op, domain, size). Both raw outputs linked. No row without
   both measurements from the same machine and date.
 
 ## P7 — Hygiene backlog  [S, LOW]
 
-1. Remove the dead `#include <numkit/ops/blas.hpp>` from
+1. Remove the dead `#include <nk/ops/blas.hpp>` from
    `src/toolboxes/linalg/src/decompositions.cpp` (left after Path B).
-2. Re-run `numkit_bench.exe` after each P-item lands; refresh the chol
+2. Re-run `nk_bench.exe` after each P-item lands; refresh the chol
    rows (current table was measured at 14:17 against the pre-rework chol).
 3. Tone down the header comment of `gemm_highway.cpp` until P3/P4 land
    ("High-performance … (gemm, gemv, ger, trsm)" currently overstates

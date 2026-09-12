@@ -1,14 +1,14 @@
 // toolboxes/builtin/src/lang/operators/backends/binary_ops_portable.cpp
 //
 // Scalar reference inner loops for plus / minus / times / rdivide on
-// real double arrays. Compiled when NUMKIT_WITH_SIMD=OFF. The
+// real double arrays. Compiled when NK_WITH_SIMD=OFF. The
 // Highway-dispatched variant lives in binary_ops_highway.cpp.
 
-#include <numkit/ops/binary_ops.hpp>
+#include <nk/ops/binary_ops.hpp>
 
 #include <cstddef>
 
-namespace numkit::ops::detail {
+namespace nk::ops::detail {
 
 // plus/minus/times/rdivide forward to the shared scalar bodies in
 // binary_scalar.cpp so this fallback and the Highway small-N gate are one
@@ -52,4 +52,4 @@ void matmulDoubleLoop(const double *a, const double *b, double *c,
     }
 }
 
-} // namespace numkit::ops::detail
+} // namespace nk::ops::detail

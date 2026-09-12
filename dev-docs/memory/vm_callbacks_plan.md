@@ -333,7 +333,7 @@ every preset including WASM.
   path. Proof: `BreakInsideBootstrpCallback`.
 
 **WASM validated** — the `browser` preset builds clean (292/292, links
-`numkit_ide.js`) with the continuation mechanism. The state machine uses no
+`nk_ide.js`) with the continuation mechanism. The state machine uses no
 fiber / separate stack / Asyncify, so it compiles + runs on every preset
 including WebAssembly — the property that made it the right choice over a fiber.
 
@@ -395,7 +395,7 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
   **Proven**: `DebugSessionTest.BreakInsideIntegralIntegrand` (breakpoint inside
   the integrand pauses on each GK15 node, `y ≈ 1/3`); all 22 integral
   dual-engine tests green; full suite 10940.
-  - **Note:** numkit does not bind `varargin` when no extra args are passed, so
+  - **Note:** nk does not bind `varargin` when no extra args are passed, so
     embedded `.m` builtins use fixed optional params (`function r = integral(fn,
     a, b, opt, optval)` + `nargin` guards) rather than `varargin`.
 - **ode45 (done)** — registered via `ode::registerOde45M` (embedded `.m`
@@ -415,7 +415,7 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
     older C++ external kept the Ode45Test suite green and masked it. Fix: split
     the heavy arithmetic into `nk_dopri5_step` (the RK step) + `nk_ode_dense`
     (the interpolant) — each `.m` `function` is its own chunk/budget. Caught by
-    running the source through `numkit.exe` (compiles `.m` at runtime,
+    running the source through `nk.exe` (compiles `.m` at runtime,
     reports `register exhaustion`) and by the pause-proof gtest.
   **Proven**: `DebugSessionTest.BreakInsideOde45Rhs` (breakpoint inside the RHS
   pauses on every DOPRI5 stage, `y(end) ≈ exp(-1)`); all 10 Ode45Test

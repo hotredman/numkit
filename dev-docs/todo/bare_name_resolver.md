@@ -7,7 +7,7 @@
 
 ## Problem
 
-numkit has **two registration mechanisms** — a historical artifact of the
+nk has **two registration mechanisms** — a historical artifact of the
 layering refactor, not a design decision:
 
 | Mechanism | How | Visibility | Count |
@@ -131,7 +131,7 @@ functions like `mean`, `std`, `butter` are now findable.
 
 **5f. MCP server**
 
-The MCP server uses the same WASM engine; verify `numkit_eval` can call
+The MCP server uses the same WASM engine; verify `nk_eval` can call
 toolbox functions without any compat mechanism.
 
 ## What this does NOT change
@@ -174,4 +174,4 @@ todo executes the cleanup.
 - [ ] 710 smokes pass
 - [ ] 182 corpus scripts pass (without `import compat.*`)
 - [ ] Fieldtest: `absent-fn` count decreases (toolbox functions now findable)
-- [ ] MCP `numkit_eval("fft([1 2])")` works without compat
+- [ ] MCP `nk_eval("fft([1 2])")` works without compat

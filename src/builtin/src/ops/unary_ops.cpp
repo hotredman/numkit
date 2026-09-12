@@ -1,11 +1,11 @@
 // src/builtin/src/ops/unary_ops.cpp
 
-#include <numkit/builtin/ops.hpp>
+#include <nk/builtin/ops.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <complex>
 #include <cstdint>
@@ -14,7 +14,7 @@
 
 #include "unary_ops_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API — unary operators
@@ -48,7 +48,7 @@ Value uminus(const Value &x, std::pmr::memory_resource *mr)
         default: break;
         }
     }
-    throw Error("Unsupported unary -", 0, 0, "uminus", "", "numkit:uminus:unsupportedTypes");
+    throw Error("Unsupported unary -", 0, 0, "uminus", "", "nk:uminus:unsupportedTypes");
 }
 
 Value uplus(const Value &x, std::pmr::memory_resource *)
@@ -138,4 +138,4 @@ Value all(const Value &x, int dim, std::pmr::memory_resource *mr)
     return Value::logicalScalar(true, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

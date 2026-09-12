@@ -1,11 +1,11 @@
 # Full Migration to Pure C++ Builtin: Elementary Functions (`elfun`)
 
 ## Context
-As part of the architecture refactoring (Layer L2 vs L3 separation), elementary functions (`elfun`) were completely migrated from legacy scattered locations into `src/builtin/` as pure engine-free C++ under `namespace numkit::builtin`.
+As part of the architecture refactoring (Layer L2 vs L3 separation), elementary functions (`elfun`) were completely migrated from legacy scattered locations into `src/builtin/` as pure engine-free C++ under `namespace nk::builtin`.
 
 ## Architectural Decision & Changes
 1. **Public Engine-Free C++ Header**:
-   - `include/numkit/builtin/elfun.hpp` defines the public C++ API with comprehensive Doxygen documentation, mathematical formulas, parameter descriptions, exceptions, and `@see` links.
+   - `include/nk/builtin/elfun.hpp` defines the public C++ API with comprehensive Doxygen documentation, mathematical formulas, parameter descriptions, exceptions, and `@see` links.
    - Return structures `PolarPair`, `CylTriple`, `CartPair`, `CartTriple`, `SphTriple` provide strongly typed outputs for coordinate transformations.
    - All functions are completely decoupled from `Engine`, `CallContext`, and the VM.
 
@@ -24,13 +24,13 @@ As part of the architecture refactoring (Layer L2 vs L3 separation), elementary 
      - `sinpi_kernel.hpp`
 
 3. **Engine Registration (`src/bundle/src/register/builtin/`)**:
-   - `elfun_reg.cpp` registers all elementary math functions into `Engine` under `namespace numkit::bundle::builtin`.
+   - `elfun_reg.cpp` registers all elementary math functions into `Engine` under `namespace nk::bundle::builtin`.
    - Old `src/builtin/src/elfun.cpp` with mixed registration code was deleted.
 
-4. **Forwarding Headers (`src/math/include/numkit/math/`)**:
-   - `trig/trigonometry.hpp`, `exp_log/exponents.hpp`, `complex/complex.hpp`, `arithmetic/rounding.hpp`, `arithmetic/misc.hpp` forward to `numkit::builtin::*`.
+4. **Forwarding Headers (`src/math/include/nk/math/`)**:
+   - `trig/trigonometry.hpp`, `exp_log/exponents.hpp`, `complex/complex.hpp`, `arithmetic/rounding.hpp`, `arithmetic/misc.hpp` forward to `nk::builtin::*`.
 
 ## Verification & Results
 - Built with `desktop-fast` preset (MSVC with Highway SIMD enabled).
 - Layer validation: `python tools/check_layering.py` passed with 0 violations.
-- Test suite: `numkit_gtest.exe` passed 914/914 tests with 100% green.
+- Test suite: `nk_gtest.exe` passed 914/914 tests with 100% green.

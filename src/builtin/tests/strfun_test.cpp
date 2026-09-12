@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <numkit/bundle/standard_library.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_library.hpp>
+#include <nk/core/engine.hpp>
 
-using namespace numkit;
+using namespace nk;
 
 class StrfunTest : public ::testing::Test {
 protected:
@@ -20,7 +20,8 @@ TEST_F(StrfunTest, StringComparisonAndSearch) {
     Value nsc = engine->eval("strcmp('hello', 'world');");
     EXPECT_FALSE(nsc.toBool());
 
-    Value cnt = engine->eval("contains('Numkit Engine', 'kit');");
+    // Haystack kept 'kit'-bearing after the nk rebrand sweep.
+    Value cnt = engine->eval("contains('NK toolkit', 'kit');");
     EXPECT_TRUE(cnt.toBool());
 }
 

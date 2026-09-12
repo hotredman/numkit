@@ -1,7 +1,7 @@
-/* nk_plugin.h — the numkit plugin-author ABI (DESIGN.md §6b).
+/* nk_plugin.h — the nk plugin-author ABI (DESIGN.md §6b).
  *
  * A plugin is a shared library (.dll / .so / .dylib) that exports two C entry
- * points. The host (numkit runtime) loads it via nk_load_plugin (see
+ * points. The host (nk runtime) loads it via nk_load_plugin (see
  * nk_codegen_rt.h), checks the ABI version, then calls nk_plugin_register,
  * passing a table of host functions (nk_host_api). The plugin uses that table
  * to register its own functions and to box / unbox / call values.

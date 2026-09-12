@@ -40,12 +40,12 @@ correct, and the DISTINCT-pole case is fully correct.
 ## Repro
 ```matlab
 [bz, az] = impinvar(1, [1 2 1], 10)      % double pole at s = -1
-% numkit: bz = [-5.73738006  5.20212755]   (WRONG)
+% nk: bz = [-5.73738006  5.20212755]   (WRONG)
 % MATLAB: bz = [ 0            0.00904837]
 %         az = [1 -1.80967484 0.81873075]  (correct on both)
 
 [bz, az] = impinvar(1, [1 3 2], 10)      % distinct poles -1, -2
-% numkit == MATLAB:  bz = [0 0.00861067]  (distinct case OK)
+% nk == MATLAB:  bz = [0 0.00861067]  (distinct case OK)
 ```
 
 ## Root cause
@@ -53,7 +53,7 @@ The partial-fraction expansion's REPEATED-pole branch is wrong. For a pole
 of multiplicity m, impulse invariance must map each term
 `r/(s-p)^k` to the z-domain via the k-th impulse-invariant transform (which
 for k≥2 involves the derivative / `z`-domain repeated-pole kernels), scaled
-by `1/fs`. numkit's residue/kernel for k≥2 is incorrect.
+by `1/fs`. nk's residue/kernel for k≥2 is incorrect.
 
 ## Suggested fix
 Use a partial-fraction expansion that returns residues WITH multiplicity
@@ -79,9 +79,9 @@ vs MATLAB for double/triple poles.
   Σ n^{m-1} α^n z^{-n} = N_{m}(α z^{-1})/(1-α z^{-1})^m where the numerator
   satisfies N_1=1, N_{m+1}(w)=w·[(1-w)·N_m'(w)+m·N_m(w)] (Eulerian:
   N_2=w, N_3=w+w², N_4=w(1+4w+w²)). Reassemble over the common denominator
-  a_d = ∏(1-α_k z^{-1})^{M_k} (numkit already builds this correctly). For the
+  a_d = ∏(1-α_k z^{-1})^{M_k} (nk already builds this correctly). For the
   double-pole repro 1/(s+1)² @ fs=10: H_d = T²·α·z^{-1}/(1-α z^{-1})² with
-  T²α = 0.00904837, giving bz=[0, 0.00904837] — EXACTLY MATLAB. numkit's
+  T²α = 0.00904837, giving bz=[0, 0.00904837] — EXACTLY MATLAB. nk's
   output order (low→high z^{-1}) already equals MATLAB's bz, so no reordering.
 
 ## References

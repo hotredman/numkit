@@ -5,7 +5,7 @@ import { createWasmEngine, createNativeEngine, createFallbackEngine } from './en
 import { loadSettings } from './settings';
 import tempFS from './temporary';
 import { installVfsAdapters, installLocalAdapter } from './fs/vfs-adapter';
-import './styles/numkit-ide.css';
+import './styles/nk-ide.css';
 
 // ── Global async-error tap ─────────────────────────────────────────
 // React's ErrorBoundary catches sync render errors, not unhandled
@@ -13,8 +13,8 @@ import './styles/numkit-ide.css';
 // previously went silently to the devtools console while the user saw
 // a frozen UI; route them through the same console + a one-line
 // in-app banner so we get diagnostic data when scripts misbehave.
-if (typeof window !== 'undefined' && !window.__numkitGlobalErrorsBound) {
-  window.__numkitGlobalErrorsBound = true;
+if (typeof window !== 'undefined' && !window.__nkGlobalErrorsBound) {
+  window.__nkGlobalErrorsBound = true;
   window.addEventListener('error', (e) => {
     // eslint-disable-next-line no-console
     console.error('[IDE window.error]', e.message, e.filename, e.lineno, e.error);
@@ -26,7 +26,7 @@ if (typeof window !== 'undefined' && !window.__numkitGlobalErrorsBound) {
 }
 
 /**
- * App — initialises the numkit engine.
+ * App — initialises the nk engine.
  *
  * Two distinct paths, no overlap:
  *   Electron  →  createNativeEngine(nativeFS)   — instant, no WASM / tempFS
@@ -86,11 +86,11 @@ export default function App() {
         // 2. Init Engine
         try {
           const hasWasm = window.__WASM_GLUE_LOADED__ === true
-                       && typeof window.createNumkitIdeModule === 'function';
+                       && typeof window.createNKIdeModule === 'function';
           if (!hasWasm) throw new Error('WASM glue not loaded');
 
           setInitMessage('Loading WebAssembly...');
-          const eng = await createWasmEngine(window.createNumkitIdeModule);
+          const eng = await createWasmEngine(window.createNKIdeModule);
           if (cancelled) return;
 
           // IMPORTANT: call init() BEFORE registering VFS adapters.

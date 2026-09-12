@@ -3,7 +3,7 @@ clear
 % freqz sample-rate form freqz(b,a,n,fs) (DEEP-PROBE 2026-05-31). When a
 % sample rate fs is given, MATLAB returns the frequency vector in Hz over
 % [0, fs/2) (or [0, fs) with 'whole'), i.e. f = w*fs/(2*pi). The response H
-% is unchanged. numkit was ignoring fs and returning radians. vs MATLAB R2025b.
+% is unchanged. nk was ignoring fs and returning radians. vs MATLAB R2025b.
 
 fprintf('=== freqz([1 1],[1 -0.5], 4, 100) ===\n');
 [h, f] = freqz([1 1], [1 -0.5], 4, 100);

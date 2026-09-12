@@ -1,12 +1,12 @@
 // toolboxes/stats/tests/ksdensity_test.cpp
 // ksdensity.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class KsdensityTest : public ::testing::Test
 {
@@ -84,7 +84,7 @@ TEST_F(KsdensityTest, Weights)
 
 // DEEP-PROBE c170: 'Function','icdf' (inverse CDF). The 2nd arg are
 // PROBABILITIES; the result is the inverse of the smoothed CDF, solved via
-// Newton's method (matching MATLAB R2025b to ~1e-10). numkit previously
+// Newton's method (matching MATLAB R2025b to ~1e-10). nk previously
 // threw "icdf is not yet supported".
 TEST_F(KsdensityTest, FunctionIcdf)
 {

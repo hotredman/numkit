@@ -2,7 +2,7 @@ clear
 
 % cceps — complex cepstrum: ifft(log(fft(x))) with phase unwrapping.
 %
-% numkit historically time-reversed
+% nk historically time-reversed
 % the output because the second-pass fftRadix2 was called with the
 % wrong sign argument. After the fix, output is bit-identical to
 % MATLAB R2025b on the canonical probe.

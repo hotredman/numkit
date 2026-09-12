@@ -2,7 +2,7 @@ clear
 
 % IIR designers 3-output [z,p,k] (DEEP-PROBE 2026-05-31). MATLAB lets you
 % request the digital zero/pole/gain form: [z,p,k] = butter/cheby1/cheby2/
-% ellip(...). numkit previously errored ("Undefined function or variable
+% ellip(...). nk previously errored ("Undefined function or variable
 % 'k'") because only the 2-output [b,a] form was wired. The denominator is
 % monic so the ZPK gain equals b(1); z/p are recovered via tf2zp. vs MATLAB
 % R2025b. (Poles + gain exact for all; finite zeros exact for cheby2/ellip;

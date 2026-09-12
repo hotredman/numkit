@@ -8,18 +8,18 @@
 ## Symptom
 A brace index with a bare colon, `c{:}` (or a vector subscript `c{vec}`), should
 expand to a **comma-separated list** (CSL) — multiple values that the surrounding
-context splices in. numkit's interpreter instead errors "Cell index out of
+context splices in. nk's interpreter instead errors "Cell index out of
 bounds" in every CSL-consuming position (call args, concatenation). Explicit
 single-element indexing `c{i}` works.
 
 ## Repro
 ```matlab
 c = {3, 8, 4};
-[c{:}]           % numkit: ERROR "Cell index out of bounds";  MATLAB: [3 8 4]
-sum([c{:}])      % numkit: ERROR;                               MATLAB: 15
+[c{:}]           % nk: ERROR "Cell index out of bounds";  MATLAB: [3 8 4]
+sum([c{:}])      % nk: ERROR;                               MATLAB: 15
 d = {3, 8};
-max(d{:})        % numkit: ERROR "Cell index out of bounds";  MATLAB: 8  (= max(3,8))
-d{1}             % numkit: 3   (explicit single index is fine)
+max(d{:})        % nk: ERROR "Cell index out of bounds";  MATLAB: 8  (= max(3,8))
+d{1}             % nk: 3   (explicit single index is fine)
 ```
 
 ## Root cause
@@ -89,7 +89,7 @@ single + multi output; syntactic AND variable subscripts) is first-class on both
 ## Known minor limitation (not a first-class-CSL regression)
 A bare `c{:}` as a top-level statement errors ("too many values") instead of MATLAB's
 per-element display (`ans = 10` / `ans = 20` / ...). This is a single-value sink (the
-statement evaluator), so the CSL collapses. numkit never supported the per-element-display
+statement evaluator), so the CSL collapses. nk never supported the per-element-display
 form (it errored before too, with a less clear message); displaying a CSL at the prompt is
 a niche feature, tracked here, not blocking. All consuming-context forms (concat / call /
 cell-literal / multi-assign) are first-class and correct.

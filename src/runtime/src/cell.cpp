@@ -4,23 +4,23 @@
 // + cellfun. Shares the function-handle dispatch helpers with
 // struct.cpp via the inline header below.
 
-#include <numkit/runtime/cell.hpp>
-#include <numkit/builtin/elmat.hpp>  // horzcat / vertcat
-#include <numkit/core/engine.hpp>
+#include <nk/runtime/cell.hpp>
+#include <nk/builtin/elmat.hpp>  // horzcat / vertcat
+#include <nk/core/engine.hpp>
 
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/core/vm.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/core/types.hpp>
+#include <nk/core/vm.hpp>
 
 #include "_handlefn_helpers.hpp"
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
-using numkit::builtin::horzcat;
-using numkit::builtin::vertcat;
+using nk::builtin::horzcat;
+using nk::builtin::vertcat;
 
-namespace hf = ::numkit::runtime::detail::handlefn;
+namespace hf = ::nk::runtime::detail::handlefn;
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -48,7 +48,7 @@ Value cellfun(FnHandle fn, const Value &c, bool uniformOutput,
 {
     if (!c.isCell())
         throw Error("cellfun: second argument must be a cell array",
-                     0, 0, "cellfun", "", "numkit:cellfun:notCell");
+                     0, 0, "cellfun", "", "nk:cellfun:notCell");
 
     const size_t n = c.numel();
     ScratchArena scratch(mr);
@@ -77,7 +77,7 @@ Value cellfun(FnHandle fn, const Value &c, bool uniformOutput,
             const Value &v = results[i];
             if (!v.isScalar())
                 throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
-                             0, 0, "cellfun", "", "numkit:cellfun:notScalar");
+                             0, 0, "cellfun", "", "nk:cellfun:notScalar");
             if (outT == ValueType::LOGICAL)
                 out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
             else
@@ -109,7 +109,7 @@ Value num2cell(const Value &x, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 3)
         throw Error("num2cell: ND inputs (>3) not yet supported",
-                     0, 0, "num2cell", "", "numkit:num2cell:rank");
+                     0, 0, "num2cell", "", "nk:num2cell:rank");
     auto c = d.is3D()
                 ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
                 : Value::cell(d.rows(), d.cols(), mr);
@@ -135,12 +135,12 @@ static Value num2cellDim(const Value &x, const std::vector<int> &dims,
     if (x.dims().ndim() > 2)
         throw Error("num2cell: the dimension form is supported for 2-D "
                     "inputs only (N-D deferred)",
-                     0, 0, "num2cell", "", "numkit:num2cell:ndDim");
+                     0, 0, "num2cell", "", "nk:num2cell:ndDim");
     bool c1 = false, c2 = false;
     for (int d : dims) {
         if (d < 1)
             throw Error("num2cell: dimension argument must be a positive integer",
-                         0, 0, "num2cell", "", "numkit:num2cell:badDim");
+                         0, 0, "num2cell", "", "nk:num2cell:badDim");
         if (d == 1) c1 = true;
         else if (d == 2) c2 = true;
         // d > 2: a singleton dimension of a 2-D array — collapsing it is a no-op.
@@ -188,7 +188,7 @@ Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("cell2mat: input must be a cell array",
-                     0, 0, "cell2mat", "", "numkit:cell2mat:notCell");
+                     0, 0, "cell2mat", "", "nk:cell2mat:notCell");
     if (c.numel() == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -206,7 +206,7 @@ Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
         const auto &cd = c.dims();
         if (cd.ndim() > 2)
             throw Error("cell2mat: 3-D scalar cells not yet supported",
-                         0, 0, "cell2mat", "", "numkit:cell2mat:rank");
+                         0, 0, "cell2mat", "", "nk:cell2mat:rank");
         auto m = Value::matrix(cd.rows(), cd.cols(), ValueType::DOUBLE, mr);
         for (size_t i = 0; i < c.numel(); ++i)
             m.doubleDataMut()[i] = c.cellAt(i).toScalar();
@@ -218,7 +218,7 @@ Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
     const auto &cd = c.dims();
     if (cd.ndim() > 2)
         throw Error("cell2mat: only 2-D cell arrays of matrices are supported",
-                     0, 0, "cell2mat", "", "numkit:cell2mat:rank");
+                     0, 0, "cell2mat", "", "nk:cell2mat:rank");
     const size_t R = cd.rows(), C = cd.cols();
     if (R == 1) {
         ScratchArena scratch(mr);
@@ -302,17 +302,17 @@ Value cellstr(const Value &x, std::pmr::memory_resource *mr)
         return c;
     }
     throw Error("cellstr: input must be a string array or char array",
-                 0, 0, "cellstr", "", "numkit:cellstr:type");
+                 0, 0, "cellstr", "", "nk:cellstr:type");
 }
 
 Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() > 2)
         throw Error("mat2cell: only 2-D inputs are supported",
-                     0, 0, "mat2cell", "", "numkit:mat2cell:rank");
+                     0, 0, "mat2cell", "", "nk:mat2cell:rank");
     if (x.type() != ValueType::DOUBLE)
         throw Error("mat2cell: only DOUBLE inputs are supported",
-                     0, 0, "mat2cell", "", "numkit:mat2cell:type");
+                     0, 0, "mat2cell", "", "nk:mat2cell:type");
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t nRow = rowSizesV.numel();
@@ -351,10 +351,10 @@ Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, s
     for (size_t s : colS) csum += s;
     if (rsum != R)
         throw Error("mat2cell: row sizes must sum to size(A,1)",
-                     0, 0, "mat2cell", "", "numkit:mat2cell:rowSum");
+                     0, 0, "mat2cell", "", "nk:mat2cell:rowSum");
     if (csum != C)
         throw Error("mat2cell: column sizes must sum to size(A,2)",
-                     0, 0, "mat2cell", "", "numkit:mat2cell:colSum");
+                     0, 0, "mat2cell", "", "nk:mat2cell:colSum");
 
     auto c = Value::cell(rowS.size(), colS.size(), mr);
     const double *src = x.doubleData();
@@ -431,7 +431,7 @@ struct CellfunCallbackBuiltin : CallbackBuiltin
                     if (!v.isScalar())
                         throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', "
                                     "false",
-                                    0, 0, "cellfun", "", "numkit:cellfun:notScalar");
+                                    0, 0, "cellfun", "", "nk:cellfun:notScalar");
                     if (outT == ValueType::LOGICAL)
                         out.logicalDataMut()[k] = v.toBool() ? 1 : 0;
                     else
@@ -482,7 +482,7 @@ static Value cellfunN(Span<const Value> cells, bool uniformOutput, Apply apply,
             const Value &v = results[i];
             if (!v.isScalar())
                 throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
-                             0, 0, "cellfun", "", "numkit:cellfun:notScalar");
+                             0, 0, "cellfun", "", "nk:cellfun:notScalar");
             if (outT == ValueType::LOGICAL) out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
             else                            out.doubleDataMut()[i]  = v.toScalar();
         }
@@ -503,7 +503,7 @@ static Value cellfunStringForm(Span<const Value> args, std::pmr::memory_resource
     const std::string name = hf::lowerName(args[0].toString());
     if (args.size() < 2 || !args[1].isCell())
         throw Error("cellfun: the '" + name + "' form requires a cell array",
-                     0, 0, "cellfun", "", "numkit:cellfun:notCell");
+                     0, 0, "cellfun", "", "nk:cellfun:notCell");
     const Value &C = args[1];
     const size_t n = C.numel();
 
@@ -517,21 +517,21 @@ static Value cellfunStringForm(Span<const Value> args, std::pmr::memory_resource
     if (isSize) {
         if (args.size() < 3)
             throw Error("cellfun: the 'size' form needs a dimension: cellfun('size', C, k)",
-                         0, 0, "cellfun", "", "numkit:cellfun:badName");
+                         0, 0, "cellfun", "", "nk:cellfun:badName");
         sizeDim = static_cast<int>(args[2].toScalar());
         if (sizeDim < 1)
             throw Error("cellfun: 'size' dimension must be a positive integer",
-                         0, 0, "cellfun", "", "numkit:cellfun:badName");
+                         0, 0, "cellfun", "", "nk:cellfun:badName");
     } else if (isIsclass) {
         if (args.size() < 3 || !(args[2].isChar() || args[2].isString()))
             throw Error("cellfun: the 'isclass' form needs a class name: cellfun('isclass', C, 'cls')",
-                         0, 0, "cellfun", "", "numkit:cellfun:badName");
+                         0, 0, "cellfun", "", "nk:cellfun:badName");
         clsName = args[2].toString();
     } else if (!(name == "isempty" || name == "length" || name == "ndims"
               || name == "prodofsize" || name == "isreal" || name == "islogical")) {
         throw Error("cellfun: '" + name + "' is not a recognised function name; "
                     "pass a function handle (e.g. @" + name + ") instead",
-                     0, 0, "cellfun", "", "numkit:cellfun:badName");
+                     0, 0, "cellfun", "", "nk:cellfun:badName");
     }
 
     const auto &d = C.dims();
@@ -568,7 +568,7 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("cellfun: requires at least 2 arguments (fn, C)",
-                     0, 0, "cellfun", "", "numkit:cellfun:nargin");
+                     0, 0, "cellfun", "", "nk:cellfun:nargin");
     auto *mr = ctx.engine->resource();
 
     // Legacy string-function-name form: cellfun('isempty', C), cellfun('size', C, k), …
@@ -582,7 +582,7 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     while (1 + nCells < args.size() && args[1 + nCells].isCell()) ++nCells;
     if (nCells == 0)
         throw Error("cellfun: second argument must be a cell array",
-                     0, 0, "cellfun", "", "numkit:cellfun:notCell");
+                     0, 0, "cellfun", "", "nk:cellfun:notCell");
     const bool uniform = hf::parseUniformOutputFlag(args, 1 + nCells, "cellfun");
 
     if (nCells == 1) {
@@ -591,7 +591,7 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         const bool isBuiltin = hf::tryParseBuiltinHandle(args[0], f, "cellfun");
         if (uniform && isBuiltin && hf::builtinReturnsString(f))
             throw Error("cellfun: @class output must use UniformOutput=false",
-                         0, 0, "cellfun", "", "numkit:cellfun:nonUniform");
+                         0, 0, "cellfun", "", "nk:cellfun:nonUniform");
         if (isBuiltin) {
             auto cb = [f](Span<const Value> ar, Span<Value> ou,
                           std::pmr::memory_resource *mr_) {
@@ -618,7 +618,7 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     for (size_t k = 1; k < nCells; ++k)
         if (args[1 + k].numel() != n0)
             throw Error("cellfun: all of the input cell arrays must be the same size",
-                         0, 0, "cellfun", "", "numkit:cellfun:size");
+                         0, 0, "cellfun", "", "nk:cellfun:size");
     const auto &handle = args[0];
     auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
                                std::pmr::memory_resource * /*mr*/) {
@@ -633,7 +633,7 @@ void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
 {
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.empty())
-        throw Error("cell: requires 1 argument", 0, 0, "cell", "", "numkit:cell:nargin");
+        throw Error("cell: requires 1 argument", 0, 0, "cell", "", "nk:cell:nargin");
     ScratchArena scratch(mr);
     // Single vector arg: cell([m n p ...]).
     if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
@@ -671,7 +671,7 @@ void num2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.empty())
         throw Error("num2cell requires 1 argument",
-                     0, 0, "num2cell", "", "numkit:num2cell:nargin");
+                     0, 0, "num2cell", "", "nk:num2cell:nargin");
     auto *mr = ctx.engine->resource();
     // num2cell(A, dims): the trailing arg(s) list the dimension(s) to
     // collapse into each cell.
@@ -692,7 +692,7 @@ void cell2mat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.empty())
         throw Error("cell2mat requires 1 argument",
-                     0, 0, "cell2mat", "", "numkit:cell2mat:nargin");
+                     0, 0, "cell2mat", "", "nk:cell2mat:nargin");
     outs[0] = cell2mat(args[0], ctx.engine->resource());
 }
 
@@ -700,7 +700,7 @@ void iscellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("iscellstr requires 1 argument",
-                     0, 0, "iscellstr", "", "numkit:iscellstr:nargin");
+                     0, 0, "iscellstr", "", "nk:iscellstr:nargin");
     outs[0] = iscellstr(args[0], ctx.engine->resource());
 }
 
@@ -708,7 +708,7 @@ void cellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("cellstr requires 1 argument",
-                     0, 0, "cellstr", "", "numkit:cellstr:nargin");
+                     0, 0, "cellstr", "", "nk:cellstr:nargin");
     outs[0] = cellstr(args[0], ctx.engine->resource());
 }
 
@@ -716,7 +716,7 @@ void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("mat2cell: requires (A, R[, C])",
-                     0, 0, "mat2cell", "", "numkit:mat2cell:nargin");
+                     0, 0, "mat2cell", "", "nk:mat2cell:nargin");
     auto *mr = ctx.engine->resource();
     const Value &rArg = args[1];
     if (args.size() == 2) {
@@ -916,4 +916,4 @@ void registerCellsRuntime(Engine &engine)
     registerCellfunCallbackBuiltin(engine);
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

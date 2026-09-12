@@ -30,7 +30,7 @@ goto parse_args
 
 if not exist "%BUGS_HTML_DIR%\index.html" set SKIP_BUILD=0
 if "%SKIP_BUILD%"=="0" (
-    echo Building NumKit Bugs ^& Parity site...
+    echo Building NK Bugs ^& Parity site...
     python "%PROJECT_DIR%tools\build_bugs_site.py" --output "%BUGS_HTML_DIR%"
     if errorlevel 1 (
         echo ERROR: build_bugs_site.py failed!
@@ -40,7 +40,7 @@ if "%SKIP_BUILD%"=="0" (
 
 echo.
 echo ========================================================
-echo   NumKit Bugs ^& Parity Documentation Local Server
+echo   NK Bugs ^& Parity Documentation Local Server
 echo   URL:     http://localhost:%PORT%/
 echo   Serving: %BUGS_HTML_DIR%
 echo ========================================================

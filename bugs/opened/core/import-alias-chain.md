@@ -1,7 +1,7 @@
 # core.import — chained namespace aliases don't resolve (`import t1.sub as t2` where t1 is itself an alias)
 
 - **Status:** 🔴 OPEN
-- **Severity:** P3 minor (numkit's own import-aliasing extension; not a MATLAB-parity surface — MATLAB has no `import … as`)
+- **Severity:** P3 minor (nk's own import-aliasing extension; not a MATLAB-parity surface — MATLAB has no `import … as`)
 - **Kind:** bug
 - **Found:** 2026-08-30 via the orphaned-DISABLED_-test audit (guard existed, was never enabled, fails when run)
 
@@ -18,7 +18,7 @@ clear;
 import test_ns as t1;
 import t1.sub as t2;
 y = t2.deep_answer();
-% numkit: resolution error (t2 does not resolve through the t1 alias)
+% nk: resolution error (t2 does not resolve through the t1 alias)
 % expected: 42 (alias chain resolves transitively)
 ```
 

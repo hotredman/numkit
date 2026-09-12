@@ -1,12 +1,12 @@
 // toolboxes/stats/src/regress/regress.cpp
 
-#include <numkit/stats/regress/regress.hpp>
+#include <nk/stats/regress/regress.hpp>
 
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/stats/distributions/fisher_f.hpp>
+#include <nk/stats/distributions/students_t.hpp>
+#include <nk/stats/distributions/fisher_f.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <limits>
@@ -14,7 +14,7 @@
 
 #include "regress_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 // 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
@@ -26,7 +26,7 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
     const size_t p = X.dims().cols();
     if (X.dims().rows() != N || N == 0 || p == 0)
         throw Error("regress: X must be N×p with same N as y",
-                    0, 0, "regress", "", "numkit:regress:size");
+                    0, 0, "regress", "", "nk:regress:size");
 
     // Build XtX (p×p) and Xty (p×1) using column-major X.
     std::vector<double> XtX(p * p, 0.0);
@@ -50,7 +50,7 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
     std::vector<double> L(p * p, 0.0);
     if (!cholesky(XtX.data(), L.data(), p))
         throw Error("regress: design matrix is rank-deficient",
-                    0, 0, "regress", "", "numkit:regress:rank");
+                    0, 0, "regress", "", "nk:regress:rank");
 
     // Solve XtX β = Xty:  L z = Xty,  L^T β = z.
     std::vector<double> beta(p), z(p);
@@ -200,16 +200,16 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
     const size_t p = A.dims().cols();
     if (A.dims().rows() != N || N == 0 || p == 0)
         throw Error("lscov: A must be N×p with same N as b",
-                    0, 0, "lscov", "", "numkit:lscov:size");
+                    0, 0, "lscov", "", "nk:lscov:size");
 
     const bool weighted = !w.isEmpty();
     if (weighted) {
         if (w.numel() == N * N)
             throw Error("lscov: full covariance V not yet supported",
-                        0, 0, "lscov", "", "numkit:lscov:fullV");
+                        0, 0, "lscov", "", "nk:lscov:fullV");
         if (w.numel() != N)
             throw Error("lscov: w must be a length-N vector",
-                        0, 0, "lscov", "", "numkit:lscov:w");
+                        0, 0, "lscov", "", "nk:lscov:w");
     }
 
     auto wi = [&](size_t i) {
@@ -238,7 +238,7 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
     std::vector<double> L(p * p, 0.0);
     if (!cholesky(XtWX.data(), L.data(), p))
         throw Error("lscov: design matrix is rank-deficient",
-                    0, 0, "lscov", "", "numkit:lscov:rank");
+                    0, 0, "lscov", "", "nk:lscov:rank");
 
     std::vector<double> beta(p), z(p);
     fwd_solve(L.data(), z.data(), XtWy.data(), p);
@@ -292,11 +292,11 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std:
     const size_t p = X.dims().cols();
     if (X.dims().rows() != N || N == 0 || p == 0)
         throw Error("ridge: X must be N×p with same N as y",
-                    0, 0, "ridge", "", "numkit:ridge:size");
+                    0, 0, "ridge", "", "nk:ridge:size");
     const size_t Nk = kVec.numel();
     if (Nk == 0)
         throw Error("ridge: k must be non-empty",
-                    0, 0, "ridge", "", "numkit:ridge:k");
+                    0, 0, "ridge", "", "nk:ridge:k");
 
     // Center y, X by column mean.
     double yMean = 0.0;
@@ -356,7 +356,7 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std:
         for (size_t j = 0; j < p; ++j) M[j + j * p] += k;
         if (!cholesky(M.data(), L.data(), p))
             throw Error("ridge: regularised normal equations not PD",
-                        0, 0, "ridge", "", "numkit:ridge:psd");
+                        0, 0, "ridge", "", "nk:ridge:psd");
         fwd_solve(L.data(), z.data(), Xty.data(), p);
         back_solve(L.data(), beta.data(), z.data(), p);
         if (scaled) {
@@ -375,4 +375,4 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std:
     return B;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

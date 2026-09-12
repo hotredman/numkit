@@ -3,10 +3,10 @@
 // Regression guard for imresize3 — 3-D volumetric resampling with
 // MATLAB-aligned kernel and boundary convention.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Imresize3Test : public ::testing::Test
 {

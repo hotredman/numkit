@@ -5,11 +5,11 @@
 // MATLAB besself is ALWAYS analog (no digital Bessel), so besself now forces
 // the analog path. Reference coefficients: MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class BesselfTest : public ::testing::Test
 {

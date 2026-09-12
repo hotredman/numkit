@@ -4,10 +4,10 @@
 // Cholesky factor. Pinned against MATLAB R2025b
 // (tools/parity/specs/cholupdate.json).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CholupdateTest : public ::testing::Test
 {

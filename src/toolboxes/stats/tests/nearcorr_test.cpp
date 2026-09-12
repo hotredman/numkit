@@ -3,12 +3,12 @@
 // Regression guard for nearcorr() — nearest correlation matrix
 // (Higham 2002 alternating projections + Dykstra correction).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class NearcorrTest : public ::testing::Test
 {

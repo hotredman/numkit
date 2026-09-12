@@ -14,13 +14,13 @@ with out-of-domain elements they fall through to the real libm path and emit
 ## Repro
 ```matlab
 sqrt([-1 4])
-% numkit: [NaN 2]        (real)
+% nk: [NaN 2]        (real)
 % MATLAB: [0+1i 2]       (complex)
 acosh([0.5 2])
-% numkit: [NaN 1.31696]  (real)
+% nk: [NaN 1.31696]  (real)
 % MATLAB: [0+1.0472i 1.31696]
 atanh([2 0.5])
-% numkit: [NaN 0.5493]   (real)
+% nk: [NaN 0.5493]   (real)
 % MATLAB: [0.5493-1.5708i 0.5493]   (complex)
 ```
 

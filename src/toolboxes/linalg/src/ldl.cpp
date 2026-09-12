@@ -15,21 +15,21 @@
 // scaling form, 'tol' arg, and Bunch-Kaufman pivoting (P != I) all
 // deferred to v2.
 
-#include <numkit/linalg/ldl.hpp>
+#include <nk/linalg/ldl.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The ldl builtin
 // (CallContext wrapper) lives in ldl_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <string>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -55,7 +55,7 @@ void croutLDL(const double *A_in, size_t n,
         if (std::abs(D_out[k]) < tol)
             throw Error("ldl: zero pivot encountered (matrix needs "
                         "Bunch-Kaufman pivoting; not supported in v1)",
-                        0, 0, "ldl", "", "numkit:ldl:NeedsBKPivoting");
+                        0, 0, "ldl", "", "nk:ldl:NeedsBKPivoting");
 
         L_out[k + k * n] = 1.0;
 
@@ -86,14 +86,14 @@ ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource
 {
     if (A.dims().is3D())
         throw Error("ldl: input must be 2D",
-                    0, 0, "ldl", "", "numkit:ldl:Not2D");
+                    0, 0, "ldl", "", "nk:ldl:Not2D");
     const size_t n = A.dims().rows();
     if (A.dims().cols() != n)
         throw Error("ldl: matrix must be square",
-                    0, 0, "ldl", "", "numkit:ldl:NotSquare");
+                    0, 0, "ldl", "", "nk:ldl:NotSquare");
     if (A.isComplex())
         throw Error("ldl: complex Hermitian input not supported in v1",
-                    0, 0, "ldl", "", "numkit:ldl:NoComplex");
+                    0, 0, "ldl", "", "nk:ldl:NoComplex");
 
     if (n == 0) {
         Value L0 = Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -142,4 +142,4 @@ ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource
     return {L, D, P};
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

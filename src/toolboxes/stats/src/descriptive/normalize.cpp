@@ -4,10 +4,10 @@
 // Operate column-wise on matrices, whole-vector on 1-D inputs (MATLAB
 // convention). Output is always DOUBLE regardless of input class.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,7 +16,7 @@
 
 #include "normalize_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -36,11 +36,11 @@ void forEachColumn(const Value &A, Op op) {
     }
     // Matrix / N-D: walk columns. Column j spans linear indices
     // [j*H .. j*H + H - 1]; for N-D we still treat the FIRST dim as
-    // "rows" (first non-singleton — same simplification as numkit's
+    // "rows" (first non-singleton — same simplification as nk's
     // mean/var on 2-D path).
     if (N != H * W)
         throw Error("normalize/rescale/zscore: only 1-D or 2-D inputs supported",
-                    0, 0, "normalize", "", "numkit:normalize:nd");
+                    0, 0, "normalize", "", "nk:normalize:nd");
     std::vector<double> buf(H);
     for (size_t j = 0; j < W; ++j) {
         for (size_t i = 0; i < H; ++i) buf[i] = A.elemAsDouble(j * H + i);
@@ -263,7 +263,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
         } else {
             throw Error("normalize: unknown method '" + m + "'",
-                        0, 0, "normalize", "", "numkit:normalize:method");
+                        0, 0, "normalize", "", "nk:normalize:method");
         }
         if (cOutD) cOutD[j] = cVal;
         if (sOutD) sOutD[j] = sVal;
@@ -373,4 +373,4 @@ Value zscore(const Value &A, std::pmr::memory_resource *mr)
     return zscoreCore(A, /*flag=*/0, /*dim=*/0, mr);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

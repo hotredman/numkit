@@ -4,15 +4,15 @@
 // Extracted from toolboxes/builtin/src/stats.cpp during the
 // MATLAB-taxonomy refactor — Statistics Toolbox content.
 
-#include <numkit/stats/nan_aware/nan_aware.hpp>
+#include <nk/stats/nan_aware/nan_aware.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
-#include <numkit/ops/nan_reductions.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
+#include <nk/ops/nan_reductions.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -22,16 +22,16 @@
 
 #include "nan_aware_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
-using ::numkit::ops::applyAlongDim;
-using ::numkit::ops::resolveDim;
-using ::numkit::ops::nanSumScan;
-using ::numkit::ops::nanSumCountScan;
-using ::numkit::ops::nanMaxScan;
-using ::numkit::ops::nanMinScan;
-using ::numkit::ops::nanVarianceTwoPass;
-using ::numkit::ops::compactNonNan;
+using ::nk::ops::applyAlongDim;
+using ::nk::ops::resolveDim;
+using ::nk::ops::nanSumScan;
+using ::nk::ops::nanSumCountScan;
+using ::nk::ops::nanMaxScan;
+using ::nk::ops::nanMinScan;
+using ::nk::ops::nanVarianceTwoPass;
+using ::nk::ops::compactNonNan;
 
 
 Value nansum(const Value &x, int dim, std::pmr::memory_resource *mr)
@@ -190,10 +190,10 @@ Value nancov(const Value &x, const Value &y, int normFlag,
     validateNormFlag(normFlag, "nancov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("nancov: two-input form requires vector arguments",
-                    0, 0, "nancov", "", "numkit:nancov:notVector");
+                    0, 0, "nancov", "", "nk:nancov:notVector");
     if (x.numel() != y.numel())
         throw Error("nancov: x and y must have the same length",
-                    0, 0, "nancov", "", "numkit:nancov:lengthMismatch");
+                    0, 0, "nancov", "", "nk:nancov:lengthMismatch");
 
     const std::size_t n = x.numel();
     if (n == 0)
@@ -221,4 +221,4 @@ Value nancov(const Value &x, const Value &y, int normFlag,
     return covFromCenteredLocal(tight.data(), n_kept, 2, divisor, mr);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

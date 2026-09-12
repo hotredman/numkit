@@ -3,13 +3,13 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <regex>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -40,7 +40,7 @@ std::regex compileRegex(const std::string &pat, bool ignoreCase)
         return std::regex(pat, flags);
     } catch (const std::regex_error &e) {
         throw Error(std::string("regex: invalid pattern — ") + e.what(),
-                     0, 0, "regexp", "", "numkit:regexp:badPattern");
+                     0, 0, "regexp", "", "nk:regexp:badPattern");
     }
 }
 
@@ -129,4 +129,4 @@ Value rowCellOfStrings(const std::string *v, std::size_t n, std::pmr::memory_res
 Value regexpFindOnce(const Value &s, const Value &pat, const std::string &option,
                      bool ignoreCase, std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

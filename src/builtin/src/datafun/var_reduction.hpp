@@ -9,15 +9,15 @@
 // a fully vector-parallel inner loop:
 //   pass 1: SIMD sum  → mean
 //   pass 2: SIMD sum-of-squared-deviations → variance / (N or N-1)
-// At numkit's 1e-12 test tolerances the precision delta is invisible.
+// At nk's 1e-12 test tolerances the precision delta is invisible.
 
 #pragma once
 
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
-// Returns (sum) of [p, p+n). SIMD-dispatched when NUMKIT_WITH_SIMD=ON.
+// Returns (sum) of [p, p+n). SIMD-dispatched when NK_WITH_SIMD=ON.
 double sumScan(const double *p, std::size_t n);
 
 // Returns sum_{i} (p[i] - mean)^2. SIMD-dispatched, FMA where available
@@ -35,4 +35,4 @@ void addInto(double *dst, const double *src, std::size_t n);
 // Empty: NaN. n=1: 0 if normFlag==1 else NaN.
 double varianceTwoPass(const double *p, std::size_t n, int normFlag);
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

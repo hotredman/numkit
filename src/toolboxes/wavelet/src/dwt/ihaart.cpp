@@ -27,19 +27,19 @@
 //   * Output orientation: vector-shaped a returns column; matrix
 //     returns matrix (columns reconstructed independently).
 
-#include <numkit/wavelet/dwt/ihaart.hpp>
+#include <nk/wavelet/dwt/ihaart.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The ihaart builtin
 // (CallContext wrapper) lives in dwt/haar_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <complex>
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -93,10 +93,10 @@ DetailLevel grab_level(const Value &d, bool isCell, size_t idx,
     const Value &m = isCell ? d.cellAt(idx) : d;
     if (m.numel() == 0)
         throw Error("ihaart: detail level is empty",
-                    0, 0, "ihaart", "", "numkit:ihaart:detail");
+                    0, 0, "ihaart", "", "nk:ihaart:detail");
     if (m.isComplex())
         throw Error("ihaart: expected input number 2, D, to be real",
-                    0, 0, "ihaart", "", "numkit:ihaart:complexD");
+                    0, 0, "ihaart", "", "nk:ihaart:complexD");
 
     // Detail shape is read directly (no row-↔-column coercion). For a
     // vector-input haart this is rows×1; for a matrix-input haart at
@@ -107,7 +107,7 @@ DetailLevel grab_level(const Value &d, bool isCell, size_t idx,
     if (rows != expectedRows || cols != expectedCols)
         throw Error("ihaart: detail dimensions are inconsistent with the "
                     "approximation",
-                    0, 0, "ihaart", "", "numkit:ihaart:dimMismatch");
+                    0, 0, "ihaart", "", "nk:ihaart:dimMismatch");
 
     const size_t mn = rows * cols;
 
@@ -131,7 +131,7 @@ Value ihaart(const Value &aV, const Value &dV, int level, bool integer,
 {
     if (aV.numel() == 0)
         throw Error("ihaart: expected input number 1, A, to be nonempty",
-                    0, 0, "ihaart", "", "numkit:ihaart:emptyA");
+                    0, 0, "ihaart", "", "nk:ihaart:emptyA");
 
     // Determine cell-vs-plain detail and Nlevels.
     const bool isCell = dV.isCell();
@@ -140,29 +140,29 @@ Value ihaart(const Value &aV, const Value &dV, int level, bool integer,
         const size_t nc = dV.dims().rows() * dV.dims().cols();
         if (nc == 0)
             throw Error("ihaart: detail cell array is empty",
-                        0, 0, "ihaart", "", "numkit:ihaart:emptyD");
+                        0, 0, "ihaart", "", "nk:ihaart:emptyD");
         Nlevels = nc;
     } else {
         if (dV.numel() == 0)
             throw Error("ihaart: detail array is empty",
-                        0, 0, "ihaart", "", "numkit:ihaart:emptyD");
+                        0, 0, "ihaart", "", "nk:ihaart:emptyD");
         if (dV.isComplex())
             throw Error("ihaart: expected input number 2, D, to be real",
-                        0, 0, "ihaart", "", "numkit:ihaart:complexD");
+                        0, 0, "ihaart", "", "nk:ihaart:complexD");
         Nlevels = 1;
     }
 
     if (level < 0)
         throw Error("ihaart: expected input number 3, LEVEL, to be a scalar "
                     "with value >= 0",
-                    0, 0, "ihaart", "", "numkit:ihaart:level");
+                    0, 0, "ihaart", "", "nk:ihaart:level");
     if (level >= static_cast<int>(Nlevels))
         throw Error("ihaart: expected input number 3, LEVEL, to be a scalar "
                     "with value < " + std::to_string(Nlevels),
-                    0, 0, "ihaart", "", "numkit:ihaart:level");
+                    0, 0, "ihaart", "", "nk:ihaart:level");
     if (integer && aV.isComplex())
         throw Error("ihaart: integer mode is not supported for complex data",
-                    0, 0, "ihaart", "", "numkit:ihaart:flag");
+                    0, 0, "ihaart", "", "nk:ihaart:flag");
 
     // `a` is always shaped to match the detail dimensions (haart emits
     // columns for vector inputs), so the matrix shape is read directly.
@@ -230,4 +230,4 @@ Value ihaart(const Value &aV, const Value &dV, int level, bool integer,
     return out;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

@@ -2,21 +2,21 @@
 //
 // cconv / convmtx / xcorr2 / finddelay / alignsignals.
 
-#include <numkit/signal/convolution/extras.hpp>
+#include <nk/signal/convolution/extras.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
-#include <numkit/signal/convolution/convolution.hpp>     // xcorr
-#include <numkit/signal/transforms/fft.hpp>              // fft / ifft
+#include <nk/signal/convolution/convolution.hpp>     // xcorr
+#include <nk/signal/transforms/fft.hpp>              // fft / ifft
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstring>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -59,7 +59,7 @@ Value cconv(const Value &x, const Value &y, size_t n, std::pmr::memory_resource 
         std::fill(yd, yd + n, 0.0);
         for (size_t i = 0; i < nx; ++i) xd[i] = readReal(x, i);
         for (size_t i = 0; i < ny; ++i) yd[i] = readReal(y, i);
-        // numkit's fft pads non-pow2 to nextPow2 internally, so for
+        // nk's fft pads non-pow2 to nextPow2 internally, so for
         // arbitrary n this would corrupt the spectrum. We only enter
         // this branch when we don't need true length-n circular conv;
         // padding to any size ≥ nx+ny-1 yields the same first-n
@@ -114,11 +114,11 @@ Value convmtx(const Value &h, size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         throw Error("convmtx: n must be positive",
-                     0, 0, "convmtx", "", "numkit:convmtx:badN");
+                     0, 0, "convmtx", "", "nk:convmtx:badN");
     const size_t nh = h.numel();
     if (nh == 0)
         throw Error("convmtx: h must be non-empty",
-                     0, 0, "convmtx", "", "numkit:convmtx:emptyH");
+                     0, 0, "convmtx", "", "nk:convmtx:emptyH");
 
     // Default to row-form when h is a vector with rows() == 1 OR is
     // 1-D / scalar. Column form only when h is explicitly Nx1 (rows>1).
@@ -279,4 +279,4 @@ alignsignals(const Value &x, const Value &y, long max_lag, std::pmr::memory_reso
     return std::make_tuple(orient(x, pad_x), orient(y, pad_y));
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

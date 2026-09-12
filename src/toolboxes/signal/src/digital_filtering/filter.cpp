@@ -1,22 +1,22 @@
 // toolboxes/signal/src/digital_filtering/filter.cpp
 
-#include <numkit/signal/digital_filtering/filter.hpp>
+#include <nk/signal/digital_filtering/filter.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 #include "filter_detail.hpp"
 
 #include <algorithm>
 #include <cstring>
 #include <memory_resource>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // The raw-buffer IIR recurrence kernels (applyFilterDf2t / ...Complex) moved to
-// the kernel layer — numkit::ops::applyFilterDf2t{,Complex} (numkit/ops/
+// the kernel layer — nk::ops::applyFilterDf2t{,Complex} (nk/ops/
 // iir_filter.hpp), re-exported into this namespace by filter_detail.hpp. The
 // Value-level marshalling helpers below stay in signal.
 
@@ -64,7 +64,7 @@ Value filter(const Value &b, const Value &a, const Value &x, std::pmr::memory_re
         const Complex a0 = ac[0];
         if (a0 == Complex(0.0, 0.0))
             throw Error("filter: a(1) must be nonzero",
-                         0, 0, "filter", "", "numkit:filter:zeroLead");
+                         0, 0, "filter", "", "nk:filter:zeroLead");
         for (size_t i = 0; i < nb; ++i) bc[i] /= a0;
         for (size_t i = 0; i < na; ++i) ac[i] /= a0;
         auto rc = createLike(x, ValueType::COMPLEX, mr);
@@ -86,7 +86,7 @@ Value filter(const Value &b, const Value &a, const Value &x, std::pmr::memory_re
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw Error("filter: a(1) must be nonzero",
-                     0, 0, "filter", "", "numkit:filter:zeroLead");
+                     0, 0, "filter", "", "nk:filter:zeroLead");
 
     ScratchArena scratch(mr);
     auto bn = ScratchVec<double>(nb, &scratch);
@@ -123,7 +123,7 @@ Value filtfilt(const Value &b, const Value &a, const Value &x, std::pmr::memory_
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw Error("filtfilt: a(1) must be nonzero",
-                     0, 0, "filtfilt", "", "numkit:filtfilt:zeroLead");
+                     0, 0, "filtfilt", "", "nk:filtfilt:zeroLead");
 
     ScratchArena scratch(mr);
     auto bn = ScratchVec<double>(nb, &scratch);
@@ -160,4 +160,4 @@ Value filtfilt(const Value &b, const Value &a, const Value &x, std::pmr::memory_
     return r;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

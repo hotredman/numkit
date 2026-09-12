@@ -15,19 +15,19 @@
 //   * Sum the two reconstructions.
 //   * Crop the centre `len` samples (default `len = 2*la - Lf + 2`).
 
-#include <numkit/wavelet/dwt/dwt.hpp>
-#include <numkit/wavelet/filter/wfilters.hpp>
+#include <nk/wavelet/dwt/dwt.hpp>
+#include <nk/wavelet/filter/wfilters.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The dwt / idwt
 // builtins (CallContext wrappers) live in dwt/dwt_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -87,7 +87,7 @@ dwt_with_filters(const Value &x,
     const size_t Lf = Lo_D.size();
     if (Lf < 2 || Hi_D.size() != Lf)
         throw Error("dwt: filter length < 2 or Lo_D/Hi_D length mismatch",
-                    0, 0, "dwt", "", "numkit:dwt:filt");
+                    0, 0, "dwt", "", "nk:dwt:filt");
 
     const size_t N = x.numel();
     if (N == 0)
@@ -161,7 +161,7 @@ Value idwt_with_filters(const Value &cA, const Value &cD,
     const size_t Lf = Lo_R.size();
     if (Lf < 2 || Hi_R.size() != Lf)
         throw Error("idwt: filter length < 2 or Lo_R/Hi_R length mismatch",
-                    0, 0, "idwt", "", "numkit:idwt:filt");
+                    0, 0, "idwt", "", "nk:idwt:filt");
 
     const size_t la = cA.numel();
     const size_t ld = cD.numel();
@@ -229,4 +229,4 @@ Value idwt_with_filters_pub(const Value &cA, const Value &cD,
     return idwt_with_filters(cA, cD, Lo_R, Hi_R, len, mr);
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

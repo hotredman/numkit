@@ -3,11 +3,11 @@
 // LASSO / elastic-net (lasso) + LASSO-regularised GLM (lassoglm) via
 // cyclic coordinate descent on standardised predictors.
 
-#include <numkit/stats/regress/regress.hpp>
+#include <nk/stats/regress/regress.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 
 #include "lasso_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
@@ -25,17 +25,17 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
 {
     if (alpha < 0.0 || alpha > 1.0)
         throw Error("lasso: alpha must be in [0, 1]",
-                    0, 0, "lasso", "", "numkit:lasso:badAlpha");
+                    0, 0, "lasso", "", "nk:lasso:badAlpha");
 
     const std::size_t n = X.dims().rows();
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("lasso: length(y) must equal rows(X)",
-                    0, 0, "lasso", "", "numkit:lasso:shapeMismatch");
+                    0, 0, "lasso", "", "nk:lasso:shapeMismatch");
     const std::size_t nL = lambdas.numel();
     if (nL == 0)
         throw Error("lasso: lambdas must be a non-empty vector",
-                    0, 0, "lasso", "", "numkit:lasso:emptyLambda");
+                    0, 0, "lasso", "", "nk:lasso:emptyLambda");
 
     // Copy X (n×p, col-major) and standardise in place.
     std::vector<double> Xs(n * p);
@@ -114,17 +114,17 @@ LassoResult lassoglm(const Value &X, const Value &y,
 {
     if (alpha < 0.0 || alpha > 1.0)
         throw Error("lassoglm: alpha must be in [0, 1]",
-                    0, 0, "lassoglm", "", "numkit:lassoglm:badAlpha");
+                    0, 0, "lassoglm", "", "nk:lassoglm:badAlpha");
 
     const std::size_t n = X.dims().rows();
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("lassoglm: length(y) must equal rows(X)",
-                    0, 0, "lassoglm", "", "numkit:lassoglm:shapeMismatch");
+                    0, 0, "lassoglm", "", "nk:lassoglm:shapeMismatch");
     const std::size_t nL = lambdas.numel();
     if (nL == 0)
         throw Error("lassoglm: lambdas must be a non-empty vector",
-                    0, 0, "lassoglm", "", "numkit:lassoglm:emptyLambda");
+                    0, 0, "lassoglm", "", "nk:lassoglm:emptyLambda");
 
     const LinkPair link = pickLink(distr);
 
@@ -248,4 +248,4 @@ LassoResult lassoglm(const Value &X, const Value &y,
     return { std::move(Bout), std::move(intOut), std::move(lambdaOut) };
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

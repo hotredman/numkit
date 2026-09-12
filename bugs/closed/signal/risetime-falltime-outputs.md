@@ -21,13 +21,13 @@
 
 ## Symptom
 MATLAB `risetime` returns `[R, LT, UT, LL, UL]` (rise durations, lower/upper
-transition times, lower/upper reference levels). numkit returns only `R`;
+transition times, lower/upper reference levels). nk returns only `R`;
 asking for more throws. `falltime` is almost certainly the same.
 
 ## Repro
 ```matlab
 [R, LT, UT] = risetime([0 0 0 1 1 1 1], 4)
-% numkit: Error — Too many output arguments
+% nk: Error — Too many output arguments
 % MATLAB: R = 0.1980, LT = 0.5260, UT = 0.7240
 ```
 

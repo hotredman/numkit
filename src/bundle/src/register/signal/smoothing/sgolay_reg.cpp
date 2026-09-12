@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/smoothing/sgolay.hpp>
+#include <nk/signal/smoothing/sgolay.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void sgolay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("sgolay: requires 2 arguments (order, framelen)",
-                     0, 0, "sgolay", "", "numkit:sgolay:nargin");
+                     0, 0, "sgolay", "", "nk:sgolay:nargin");
     auto *mr = ctx.engine->resource();
     const int order    = static_cast<int>(args[0].toScalar());
     const int framelen = static_cast<int>(args[1].toScalar());
@@ -48,7 +48,7 @@ void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 3)
         throw Error("sgolayfilt: requires 3 arguments (x, order, framelen)",
-                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:nargin");
+                     0, 0, "sgolayfilt", "", "nk:sgolayfilt:nargin");
     auto *res = ctx.engine->resource();
     const int order    = static_cast<int>(args[1].toScalar());
     const int framelen = static_cast<int>(args[2].toScalar());
@@ -64,4 +64,4 @@ void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

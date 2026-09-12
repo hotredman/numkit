@@ -9,7 +9,7 @@
 
 Реализована двухуровневая защита от переполнения стека и крахов `0xC00000FD` / `SIGSEGV`:
 1. **Слой 1 (Parse-time Nesting Limit, UX)**: RAII `NestingGuard` в `Parser` с лимитом `MAX_NESTING_DEPTH = 200`. Защищены все точки рекурсивного спуска (`parseExpression`, `parsePrimary`, `parseStatement`, `parseBlock`, `parseIf`, `parseFor`, `parseWhile`, `parseSwitch`, `parseTryCatch`, `parseArrayLiteral`, `parseMatrixLiteral`, `parseCellLiteral`). Выдаёт чистую ошибку парсинга с номером строки и столбца.
-2. **Слой 2 (Физический водяной знак стека `StackGuard`)**: Кроссплатформенный `numkit::StackGuard::check(stage)` с порогом запаса 64 КБ (`GetCurrentThreadStackLimits` на Windows, `emscripten_stack_get_free()` на WASM, `pthread_attr_getstack` на POSIX). Установлен во все рекурсивные обходчики (`Compiler::compileNodeExpand`, `TreeWalker::execNodeExpand`, `TreeWalker::execBlock`).
+2. **Слой 2 (Физический водяной знак стека `StackGuard`)**: Кроссплатформенный `nk::StackGuard::check(stage)` с порогом запаса 64 КБ (`GetCurrentThreadStackLimits` на Windows, `emscripten_stack_get_free()` на WASM, `pthread_attr_getstack` на POSIX). Установлен во все рекурсивные обходчики (`Compiler::compileNodeExpand`, `TreeWalker::execNodeExpand`, `TreeWalker::execBlock`).
 3. **Слой 3 (Верификация & Тесты)**: Добавлены модульные тесты в `src/core/tests/parser_test.cpp` (`ParserNestingLimitTest`) и `tests/gtest/integration/error_diagnostics_test.cpp` (`DualEngineTest`). Все тесты успешно проходят на обоих бэкендах (`TreeWalker` и `VM`).
 
 ---
@@ -39,12 +39,12 @@ codegen, `src/codegen/DESIGN.md` §10) считает базовым.
 ```bash
 # Вектор 1: вложенность выражений (крах между 425 и 450 на этой сборке)
 python -c "n=500; e='sin('*n+'1'+')'*n; open('build/deep_nest.m','w').write('y = '+e+'; disp(y);\n')"
-build/desktop-fast/apps/numkit/Release/numkit_repl.exe build/deep_nest.m
+build/desktop-fast/apps/nk/Release/nk_repl.exe build/deep_nest.m
 echo $?   # 0xC00000FD / -1073741571
 
 # Вектор 2: вложенность операторов (крах на ~тысячах)
 python -c "n=5000; open('build/deep_if.m','w').write('y=1;\n'+'if 1\n'*n+'y=y+1;\n'+'end\n'*n+'disp(y);\n')"
-build/desktop-fast/apps/numkit/Release/numkit_repl.exe build/deep_if.m
+build/desktop-fast/apps/nk/Release/nk_repl.exe build/deep_if.m
 ```
 
 IDE открывает произвольные `.m`-файлы и принимает вставку в консоль — т.е.
@@ -52,7 +52,7 @@ IDE открывает произвольные `.m`-файлы и приним�
 
 ## 3. Диагностика (кто именно умирает)
 
-**Парсер — невиновен.** `numkit_codegen` (парс + инференс + эмит, без
+**Парсер — невиновен.** `nk_codegen` (парс + инференс + эмит, без
 исполнения) обрабатывает n=1000 с exit 0: глубокий AST строится честно.
 Краш — ниже по конвейеру.
 
@@ -164,13 +164,13 @@ Python (`RecursionError` на parse), clang/V8 (stack guards).
 
 - `src/core/src/compiler.cpp:461` `compileNode`, `:474` `compileNodeExpand` —
   место краха; `:265`, `:356` — существующая (запоздалая) проверка регистров;
-- `src/core/include/numkit/core/parser.hpp:80` `parseExpression`, `:92`
+- `src/core/include/nk/core/parser.hpp:80` `parseExpression`, `:92`
   `parsePrimary` — взаимная рекурсия спуска (слой 1);
 - `src/core/src/tree_walker.cpp:334` `execNode`, `execNodeInner`, `execBlock` —
   слой 2;
 - `src/codegen/src/{inference,emitter}.cpp` — слой 2 (в Release выживают ≥1000,
   в Debug не гарантировано);
-- `src/core/include/numkit/core/ast.hpp:84` `children` — рекурсивное
+- `src/core/include/nk/core/ast.hpp:84` `children` — рекурсивное
   разрушение;
 - `wasm/CMakeLists.txt:19` `-s STACK_SIZE=4194304`; в корневом `CMakeLists.txt`
   `/STACK` не задан (MSVC default 1 МБ).

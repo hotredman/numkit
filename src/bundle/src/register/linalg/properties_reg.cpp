@@ -9,12 +9,12 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/properties.hpp>
-#include <numkit/linalg/eig.hpp>     // eig_symmetric / eig_general_VD (condeig [V,D])
+#include <nk/linalg/properties.hpp>
+#include <nk/linalg/eig.hpp>     // eig_symmetric / eig_general_VD (condeig [V,D])
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -22,14 +22,14 @@
 #include <string>
 #include <utility>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() != 1)
         throw Error("inv: requires exactly 1 argument",
-                    0, 0, "inv", "", "numkit:inv:nargin");
+                    0, 0, "inv", "", "nk:inv:nargin");
     outs[0] = inv(args[0], ctx.engine->resource());
 }
 
@@ -37,7 +37,7 @@ void trace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() != 1)
         throw Error("trace: requires exactly 1 argument",
-                    0, 0, "trace", "", "numkit:trace:nargin");
+                    0, 0, "trace", "", "nk:trace:nargin");
     outs[0] = trace(args[0], ctx.engine->resource());
 }
 
@@ -45,7 +45,7 @@ void det_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("det: requires exactly 1 argument",
-                    0, 0, "det", "", "numkit:det:nargin");
+                    0, 0, "det", "", "nk:det:nargin");
     outs[0] = det(args[0], ctx.engine->resource());
 }
 
@@ -53,7 +53,7 @@ void rank_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("rank: requires (A) or (A, tol)",
-                    0, 0, "rank", "", "numkit:rank:nargin");
+                    0, 0, "rank", "", "nk:rank:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
     outs[0] = rank_of(args[0], tol, ctx.engine->resource());
 }
@@ -62,7 +62,7 @@ void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty() || args.size() > 2)
         throw Error("cond: requires (A) or (A, p)",
-                    0, 0, "cond", "", "numkit:cond:nargin");
+                    0, 0, "cond", "", "nk:cond:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = cond_2norm(args[0], mr);
@@ -75,14 +75,14 @@ void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         if      (s == "fro" || s == "Fro") p_kind = 4;
         else if (s == "inf" || s == "Inf") p_kind = 3;
         else throw Error("cond: string p must be 'fro' or 'inf'",
-                         0, 0, "cond", "", "numkit:cond:badStringP");
+                         0, 0, "cond", "", "nk:cond:badStringP");
     } else {
         const double pv = p.toScalar();
         if      (pv == 1.0) p_kind = 1;
         else if (pv == 2.0) p_kind = 2;
         else if (std::isinf(pv)) p_kind = 3;
         else throw Error("cond: numeric p must be 1, 2, or Inf",
-                         0, 0, "cond", "", "numkit:cond:badP");
+                         0, 0, "cond", "", "nk:cond:badP");
     }
     outs[0] = cond_pnorm(args[0], p_kind, mr);
 }
@@ -91,7 +91,7 @@ void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() != 1)
         throw Error("normest: requires exactly 1 argument",
-                    0, 0, "normest", "", "numkit:normest:nargin");
+                    0, 0, "normest", "", "nk:normest:nargin");
     outs[0] = normest(args[0], ctx.engine->resource());
 }
 
@@ -99,7 +99,7 @@ void rcond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("rcond: requires (A)",
-                    0, 0, "rcond", "", "numkit:rcond:nargin");
+                    0, 0, "rcond", "", "nk:rcond:nargin");
     outs[0] = rcond(args[0], ctx.engine->resource());
 }
 
@@ -107,7 +107,7 @@ void condest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("condest: requires (A)",
-                    0, 0, "condest", "", "numkit:condest:nargin");
+                    0, 0, "condest", "", "nk:condest:nargin");
     outs[0] = condest(args[0], ctx.engine->resource());
 }
 
@@ -120,7 +120,7 @@ void condeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("condeig: requires (A)",
-                    0, 0, "condeig", "", "numkit:condeig:nargin");
+                    0, 0, "condeig", "", "nk:condeig:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout <= 1) {
         outs[0] = condeig(args[0], mr);
@@ -160,4 +160,4 @@ void condeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

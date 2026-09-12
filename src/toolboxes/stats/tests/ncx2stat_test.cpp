@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/ncx2stat_test.cpp
 // ncx2stat.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Ncx2statTest : public ::testing::Test
 {

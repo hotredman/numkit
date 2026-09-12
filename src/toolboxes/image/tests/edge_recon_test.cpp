@@ -17,11 +17,11 @@
 //     (MATLAB-compatible), so 'Canny' no longer silently fell through to
 //     the default Sobel branch.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class EdgeReconTest : public ::testing::Test
 {
@@ -210,7 +210,7 @@ TEST_F(EdgeReconTest, ImboxfiltSeparablePreserved)
 // Separable imgaussfilt must match the prior full-2D-kernel result (and
 // MATLAB): the 2-D Gaussian is exactly the outer product of two 1-D
 // Gaussians, so two 1-D passes give the same values (within FP summation
-// order). Pinned from MATLAB R2025b (== prior numkit).
+// order). Pinned from MATLAB R2025b (== prior nk).
 TEST_F(EdgeReconTest, ImgaussfiltSeparablePreserved)
 {
     eval("I = reshape(mod((0:1199)*7.3, 100), 30, 40);");

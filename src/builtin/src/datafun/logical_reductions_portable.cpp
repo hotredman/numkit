@@ -1,26 +1,26 @@
 // toolboxes/builtin/src/math/elementary/backends/logical_reductions_portable.cpp
 //
-// Scalar reference any() / all(). Compiled when NUMKIT_WITH_SIMD=OFF.
+// Scalar reference any() / all(). Compiled when NK_WITH_SIMD=OFF.
 // The Highway-dispatched variant lives in logical_reductions_highway.cpp;
 // behaviour is identical — same dim-dispatch, same LOGICAL output type,
 // same MATLAB-empty semantics (any([])=false, all([])=true). Only the
 // inner unit-stride scan loops differ (no Highway types here so the
 // portable build doesn't need the Highway include path).
 
-#include <numkit/builtin/elmat.hpp>
+#include <nk/builtin/elmat.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
 
 #include <complex>
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 namespace {
 
 template <bool IsAny>
@@ -85,13 +85,13 @@ Value logicalReduceImpl(const Value &x, int dim, std::pmr::memory_resource *mr)
         return Value::logicalScalar(v != 0, mr);
     }
 
-    const int d = numkit::ops::resolveDim(x, dim, IsAny ? "any" : "all");
+    const int d = nk::ops::resolveDim(x, dim, IsAny ? "any" : "all");
     const auto &dd = x.dims();
 
     // ND fallback: rank ≥ 4 — stride arithmetic via scanSlice.
     if (dd.ndim() >= 4 && d >= 1 && d <= dd.ndim()) {
         ScratchArena scratch(mr);
-        auto shape = numkit::ops::outShapeForDimND(&scratch, x, d);
+        auto shape = nk::ops::outShapeForDimND(&scratch, x, d);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
                                       ValueType::LOGICAL, mr);
@@ -109,7 +109,7 @@ Value logicalReduceImpl(const Value &x, int dim, std::pmr::memory_resource *mr)
         return out;
     }
 
-    const auto outShape = numkit::ops::outShapeForDim(x, d);
+    const auto outShape = nk::ops::outShapeForDim(x, d);
     Value out = createMatrix(outShape, ValueType::LOGICAL, mr);
     uint8_t *dst = out.logicalDataMut();
 
@@ -152,4 +152,4 @@ Value allOf(const Value &x, int dim, std::pmr::memory_resource *mr)
     return logicalReduceImpl<false>(x, dim, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -3,12 +3,12 @@
 // Regression guard for ansaribradley — production-grade verification
 // against MATLAB R2025b reference values on deterministic data.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class AnsariBradleyTest : public ::testing::Test
 {

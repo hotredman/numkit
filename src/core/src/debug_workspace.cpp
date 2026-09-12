@@ -1,11 +1,11 @@
 // src/debug_workspace.cpp
-#include <numkit/core/debug_workspace.hpp>
-#include <numkit/core/bytecode.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/core/vm.hpp>
+#include <nk/core/debug_workspace.hpp>
+#include <nk/core/bytecode.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/core/vm.hpp>
 
-namespace numkit {
+namespace nk {
 
 // Names that don't qualify as user variables by default. Covers the
 // compile-time built-ins (pi, eps, …), runtime pseudo-vars (nargin,
@@ -158,4 +158,4 @@ std::vector<std::string> DebugWorkspace::allNames() const
     return result;
 }
 
-} // namespace numkit
+} // namespace nk

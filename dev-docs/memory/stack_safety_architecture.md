@@ -19,7 +19,7 @@ A defense-in-depth architecture was implemented:
    - Exceeding the limit immediately throws `std::runtime_error` with 1-indexed source line and column numbers.
 
 2. **Layer 2: Physical Stack Watermark Guard (`StackGuard`)**
-   - Created `numkit::StackGuard` in `src/core/include/numkit/core/stack_guard.hpp` and `src/core/src/stack_guard.cpp`.
+   - Created `nk::StackGuard` in `src/core/include/nk/core/stack_guard.hpp` and `src/core/src/stack_guard.cpp`.
    - Cross-platform physical watermark check guaranteeing at least 64 KB of free stack space for safe C++ exception unwinding:
      - **Windows**: Uses `GetCurrentThreadStackLimits` to verify `currentStack >= lowLimit + 64 KB`.
      - **WASM (Emscripten)**: Uses `emscripten_stack_get_free() >= 64 KB`.

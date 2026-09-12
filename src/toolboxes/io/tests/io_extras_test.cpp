@@ -4,14 +4,14 @@
 //                              readmatrix/writematrix/type) and
 // C2 (paths: filesep/fullfile/fileparts/tempdir/tempname).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class IoExtrasTest : public ::testing::Test
 {
@@ -25,7 +25,7 @@ public:
         engine.setOutputFunc([this](const std::string &s) { capturedOut += s; });
                 // Per-test temp file — host filesystem (resolvePath → native).
         auto td = std::filesystem::temp_directory_path();
-        tmpFile = td / ("numkit_io_extras_" +
+        tmpFile = td / ("nk_io_extras_" +
                          std::to_string(std::hash<std::string>()(::testing::UnitTest::GetInstance()
                              ->current_test_info()->name())) + ".txt");
         if (std::filesystem::exists(tmpFile))

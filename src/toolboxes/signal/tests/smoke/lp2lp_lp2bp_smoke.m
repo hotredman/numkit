@@ -3,7 +3,7 @@ clear
 % lp2lp / lp2bp numerator length + tf2zp gain (DEEP-PROBE 2026-05-31).
 % MATLAB's lp2* TF form returns the numerator at its TRUE degree
 % (#zeros + 1), not zero-padded to the denominator length. The root cause
-% of numkit's earlier mismatch was tf2zp computing the ZPK gain from b(1)
+% of nk's earlier mismatch was tf2zp computing the ZPK gain from b(1)
 % (= 0 for a zero-padded numerator like [0 0 0 0 1]) instead of the first
 % nonzero coefficient. vs MATLAB R2025b.
 

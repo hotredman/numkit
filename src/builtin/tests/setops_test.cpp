@@ -451,7 +451,7 @@ TEST_P(SetOpsTest, HistcountsNormUnknownThrows)
 TEST_P(SetOpsTest, HistcountsBinEdgesNameValue)
 {
     // 'BinEdges' is equivalent to passing the edges positionally. Regression:
-    // numkit used to treat 'BinEdges' as the edges vector → "Not a double".
+    // nk used to treat 'BinEdges' as the edges vector → "Not a double".
     eval("[n, e] = histcounts([1 2 3 4 5], 'BinEdges', [0 2 4 6]);");
     auto *n = getVarPtr("n");
     auto *e = getVarPtr("e");

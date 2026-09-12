@@ -2,9 +2,9 @@
 //
 // Detection signals (pixel-diff is unreliable on Electron / driver
 // variance, so we lean on structural + console signals):
-//   1. <canvas data-numkit-3d="1"> exists in the DOM
-//   2. Renderer logs "[numkit-3d] gl context ok" once on mount
-//   3. data-numkit-3d-frames attribute > 0 (proves the rAF loop ran)
+//   1. <canvas data-nk-3d="1"> exists in the DOM
+//   2. Renderer logs "[nk-3d] gl context ok" once on mount
+//   3. data-nk-3d-frames attribute > 0 (proves the rAF loop ran)
 //   4. devErrors stays clean across mode setup
 //
 // Mouse-orbit interaction is checked via frame-counter advance: drag
@@ -22,9 +22,9 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     // The card is the preview; canvas lives inside it.
-    const canvas = ide.figureCards.first().locator('canvas[data-numkit-3d]');
+    const canvas = ide.figureCards.first().locator('canvas[data-nk-3d]');
     await expect(canvas).toBeVisible({ timeout: 10_000 });
-    expect(ide.devLogs()).toMatch(/\[numkit-3d\] gl context ok/);
+    expect(ide.devLogs()).toMatch(/\[nk-3d\] gl context ok/);
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
     )).toEqual([]);
@@ -36,7 +36,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
       + 'scatter3([0 1 2 3 4], [0 1 4 9 16], [1 2 3 4 5]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -49,7 +49,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
       + 'stem3([1 2 3 4], [1 2 3 4], [1 4 9 16]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -63,7 +63,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
       + 'surf(Z);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -77,7 +77,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
       + 'view(45, 60);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -91,7 +91,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
       + 'view([30 45]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -104,11 +104,11 @@ test.describe('WebGL — 3-D figures via three.js', () => {
       + 'plot3([0 1 2], [0 1 0], [0 1 0]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    const canvas = ide.figureCards.first().locator('canvas[data-numkit-3d]');
+    const canvas = ide.figureCards.first().locator('canvas[data-nk-3d]');
     await expect(canvas).toBeVisible({ timeout: 10_000 });
     // Wait a beat for the rAF loop to tick a few times.
     await page.waitForTimeout(700);
-    const frames = await canvas.getAttribute('data-numkit-3d-frames');
+    const frames = await canvas.getAttribute('data-nk-3d-frames');
     expect(Number(frames)).toBeGreaterThan(0);
   });
 
@@ -122,7 +122,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
     await ide.figureCards.first().click();
     await expect(ide.figureWindow).toBeVisible({ timeout: 5_000 });
     // Modal also has its own WebGL canvas.
-    await expect(ide.figureWindow.locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureWindow.locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
     expect(ide.devErrors().filter((e) =>
       !/Autofill\.enable/i.test(e) && !/\[hmr\]/i.test(e)
@@ -137,7 +137,7 @@ test.describe('WebGL — 3-D figures via three.js', () => {
       + 'plot([1 2 3], [1 4 9]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    const canvas3d = ide.figureCards.first().locator('canvas[data-numkit-3d]');
+    const canvas3d = ide.figureCards.first().locator('canvas[data-nk-3d]');
     expect(await canvas3d.count()).toBe(0);
     // SVG path still works.
     await expect(ide.figureCards.first().locator('svg')).toBeVisible();

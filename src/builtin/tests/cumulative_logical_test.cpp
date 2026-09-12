@@ -7,11 +7,11 @@
 //   cummax / cummin   PRESERVE the logical class
 // Values + classes below are bit-exact MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CumulativeLogicalTest : public ::testing::Test
 {

@@ -4,12 +4,12 @@
 // scale divisor, center reference) — previously parsed-and-ignored, so
 // every method used its default. vs MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class NormalizeParamTest : public ::testing::Test
 {
@@ -82,7 +82,7 @@ TEST_F(NormalizeParamTest, ScaleIqrAndMedianIqr)
 
 // normalize(x,'zscore','robust'): centre by MEDIAN, scale by the raw MAD
 // (median absolute deviation). The 'robust' param was parsed-and-ignored, so
-// numkit fell back to the standard mean/std z-score. vs MATLAB R2025b.
+// nk fell back to the standard mean/std z-score. vs MATLAB R2025b.
 // DEEP-PROBE 2026-05-31.
 TEST_F(NormalizeParamTest, ZscoreRobust)
 {

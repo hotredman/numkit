@@ -17,11 +17,11 @@
 ## Repro
 ```matlab
 cceps([1 2 3 4 3 2 1])
-% numkit: 0.396084 3.668860 1.591387 0.104849 -0.509763 -0.556044 -1.922784
+% nk: 0.396084 3.668860 1.591387 0.104849 -0.509763 -0.556044 -1.922784
 % MATLAB: 0.396084 0.523560 0.383457 -0.240870 -0.164044 0.651886  1.222516
 %         ^DC matches; phase-dependent samples differ
 [xhat, nd] = cceps((1:8)')
-% numkit: Error — Too many output arguments
+% nk: Error — Too many output arguments
 % MATLAB: nd = 0 (for this input)
 ```
 Power-of-two cceps (e.g. `(1:8)'`) already matches MATLAB bit-for-bit.
@@ -46,7 +46,7 @@ Verified vs MATLAB R2025b (parity OK, `tools/parity/specs/cceps.json`):
 `cceps([1 2 3 4 3 2 1])` = `[0.3961 0.5236 0.3835 -0.2409 -0.1640 0.6519
 1.2225]`, `cceps((1:8)')` bit-identical, `nd` = 1 for `(1:8)'` and −3 for the
 7-tap palindrome. (NB the bug-doc repro above claimed `nd=0` for `(1:8)'`;
-MATLAB R2025b actually returns `1` — numkit matches the real MATLAB.)
+MATLAB R2025b actually returns `1` — nk matches the real MATLAB.)
 Guards: `src/toolboxes/signal/tests/cceps_test.cpp`
 (`NonPowerOfTwoPhaseMatchesMatlab`, `NdSecondOutput`, `IccepsRoundTripPreservesShape`)
 + `known_bugs_test.cpp` (`CcepsPhaseAndNd`, promoted live);
@@ -55,6 +55,6 @@ smoke `cceps_phase_smoke.m`.
 ## References
 - `src/toolboxes/signal/src/transforms/extras.cpp` (`cceps` rcunwrap + fft dir;
   `icceps` fft dir), `src/bundle/src/register/signal/transforms/extras_reg.cpp`
-  (`cceps_reg` nargout), `src/toolboxes/signal/include/numkit/signal/transforms/extras.hpp`.
+  (`cceps_reg` nargout), `src/toolboxes/signal/include/nk/signal/transforms/extras.hpp`.
 - `tools/parity/specs/cceps.json`.
 - related fix: `bugs/signal/rceps-cceps-padding.md`.

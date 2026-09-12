@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/language/datatypes/casts_portable.cpp
 //
 // Reference scalar implementation of the double→int* fast path.
-// Compiled when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant
+// Compiled when NK_WITH_SIMD=OFF; the Highway-dispatched variant
 // lives in casts_highway.cpp and matches this file bit-for-bit.
 //
 // MATLAB's `int*(x)` casts: NaN→0, then round half-away-from-zero,
@@ -10,14 +10,14 @@
 
 #include "casts.hpp"
 
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 namespace {
 
@@ -50,4 +50,4 @@ void doubleToUInt16(const double *in, uint16_t *out, std::size_t n) { doubleToIn
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n) { doubleToIntLoopScalar<uint32_t>(in, out, n); }
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n) { doubleToIntLoopScalar<uint64_t>(in, out, n); }
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail

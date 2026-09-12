@@ -8,17 +8,17 @@
 ## Symptom
 The two generalized matrix decompositions are not registered: `qz` (the
 generalized Schur decomposition of a matrix pair `(A,B)`) and `gsvd` (the
-generalized singular value decomposition). numkit has `eig`/`svd`/`qr` for
+generalized singular value decomposition). nk has `eig`/`svd`/`qr` for
 the ordinary cases (and `eig(A,B)` generalized eigenvalues), but not these
 factorizations.
 
 ## Repro
 ```matlab
 [AA,BB,Q,Z] = qz([1 2;3 4], [1 0;0 1]);   % Q*A*Z = AA, Q*B*Z = BB
-% MATLAB: 2x2 factors; numkit: Error — VM: undefined function 'qz'
+% MATLAB: 2x2 factors; nk: Error — VM: undefined function 'qz'
 S = gsvd([1 2;3 4], [1 0;0 1]);
 % MATLAB: generalized singular values [0.365966  5.46499] (ascending)
-% numkit: Error — VM: undefined function 'gsvd'
+% nk: Error — VM: undefined function 'gsvd'
 ```
 
 ## Root cause

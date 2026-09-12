@@ -21,7 +21,7 @@ test.describe('B1 — plot3 / scatter3', () => {
       + 'plot3([1 2 3 4 5], [1 4 9 16 25], [0 1 2 3 4]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
   });
 
@@ -31,7 +31,7 @@ test.describe('B1 — plot3 / scatter3', () => {
       + 'scatter3([1 2 3 4], [1 2 3 4], [0 1 2 3]);\n'
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
-    await expect(ide.figureCards.first().locator('canvas[data-numkit-3d]'))
+    await expect(ide.figureCards.first().locator('canvas[data-nk-3d]'))
       .toBeVisible({ timeout: 10_000 });
   });
 

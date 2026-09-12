@@ -1,12 +1,12 @@
-#include <numkit/ops/blas3.hpp>
-#include <numkit/ops/blas.hpp>
-#include <numkit/ops/parallel_for.hpp>
-#include <numkit/ops/thread_pool.hpp>
+#include <nk/ops/blas3.hpp>
+#include <nk/ops/blas.hpp>
+#include <nk/ops/parallel_for.hpp>
+#include <nk/ops/thread_pool.hpp>
 #include <vector>
 #include <complex>
 #include <algorithm>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 template <typename T>
 static constexpr bool is_complex_type_v = false;
@@ -42,7 +42,7 @@ void gemm_portable(MatrixTranspose transa, MatrixTranspose transb,
     const bool conj_b   = (transb == MatrixTranspose::ConjTrans);
 
     constexpr std::size_t kParallelThreshold = 256;
-    numkit::detail::parallel_for(n, kParallelThreshold, [=](std::size_t j_start, std::size_t j_end) {
+    nk::detail::parallel_for(n, kParallelThreshold, [=](std::size_t j_start, std::size_t j_end) {
         for (std::size_t j = j_start; j < j_end; ++j) {
             for (std::size_t i = 0; i < m; ++i) {
                 T sum = T(0);
@@ -81,7 +81,7 @@ void gemm_portable(MatrixTranspose transa, MatrixTranspose transb,
     });
 
     // Update global atomic for test determinism check
-    ::numkit::ops::g_last_gemm_threads_used.store(numkit::detail::ThreadPool::global().workers());
+    ::nk::ops::g_last_gemm_threads_used.store(nk::detail::ThreadPool::global().workers());
 }
 
 template <typename T>
@@ -555,4 +555,4 @@ bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std:
     return true;
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

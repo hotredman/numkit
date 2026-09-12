@@ -7,7 +7,7 @@
 
 ## Symptom
 `funm(A, fun)` — evaluate an arbitrary scalar function `fun` *of a matrix*
-(not element-wise) — is not registered. numkit ships the specialised matrix
+(not element-wise) — is not registered. nk ships the specialised matrix
 functions `expm`/`sqrtm`/`logm`, but not the general `funm` that `expm`
 et al. are special cases of.
 
@@ -15,12 +15,12 @@ et al. are special cases of.
 ```matlab
 funm([2 0; 0 3], @exp)
 % MATLAB: [7.38906 0; 0 20.0855]   (= diag(e^2, e^3))
-% numkit: Error — VM: undefined function 'funm'
+% nk: Error — VM: undefined function 'funm'
 ```
 
 ## Root cause
 Not implemented. The Schur-Parlett machinery needed by `funm` is partly
-present (numkit has Schur decomposition + `expm`/`logm`/`sqrtm`), but the
+present (nk has Schur decomposition + `expm`/`logm`/`sqrtm`), but the
 general dispatcher that applies a user `FnHandle` on the Schur form (with
 the Parlett recurrence for the off-diagonal blocks) is not wired.
 
@@ -42,15 +42,15 @@ funm([2 1; 1 2], @sqrt) % == sqrtm([2 1; 1 2])           ✓ exact
 
 Note: MATLAB's own `funm` calls `feval(fun, x, k)` with a derivative-order
 `k` on its generic path, so `funm(A, @sqrt)` and anonymous funcs *error* in
-MATLAB — numkit's element-wise-on-eigenvalues form is strictly more lenient
+MATLAB — nk's element-wise-on-eigenvalues form is strictly more lenient
 there.
 
 ### Deferred branch (documented limitation)
 **Complex-eigenvalue** and **defective** (repeated-eigenvalue, non-diagonalizable)
-matrices error: numkit's `eig` `[V, D]` form needs Francis QR iteration for
+matrices error: nk's `eig` `[V, D]` form needs Francis QR iteration for
 the complex case (separate deferred core limitation — see
 `bugs/linalg/complex-eig*`). MATLAB falls back to Schur-Parlett there
-(`funm([4 1; 0 4], @exp) = [54.5982 54.5982; 0 54.5982]`); numkit currently
+(`funm([4 1; 0 4], @exp) = [54.5982 54.5982; 0 54.5982]`); nk currently
 raises `eig: [V, D] form ... requires Francis QR iteration`. The full
 Schur-Parlett rewrite (Parlett recurrence on the off-diagonal blocks) is the
 follow-up that would close this branch.

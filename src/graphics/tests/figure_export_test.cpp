@@ -7,7 +7,7 @@
 
 #include "dual_engine_fixture.hpp"
 
-#include <numkit/figure/figure_render.hpp>
+#include <nk/figure/figure_render.hpp>
 
 #include <cstdio>
 #include <cstring>
@@ -108,7 +108,7 @@ TEST_P(FigureExportTest, DeletedHandleErrors)
 // guard pins glyph IDENTITY for distinctive shapes across the alphabet.
 TEST_P(FigureExportTest, RasterFontGlyphAlignment)
 {
-    using numkit::figrender::font5x7;
+    using nk::figrender::font5x7;
     const std::uint8_t *t = font5x7('t');
     EXPECT_EQ(t[2], 0x3F) << "'t' must have its crossbar";
     const std::uint8_t *I = font5x7('I');
@@ -162,7 +162,7 @@ TEST_P(FigureExportTest, PngPixelsDecodeColumnMajor)
 // ── Image export (portion 35: imagesc / imshow / colormap) ───────────
 // All expected colors are MATLAB R2025b pixel-probed (2026-09-11): a
 // scaled value v maps to palette entry round(t*(N-1))+1 with
-// t=(v-clo)/(chi-clo) clamped; NaN renders as entry 1. numkit's 254-
+// t=(v-clo)/(chi-clo) clamped; NaN renders as entry 1. nk's 254-
 // level quantization costs at most one adjacent palette entry → ±3 on
 // each uint8 channel. Canvas layout is deterministic (840×630, single
 // axes, margins ml=64/mr=14/mt=20/mb=48) → cell centers are computed,

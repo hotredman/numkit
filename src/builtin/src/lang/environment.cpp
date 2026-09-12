@@ -1,18 +1,18 @@
 // src/builtin/src/lang/environment.cpp
 //
-// Environment variable utilities for numkit::builtin.
+// Environment variable utilities for nk::builtin.
 
-#include <numkit/builtin/lang.hpp>
-#include <numkit/fs/branding.hpp>
-#include <numkit/fs/branding.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/builtin/lang.hpp>
+#include <nk/fs/branding.hpp>
+#include <nk/fs/branding.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 void setenv(const std::string &name, const std::string &value)
 {
@@ -51,4 +51,4 @@ Value getenv(const Value &name, std::pmr::memory_resource *mr)
     return Value::fromString(getenv(name.toString()), mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -2,7 +2,7 @@
 //
 // Regression guard for mvncdf — multivariate normal CDF.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -11,7 +11,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class MvncdfTest : public ::testing::Test
 {

@@ -17,7 +17,7 @@ see wavelet/wentropy.md.)
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::wavelet::ddencmp` (`denoise.cpp`, next to
+Implemented `nk::wavelet::ddencmp` (`denoise.cpp`, next to
 `wentropy`/`wthresh`). Estimates the noise level from the finest-detail
 coefficients of a **1-level db1 DWT** — `σ̂ = median(|cD₁|)/0.6745` (MAD) —
 and returns `[thr, sorh, keepapp]`:
@@ -25,7 +25,7 @@ and returns `[thr, sorh, keepapp]`:
   VisuShrink threshold), `sorh='s'`.
 - **`opt='cmp'`** (compress): `thr = median(|cD₁|)`, `sorh='h'`.
 
-`keepapp = 1` in both. numkit's `dwt(x,'db1')` matches MATLAB's finest
+`keepapp = 1` in both. nk's `dwt(x,'db1')` matches MATLAB's finest
 detail bit-for-bit (incl. the odd-length boundary), so the thresholds match
 exactly. Only `type='wv'` is supported; `'wp'` (wavelet packet — different
 threshold + a 4th `crit` output) throws a clear error (documented gap).
@@ -40,7 +40,7 @@ cluster.**
 
 ## References
 - `src/toolboxes/wavelet/src/denoise/denoise.cpp` (`ddencmp`),
-  `.../include/numkit/wavelet/denoise/denoise.hpp` (`DdencmpResult`),
+  `.../include/nk/wavelet/denoise/denoise.hpp` (`DdencmpResult`),
   `src/bundle/src/register/wavelet/denoise/denoise_reg.cpp` (`ddencmp_reg`).
 - `tools/parity/specs/ddencmp.json`.
 - shipped + reused: `dwt` (db1), `median_abs`

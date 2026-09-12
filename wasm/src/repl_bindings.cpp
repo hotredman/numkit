@@ -10,26 +10,26 @@
 #include <cmath>
 #include <algorithm>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/bundle/standard_library.hpp>  // installStandardLibrary (Engine ctor no longer installs libs)
-#include <numkit/core/value_stats.hpp>
-#include <numkit/core/value_json.hpp>
-#include <numkit/core/debug_session.hpp>
-#include <numkit/fs/vfs.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
-#include <numkit/scriptgraph/ast_serialize.hpp>
-#include <numkit/scriptgraph/lowering.hpp>
-#include <numkit/scriptgraph/serialize.hpp>
-#include <numkit/codegen/driver.hpp>
-#include <numkit/codegen/emitter.hpp>
-#include <numkit/fs/branding.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/bundle/standard_library.hpp>  // installStandardLibrary (Engine ctor no longer installs libs)
+#include <nk/core/value_stats.hpp>
+#include <nk/core/value_json.hpp>
+#include <nk/core/debug_session.hpp>
+#include <nk/fs/vfs.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
+#include <nk/scriptgraph/ast_serialize.hpp>
+#include <nk/scriptgraph/lowering.hpp>
+#include <nk/scriptgraph/serialize.hpp>
+#include <nk/codegen/driver.hpp>
+#include <nk/codegen/emitter.hpp>
+#include <nk/fs/branding.hpp>
 
 // ════════════════════════════════════════════════════════════════
 // Helper: format Value for variable preview
 // ════════════════════════════════════════════════════════════════
-static std::string valuePreview(const numkit::Value &val) {
-    using numkit::ValueType;
+static std::string valuePreview(const nk::Value &val) {
+    using nk::ValueType;
     try {
         if (val.isScalar()) {
             if (val.type() == ValueType::DOUBLE) {
@@ -50,8 +50,8 @@ static std::string valuePreview(const numkit::Value &val) {
                 os << c.imag() << "i";
                 return os.str();
             }
-            if (numkit::isIntegerType(val.type()))
-                return numkit::numericCellJSON(val, 0);
+            if (nk::isIntegerType(val.type()))
+                return nk::numericCellJSON(val, 0);
             if (val.type() == ValueType::SINGLE) {
                 double v = val.elemAsDouble(0);
                 if (std::isnan(v)) return "NaN";
@@ -67,13 +67,13 @@ static std::string valuePreview(const numkit::Value &val) {
         std::ostringstream os;
         os << "[" << d.rows() << "x" << d.cols();
         if (d.is3D()) os << "x" << d.pages();
-        os << " " << numkit::mtypeName(val.type()) << "]";
+        os << " " << nk::mtypeName(val.type()) << "]";
         const ValueType pt = val.type();
-        if ((numkit::isFloatType(pt) || numkit::isIntegerType(pt)) && val.numel() <= 10) {
+        if ((nk::isFloatType(pt) || nk::isIntegerType(pt)) && val.numel() <= 10) {
             os << " [";
             for (size_t i = 0; i < val.numel(); ++i) {
                 if (i) os << " ";
-                if (numkit::isIntegerType(pt)) { os << numkit::numericCellJSON(val, i); continue; }
+                if (nk::isIntegerType(pt)) { os << nk::numericCellJSON(val, i); continue; }
                 double v = val.elemAsDouble(i);
                 if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
                     os << static_cast<int64_t>(v);
@@ -120,9 +120,9 @@ static std::string escapeJSON(const std::string &s) {
 // [[...],...] (column-major source → row-major JSON). CHAR becomes one
 // row of 1-char strings. Non-numeric / non-char fall back to a 1×1
 // array holding the preview string.
-static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val,
+static void emitMatrixDataArray(std::ostringstream &os, const nk::Value &val,
                                 size_t page = 0) {
-    using numkit::ValueType;
+    using nk::ValueType;
     const auto &d = val.dims();
     const size_t rows = d.rows();
     const size_t cols = d.cols();
@@ -139,18 +139,18 @@ static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val
             os << "\"" << escapeJSON(std::string(1, str[i])) << "\"";
         }
         os << "]";
-    } else if (numkit::isRealNumericCell(val.type())) {
+    } else if (nk::isRealNumericCell(val.type())) {
         // DOUBLE / SINGLE / LOGICAL / INT8..UINT64 — one array per matrix
         // row; cells via the shared numericCellJSON token (integers exact,
         // floats NaN/Inf-aware, logical true/false).
         for (size_t r = 0; r < rows; ++r) {
             if (r) os << ",";
             os << "[";
-            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << numkit::numericCellJSON(val, pageOff + c * rows + r); }
+            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << nk::numericCellJSON(val, pageOff + c * rows + r); }
             os << "]";
         }
     } else if (val.type() == ValueType::COMPLEX) {
-        const numkit::Complex *p = val.complexData();
+        const nk::Complex *p = val.complexData();
         for (size_t r = 0; r < rows; ++r) {
             if (r) os << ",";
             os << "[";
@@ -211,11 +211,11 @@ static std::vector<PathStep> parseInspectPath(const std::string &s) {
 // the existing tree (no copy); elemAt() materialises a temporary kept
 // alive in `owned` (reserved up front so no realloc invalidates the
 // returned pointer). Returns nullptr on any out-of-range / type-mismatch.
-static const numkit::Value *resolveInspectPath(const numkit::Value &root,
+static const nk::Value *resolveInspectPath(const nk::Value &root,
                                                const std::vector<PathStep> &steps,
-                                               std::vector<numkit::Value> &owned) {
+                                               std::vector<nk::Value> &owned) {
     owned.reserve(steps.size());
-    const numkit::Value *cur = &root;
+    const nk::Value *cur = &root;
     for (const auto &st : steps) {
         if (st.kind == 'f') {
             if (!cur->isStruct() || !cur->hasField(st.name)) return nullptr;
@@ -244,9 +244,9 @@ static std::string jnum(double x) {
 
 // Serialize the display-stat columns as a JSON object, or "" when the
 // value isn't numeric. Shared by emitInspectCell + the workspace list.
-static std::string statsJSON(const numkit::Value &val) {
-    numkit::ValueStats st;
-    if (!numkit::computeValueStats(val, st)) return "";
+static std::string statsJSON(const nk::Value &val) {
+    nk::ValueStats st;
+    if (!nk::computeValueStats(val, st)) return "";
     std::ostringstream os;
     os << "\"stats\":{\"min\":" << jnum(st.min) << ",\"max\":" << jnum(st.max)
        << ",\"mean\":" << jnum(st.mean) << ",\"median\":" << jnum(st.median)
@@ -256,7 +256,7 @@ static std::string statsJSON(const numkit::Value &val) {
 }
 
 static void emitInspectCell(std::ostringstream &os, const std::string &label,
-                            const numkit::Value &val) {
+                            const nk::Value &val) {
     const auto &d = val.dims();
     // Every field is openable, matching MATLAB's Variable Editor: a
     // scalar opens as a 1x1 table, a string as a 1xN char table, a
@@ -266,7 +266,7 @@ static void emitInspectCell(std::ostringstream &os, const std::string &label,
     const bool drill = true;
     os << "{";
     if (!label.empty()) os << "\"label\":\"" << escapeJSON(label) << "\",";
-    os << "\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+    os << "\"type\":\"" << nk::mtypeName(val.type()) << "\""
        << ",\"size\":\"" << d.rows() << "x" << d.cols();
     if (d.is3D()) os << "x" << d.pages();
     os << "\",\"summary\":\"" << escapeJSON(valuePreview(val)) << "\""
@@ -281,8 +281,8 @@ static void emitInspectCell(std::ostringstream &os, const std::string &label,
 //   STRUCT → { kind:"struct", rows, cols, numel, fields:[], elems:[[cell]] }
 //   CELL   → { kind:"cell",   rows, cols, elems:[cell] }   (column-major)
 //   else   → { kind:"matrix", type, rows, cols, data | truncated }
-static std::string emitInspectPayload(const numkit::Value &val) {
-    using numkit::ValueType;
+static std::string emitInspectPayload(const nk::Value &val) {
+    using nk::ValueType;
     std::ostringstream os;
     const auto &d = val.dims();
 
@@ -331,7 +331,7 @@ static std::string emitInspectPayload(const numkit::Value &val) {
     }
 
     // Matrix / scalar / char / etc.
-    os << "{\"kind\":\"matrix\",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+    os << "{\"kind\":\"matrix\",\"type\":\"" << nk::mtypeName(val.type()) << "\""
        << ",\"rows\":" << d.rows() << ",\"cols\":" << d.cols();
     if (val.numel() > MATRIX_INSPECT_CAP) {
         os << ",\"truncated\":true}";
@@ -349,12 +349,12 @@ static std::string emitInspectPayload(const numkit::Value &val) {
 class ReplSession {
 public:
     ReplSession() {
-        engine_ = std::make_unique<numkit::Engine>();
-        numkit::installStandardLibrary(*engine_);
+        engine_ = std::make_unique<nk::Engine>();
+        nk::installStandardLibrary(*engine_);
         restoreOutputFunc();
     }
 
-    numkit::Engine* engine() { return engine_.get(); }
+    nk::Engine* engine() { return engine_.get(); }
 
     // ── Virtual filesystem bridge ──
     //
@@ -432,7 +432,7 @@ public:
     // ── Debug API (clean, no replay) ──
 
     std::string debugStart(const std::string &code) {
-        debugSession_ = std::make_unique<numkit::DebugSession>(*engine_);
+        debugSession_ = std::make_unique<nk::DebugSession>(*engine_);
 
         // Apply breakpoints (with optional per-line conditions) directly so the
         // conditions survive into the run.
@@ -479,7 +479,7 @@ public:
         if (!debugSession_ || !debugSession_->isActive())
             return "{\"status\":\"completed\"}";
 
-        auto da = static_cast<numkit::DebugAction>(action);
+        auto da = static_cast<nk::DebugAction>(action);
         auto status = debugSession_->resume(da);
         return buildDebugResult(status);
     }
@@ -490,14 +490,14 @@ public:
         if (!debugSession_ || !debugSession_->isActive())
             return "{\"status\":\"completed\"}";
         debugSession_->frameUp();
-        return buildDebugResult(numkit::ExecStatus::Paused);
+        return buildDebugResult(nk::ExecStatus::Paused);
     }
 
     std::string debugFrameDown() {
         if (!debugSession_ || !debugSession_->isActive())
             return "{\"status\":\"completed\"}";
         debugSession_->frameDown();
-        return buildDebugResult(numkit::ExecStatus::Paused);
+        return buildDebugResult(nk::ExecStatus::Paused);
     }
 
     void debugStop() {
@@ -539,8 +539,8 @@ public:
 
     void reset() {
         debugSession_.reset();
-        engine_ = std::make_unique<numkit::Engine>();
-        numkit::installStandardLibrary(*engine_);
+        engine_ = std::make_unique<nk::Engine>();
+        nk::installStandardLibrary(*engine_);
         restoreOutputFunc();
         // Re-install VFS handlers on the fresh engine so csvread/csvwrite
         // keep routing through tempFS/localFS after a reset.
@@ -578,14 +578,14 @@ public:
      *     "data":[[r0c0, r0c1, ...], [r1c0, ...], ...] }
      *
      * For non-numeric types we fall back to a single-cell preview string.
-     * Storage in numkit is column-major (MATLAB convention) — we transpose
+     * Storage in nk is column-major (MATLAB convention) — we transpose
      * to row-major here so the table reads naturally.
      */
     // Resolve a variable for inspection: prefer the paused debug frame, else
     // the base workspace. Returns a COPY (COW — cheap) in `out`, so it never
     // depends on the transient snapshot's lifetime (Snapshot owns its values).
     // Returns false if the name is undefined.
-    bool resolveInspectValue(const std::string &name, numkit::Value &out) {
+    bool resolveInspectValue(const std::string &name, nk::Value &out) {
         if (debugSession_ && debugSession_->isActive()) {
             auto snap = debugSession_->snapshot();
             for (auto &v : snap.variables)
@@ -594,7 +594,7 @@ public:
                     return true;
                 }
         }
-        if (const numkit::Value *gv = engine_->getVariable(name)) {
+        if (const nk::Value *gv = engine_->getVariable(name)) {
             out = *gv;
             return true;
         }
@@ -604,7 +604,7 @@ public:
     /* ---- Cheap dimension-only query (no data) ---- */
     std::string getVarShapeJSON(const std::string &name) {
         try {
-            numkit::Value valStore;
+            nk::Value valStore;
             if (!resolveInspectValue(name, valStore)) {
                 return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
             }
@@ -618,7 +618,7 @@ public:
             const size_t pages = (rc > 0) ? (val.numel() / rc) : 1;
             std::ostringstream os;
             os << "{\"name\":\"" << escapeJSON(name) << "\""
-               << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+               << ",\"type\":\"" << nk::mtypeName(val.type()) << "\""
                << ",\"rows\":" << d.rows()
                << ",\"cols\":" << d.cols()
                << ",\"ndim\":" << d.ndim()
@@ -679,8 +679,8 @@ public:
 
     std::string getVarFigureJSON(const std::string &name, const std::string &optsJSON) {
         try {
-            using numkit::ValueType;
-            numkit::Value rootStore;
+            using nk::ValueType;
+            nk::Value rootStore;
             if (!resolveInspectValue(name, rootStore)) return "{\"error\":\"variable not found\"}";
             
             std::string dimMode = extractJsonString(optsJSON, "dimMode", "");
@@ -997,8 +997,8 @@ public:
     // {error}.
     std::string getVarStatsJSON(const std::string &name, int page = -1) {
         try {
-            using numkit::ValueType;
-            numkit::Value valStore;
+            using nk::ValueType;
+            nk::Value valStore;
             if (!resolveInspectValue(name, valStore)) return "{\"error\":\"variable not found\"}";
             const auto &val = valStore;
             const auto &d = val.dims();
@@ -1038,7 +1038,7 @@ public:
                     ++n;
                 }
             } else if (val.type() == ValueType::COMPLEX) {
-                const numkit::Complex *p = val.complexData();
+                const nk::Complex *p = val.complexData();
                 for (size_t i = i0; i < i1; ++i) {
                     double mag = std::hypot(p[i].real(), p[i].imag());
                     if (std::isnan(mag)) { hasNaN = true; continue; }
@@ -1048,7 +1048,7 @@ public:
                     sum += mag;
                     ++n;
                 }
-            } else if (numkit::isFloatType(val.type()) || numkit::isIntegerType(val.type())) {
+            } else if (nk::isFloatType(val.type()) || nk::isIntegerType(val.type())) {
                 // SINGLE + INT8..UINT64 — read each element as double.
                 for (size_t i = i0; i < i1; ++i) {
                     double v = val.elemAsDouble(i);
@@ -1075,8 +1075,8 @@ public:
                 // Full stat set (median/mode/var/std) for the matrix
                 // StatsBar's column chooser — same helper the struct/
                 // workspace serializers use.
-                numkit::ValueStats fs;
-                if (numkit::computeValueStatsRange(val, i0, i1 - i0, fs)) {
+                nk::ValueStats fs;
+                if (nk::computeValueStatsRange(val, i0, i1 - i0, fs)) {
                     os << ",\"median\":" << fs.median
                        << ",\"mode\":" << fs.mode
                        << ",\"var\":" << fs.var
@@ -1095,8 +1095,8 @@ public:
     /* ---- Tile fetch — only the requested rectangle of cells ---- */
     std::string getVarTileJSON(const std::string &name, int r0, int c0, int rowsIn, int colsIn, int page = 0) {
         try {
-            using numkit::ValueType;
-            numkit::Value valStore;
+            using nk::ValueType;
+            nk::Value valStore;
             if (!resolveInspectValue(name, valStore)) return "{\"error\":\"variable not found\"}";
             const auto &val = valStore;
             const auto &d = val.dims();
@@ -1124,22 +1124,22 @@ public:
                << ",\"rows\":" << (rEnd - r0)
                << ",\"cols\":" << (cEnd - c0)
                << ",\"page\":" << page
-               << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+               << ",\"type\":\"" << nk::mtypeName(val.type()) << "\""
                << ",\"data\":[";
 
-            if (numkit::isRealNumericCell(val.type())) {
+            if (nk::isRealNumericCell(val.type())) {
                 // DOUBLE / SINGLE / LOGICAL / INT8..UINT64 — shared token.
                 for (size_t r = (size_t)r0; r < rEnd; ++r) {
                     if (r > (size_t)r0) os << ",";
                     os << "[";
                     for (size_t c = (size_t)c0; c < cEnd; ++c) {
                         if (c > (size_t)c0) os << ",";
-                        os << numkit::numericCellJSON(val, pageOff + c * totalRows + r);
+                        os << nk::numericCellJSON(val, pageOff + c * totalRows + r);
                     }
                     os << "]";
                 }
             } else if (val.type() == ValueType::COMPLEX) {
-                const numkit::Complex *p = val.complexData();
+                const nk::Complex *p = val.complexData();
                 for (size_t r = (size_t)r0; r < rEnd; ++r) {
                     if (r > (size_t)r0) os << ",";
                     os << "[";
@@ -1187,9 +1187,9 @@ public:
 
     std::string getVarFullJSON(const std::string &name, int page = 0) {
         try {
-            using numkit::ValueType;
+            using nk::ValueType;
             // During debug, prefer the paused frame's variable.
-            numkit::Value valStore;
+            nk::Value valStore;
             if (!resolveInspectValue(name, valStore)) {
                 return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
             }
@@ -1204,7 +1204,7 @@ public:
 
             std::ostringstream os;
             os << "{\"name\":\"" << escapeJSON(name) << "\""
-               << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+               << ",\"type\":\"" << nk::mtypeName(val.type()) << "\""
                << ",\"rows\":" << rows
                << ",\"cols\":" << cols
                << ",\"page\":" << page
@@ -1231,13 +1231,13 @@ public:
     // paused debug frame's variable when a debug session is active.
     std::string getInspectPathJSON(const std::string &name, const std::string &pathStr) {
         try {
-            numkit::Value rootStore;
+            nk::Value rootStore;
             if (!resolveInspectValue(name, rootStore)) {
                 return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
             }
             auto steps = parseInspectPath(pathStr);
-            std::vector<numkit::Value> owned;
-            const numkit::Value *cur = resolveInspectPath(rootStore, steps, owned);
+            std::vector<nk::Value> owned;
+            const nk::Value *cur = resolveInspectPath(rootStore, steps, owned);
             if (!cur) return "{\"error\":\"invalid path\"}";
             return emitInspectPayload(*cur);
         } catch (const std::exception &e) {
@@ -1258,20 +1258,20 @@ public:
                 if (!first) result += ",";
                 auto &val = *v.value;
                 result += "\"" + escapeJSON(v.name) + "\":{";
-                result += "\"type\":\"" + std::string(numkit::mtypeName(val.type())) + "\"";
+                result += "\"type\":\"" + std::string(nk::mtypeName(val.type())) + "\"";
                 auto &d = val.dims();
                 result += ",\"size\":\"" + std::to_string(d.rows()) + "x" + std::to_string(d.cols());
                 if (d.is3D()) result += "x" + std::to_string(d.pages());
                 result += "\"";
                 result += ",\"preview\":";
-                if (val.type() == numkit::ValueType::DOUBLE && val.isScalar()) {
+                if (val.type() == nk::ValueType::DOUBLE && val.isScalar()) {
                     double dv = val.toScalar();
                     if (std::isnan(dv)) result += "\"NaN\"";
                     else if (std::isinf(dv)) result += (dv > 0 ? "\"Inf\"" : "\"-Inf\"");
                     else result += std::to_string(dv);
-                } else if (val.type() == numkit::ValueType::LOGICAL && val.isScalar()) {
+                } else if (val.type() == nk::ValueType::LOGICAL && val.isScalar()) {
                     result += (val.toBool() ? "true" : "false");
-                } else if (val.type() == numkit::ValueType::CHAR) {
+                } else if (val.type() == nk::ValueType::CHAR) {
                     result += "\"" + escapeJSON(val.toString()) + "\"";
                 } else {
                     result += "\"" + escapeJSON(valuePreview(val)) + "\"";
@@ -1398,11 +1398,11 @@ public:
                                   double x0, double x1, int width, int algo) {
         try {
             const auto &fm = engine_->figureManager();
-            numkit::DecimatedSeries s =
+            nk::DecimatedSeries s =
                 fm.getSeriesDisplayTile(figId, axIdx, dsIdx, x0, x1, width, algo);
             std::ostringstream os;
-            os << "{\"x\":" << numkit::figdetail::serializeFlatDoubles(s.x)
-               << ",\"y\":" << numkit::figdetail::serializeFlatDoubles(s.y) << "}";
+            os << "{\"x\":" << nk::figdetail::serializeFlatDoubles(s.x)
+               << ",\"y\":" << nk::figdetail::serializeFlatDoubles(s.y) << "}";
             return os.str();
         } catch (const std::exception &e) {
             return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
@@ -1410,9 +1410,9 @@ public:
     }
 
 private:
-    std::unique_ptr<numkit::Engine> engine_;
+    std::unique_ptr<nk::Engine> engine_;
     std::string outputBuf_;
-    std::unique_ptr<numkit::DebugSession> debugSession_;
+    std::unique_ptr<nk::DebugSession> debugSession_;
     std::vector<uint16_t> breakpointLines_;
     std::map<uint16_t, std::string> breakpointConditions_; // line → condition expr
     bool stopOnError_ = false;
@@ -1471,17 +1471,17 @@ private:
             }
             handler.call<void>("writeFileBytes", p, u8);
         };
-        auto cfs = std::make_unique<numkit::CallbackFS>(name, readFn, writeFn, existsFn);
+        auto cfs = std::make_unique<nk::CallbackFS>(name, readFn, writeFn, existsFn);
         cfs->setReadBytes(readBytesFn);
         cfs->setWriteBytes(writeBytesFn);
         engine_->registerVirtualFS(std::move(cfs));
     }
 
-    std::string buildDebugResult(numkit::ExecStatus status) {
+    std::string buildDebugResult(nk::ExecStatus status) {
         std::string output = debugSession_ ? debugSession_->takeOutput() : "";
         std::string result;
 
-        if (status == numkit::ExecStatus::Paused) {
+        if (status == nk::ExecStatus::Paused) {
             auto snap = debugSession_->snapshot();
 
             // Determine pause reason: error (dbstop if error) > breakpoint > step
@@ -1509,20 +1509,20 @@ private:
                 if (!first) result += ",";
                 auto &val = *v.value;
                 result += "\"" + escapeJSON(v.name) + "\":{";
-                result += "\"type\":\"" + std::string(numkit::mtypeName(val.type())) + "\"";
+                result += "\"type\":\"" + std::string(nk::mtypeName(val.type())) + "\"";
                 auto &d = val.dims();
                 result += ",\"size\":\"" + std::to_string(d.rows()) + "x" + std::to_string(d.cols());
                 if (d.is3D()) result += "x" + std::to_string(d.pages());
                 result += "\"";
                 result += ",\"preview\":";
-                if (val.type() == numkit::ValueType::DOUBLE && val.isScalar()) {
+                if (val.type() == nk::ValueType::DOUBLE && val.isScalar()) {
                     double dv = val.toScalar();
                     if (std::isnan(dv)) result += "\"NaN\"";
                     else if (std::isinf(dv)) result += (dv > 0 ? "\"Inf\"" : "\"-Inf\"");
                     else result += std::to_string(dv);
-                } else if (val.type() == numkit::ValueType::LOGICAL && val.isScalar()) {
+                } else if (val.type() == nk::ValueType::LOGICAL && val.isScalar()) {
                     result += (val.toBool() ? "true" : "false");
-                } else if (val.type() == numkit::ValueType::CHAR) {
+                } else if (val.type() == nk::ValueType::CHAR) {
                     result += "\"" + escapeJSON(val.toString()) + "\"";
                 } else {
                     result += "\"" + escapeJSON(valuePreview(val)) + "\"";
@@ -1636,7 +1636,7 @@ std::string repl_init() {
             throw;
         }
     }
-    return "numkit MInterpreter v2.2\nType commands below.";
+    return "nk MInterpreter v2.2\nType commands below.";
 }
 
 std::string repl_execute(const std::string& input) {
@@ -1848,17 +1848,17 @@ static std::string jsonError(const std::string &message) {
 
 std::string buildScriptGraph(const std::string &source) {
     try {
-        numkit::Lexer lex(source);
+        nk::Lexer lex(source);
         auto tokens = lex.tokenize();
-        numkit::Parser parser(tokens);
+        nk::Parser parser(tokens);
         auto root = parser.parse();
         if (!root) return jsonError("parser returned null AST");
         // Pass `tokens` so lowering can use the lexer's COMMENT
         // positions to trim trailing `% ...` from per-node sourceText.
         // No second lex; the parser already filtered COMMENT tokens
         // internally via its centralized advance() helper.
-        auto g = numkit::scriptgraph::lowerScript(*root, source, tokens);
-        return numkit::scriptgraph::toJSON(g);
+        auto g = nk::scriptgraph::lowerScript(*root, source, tokens);
+        return nk::scriptgraph::toJSON(g);
     } catch (const std::exception &e) {
         return jsonError(e.what());
     } catch (...) {
@@ -1871,12 +1871,12 @@ std::string buildScriptGraph(const std::string &source) {
  *  instead of the lowered NodeGraph IR. */
 std::string buildAST(const std::string &source) {
     try {
-        numkit::Lexer lex(source);
+        nk::Lexer lex(source);
         auto tokens = lex.tokenize();
-        numkit::Parser parser(tokens);
+        nk::Parser parser(tokens);
         auto root = parser.parse();
         if (!root) return jsonError("parser returned null AST");
-        return numkit::scriptgraph::toASTJSON(*root);
+        return nk::scriptgraph::toASTJSON(*root);
     } catch (const std::exception &e) {
         return jsonError(e.what());
     } catch (...) {
@@ -1884,7 +1884,7 @@ std::string buildAST(const std::string &source) {
     }
 }
 
-/** Transpile a numkit source's entry function to a C++ translation unit
+/** Transpile a nk source's entry function to a C++ translation unit
  *  (the codegen driver, DESIGN.md §8 M4). Pure C++ — works under WASM,
  *  so the browser IDE can show the generated C++ for a demo. Compile-and-
  *  run is NOT possible in the browser (no native compiler) — the desktop
@@ -1896,10 +1896,10 @@ std::string generateCpp(const std::string &source,
                         const std::string &entry,
                         const std::string &argsSpec) {
     try {
-        const auto paramTypes = numkit::codegen::driver::parseTypeSpec(argsSpec);
-        numkit::codegen::BridgeOptions bridgeOpts;
-        const numkit::codegen::EmittedFunction em =
-            numkit::codegen::driver::transpileSource(source, entry, paramTypes, bridgeOpts);
+        const auto paramTypes = nk::codegen::driver::parseTypeSpec(argsSpec);
+        nk::codegen::BridgeOptions bridgeOpts;
+        const nk::codegen::EmittedFunction em =
+            nk::codegen::driver::transpileSource(source, entry, paramTypes, bridgeOpts);
         return em.source;
     } catch (const std::exception &e) {
         return jsonError(e.what());
@@ -1909,15 +1909,15 @@ std::string generateCpp(const std::string &source,
 }
 
 /** Read a process env var from the WASM module's environment (what
- *  setenv/getenv in the numkit console see). The IDE uses this to forward
- *  NUMKIT_CXX / NUMKIT_INTERP — set in the console via setenv, or seeded
+ *  setenv/getenv in the nk console see). The IDE uses this to forward
+ *  NK_CXX / NK_INTERP — set in the console via setenv, or seeded
  *  from the IDE Settings on startup — to the Electron main process for a
  *  native compile/run spawn. Returns "" when the var is unset. */
 std::string getEnv(const std::string &name) {
-    return numkit::envGet(name.c_str());
+    return nk::envGet(name.c_str());
 }
 
-EMSCRIPTEN_BINDINGS(numkit_ide) {
+EMSCRIPTEN_BINDINGS(nk_ide) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_set_stdin_text", &repl_set_stdin_text);
     emscripten::function("repl_execute",   &repl_execute);
@@ -1957,7 +1957,7 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("buildAST",                   &buildAST);
     // Codegen + env bridge for the IDE's "generate C++" demo and the
     // desktop compile-and-run flow (the latter spawns a native compiler
-    // via the Electron main process, reading NUMKIT_CXX through getEnv).
+    // via the Electron main process, reading NK_CXX through getEnv).
     emscripten::function("generateCpp",                &generateCpp);
     emscripten::function("getEnv",                     &getEnv);
     // Legacy (kept for backward compat)

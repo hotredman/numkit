@@ -6,11 +6,11 @@
 // All  — bit-identical MATLAB R2025b
 // on probed inputs (parity tol=1e-12).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MiscBatchTest : public ::testing::Test
 {

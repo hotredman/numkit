@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Parity harness for numkit.
+Parity harness for nk.
 
-Runs a function spec against three engines (numkit native, MATLAB R2025b,
+Runs a function spec against three engines (nk native, MATLAB R2025b,
 Octave 11.1.0), compares output for correctness, measures wall-clock time,
 and appends a row to PROGRESS.md.
 
@@ -37,13 +37,13 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-def _find_numkit_exe() -> Path:
+def _find_nk_exe() -> Path:
     candidates = [
-        ROOT / "build" / "windows" / "release" / "apps" / "numkit" / "Release" / "numkit_repl.exe",
-        ROOT / "build" / "windows" / "release" / "apps" / "numkit" / "numkit_repl.exe",
-        ROOT / "build" / "linux" / "release" / "apps" / "numkit" / "numkit_repl",
-        ROOT / "build" / "desktop-fast" / "apps" / "numkit" / "Release" / "numkit_repl.exe",
-        ROOT / "build" / "desktop-fast" / "apps" / "numkit" / "numkit_repl",
+        ROOT / "build" / "windows" / "release" / "apps" / "nk" / "Release" / "nk_repl.exe",
+        ROOT / "build" / "windows" / "release" / "apps" / "nk" / "nk_repl.exe",
+        ROOT / "build" / "linux" / "release" / "apps" / "nk" / "nk_repl",
+        ROOT / "build" / "desktop-fast" / "apps" / "nk" / "Release" / "nk_repl.exe",
+        ROOT / "build" / "desktop-fast" / "apps" / "nk" / "nk_repl",
     ]
     for c in candidates:
         if c.exists():
@@ -53,17 +53,17 @@ def _find_numkit_exe() -> Path:
     return candidates[2]
 
 
-NUMKIT_EXE = _find_numkit_exe()
+NK_EXE = _find_nk_exe()
 MATLAB_EXE = "matlab"  # on PATH
 OCTAVE_EXE = r"C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin\octave-cli.exe"
 PROGRESS_MD = ROOT / "tools" / "parity" / "PROGRESS.md"
 BENCHMARK_MD = ROOT / "tools" / "parity" / "BENCHMARK.md"
 
 
-def _numkit_stale() -> tuple[float, float, str] | None:
-    """Detect a stale numkit.exe — the prebuilt binary the harness drives.
+def _nk_stale() -> tuple[float, float, str] | None:
+    """Detect a stale nk.exe — the prebuilt binary the harness drives.
 
-    The harness runs every spec against NUMKIT_EXE; it never rebuilds it. If the
+    The harness runs every spec against NK_EXE; it never rebuilds it. If the
     binary is older than the newest *library* source under src/, any function
     added or changed since the last smoke build is simply not registered in it,
     so its spec reads as a spurious `FAIL  N/A  rows=0` — a binary-staleness
@@ -73,11 +73,11 @@ def _numkit_stale() -> tuple[float, float, str] | None:
     Returns (exe_mtime, newest_src_mtime, newest_src_relpath) when stale, else
     None. Also None when the binary is absent — run_chunk reports that case.
     tests/ and benchmarks/ are pruned: they compile into the gtest / bench
-    targets, not numkit, so editing them must not flag the binary stale.
+    targets, not nk, so editing them must not flag the binary stale.
     """
-    if not NUMKIT_EXE.exists():
+    if not NK_EXE.exists():
         return None
-    exe_mtime = NUMKIT_EXE.stat().st_mtime
+    exe_mtime = NK_EXE.stat().st_mtime
     newest_mtime = 0.0
     newest_path: Path | None = None
     for dirpath, dirs, files in os.walk(ROOT / "src"):
@@ -97,18 +97,18 @@ def _numkit_stale() -> tuple[float, float, str] | None:
     return None
 
 
-def _warn_if_numkit_stale() -> None:
-    """Print a prominent warning if the numkit binary looks stale (see above)."""
-    st = _numkit_stale()
+def _warn_if_nk_stale() -> None:
+    """Print a prominent warning if the nk binary looks stale (see above)."""
+    st = _nk_stale()
     if st is None:
         return
     exe_m, src_m, src_rel = st
     fmt = lambda t: time.strftime("%Y-%m-%d %H:%M", time.localtime(t))
     bar = "!" * 74
-    exe_rel = str(NUMKIT_EXE.relative_to(ROOT)).replace("\\", "/")
+    exe_rel = str(NK_EXE.relative_to(ROOT)).replace("\\", "/")
     print(
         f"\n{bar}\n"
-        f"  WARNING: numkit.exe is STALE — numkit parity will under-report.\n"
+        f"  WARNING: nk.exe is STALE — nk parity will under-report.\n"
         f"  The harness drives this prebuilt binary and never rebuilds it. Functions\n"
         f"  added/changed since it was built are NOT registered in it and show as a\n"
         f"  spurious 'FAIL  N/A  rows=0' (a staleness artifact, NOT a real gap).\n"
@@ -168,7 +168,7 @@ class Spec:
     # Large-array benchmark inputs. The plain `setup`/`expr`/`fingerprint`
     # stay TINY for exact cross-engine correctness; but timing measured on
     # tiny inputs is dominated by per-call interpreter overhead (MATLAB's
-    # is large, numkit's is tiny → meaningless 100×+ ratios). When
+    # is large, nk's is tiny → meaningless 100×+ ratios). When
     # `bench_setup` is non-empty the harness times the call on LARGE data
     # instead, so vs_MATLAB / vs_Octave reflect real throughput. The
     # timed loop runs `bench_expr` (defaults to `expr`) over the variables
@@ -197,7 +197,7 @@ class Spec:
 
 # ────────────────────────── script builder ───────────────────────────
 
-# Inline MATLAB/Octave/numkit-compatible code that prints `<var>` as a
+# Inline MATLAB/Octave/nk-compatible code that prints `<var>` as a
 # SAVE block parsed by `parse_save_block` below. Type-dispatches at run
 # time so the same snippet works for double / single / int* / logical /
 # char / string / cell-of-chars outputs.
@@ -248,7 +248,7 @@ def _indent_stmts(code: str, n: int) -> str:
     """Indent `code` by n spaces, one statement per line.
 
     Spec `setup` / `expr` are authored as a single `;`-separated line.
-    A very long single line trips a numkit parser bug (statements past
+    A very long single line trips a nk parser bug (statements past
     a certain length mis-evaluate), so each `;`-separated statement is
     put on its own line. A `;` inside a `[...]` matrix literal split
     this way stays valid — a newline is also a row separator there.
@@ -305,7 +305,7 @@ def build_spec_func(spec: Spec, *, engine: str) -> str:
     if spec.out_var:
         save_dump = _indent(
             SAVE_DUMP_TEMPLATE.replace("__VAR__", spec.out_var), 4)
-    reimport = "    import compat.*\n" if engine == "numkit" else ""
+    reimport = "    import compat.*\n" if engine == "nk" else ""
 
     # Correctness body — always run on the TINY setup+expr (exact
     # cross-engine fingerprint / save comparison).
@@ -332,7 +332,7 @@ def build_spec_func(spec: Spec, *, engine: str) -> str:
     bench_expr = spec.bench_expr.strip() or spec.expr
 
     def timed(size: int, iters: int, label: str) -> str:
-        # NB: assign toc() to a variable BEFORE fprintf — numkit's toc(h)
+        # NB: assign toc() to a variable BEFORE fprintf — nk's toc(h)
         # returns empty when inlined directly into fprintf's arg list.
         return (
             f"    N = {size};\n"
@@ -367,9 +367,9 @@ def build_batch_script(specs: list[Spec], *, engine: str) -> str:
     aborts its chunk — MATLAB compiles the file before running — which
     is why specs are chunked rather than run as one giant script.
     """
-    if engine == "numkit":
+    if engine == "nk":
         # toolboxes/{signal,stats,…} fns are aliased into `compat.<name>`;
-        # MATLAB has no compat package so this is numkit-only.
+        # MATLAB has no compat package so this is nk-only.
         prelude = "import compat.*\n"
     elif engine == "octave":
         # Octave needs `pkg load` for non-base packages.
@@ -544,14 +544,14 @@ def _run_engine_raw(specs: list[Spec],
     Result via the __SPECERR__ marker, and partial results from a
     crashed process are still returned for the specs that completed.
     """
-    if engine == "numkit" and not NUMKIT_EXE.exists():
-        return {}, f"numkit binary missing: {NUMKIT_EXE}"
+    if engine == "nk" and not NK_EXE.exists():
+        return {}, f"nk binary missing: {NK_EXE}"
     script = build_batch_script(specs, engine=engine)
     path = _write_script(script)
     timeout = max(300, 8 * len(specs))  # one launch covers the chunk
     try:
-        if engine == "numkit":
-            cmd = [str(NUMKIT_EXE), str(path)]
+        if engine == "nk":
+            cmd = [str(NK_EXE), str(path)]
         elif engine == "matlab":
             cmd = [MATLAB_EXE, "-batch", f"run('{path.as_posix()}')"]
         else:
@@ -697,8 +697,8 @@ def compose_status(cur_status: str, correctness: str,
     return " ".join(parts)
 
 # BENCHMARK.md row — per-function perf at two array sizes (1e3 / 1e6) vs
-# MATLAB / Octave.  nk_*=numkit per-call mean (ms); ML×/OC× = ref_ms /
-# numkit_ms (>1× = numkit faster). "" = not yet benched for that engine.
+# MATLAB / Octave.  nk_*=nk per-call mean (ms); ML×/OC× = ref_ms /
+# nk_ms (>1× = nk faster). "" = not yet benched for that engine.
 BENCH_ROW_FMT = ("| `{name}` | {nk_s} | {ml_s} | {oc_s} "
                  "| {nk_l} | {ml_l} | {oc_l} | {notes} |")
 
@@ -769,7 +769,7 @@ def update_benchmark_row(*, name: str, nk: Result | None,
                          ml: Result | None, oc: Result | None,
                          note: str = "") -> int:
     """Update perf rows in BENCHMARK.md for `name`. Only writes when
-    numkit produced two-size timings (a `bench_setup` spec); otherwise
+    nk produced two-size timings (a `bench_setup` spec); otherwise
     leaves the existing row untouched so it stays 'not yet benched'.
     `note` (the spec's bench_note) goes into the notes column — used to
     record a non-default input shape, e.g. an image's 100x100 / 1000x1000."""
@@ -818,7 +818,7 @@ def evaluate(spec: Spec, nk: Result | None, ml: Result | None,
              oc: Result | None) -> tuple[str, str]:
     """(status, correctness) for one spec from its three engine Results.
 
-    status      — DONE if numkit ran the spec, FAIL otherwise.
+    status      — DONE if nk ran the spec, FAIL otherwise.
     correctness — OK / MISMATCH / N/A vs the reference engine
                   (MATLAB preferred, Octave fallback).
     """
@@ -844,7 +844,7 @@ def run_chunk(specs: list[Spec], *, no_matlab: bool, no_octave: bool,
     """Run one chunk — a single launch per engine — then score and log
     every spec. Returns (rc, tally); rc is 1 if any spec failed or
     mismatched."""
-    nk_res, nk_err = run_engine_batch(specs, "numkit")
+    nk_res, nk_err = run_engine_batch(specs, "nk")
     ml_res, ml_err = (({}, "") if no_matlab
                       else run_engine_batch(specs, "matlab"))
     oc_res, oc_err = (({}, "") if no_octave
@@ -867,8 +867,8 @@ def run_chunk(specs: list[Spec], *, no_matlab: bool, no_octave: bool,
             tally[correctness] += 1
             if correctness == "MISMATCH":
                 rc = 1
-        # Only refresh a row when numkit actually ran the spec. On any
-        # numkit failure (engine crash, parse error, runtime throw)
+        # Only refresh a row when nk actually ran the spec. On any
+        # nk failure (engine crash, parse error, runtime throw)
         # leave the row intact — don't overwrite a previously-recorded
         # OK with a transient N/A.
         rows = 0
@@ -885,7 +885,7 @@ def run_chunk(specs: list[Spec], *, no_matlab: bool, no_octave: bool,
         print(f"  {spec.name:<34} {status:<5} {correctness:<9} "
               f"rows={rows}{flag}", flush=True)
         if verbose and nk is not None and not nk.ok:
-            print(f"      numkit error: {nk.error}", flush=True)
+            print(f"      nk error: {nk.error}", flush=True)
     return rc, tally
 
 
@@ -922,7 +922,7 @@ def main():
     print(f"{len(specs)} spec(s) · chunk={chunk} · "
           f"{nchunks} launch(es) per engine", flush=True)
 
-    _warn_if_numkit_stale()
+    _warn_if_nk_stale()
 
     rc = 0
     total = {"OK": 0, "MISMATCH": 0, "FAIL": 0, "N/A": 0}

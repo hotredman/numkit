@@ -7,9 +7,9 @@
 // / times() / rdivide() in binary_ops.cpp are unchanged; they
 // call these loops only for the 2D same-shape DOUBLE fast path.
 
-#include <numkit/ops/binary_ops.hpp>
+#include <nk/ops/binary_ops.hpp>
 
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/parallel_for.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -23,7 +23,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -378,12 +378,12 @@ void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::ops::detail {
+namespace nk::ops::detail {
 
 HWY_EXPORT(PlusLoop);
 HWY_EXPORT(MinusLoop);
@@ -396,7 +396,7 @@ HWY_EXPORT(MatmulLoop);
 // per-target loop on its disjoint [start, end) slice — output buffers
 // don't overlap, so per-element semantics are bit-identical to the
 // single-threaded path. Below kCheapElementwiseThreshold (and on builds
-// without NUMKIT_WITH_THREADS) parallel_for runs `fn(0, n)` directly,
+// without NK_WITH_THREADS) parallel_for runs `fn(0, n)` directly,
 // preserving the prior fast path.
 
 // One global sfence per dispatcher call (rather than per parallel
@@ -413,53 +413,53 @@ void plusLoop(const double *a, const double *b, double *out, std::size_t n)
     // (can't drift), and living in a lambda-free TU it auto-vectorizes regardless
     // of the worker capture below — beating the HWY_DYNAMIC_DISPATCH indirect call
     // at cache-resident N (see bugs/ops/cheap-elementwise-simd-small-n).
-    if (n < numkit::detail::kSimdInlineThreshold) {
+    if (n < nk::detail::kSimdInlineThreshold) {
         plusScalar(a, b, out, n);
         return;
     }
-    numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
+    nk::detail::parallel_for(n, nk::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(PlusLoop)(a + s, b + s, out + s, e - s);
-        }, numkit::detail::kElementwiseMaxWorkers);
+        }, nk::detail::kElementwiseMaxWorkers);
     hwy::FlushStream();
 }
 
 void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
+    if (n < nk::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
         minusScalar(a, b, out, n);
         return;
     }
-    numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
+    nk::detail::parallel_for(n, nk::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(MinusLoop)(a + s, b + s, out + s, e - s);
-        }, numkit::detail::kElementwiseMaxWorkers);
+        }, nk::detail::kElementwiseMaxWorkers);
     hwy::FlushStream();
 }
 
 void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
+    if (n < nk::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
         timesScalar(a, b, out, n);
         return;
     }
-    numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
+    nk::detail::parallel_for(n, nk::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(TimesLoop)(a + s, b + s, out + s, e - s);
-        }, numkit::detail::kElementwiseMaxWorkers);
+        }, nk::detail::kElementwiseMaxWorkers);
     hwy::FlushStream();
 }
 
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
+    if (n < nk::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
         rdivideScalar(a, b, out, n);
         return;
     }
-    numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
+    nk::detail::parallel_for(n, nk::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(RdivideLoop)(a + s, b + s, out + s, e - s);
-        }, numkit::detail::kElementwiseMaxWorkers);
+        }, nk::detail::kElementwiseMaxWorkers);
     hwy::FlushStream();
 }
 
@@ -484,7 +484,7 @@ void matmulDoubleLoop(const double *a, const double *b, double *c,
         HWY_DYNAMIC_DISPATCH(MatmulLoop)(a, b, c, M, N, K);
         return;
     }
-    numkit::detail::parallel_for(N, kMatmulParallelThreshold,
+    nk::detail::parallel_for(N, kMatmulParallelThreshold,
         [=](std::size_t j_start, std::size_t j_end) {
             HWY_DYNAMIC_DISPATCH(MatmulLoop)(
                 a,
@@ -494,6 +494,6 @@ void matmulDoubleLoop(const double *a, const double *b, double *c,
         });
 }
 
-} // namespace numkit::ops::detail
+} // namespace nk::ops::detail
 
 #endif // HWY_ONCE

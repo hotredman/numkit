@@ -2,10 +2,10 @@
 //
 // Regression guard for vco (Phase 4.8). Bit-equal MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class VcoTest : public ::testing::Test
 {

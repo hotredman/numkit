@@ -12,5 +12,5 @@
     "S.normr", "S.df", "nf", "rsq",
     "yh", "dl"
   ],
-  "comment": "Sig: p = polyfit(x,y,n); [p,S,mu] = polyfit(...); [y,delta] = polyval(p,x,S,mu). Covers default coeffs, mu = [mean(x); std(x,0)] centering/scaling, S.normr/S.df, and the polyval error estimate delta = normr/sqrt(df)*sqrt(1+rowSum((V/R).^2)). S.R sign convention is intentionally not fingerprinted (Cholesky vs MATLAB qr-R differ in row sign; R'R identical so delta matches). DEEP-PROBE c166: added S.rsquared (= 1 - (normr/norm(y-mean(y)))^2), MATLAB R2025b's 4th S field which numkit was missing (had only R/df/normr); now numel(fieldnames(S))=4, S.rsquared=0.9973053289. covers:[polyfit]."
+  "comment": "Sig: p = polyfit(x,y,n); [p,S,mu] = polyfit(...); [y,delta] = polyval(p,x,S,mu). Covers default coeffs, mu = [mean(x); std(x,0)] centering/scaling, S.normr/S.df, and the polyval error estimate delta = normr/sqrt(df)*sqrt(1+rowSum((V/R).^2)). S.R sign convention is intentionally not fingerprinted (Cholesky vs MATLAB qr-R differ in row sign; R'R identical so delta matches). DEEP-PROBE c166: added S.rsquared (= 1 - (normr/norm(y-mean(y)))^2), MATLAB R2025b's 4th S field which nk was missing (had only R/df/normr); now numel(fieldnames(S))=4, S.rsquared=0.9973053289. covers:[polyfit]."
 }

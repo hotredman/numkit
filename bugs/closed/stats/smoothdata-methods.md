@@ -12,10 +12,10 @@ regression-based methods `sgolay`, `lowess`, `loess`.
 ## Repro
 ```matlab
 smoothdata([1 5 2 8 3 9 4], 'sgolay')
-% numkit: Error — smoothdata: method 'sgolay' not supported
+% nk: Error — smoothdata: method 'sgolay' not supported
 %         (supported: 'movmean', 'movmedian', 'gaussian')
 smoothdata([1 5 2 8 3 9 4], 'lowess')
-% numkit: Error — smoothdata: method 'lowess' not supported
+% nk: Error — smoothdata: method 'lowess' not supported
 ```
 
 ## Root cause
@@ -40,7 +40,7 @@ fall back to passthrough.
 
 ⚠️ The **auto default window is approximate**, NOT matched: MATLAB's default is a
 **data-dependent heuristic** (probed: for the same `N=12` the default window was
-2 or 6 depending on the data values), which numkit's shared `round(0.1·N)` default
+2 or 6 depending on the data values), which nk's shared `round(0.1·N)` default
 doesn't replicate — the explicit-window form is the matched contract. (The
 existing `movmean`/`movmedian`/`gaussian` defaults share this approximation.)
 

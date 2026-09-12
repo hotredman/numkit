@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/kmedoids_test.cpp
 // kmedoids.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class KmedoidsTest : public ::testing::Test
 {
@@ -20,7 +20,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// MATLAB and numkit assign different cluster IDs (RNG cascade depends
+// MATLAB and nk assign different cluster IDs (RNG cascade depends
 // on normrnd parity — out of scope for this spec); test partition
 // equivalence and output shapes instead of literal labels.
 
@@ -77,7 +77,7 @@ TEST_F(KmedoidsTest, SixOutputInfoStruct)
 }
 
 // gap closure: default Distance is 'sqeuclidean' (per MATLAB R2025b);
-// previously numkit defaulted to 'euclidean'.
+// previously nk defaulted to 'euclidean'.
 TEST_F(KmedoidsTest, DefaultDistanceSqEuclidean)
 {
     eval("[idx, C, sumd, D, midx, info] = kmedoids(X, 3);");

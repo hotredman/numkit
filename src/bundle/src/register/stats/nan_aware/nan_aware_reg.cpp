@@ -3,18 +3,18 @@
 // CallContext register half of nan_aware/nan_aware.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/nan_aware/nan_aware.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/nan_reductions.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/nan_aware/nan_aware.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/nan_reductions.hpp>
+#include <nk/ops/helpers.hpp>
 #include "nan_aware/nan_aware_detail.hpp"
-#include <numkit/ops/reductions.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/ops/reductions.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -36,7 +36,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         int dim = 0;                                                             \
         if (args.size() >= 2 && !args[1].isEmpty())                              \
             dim = static_cast<int>(args[1].toScalar());                          \
@@ -51,7 +51,7 @@ NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
 
 // nanmax / nanmin accept both signatures:
 //   nanmax(A)         — reduce over first non-singleton
-//   nanmax(A, dim)    — legacy/numkit form (dim in arg 1)
+//   nanmax(A, dim)    — legacy/nk form (dim in arg 1)
 //   nanmax(A, [], d)  — MATLAB-style 3-arg form (dim in arg 2; arg 1 = [])
 #define NK_NAN_MAXMIN_ADAPTER(name, fn)                                          \
     void name##_reg(Span<const Value> args, size_t /*nargout*/,                 \
@@ -59,7 +59,7 @@ NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
     {                                                                             \
         if (args.empty())                                                         \
             throw Error(#name ": requires at least 1 argument",                  \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                  \
+                         0, 0, #name, "", "nk:" #name ":nargin");                  \
         int dim = 0;                                                              \
         if (args.size() == 2 && !args[1].isEmpty())                               \
             dim = static_cast<int>(args[1].toScalar());                           \
@@ -78,7 +78,7 @@ void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("nanvar: requires at least 1 argument",
-                     0, 0, "nanvar", "", "numkit:nanvar:nargin");
+                     0, 0, "nanvar", "", "nk:nanvar:nargin");
     int w = 0, dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         w = static_cast<int>(args[1].toScalar());
@@ -92,7 +92,7 @@ void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("nanstd: requires at least 1 argument",
-                     0, 0, "nanstd", "", "numkit:nanstd:nargin");
+                     0, 0, "nanstd", "", "nk:nanstd:nargin");
     int w = 0, dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         w = static_cast<int>(args[1].toScalar());
@@ -112,7 +112,7 @@ void nancov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("nancov: requires at least 1 argument",
-                     0, 0, "nancov", "", "numkit:nancov:nargin");
+                     0, 0, "nancov", "", "nk:nancov:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = nancov(args[0], 0, mr);
@@ -133,4 +133,4 @@ void nancov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -2,12 +2,12 @@
 //
 // fileread / readlines / writelines / readmatrix / writematrix / type.
 
-#include <numkit/io/text/extras.hpp>
+#include <nk/io/text/extras.hpp>
 
-#include <numkit/value/error.hpp>
-#include <numkit/fs/vfs.hpp>
-#include <numkit/fs/fs_context.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/fs/vfs.hpp>
+#include <nk/fs/fs_context.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <cmath>
 #include <cstring>
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::io {
+namespace nk::io {
 
 // Resolve via the FsContext VFS and read the whole file as a string. Public
 // (declared in extras.hpp) so the Engine-coupled `type` (type.cpp) can reuse it.
@@ -29,12 +29,12 @@ std::string slurpFile(FsContext &fs, const std::string &filename, const char *fn
     }
     if (!resolved.fs)
         throw Error(std::string(fnName) + ": cannot resolve filesystem for '" + filename + "'",
-                     0, 0, fnName, "", std::string("numkit:") + fnName + ":noFs");
+                     0, 0, fnName, "", std::string("nk:") + fnName + ":noFs");
     try {
         return resolved.fs->readFile(resolved.path);
     } catch (const std::exception &e) {
         throw Error(std::string(fnName) + ": " + e.what(),
-                     0, 0, fnName, "", std::string("numkit:") + fnName + ":readFailed");
+                     0, 0, fnName, "", std::string("nk:") + fnName + ":readFailed");
     }
 }
 
@@ -51,12 +51,12 @@ void spitFile(FsContext &fs, const std::string &filename, const std::string &con
     }
     if (!resolved.fs)
         throw Error(std::string(fnName) + ": cannot resolve filesystem for '" + filename + "'",
-                     0, 0, fnName, "", std::string("numkit:") + fnName + ":noFs");
+                     0, 0, fnName, "", std::string("nk:") + fnName + ":noFs");
     try {
         resolved.fs->writeFile(resolved.path, content);
     } catch (const std::exception &e) {
         throw Error(std::string(fnName) + ": " + e.what(),
-                     0, 0, fnName, "", std::string("numkit:") + fnName + ":writeFailed");
+                     0, 0, fnName, "", std::string("nk:") + fnName + ":writeFailed");
     }
 }
 
@@ -189,11 +189,11 @@ std::string writematrixToString(const Value &m)
 {
     if (m.isComplex())
         throw Error("writematrix: complex matrices are not supported",
-                     0, 0, "writematrix", "", "numkit:writematrix:complex");
+                     0, 0, "writematrix", "", "nk:writematrix:complex");
     const auto &d = m.dims();
     if (d.is3D())
         throw Error("writematrix: 3-D arrays are not supported",
-                     0, 0, "writematrix", "", "numkit:writematrix:nd");
+                     0, 0, "writematrix", "", "nk:writematrix:nd");
     const size_t R = d.rows(), C = d.cols();
 
     std::ostringstream os;
@@ -262,12 +262,12 @@ void writelines(FsContext &fs, const Value &lines, const std::string &filename)
             const Value &cell = lines.cellAt(i);
             if (!cell.isChar() && !cell.isString())
                 throw Error("writelines: each cell element must be a string",
-                             0, 0, "writelines", "", "numkit:writelines:badCell");
+                             0, 0, "writelines", "", "nk:writelines:badCell");
             append(cell.toString());
         }
     } else {
         throw Error("writelines: lines must be a string, string array, or cell of strings",
-                     0, 0, "writelines", "", "numkit:writelines:badArg");
+                     0, 0, "writelines", "", "nk:writelines:badArg");
     }
     spitFile(fs, filename, os.str(), "writelines");
 }
@@ -286,4 +286,4 @@ void writematrix(FsContext &fs, const Value &m, const std::string &filename)
 }
 
 
-} // namespace numkit::io
+} // namespace nk::io

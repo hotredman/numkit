@@ -2,16 +2,16 @@
 //
 // Process-environment builtins (setenv / getenv).
 
-#include <numkit/runtime/env.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/runtime/env.hpp>
+#include <nk/core/engine.hpp>
 
-#include <numkit/fs/branding.hpp>     // for envGet
-#include <numkit/core/types.hpp>
+#include <nk/fs/branding.hpp>     // for envGet
+#include <nk/core/types.hpp>
 
 #include <cstdlib>
 #include <string>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 // ════════════════════════════════════════════════════════════════════════
 // setenv / getenv — MATLAB-compatible process-environment access.
@@ -48,7 +48,7 @@ Value getenv(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.empty() || !args[0].isChar())
         throw Error("getenv: argument must be a variable name");
-    return Value::fromString(numkit::envGet(args[0].toString().c_str()), mr);
+    return Value::fromString(nk::envGet(args[0].toString().c_str()), mr);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -79,4 +79,4 @@ void registerEnvRuntime(Engine &engine)
     engine.registerFunction("getenv", &detail::getenv_reg);
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

@@ -12,7 +12,7 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -20,7 +20,7 @@
 #include <memory_resource>
 #include <string>
 
-namespace numkit::image {
+namespace nk::image {
 
 // Write a sampled value `v` (native units) into output element idx i, clipping
 // integer types to their natural range.
@@ -64,4 +64,4 @@ Value imresize3_core(const Value &V,
                      const std::string &method, bool antialias,
                      std::pmr::memory_resource *mr);
 
-} // namespace numkit::image
+} // namespace nk::image

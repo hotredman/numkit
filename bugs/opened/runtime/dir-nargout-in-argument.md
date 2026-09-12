@@ -22,9 +22,9 @@ clear;
 figure; plot(1:3);
 saveas(gcf, [tempdir 'probe_dir.png']);
 a = numel(dir([tempdir 'probe_dir.png']));       % assignment context
-fprintf('assigned = %d\n', a);                   % numkit: 1  ✓
+fprintf('assigned = %d\n', a);                   % nk: 1  ✓
 fprintf('nested = %d\n', numel(dir([tempdir 'probe_dir.png'])));
-% numkit: prints the dir listing, then "nested = 0"
+% nk: prints the dir listing, then "nested = 0"
 % MATLAB R2025b: nested = 1 (argument context requests an output)
 ```
 

@@ -3,12 +3,12 @@
 // unwrap — split out from transforms/.cpp. The hilbert/envelope
 // pair lives in transforms/hilbert.cpp.
 
-#include <numkit/signal/filter_analysis/unwrap.hpp>
+#include <nk/signal/filter_analysis/unwrap.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 
@@ -16,7 +16,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 Value unwrap(const Value &phase, std::pmr::memory_resource *mr)
 {
@@ -36,4 +36,4 @@ Value unwrap(const Value &phase, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

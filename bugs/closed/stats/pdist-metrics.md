@@ -19,14 +19,14 @@
 ```matlab
 A = [1 2 3; 4 5 7; 1 0 2];
 pdist(A, 'seuclidean')
-% numkit: Error — pdist: unknown metric 'seuclidean'
+% nk: Error — pdist: unknown metric 'seuclidean'
 % MATLAB: [2.5897 0.8800 3.2433]
 pdist(A, 'spearman')
-% numkit: Error — pdist: unknown metric 'spearman'
+% nk: Error — pdist: unknown metric 'spearman'
 % MATLAB: [0 ...] (rank-correlation distances)
 
 pdist([0 0; 3 4], 'cosine')
-% numkit: 1
+% nk: 1
 % MATLAB: NaN   (zero-norm row -> undefined)
 ```
 

@@ -16,12 +16,12 @@ behind the usual pow2 test inputs.
 x = (1:6)';
 imag(hilbert(x))
 % MATLAB: [ 2.3094  -1.1547  -1.1547  -1.1547  -1.1547   2.3094]
-% numkit: [-1.0000  -1.7249  -1.8284  -1.1036  -1.0000   3.2249]  (wrong)
+% nk: [-1.0000  -1.7249  -1.8284  -1.1036  -1.0000   3.2249]  (wrong)
 
 n = (0:99)'; x = cos(2*pi*5*n/100);
 max(abs(abs(hilbert(x)) - 1))
 % MATLAB: ~1e-15 (constant envelope = 1)
-% numkit: ~0.25  (|z| ≈ 0.75, not 1 — corrupted)
+% nk: ~0.25  (|z| ≈ 0.75, not 1 — corrupted)
 ```
 
 ## Root cause

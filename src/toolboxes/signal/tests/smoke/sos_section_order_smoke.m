@@ -4,10 +4,10 @@ clear
 % default 'up' ordering sorts sections by ASCENDING pole radius: poles
 % nearest the ORIGIN come first, poles nearest the unit circle come last,
 % and the overall gain is folded into the first (origin-nearest) section.
-% numkit previously emitted sections in the reversed (unit-circle-first)
+% nk previously emitted sections in the reversed (unit-circle-first)
 % order. vs MATLAB R2025b. (Works for complex-conjugate pole pairs — the
 % normal butter/cheby/ellip case; pairing of purely real poles still uses
-% numkit's own grouping, which leaves the cascade product unchanged.)
+% nk's own grouping, which leaves the cascade product unchanged.)
 
 fprintf('=== zp2sos, complex poles 0.2+/-0.3i (r=0.36) and 0.5+/-0.5i (r=0.71) ===\n');
 S = zp2sos([], [0.5+0.5i; 0.5-0.5i; 0.2+0.3i; 0.2-0.3i], 1);

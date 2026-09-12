@@ -13,5 +13,5 @@
     "r(5)",
     "ri1", "ri2", "cri"
   ],
-  "comment": "Sig: r = ceil(...). Element-wise libm-backed primitive. INTEGER input is the IDENTITY and keeps the class: ceil(int16([-3 5]))=[-3 5] int16 (numkit previously threw 'Not a double array'; fixed 2026-05-30). Spec-extension batch 2026-05-09 + integer-class. NOTE: ; only inside matrix-literal INPUTS."
+  "comment": "Sig: r = ceil(...). Element-wise libm-backed primitive. INTEGER input is the IDENTITY and keeps the class: ceil(int16([-3 5]))=[-3 5] int16 (nk previously threw 'Not a double array'; fixed 2026-05-30). Spec-extension batch 2026-05-09 + integer-class. NOTE: ; only inside matrix-literal INPUTS."
 }

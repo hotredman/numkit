@@ -3,11 +3,11 @@
 // wentropy(X, T[, P]) — closed-form coefficient entropy. bugs/wavelet/
 // wentropy.md. Reference values from MATLAB R2025b.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WentropyTest : public ::testing::Test
 {

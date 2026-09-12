@@ -1,24 +1,24 @@
 // toolboxes/control/src/lti/lti.cpp
 //
-// LTI constructors. Each builds a numkit struct value tagged by the
+// LTI constructors. Each builds a nk struct value tagged by the
 // `kind` field. Discrete-time systems carry Ts > 0; continuous = 0.
 // We don't enforce algebraic invariants here (e.g. real coefficients,
 // proper rational form) — that's left to the user / converters which
 // check on-demand.
 
-#include <numkit/control/lti/lti.hpp>
-#include <numkit/control/conversion/conversion.hpp>
+#include <nk/control/lti/lti.hpp>
+#include <nk/control/conversion/conversion.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The tf/zpk/ss/filt/frd
 // constructors + *data extractors (CallContext wrappers) live in lti_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -53,7 +53,7 @@ Value tf(const Value &num, const Value &den, double Ts, std::pmr::memory_resourc
 {
     if (den.numel() == 0)
         throw Error("tf: denominator must not be empty",
-                    0, 0, "tf", "", "numkit:tf:den");
+                    0, 0, "tf", "", "nk:tf:den");
     Value s = tagStruct("tf", Ts, mr);
     s.field("num") = rowVec(num, mr);
     s.field("den") = rowVec(den, mr);
@@ -101,7 +101,7 @@ Value filt(const Value &num, const Value &den, double Ts, std::pmr::memory_resou
 {
     if (den.numel() == 0)
         throw Error("filt: denominator must not be empty",
-                    0, 0, "filt", "", "numkit:filt:den");
+                    0, 0, "filt", "", "nk:filt:den");
     Value s = tagStruct("tf", Ts, mr);
     s.field("num") = rowVec(num, mr);
     s.field("den") = rowVec(den, mr);
@@ -113,7 +113,7 @@ Value frd(const Value &response, const Value &frequency, double Ts, std::pmr::me
 {
     if (response.numel() != frequency.numel())
         throw Error("frd: response and frequency must have the same length",
-                    0, 0, "frd", "", "numkit:frd:size");
+                    0, 0, "frd", "", "nk:frd:size");
     Value s = tagStruct("frd", Ts, mr);
     const size_t N = frequency.numel();
     // resp may be complex; copy as column vector.
@@ -298,7 +298,7 @@ tfdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr)
                                     sys.field("C"), sys.field("D"), 1, mr);
     } else {
         throw Error("tfdata: input must be tf / zpk / ss",
-                    0, 0, "tfdata", "", "numkit:tfdata:kind");
+                    0, 0, "tfdata", "", "nk:tfdata:kind");
     }
     const size_t L = std::max(num.numel(), den.numel());
     Value np = padToLen(num, L, mr);
@@ -330,7 +330,7 @@ zpkdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr)
         k = Value::scalar(r.k.toScalar(), mr);
     } else {
         throw Error("zpkdata: input must be tf / zpk / ss",
-                    0, 0, "zpkdata", "", "numkit:zpkdata:kind");
+                    0, 0, "zpkdata", "", "nk:zpkdata:kind");
     }
     if (asVector) return {std::move(z), std::move(p), std::move(k)};
     return {wrapCell(z, mr), wrapCell(p, mr), std::move(k)};
@@ -357,7 +357,7 @@ ssdata(const Value &sys, std::pmr::memory_resource *mr)
         C = std::move(ss.C); D = std::move(ss.D);
     } else {
         throw Error("ssdata: input must be tf / zpk / ss",
-                    0, 0, "ssdata", "", "numkit:ssdata:kind");
+                    0, 0, "ssdata", "", "nk:ssdata:kind");
     }
     return {std::move(A), std::move(B), std::move(C), std::move(D)};
 }
@@ -367,7 +367,7 @@ frdata(const Value &sys, std::pmr::memory_resource *mr)
 {
     if (kindOf(sys) != "frd")
         throw Error("frdata: input must be an frd model",
-                    0, 0, "frdata", "", "numkit:frdata:kind");
+                    0, 0, "frdata", "", "nk:frdata:kind");
     // Shallow copy through the user resource; resp / freq are already
     // stored as column vectors by frd().
     Value resp = sys.field("resp");
@@ -394,7 +394,7 @@ Value ss2ss(const Value &sys, const Value &T, std::pmr::memory_resource *mr)
 {
     if (kindOf(sys) != "ss")
         throw Error("ss2ss: input must be an ss model",
-                    0, 0, "ss2ss", "", "numkit:ss2ss:kind");
+                    0, 0, "ss2ss", "", "nk:ss2ss:kind");
     const Value &Av = sys.field("A");
     const Value &Bv = sys.field("B");
     const Value &Cv = sys.field("C");
@@ -402,14 +402,14 @@ Value ss2ss(const Value &sys, const Value &T, std::pmr::memory_resource *mr)
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n || T.dims().rows() != n || T.dims().cols() != n)
         throw Error("ss2ss: T must be n×n with n = order(sys)",
-                    0, 0, "ss2ss", "", "numkit:ss2ss:size");
+                    0, 0, "ss2ss", "", "nk:ss2ss:size");
     const size_t m = Bv.dims().cols();
     const size_t p = Cv.dims().rows();
 
     std::vector<double> Tinv;
     if (!inverse_n(T, Tinv, n))
         throw Error("ss2ss: T is singular",
-                    0, 0, "ss2ss", "", "numkit:ss2ss:singular");
+                    0, 0, "ss2ss", "", "nk:ss2ss:singular");
 
     std::vector<double> Tm = readMat(T);
     std::vector<double> Am = readMat(Av);
@@ -437,4 +437,4 @@ Value ss2ss(const Value &sys, const Value &T, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::control
+} // namespace nk::control

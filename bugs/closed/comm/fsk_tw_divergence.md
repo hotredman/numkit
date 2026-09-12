@@ -20,7 +20,7 @@ desktop-fast suite green (11796 passed / 1 skipped, TW + VM).
 
 On the **TreeWalker** backend, the whole-array colon index `x(:)` does **not**
 reshape a **row** vector to a column — it returns the row unchanged. MATLAB (and
-the numkit **VM**) always make `x(:)` a column (`numel × 1`). Matrices and
+the nk **VM**) always make `x(:)` a column (`numel × 1`). Matrices and
 column vectors are reshaped correctly; only the row-vector case is wrong, which
 is why it stayed hidden (the full suite is green).
 

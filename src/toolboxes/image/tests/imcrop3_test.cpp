@@ -3,10 +3,10 @@
 // Regression guard for imcrop3 — 3-D / 4-D volume cropping.
 // Reference values from MATLAB R2025b, bit-equal on all probed cases.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Imcrop3Test : public ::testing::Test
 {

@@ -9,12 +9,12 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/control/riccati/riccati.hpp>
+#include <nk/control/riccati/riccati.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
-namespace numkit::control {
+namespace nk::control {
 namespace detail {
 
 namespace {
@@ -39,7 +39,7 @@ void care_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 3)
         throw Error("care: requires (A, B, Q) and optionally R",
-                    0, 0, "care", "", "numkit:care:nargin");
+                    0, 0, "care", "", "nk:care:nargin");
     auto *mr = c.engine->resource();
     Value R = (a.size() >= 4) ? a[3] : eyeVal(a[1].dims().cols(), mr);
     emit(care(a[0], a[1], a[2], R, mr), o);
@@ -49,7 +49,7 @@ void dare_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 3)
         throw Error("dare: requires (A, B, Q) and optionally R",
-                    0, 0, "dare", "", "numkit:dare:nargin");
+                    0, 0, "dare", "", "nk:dare:nargin");
     auto *mr = c.engine->resource();
     Value R = (a.size() >= 4) ? a[3] : eyeVal(a[1].dims().cols(), mr);
     emit(dare(a[0], a[1], a[2], R, mr), o);
@@ -71,7 +71,7 @@ void lqr_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 3)
         throw Error("lqr: requires (A, B, Q) and optionally R",
-                    0, 0, "lqr", "", "numkit:lqr:nargin");
+                    0, 0, "lqr", "", "nk:lqr:nargin");
     auto *mr = c.engine->resource();
     Value R = (a.size() >= 4) ? a[3] : eyeVal(a[1].dims().cols(), mr);
     emitLqr(care(a[0], a[1], a[2], R, mr), o);
@@ -81,11 +81,11 @@ void dlqr_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 3)
         throw Error("dlqr: requires (A, B, Q) and optionally R",
-                    0, 0, "dlqr", "", "numkit:dlqr:nargin");
+                    0, 0, "dlqr", "", "nk:dlqr:nargin");
     auto *mr = c.engine->resource();
     Value R = (a.size() >= 4) ? a[3] : eyeVal(a[1].dims().cols(), mr);
     emitLqr(dare(a[0], a[1], a[2], R, mr), o);
 }
 
 } // namespace detail
-} // namespace numkit::control
+} // namespace nk::control

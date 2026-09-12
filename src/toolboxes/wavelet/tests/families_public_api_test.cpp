@@ -2,17 +2,17 @@
 //
 // Direct C++ API guard for toolboxes/wavelet/src/filter/families.cpp after the
 // lift from adapter-only to the typed entry points
-// numkit::wavelet::{dbwavf, coifwavf, symwavf, orthfilt}. Calls the public
+// nk::wavelet::{dbwavf, coifwavf, symwavf, orthfilt}. Calls the public
 // functions directly (not via the engine); reference values match the
 // script-level *_test.cpp guards (MATLAB R2025b).
 
-#include <numkit/wavelet/filter/families.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/wavelet/filter/families.hpp>
+#include <nk/core/engine.hpp>
 
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 double sumOf(const Value &v)

@@ -6,22 +6,22 @@
 // the engine-free compute in multilevel2.cpp. library.cpp forward-declares
 // + registers these by name.
 
-#include <numkit/wavelet/dwt/multilevel2.hpp>
+#include <nk/wavelet/dwt/multilevel2.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <string>
 #include <utility>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected string argument",
-                    0, 0, "", "", "numkit:wavelet:type");
+                    0, 0, "", "", "nk:wavelet:type");
     return v.toString();
 }
 
@@ -30,7 +30,7 @@ void wavedec2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("wavedec2: requires (X, N, wname)",
-                    0, 0, "wavedec2", "", "numkit:wavedec2:nargin");
+                    0, 0, "wavedec2", "", "nk:wavedec2:nargin");
     auto *mr = ctx.engine->resource();
     auto r = wavedec2(args[0], static_cast<int>(args[1].toScalar()),
                       argString(args[2]), mr);
@@ -43,7 +43,7 @@ void waverec2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("waverec2: requires (C, S, wname)",
-                    0, 0, "waverec2", "", "numkit:waverec2:nargin");
+                    0, 0, "waverec2", "", "nk:waverec2:nargin");
     outs[0] = waverec2(args[0], args[1], argString(args[2]),
                        ctx.engine->resource());
 }
@@ -53,7 +53,7 @@ void appcoef2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("appcoef2: requires (C, S, wname[, level])",
-                    0, 0, "appcoef2", "", "numkit:appcoef2:nargin");
+                    0, 0, "appcoef2", "", "nk:appcoef2:nargin");
     auto *mr = ctx.engine->resource();
     int level = -1;   // default = coarsest
     if (args.size() >= 4 && !args[3].isEmpty()
@@ -67,7 +67,7 @@ void detcoef2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 4)
         throw Error("detcoef2: requires (type, C, S, level)",
-                    0, 0, "detcoef2", "", "numkit:detcoef2:nargin");
+                    0, 0, "detcoef2", "", "nk:detcoef2:nargin");
     auto *mr = ctx.engine->resource();
     std::string type = argString(args[0]);
     std::string lt = type;
@@ -85,4 +85,4 @@ void detcoef2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

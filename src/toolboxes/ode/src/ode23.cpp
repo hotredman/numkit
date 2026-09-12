@@ -13,10 +13,10 @@
 //     Equations I" (Springer, 2nd ed.) — general adaptive step-size
 //     control formula (§II.4, Eq. 4.13).
 
-#include <numkit/ode/solvers.hpp>
-#include <numkit/ode/options.hpp>
+#include <nk/ode/solvers.hpp>
+#include <nk/ode/options.hpp>
 
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include "ode_detail.hpp"
 
@@ -26,7 +26,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::ode {
+namespace nk::ode {
 
 namespace {
 
@@ -108,19 +108,19 @@ ode23(FnHandle rhs, const Value &tspan, const Value &y0,
     const std::size_t nspan = tspan.numel();
     if (nspan < 2)
         throw Error("ode23: tspan must have at least 2 elements",
-                    0, 0, "ode23", "", "numkit:ode23:tspanShort");
+                    0, 0, "ode23", "", "nk:ode23:tspanShort");
     std::vector<double> ts(nspan);
     for (std::size_t i = 0; i < nspan; ++i) ts[i] = tspan.elemAsDouble(i);
     const double t0 = ts.front();
     const double tf = ts.back();
     if (t0 == tf)
         throw Error("ode23: tspan(end) must differ from tspan(1)",
-                    0, 0, "ode23", "", "numkit:ode23:tspanDegenerate");
+                    0, 0, "ode23", "", "nk:ode23:tspanDegenerate");
     const double dir = (tf > t0) ? 1.0 : -1.0;
     for (std::size_t i = 1; i < nspan; ++i) {
         if ((ts[i] - ts[i - 1]) * dir <= 0.0)
             throw Error("ode23: tspan must be strictly monotonic",
-                        0, 0, "ode23", "", "numkit:ode23:tspanMono");
+                        0, 0, "ode23", "", "nk:ode23:tspanMono");
     }
 
     const std::size_t d = y0.numel();
@@ -130,7 +130,7 @@ ode23(FnHandle rhs, const Value &tspan, const Value &y0,
     OdeOpts O = read_opts(opts, 1);
     if (O.abs_tol.size() != 1 && O.abs_tol.size() != d)
         throw Error("ode23: AbsTol must be scalar or match length(y0)",
-                    0, 0, "ode23", "", "numkit:ode23:absTolSize");
+                    0, 0, "ode23", "", "nk:ode23:absTolSize");
     auto atol_i = [&](std::size_t i) {
         return (O.abs_tol.size() == 1) ? O.abs_tol[0] : O.abs_tol[i];
     };
@@ -280,16 +280,16 @@ ode23(FnHandle rhs, const Value &tspan, const Value &y0,
             if (failed_in_a_row > 10)
                 throw Error("ode23: 10 consecutive step rejections; "
                             "tolerances may be too tight or RHS too stiff",
-                            0, 0, "ode23", "", "numkit:ode23:tooManyFailures");
+                            0, 0, "ode23", "", "nk:ode23:tooManyFailures");
             if (h < std::fabs(t) * 1e-15)
                 throw Error("ode23: step size underflow",
-                            0, 0, "ode23", "", "numkit:ode23:stepUnderflow");
+                            0, 0, "ode23", "", "nk:ode23:stepUnderflow");
         }
     }
     if (step_count >= max_steps)
         throw Error("ode23: exceeded " + std::to_string(max_steps)
                   + " integration steps",
-                    0, 0, "ode23", "", "numkit:ode23:tooManySteps");
+                    0, 0, "ode23", "", "nk:ode23:tooManySteps");
 
     // Assemble output: t (m × 1) and y (m × d).
     const std::size_t m = t_out.size();
@@ -302,4 +302,4 @@ ode23(FnHandle rhs, const Value &tspan, const Value &y0,
     return {std::move(t_val), std::move(y_val)};
 }
 
-} // namespace numkit::ode
+} // namespace nk::ode

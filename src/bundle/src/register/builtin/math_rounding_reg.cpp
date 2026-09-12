@@ -3,18 +3,18 @@
 // CallContext register half of math/arithmetic/rounding.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "elfun/_unary_hint.hpp"  // 3-arg abs hint overload
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 #include "elfun/rounding.hpp"      // detail::doubleCeilLoop / FloorLoop / RoundLoop / FixLoop
 #include "elfun/rounding_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,8 +26,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -37,7 +37,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
@@ -54,7 +54,7 @@ void round_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("round: requires 1 argument",
-                     0, 0, "round", "", "numkit:round:nargin");
+                     0, 0, "round", "", "nk:round:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() < 2 || args[1].isEmpty()) {
         outs[0] = round(args[0], mr);
@@ -69,14 +69,14 @@ void round_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         else if (s == "decimals")    significant = false;
         else
             throw Error("round: type must be 'decimals' or 'significant'",
-                         0, 0, "round", "", "numkit:round:badType");
+                         0, 0, "round", "", "nk:round:badType");
     }
     if (significant && n < 1)
         throw Error("round: N must be >= 1 for 'significant'",
-                     0, 0, "round", "", "numkit:round:badN");
+                     0, 0, "round", "", "nk:round:badN");
     outs[0] = roundN(args[0], n, significant, mr);
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

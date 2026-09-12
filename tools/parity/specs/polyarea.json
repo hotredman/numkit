@@ -12,5 +12,5 @@
     "a4",
     "a5"
   ],
-  "comment": "Sig: a = polyarea(x, y). Shoelace area of the polygon (x,y); <3 vertices -> 0. a1 unit square=1, a2 triangle=0.5, a3 2x3 rect=6, a4 L-shape=12, a5 2 points=0. Lifted to public C++ API numkit::builtin::polyarea (was adapter-only) 2026-06."
+  "comment": "Sig: a = polyarea(x, y). Shoelace area of the polygon (x,y); <3 vertices -> 0. a1 unit square=1, a2 triangle=0.5, a3 2x3 rect=6, a4 L-shape=12, a5 2 points=0. Lifted to public C++ API nk::builtin::polyarea (was adapter-only) 2026-06."
 }

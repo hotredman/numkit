@@ -6,10 +6,10 @@
 // uniform integers in [1, N/4] to give a realistic distribution of
 // duplicates.
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -17,7 +17,7 @@
 
 namespace {
 
-using namespace numkit;
+using namespace nk;
 
 Value makeIntVec(size_t n, int64_t hi, uint32_t seed)
 {
@@ -56,7 +56,7 @@ static void BM_Unique(benchmark::State &s)
     auto x = makeIntVec(n, std::max<int64_t>(8, static_cast<int64_t>(n / 4)), 1);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::builtin::unique(x, mr);
+        auto y = nk::builtin::unique(x, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -70,7 +70,7 @@ static void BM_Ismember(benchmark::State &s)
     auto b = makeIntVec(n / 4, std::max<int64_t>(8, static_cast<int64_t>(n / 4)), 3);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::builtin::ismember(a, b, mr);
+        auto y = nk::builtin::ismember(a, b, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -91,9 +91,9 @@ static void runPairBench(benchmark::State &s, Fn fn)
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
 }
 
-static void BM_Union    (benchmark::State &s) { runPairBench(s, [](auto &a, auto &x, auto &y){ return numkit::builtin::setUnion    (x, y, a); }); }
-static void BM_Intersect(benchmark::State &s) { runPairBench(s, [](auto &a, auto &x, auto &y){ return numkit::builtin::setIntersect(x, y, a); }); }
-static void BM_Setdiff  (benchmark::State &s) { runPairBench(s, [](auto &a, auto &x, auto &y){ return numkit::builtin::setDiff     (x, y, a); }); }
+static void BM_Union    (benchmark::State &s) { runPairBench(s, [](auto &a, auto &x, auto &y){ return nk::builtin::setUnion    (x, y, a); }); }
+static void BM_Intersect(benchmark::State &s) { runPairBench(s, [](auto &a, auto &x, auto &y){ return nk::builtin::setIntersect(x, y, a); }); }
+static void BM_Setdiff  (benchmark::State &s) { runPairBench(s, [](auto &a, auto &x, auto &y){ return nk::builtin::setDiff     (x, y, a); }); }
 
 BENCHMARK(BM_Union)    ->RangeMultiplier(4)->Range(1 << 10, 1 << 20);
 BENCHMARK(BM_Intersect)->RangeMultiplier(4)->Range(1 << 10, 1 << 20);
@@ -106,7 +106,7 @@ static void BM_Histcounts(benchmark::State &s)
     auto edges = makeEdges(64);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::builtin::histcounts(x, edges, mr);
+        auto y = nk::builtin::histcounts(x, edges, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

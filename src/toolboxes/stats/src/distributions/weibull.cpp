@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/weibull.cpp
 
-#include <numkit/stats/distributions/weibull.hpp>
+#include <nk/stats/distributions/weibull.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -16,7 +16,7 @@
 
 #include "weibull_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value wblpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
@@ -59,7 +59,7 @@ Value wblinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value wblrnd(::nk::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -86,4 +86,4 @@ std::tuple<double, double> wblstat(double a, double b)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

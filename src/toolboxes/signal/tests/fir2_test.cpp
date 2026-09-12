@@ -7,10 +7,10 @@
 // design MATLAB-independently (the realised frequency response matches
 // the request, and the filter is linear-phase / symmetric).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Fir2Test : public ::testing::Test
 {

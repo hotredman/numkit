@@ -1,18 +1,18 @@
 // toolboxes/image/src/quality/quality.cpp
 
-#include <numkit/image/quality/quality.hpp>
+#include <nk/image/quality/quality.hpp>
 
-#include <numkit/image/filter/filter.hpp>
+#include <nk/image/filter/filter.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <cstdint>
 #include <limits>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -41,7 +41,7 @@ double sum_squared_error(const Value &A, const Value &B) {
 Value immse(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("immse: A and B must have the same number of elements",
-                    0, 0, "immse", "", "numkit:immse:size");
+                    0, 0, "immse", "", "nk:immse:size");
     const double mse = (A.numel() > 0)
                        ? sum_squared_error(A, B) / double(A.numel())
                        : 0.0;
@@ -51,7 +51,7 @@ Value immse(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
 Value psnr(const Value &A, const Value &B, double peak, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("psnr: A and B must have the same number of elements",
-                    0, 0, "psnr", "", "numkit:psnr:size");
+                    0, 0, "psnr", "", "nk:psnr:size");
     if (std::isnan(peak)) peak = class_peak(A.type());
     if (A.numel() == 0) return Value::scalar(std::numeric_limits<double>::infinity(), mr);
     const double mse = sum_squared_error(A, B) / double(A.numel());
@@ -63,7 +63,7 @@ Value psnr(const Value &A, const Value &B, double peak, std::pmr::memory_resourc
 Value ssim(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("ssim: A and B must have the same number of elements",
-                    0, 0, "ssim", "", "numkit:ssim:size");
+                    0, 0, "ssim", "", "nk:ssim:size");
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
     if (H == 0 || W == 0) return Value::scalar(1.0, mr);
@@ -384,16 +384,16 @@ Value multissim(const Value &A, const Value &Iref,
     if (A.dims().rows() != Iref.dims().rows()
         || A.dims().cols() != Iref.dims().cols())
         throw Error("multissim: I and Iref must have the same size",
-                    0, 0, "multissim", "", "numkit:multissim:size");
+                    0, 0, "multissim", "", "nk:multissim:size");
     if (A.type() != Iref.type())
         throw Error("multissim: I and Iref must have the same class",
-                    0, 0, "multissim", "", "numkit:multissim:class");
+                    0, 0, "multissim", "", "nk:multissim:class");
     if (num_scales < 1)
         throw Error("multissim: NumScales must be a positive integer",
-                    0, 0, "multissim", "", "numkit:multissim:numScales");
+                    0, 0, "multissim", "", "nk:multissim:numScales");
     if (!std::isfinite(sigma) || sigma <= 0.0)
         throw Error("multissim: Sigma must be a positive scalar",
-                    0, 0, "multissim", "", "numkit:multissim:sigma");
+                    0, 0, "multissim", "", "nk:multissim:sigma");
 
     const ValueType origClass = A.type();
     const std::size_t H = A.dims().rows();
@@ -407,7 +407,7 @@ Value multissim(const Value &A, const Value &Iref,
                 throw Error("multissim: image too small for NumScales="
                             + std::to_string(num_scales),
                             0, 0, "multissim", "",
-                            "numkit:multissim:tooSmall");
+                            "nk:multissim:tooSmall");
             h = (h + 1) / 2;
             w = (w + 1) / 2;
         }
@@ -427,20 +427,20 @@ Value multissim(const Value &A, const Value &Iref,
     if (static_cast<int>(sw.size()) != num_scales)
         throw Error("multissim: length(ScaleWeights) must equal NumScales",
                     0, 0, "multissim", "",
-                    "numkit:multissim:swLen");
+                    "nk:multissim:swLen");
     double swsum = 0.0;
     for (double v : sw) {
         if (v < 0.0)
             throw Error("multissim: ScaleWeights must be non-negative",
                         0, 0, "multissim", "",
-                        "numkit:multissim:swNeg");
+                        "nk:multissim:swNeg");
         swsum += v;
     }
     if (swsum <= 0.0)
         throw Error("multissim: ScaleWeights must have at least one "
                     "positive element",
                     0, 0, "multissim", "",
-                    "numkit:multissim:swZero");
+                    "nk:multissim:swZero");
     for (double &v : sw) v /= swsum;
 
     // ── Gaussian kernel ────────────────────────────────────────
@@ -723,18 +723,18 @@ Value multissim3(const Value &V, const Value &Vref,
         || V.dims().cols() != Vref.dims().cols()
         || V.dims().pages() != Vref.dims().pages())
         throw Error("multissim3: V and Vref must have the same size",
-                    0, 0, "multissim3", "", "numkit:multissim3:size");
+                    0, 0, "multissim3", "", "nk:multissim3:size");
     if (V.type() != Vref.type())
         throw Error("multissim3: V and Vref must have the same class",
-                    0, 0, "multissim3", "", "numkit:multissim3:class");
+                    0, 0, "multissim3", "", "nk:multissim3:class");
     if (num_scales < 1)
         throw Error("multissim3: NumScales must be a positive integer",
                     0, 0, "multissim3", "",
-                    "numkit:multissim3:numScales");
+                    "nk:multissim3:numScales");
     if (!std::isfinite(sigma) || sigma <= 0.0)
         throw Error("multissim3: Sigma must be a positive scalar",
                     0, 0, "multissim3", "",
-                    "numkit:multissim3:sigma");
+                    "nk:multissim3:sigma");
 
     const ValueType origClass = V.type();
     Vol Ad = to_double_vol(V);
@@ -748,7 +748,7 @@ Value multissim3(const Value &V, const Value &Vref,
                 throw Error("multissim3: volume too small for NumScales="
                             + std::to_string(num_scales),
                             0, 0, "multissim3", "",
-                            "numkit:multissim3:tooSmall");
+                            "nk:multissim3:tooSmall");
             h = (h + 1) / 2;
             w = (w + 1) / 2;
             d = (d + 1) / 2;
@@ -766,18 +766,18 @@ Value multissim3(const Value &V, const Value &Vref,
         : scale_weights_in;
     if (static_cast<int>(sw.size()) != num_scales)
         throw Error("multissim3: length(ScaleWeights) must equal NumScales",
-                    0, 0, "multissim3", "", "numkit:multissim3:swLen");
+                    0, 0, "multissim3", "", "nk:multissim3:swLen");
     double swsum = 0.0;
     for (double v : sw) {
         if (v < 0.0)
             throw Error("multissim3: ScaleWeights must be non-negative",
-                        0, 0, "multissim3", "", "numkit:multissim3:swNeg");
+                        0, 0, "multissim3", "", "nk:multissim3:swNeg");
         swsum += v;
     }
     if (swsum <= 0.0)
         throw Error("multissim3: ScaleWeights must have at least one "
                     "positive element",
-                    0, 0, "multissim3", "", "numkit:multissim3:swZero");
+                    0, 0, "multissim3", "", "nk:multissim3:swZero");
     for (double &v : sw) v /= swsum;
 
     const int filtRadius = static_cast<int>(std::ceil(sigma * 3.0));
@@ -823,7 +823,7 @@ Value corr2(const Value &A, const Value &B, std::pmr::memory_resource *mr)
     const size_t N = A.numel();
     if (B.numel() != N)
         throw Error("corr2: A and B must have the same number of elements",
-                    0, 0, "corr2", "", "numkit:corr2:size");
+                    0, 0, "corr2", "", "nk:corr2:size");
     if (N == 0) return Value::scalar(std::nan(""), mr);
     long double sa = 0.0L, sb = 0.0L;
     for (size_t i = 0; i < N; ++i) {
@@ -845,4 +845,4 @@ Value corr2(const Value &A, const Value &B, std::pmr::memory_resource *mr)
     return Value::scalar(static_cast<double>(cov / denom), mr);
 }
 
-} // namespace numkit::image
+} // namespace nk::image

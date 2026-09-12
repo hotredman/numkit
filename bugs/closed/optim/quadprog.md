@@ -14,7 +14,7 @@ constraints — was not registered.
 ```matlab
 quadprog(eye(2), [-1 -1])                    % MATLAB: [1; 1]
 quadprog(eye(2), [-1 -1], [1 1], 1)          % MATLAB: [0.5; 0.5]  (x1+x2<=1)
-% numkit (each): Error — VM: undefined function 'quadprog'
+% nk (each): Error — VM: undefined function 'quadprog'
 ```
 
 ## Fix (2026-06-19)

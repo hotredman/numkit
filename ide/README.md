@@ -1,6 +1,6 @@
-# Numkit IDE — React + Vite Edition
+# NK IDE — React + Vite Edition
 
-Web-based REPL for the numkit (MATLAB-like) interpreter, built with React + Vite.
+Web-based REPL for the nk (MATLAB-like) interpreter, built with React + Vite.
 
 ## Features
 
@@ -52,7 +52,7 @@ with a built-in JavaScript interpreter.
 
 ## Connecting Your WASM Engine
 
-To use your real C++ numkit interpreter:
+To use your real C++ nk interpreter:
 
 ### Step 1 — Build WASM with Emscripten
 
@@ -63,14 +63,14 @@ cmake --build --preset=browser
 ```
 
 This produces two files under `build-browser/wasm/dist/`:
-- `numkit_ide.js`   (Emscripten glue code)
-- `numkit_ide.wasm` (compiled binary)
+- `nk_ide.js`   (Emscripten glue code)
+- `nk_ide.wasm` (compiled binary)
 
 ### Step 2 — Copy into Vite project
 
 ```bash
-cp build-browser/wasm/dist/numkit_ide.js   ide/public/
-cp build-browser/wasm/dist/numkit_ide.wasm ide/public/
+cp build-browser/wasm/dist/nk_ide.js   ide/public/
+cp build-browser/wasm/dist/nk_ide.wasm ide/public/
 ```
 
 Alternatively just run `./engine-build.sh --wasm` (Linux/macOS) or `engine-build.bat --wasm` (Windows), then `./web-run.sh` / `web-run.bat` — the dev-run scripts copy the artifacts automatically.
@@ -82,7 +82,7 @@ cd repl-vite
 npm run dev
 ```
 
-The app auto-detects `window.createNumkitIdeModule` and switches from
+The app auto-detects `window.createNKIdeModule` and switches from
 fallback mode to the real WASM engine.
 
 ## Production Build
@@ -98,14 +98,14 @@ GitHub Pages, your own server).
 ## Project Structure
 
 ```
-numkit-ide-vite/
+nk-ide-vite/
 ├── index.html              # Entry point (loads WASM script + React)
 ├── package.json
 ├── vite.config.js
 ├── public/
 │   ├── favicon.svg
-│   ├── numkit_ide.js        # ← copy WASM glue here (optional)
-│   └── numkit_ide.wasm      # ← copy WASM binary here (optional)
+│   ├── nk_ide.js        # ← copy WASM glue here (optional)
+│   └── nk_ide.wasm      # ← copy WASM binary here (optional)
 └── src/
     ├── main.jsx             # React root
     ├── index.css            # Global styles
@@ -155,8 +155,8 @@ access token input in the GitRepoBrowser component.
 Add this to your top-level `CMakeLists.txt`:
 
 ```cmake
-option(NUMKIT_BUILD_REPL "Build web REPL" OFF)
-if(NUMKIT_BUILD_REPL)
+option(NK_BUILD_REPL "Build web REPL" OFF)
+if(NK_BUILD_REPL)
     add_subdirectory(repl)
 endif()
 ```

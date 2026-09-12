@@ -12,7 +12,7 @@ registered.
 ## Repro
 ```matlab
 [b, a] = stmcb([1 0.5 0.25 0.125 0.0625], 1, 1)
-% numkit: Error — VM: undefined function 'stmcb'
+% nk: Error — VM: undefined function 'stmcb'
 % MATLAB: a = [1 -0.5]   (recovers the 1/(1-0.5 z^-1) system)
 ```
 
@@ -20,7 +20,7 @@ registered.
 Not implemented.
 
 ## Fix (2026-06-18)
-Implemented `numkit::signal::stmcb(h, nb, na, niter)` in
+Implemented `nk::signal::stmcb(h, nb, na, niter)` in
 `src/toolboxes/signal/src/spectral_analysis/signal_modeling.cpp` (alongside
 `prony`), registered under `parametric`. Algorithm (validated by reproducing it
 in MATLAB before porting): initialise `A` via `prony`, then `niter` (default 5)
@@ -41,7 +41,7 @@ form (the common use) is implemented.
 
 ## References
 - `src/toolboxes/signal/src/spectral_analysis/signal_modeling.cpp` (`stmcb`),
-  `.../include/numkit/signal/spectral_analysis/signal_modeling.hpp`,
+  `.../include/nk/signal/spectral_analysis/signal_modeling.hpp`,
   `src/bundle/src/register/signal/spectral_analysis/signal_modeling_reg.cpp`.
 - `tools/parity/specs/stmcb.json`.
 - shipped: `prony`, `levinson`, `lpc`, `filter`

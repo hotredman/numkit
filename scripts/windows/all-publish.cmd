@@ -48,10 +48,10 @@ if errorlevel 1 (
 echo.
 echo =======================================================
 echo   All published successfully to GitHub!
-echo   Code: https://github.com/hotredman/numkit
-echo   Demo: https://hotredman.github.io/numkit-demo/
-echo   Docs: https://hotredman.github.io/numkit-doxy/
-echo   Bugs: https://hotredman.github.io/numkit-bugs/
+echo   Code: https://github.com/hotredman/nk
+echo   Demo: https://hotredman.github.io/nk-demo/
+echo   Docs: https://hotredman.github.io/nk-doxy/
+echo   Bugs: https://hotredman.github.io/nk-bugs/
 echo =======================================================
 exit /b 0
 

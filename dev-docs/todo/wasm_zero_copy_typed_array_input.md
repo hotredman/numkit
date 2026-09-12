@@ -7,11 +7,11 @@
 > delete this file — the todo list holds open work only.
 
 ## Goal
-Add high-performance direct data injection methods (`repl_set_var_float64`, `repl_set_var_typed_array`) to the Emscripten WASM bridge, allowing JavaScript/TypeScript applications and AI agent workers to transfer large numeric buffers (e.g., 1M+ sample audio streams, sensor logs, images, and large matrices) directly from JS `Float64Array` / `TypedArray` into NumKit workspace variables without string serialization or parser overhead.
+Add high-performance direct data injection methods (`repl_set_var_float64`, `repl_set_var_typed_array`) to the Emscripten WASM bridge, allowing JavaScript/TypeScript applications and AI agent workers to transfer large numeric buffers (e.g., 1M+ sample audio streams, sensor logs, images, and large matrices) directly from JS `Float64Array` / `TypedArray` into NK workspace variables without string serialization or parser overhead.
 
 ## Problem & Rationale
 1. **String Parsing Overhead**: Setting variables by constructing MATLAB string code (`mod.repl_execute("x = [1.23, 4.56, ...]")`) requires text concatenation in JS and lexer/parser/AST allocation in C++. For arrays with $> 100{,}000$ elements, this adds noticeable latency and garbage collector pressure.
-2. **Zero-Copy / Fast Memcpy Efficiency**: Emscripten allows direct memory transfer between JS `Float64Array` views and C++ memory buffers (`std::vector<double>` or `numkit::TensorStorage`) via raw pointer `memcpy`, completing in $< 0.5\text{ ms}$ for megabyte-scale datasets.
+2. **Zero-Copy / Fast Memcpy Efficiency**: Emscripten allows direct memory transfer between JS `Float64Array` views and C++ memory buffers (`std::vector<double>` or `nk::TensorStorage`) via raw pointer `memcpy`, completing in $< 0.5\text{ ms}$ for megabyte-scale datasets.
 
 ## Proposed Design & Implementation
 
@@ -33,8 +33,8 @@ void repl_set_var_float64(const std::string &name,
     );
     memoryView.call<void>("set", typedArray);
     
-    // Construct numkit::Value and assign to active workspace
-    numkit::Value val = numkit::Value::fromMatrix(rows, cols, std::move(buf));
+    // Construct nk::Value and assign to active workspace
+    nk::Value val = nk::Value::fromMatrix(rows, cols, std::move(buf));
     g_session->setVariable(name, val);
 }
 ```
@@ -48,4 +48,4 @@ void repl_set_var_float64(const std::string &name,
 - [ ] `repl_set_var_float64` exported in `EMSCRIPTEN_BINDINGS` (`wasm/src/repl_bindings.cpp`).
 - [ ] A 1,000,000-element `Float64Array` injected from JS into variable `x` in $< 1\text{ ms}$.
 - [ ] Immediate execution of `y = fft(x);` or `m = mean(x);` in the same session without workspace errors.
-- [ ] Regression test added to `packages/numkit/test/` verifying shape, values, and memory safety.
+- [ ] Regression test added to `packages/nk/test/` verifying shape, values, and memory safety.

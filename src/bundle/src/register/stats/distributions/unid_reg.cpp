@@ -3,16 +3,16 @@
 // CallContext register half of distributions/unid.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/stats/distributions/unid.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/stats/distributions/unid.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/unid_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,14 +24,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void unidpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("unidpdf: requires (k, N)", 0, 0, "unidpdf", "", "numkit:unidpdf:nargin");
+        throw Error("unidpdf: requires (k, N)", 0, 0, "unidpdf", "", "nk:unidpdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &N = args[1];
     if (N.isScalar())
@@ -45,7 +45,7 @@ void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "numkit:unidcdf:nargin");
+        throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "nk:unidcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &N = a[1];
     Value v = N.isScalar() ? unidcdf(a[0], N.toScalar(), mr)
@@ -57,7 +57,7 @@ void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void unidinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("unidinv: requires (p, N)", 0, 0, "unidinv", "", "numkit:unidinv:nargin");
+        throw Error("unidinv: requires (p, N)", 0, 0, "unidinv", "", "nk:unidinv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &N = args[1];
     if (N.isScalar())
@@ -69,7 +69,7 @@ void unidinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("unidrnd: requires N[, sz...]", 0, 0, "unidrnd", "", "numkit:unidrnd:nargin");
+        throw Error("unidrnd: requires N[, sz...]", 0, 0, "unidrnd", "", "nk:unidrnd:nargin");
     const double N = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
@@ -84,4 +84,4 @@ void unidstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

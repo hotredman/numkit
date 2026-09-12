@@ -13,7 +13,7 @@
 // Same per-TU isolation rationale as the other FFT kernels (MSVC
 // inliner-budget cliff documented in feedback_fft_msvc_limits memory).
 
-#include <numkit/ops/fft/fft_kernels.hpp>
+#include <nk/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
@@ -25,7 +25,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -212,12 +212,12 @@ void Radix4Pow4_SoA(Complex *buf, std::size_t N, const Complex *W,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::ops::detail {
+namespace nk::ops::detail {
 
 HWY_EXPORT(Radix4Pow4_SoA);
 HWY_EXPORT(Radix4Pow4_SoAStages);
@@ -240,6 +240,6 @@ void fftRadix4Pow4SoaStagesDispatch(double *re, double *im, std::size_t N,
     HWY_DYNAMIC_DISPATCH(Radix4Pow4_SoAStages)(re, im, N, W);
 }
 
-} // namespace numkit::ops::detail
+} // namespace nk::ops::detail
 
 #endif // HWY_ONCE

@@ -1,4 +1,4 @@
-// numkit/graphics — plots.cpp
+// nk/graphics — plots.cpp
 //
 // Registration hub for the graphics library. buildPlotTable() assembles the
 // full plotting table by dispatching to the per-family builders; each appends
@@ -14,16 +14,16 @@
 //   plots/image.cpp    — imagesc / pcolor / imshow
 //   plots/contour.cpp  — contour / contourf
 //   plots/surface.cpp  — surf / mesh / slice / isosurface / coneplot / streamtube / lighting
-//   plots/helpers.cpp  — pure JSON/parse helpers (numkit::detail)
-//   plots/shared.cpp   — plot bodies shared by more than one family (numkit::detail)
+//   plots/helpers.cpp  — pure JSON/parse helpers (nk::detail)
+//   plots/shared.cpp   — plot bodies shared by more than one family (nk::detail)
 
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include "plots/plot_internal.hpp"
 
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildPlotTable(std::vector<PlotEntry> &table)
 {
@@ -36,4 +36,4 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     buildSurfacePlots(table);
 }
 
-}  // namespace numkit
+}  // namespace nk

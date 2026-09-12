@@ -3,10 +3,10 @@
 // Regression guard for cycle 3 image color extras: rgb2lightness +
 // rgb2ind (fixed-palette nodither form).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ColorExtrasTest : public ::testing::Test
 {
@@ -100,7 +100,7 @@ TEST_F(ColorExtrasTest, RgbIndRejectsNon3DInput)
 }
 
 // ── label2rgb ─────────────────────────────────────────────────────────
-// DEEP-PROBE c180: numkit previously REQUIRED an explicit Nx3 map and
+// DEEP-PROBE c180: nk previously REQUIRED an explicit Nx3 map and
 // rejected color-string zerocolor. MATLAB defaults map to jet(max(L(:))),
 // accepts a colormap-NAME string, and accepts a ColorSpec/named zerocolor.
 // All values pinned to MATLAB R2025b. Output is uint8.

@@ -2,13 +2,13 @@
 //
 // Continuous wavelet shape primitives: mexihat, morlet, meyeraux.
 
-#include <numkit/wavelet/shape/shape.hpp>
+#include <nk/wavelet/shape/shape.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The mexihat /
 // morlet / meyeraux / shanwavf / cmorwavf / fbspwavf builtins (CallContext
 // wrappers) live in shape/shape_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 
@@ -16,7 +16,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -126,7 +126,7 @@ fbspwavf(double lb, double ub, size_t N, int m, double fb, double fc, std::pmr::
 {
     if (m < 1)
         throw Error("fbspwavf: order m must be >= 1",
-                    0, 0, "fbspwavf", "", "numkit:fbspwavf:order");
+                    0, 0, "fbspwavf", "", "nk:fbspwavf:order");
     Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::COMPLEX, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
@@ -170,4 +170,4 @@ Value meyeraux(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

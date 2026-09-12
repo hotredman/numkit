@@ -2,11 +2,11 @@
 //
 // Backfill gtest for toolboxes/wavelet/src/dwt/ihaart.cpp::ihaart.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class IhaartTest : public ::testing::Test
 {
@@ -64,5 +64,5 @@ TEST_F(IhaartTest, MatrixRoundtrip)
 
 TEST_F(IhaartTest, ComplexDRejected)
 {
-    EXPECT_THROW(eval("ihaart([1 2], [1+1i 1+1i]);"), numkit::Error);
+    EXPECT_THROW(eval("ihaart([1 2], [1+1i 1+1i]);"), nk::Error);
 }

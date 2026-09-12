@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/digital_filtering/shiftdata.hpp>
+#include <nk/signal/digital_filtering/shiftdata.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void shiftdata_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("shiftdata: requires (x [, dim])",
-                    0, 0, "shiftdata", "", "numkit:shiftdata:nargin");
+                    0, 0, "shiftdata", "", "nk:shiftdata:nargin");
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         dim = static_cast<int>(args[1].toScalar());
@@ -49,10 +49,10 @@ void unshiftdata_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("unshiftdata: requires (x, perm, nshifts)",
-                    0, 0, "unshiftdata", "", "numkit:unshiftdata:nargin");
+                    0, 0, "unshiftdata", "", "nk:unshiftdata:nargin");
     outs[0] = unshiftdata(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

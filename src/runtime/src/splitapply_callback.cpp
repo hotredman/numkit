@@ -2,16 +2,16 @@
 //
 // VM State-machine splitapply callback implementation.
 
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/vm.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/vm.hpp>
+#include <nk/value/value.hpp>
 
 #include <map>
 #include <memory>
 #include <vector>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 namespace detail {
 
@@ -79,4 +79,4 @@ void registerSplitapplyCallbackBuiltin(Engine &engine)
                                    std::make_shared<detail::SplitapplyCallbackBuiltin>());
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

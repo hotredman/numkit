@@ -3,16 +3,16 @@
 // CallContext register half of spectral_analysis/spectral_metrics.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
-#include <numkit/signal/spectral_analysis/spectral_metrics.hpp>
-#include <numkit/signal/transforms/hilbert.hpp>
-#include <numkit/signal/windows/windows.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <nk/signal/spectral_analysis/spectral_metrics.hpp>
+#include <nk/signal/transforms/hilbert.hpp>
+#include <nk/signal/windows/windows.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void bandpower_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bandpower: requires at least 1 argument",
-                     0, 0, "bandpower", "", "numkit:bandpower:nargin");
+                     0, 0, "bandpower", "", "nk:bandpower:nargin");
     const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     const Value &fr = (args.size() >= 3) ? args[2] : Value::Empty;
     outs[0] = bandpower(args[0], fs, fr, ctx.engine->resource());
@@ -44,7 +44,7 @@ void obw_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("obw: requires at least 1 argument",
-                     0, 0, "obw", "", "numkit:obw:nargin");
+                     0, 0, "obw", "", "nk:obw:nargin");
     const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     double p = 0.99;
     if (args.size() >= 3 && !args[2].isEmpty()) p = args[2].toScalar();
@@ -61,7 +61,7 @@ void obw_reg(Span<const Value> args, size_t nargout,
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;          \
         outs[0] = fn(args[0], fs, ctx.engine->resource());                      \
     }
@@ -87,14 +87,14 @@ void instfreq_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("instfreq: requires at least 1 argument",
-                     0, 0, "instfreq", "", "numkit:instfreq:nargin");
+                     0, 0, "instfreq", "", "nk:instfreq:nargin");
     std::string method = "hilbert";
     for (size_t i = 1; i < args.size(); ++i) {
         if ((args[i].isChar() || args[i].isString())
             && args[i].toString() == "Method" && i + 1 < args.size()) {
             if (!(args[i + 1].isChar() || args[i + 1].isString()))
                 throw Error("instfreq: 'Method' value must be a string",
-                             0, 0, "instfreq", "", "numkit:instfreq:method");
+                             0, 0, "instfreq", "", "nk:instfreq:method");
             method = args[i + 1].toString();
             ++i;
         }
@@ -103,7 +103,7 @@ void instfreq_reg(Span<const Value> args, size_t, Span<Value> outs,
         throw Error("instfreq: method '" + method + "' is not yet supported "
                     "(the default tfmoment needs a pspectrum port — see "
                     "bugs/opened/signal/instfreq-instbw.md)",
-                     0, 0, "instfreq", "", "numkit:instfreq:method");
+                     0, 0, "instfreq", "", "nk:instfreq:method");
     const Value &fs = (args.size() >= 2 && !args[1].isChar() && !args[1].isString())
                           ? args[1] : Value::Empty;
     outs[0] = instfreq(args[0], fs, ctx.engine->resource());
@@ -114,4 +114,4 @@ NK_SPEC1_REG(instbw,           instbw)
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

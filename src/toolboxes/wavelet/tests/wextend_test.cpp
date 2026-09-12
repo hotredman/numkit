@@ -2,11 +2,11 @@
 //
 // Backfill gtest for toolboxes/wavelet/src/dwt/wkeep_wextend.cpp::wextend.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WextendTest : public ::testing::Test
 {

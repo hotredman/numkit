@@ -13,5 +13,5 @@
     "yr(1)", "yr(2)", "yr(3)", "yr(4)",
     "yw(1)", "yw(2)", "yw(4)"
   ],
-  "comment": "Sig [pks,locs,w,p]=findpeaks(Y[,X|Fs],Name,Value). Default = strict local maxima (1-based idx). Options: MinPeakHeight, Threshold, MinPeakDistance, NPeaks, SortStr, MinPeakProminence (keep peaks with topographic prominence >= value). 3rd/4th outputs: w = half-prominence width (linear-interpolated crossings of h-prominence/2), p = prominence (h - max of the two bounding-interval minima). numkit previously errored on MinPeakProminence and on >2 outputs -- now supported. MinPeakWidth/WidthReference still deferred. Matches MATLAB R2025b."
+  "comment": "Sig [pks,locs,w,p]=findpeaks(Y[,X|Fs],Name,Value). Default = strict local maxima (1-based idx). Options: MinPeakHeight, Threshold, MinPeakDistance, NPeaks, SortStr, MinPeakProminence (keep peaks with topographic prominence >= value). 3rd/4th outputs: w = half-prominence width (linear-interpolated crossings of h-prominence/2), p = prominence (h - max of the two bounding-interval minima). nk previously errored on MinPeakProminence and on >2 outputs -- now supported. MinPeakWidth/WidthReference still deferred. Matches MATLAB R2025b."
 }

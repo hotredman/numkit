@@ -12,14 +12,14 @@ dispatch to the specific family are all undefined: `cdf`, `pdf`, `icdf`,
 
 ## Repro
 ```matlab
-cdf('Normal', 1, 0, 1)        % numkit: undefined function 'cdf'   (MATLAB 0.84134)
-pdf('Poisson', 2, 3)          % numkit: undefined function 'pdf'   (MATLAB 0.22404)
-icdf('Normal', 0.975, 0, 1)   % numkit: undefined function 'icdf'  (MATLAB 1.95996)
-random('Normal', 0, 1, 1, 3)  % numkit: undefined function 'random'
+cdf('Normal', 1, 0, 1)        % nk: undefined function 'cdf'   (MATLAB 0.84134)
+pdf('Poisson', 2, 3)          % nk: undefined function 'pdf'   (MATLAB 0.22404)
+icdf('Normal', 0.975, 0, 1)   % nk: undefined function 'icdf'  (MATLAB 1.95996)
+random('Normal', 0, 1, 1, 3)  % nk: undefined function 'random'
 ```
 
 ## Root cause
-Not implemented. numkit HAS the per-family functions (`normcdf`, `poisspdf`,
+Not implemented. nk HAS the per-family functions (`normcdf`, `poisspdf`,
 `norminv`, `normrnd`, …) — only the generic name-dispatching wrappers are
 missing.
 

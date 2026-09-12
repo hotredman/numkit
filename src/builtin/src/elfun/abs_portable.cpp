@@ -1,22 +1,22 @@
 // toolboxes/builtin/src/math/elementary/backends/abs_portable.cpp
 //
 // Reference scalar implementation of abs(). Compiled when
-// NUMKIT_WITH_SIMD=OFF (see toolboxes/builtin/src/CMakeLists.txt). The
+// NK_WITH_SIMD=OFF (see toolboxes/builtin/src/CMakeLists.txt). The
 // Highway-dispatched variant lives in abs_highway.cpp — both share
 // exactly this behaviour for small / complex / scalar inputs; the
 // SIMD backend only diverges on the real-vector fast path.
 
-#include <numkit/builtin/elfun.hpp>
+#include <nk/builtin/elfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
@@ -48,4 +48,4 @@ Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::abs(v); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

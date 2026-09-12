@@ -1,7 +1,7 @@
 # signal.butter — analog flag `'s'` not honoured: `butter(30, 2000, 's')` errors "Wn must be between 0 and 1"
 
 - **Status:** ✅ FIXED (2026-08-31)
-- **Severity:** P2 (works in MATLAB, refused in numkit; analog filter design is standard textbook material)
+- **Severity:** P2 (works in MATLAB, refused in nk; analog filter design is standard textbook material)
 - **Kind:** stub (documented option ignored/rejected)
 - **Found:** 2026-08-31 via fieldtest portion 1 (mdadams book, example_4.m)
 
@@ -17,7 +17,7 @@ the DIGITAL Wn∈(0,1) constraint and rejected.
 clear;
 [a, b] = butter(30, 2000, 's');
 disp(numel(a))
-% numkit:  Error: butter: Wn must be between 0 and 1 (in call to 'butter')
+% nk:  Error: butter: Wn must be between 0 and 1 (in call to 'butter')
 % MATLAB R2025b: 31  (analog 30th-order lowpass, Wn = 2000 rad/s)
 ```
 

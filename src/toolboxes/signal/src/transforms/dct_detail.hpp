@@ -9,15 +9,15 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <memory_resource>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // Length-override / dim wrapper for an arbitrary DCT type (1..4), forward or
 // inverse. type==2 forward / type==3 inverse coincide with dct()/idct().
 Value dctTyped(const Value &x, int n, int dim, double type, bool inverse,
                std::pmr::memory_resource *mr);
 
-} // namespace numkit::signal
+} // namespace nk::signal

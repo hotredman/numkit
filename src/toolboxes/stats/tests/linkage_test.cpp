@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/linkage_test.cpp
 // linkage.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class LinkageTest : public ::testing::Test
 {
@@ -20,7 +20,7 @@ public:
 
 // 2026-05-08 — gap closure: tie-breaking now matches MATLAB R2025b
 // (prefers largest pair lex when distances tie). Z(1,:) was [1 2 ...]
-// in numkit; MATLAB picks [4 7 ...] — both at 0.7071 distance.
+// in nk; MATLAB picks [4 7 ...] — both at 0.7071 distance.
 
 TEST_F(LinkageTest, TieBreakMatchesMATLAB)
 {

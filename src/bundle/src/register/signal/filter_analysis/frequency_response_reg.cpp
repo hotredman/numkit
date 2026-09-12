@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/filter_analysis/frequency_response.hpp>
+#include <nk/signal/filter_analysis/frequency_response.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 2)
         throw Error("freqz: requires at least 2 arguments",
-                     0, 0, "freqz", "", "numkit:freqz:nargin");
+                     0, 0, "freqz", "", "nk:freqz:nargin");
     // Parse the trailing args: 'whole' (string, any position) and up to two
     // numerics after b,a — the first is n (npts), the second is fs (the
     // freqz(b,a,n,fs) / freqz(b,a,n,'whole',fs) sample-rate form).
@@ -73,7 +73,7 @@ void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("phasez: requires at least 2 arguments",
-                     0, 0, "phasez", "", "numkit:phasez:nargin");
+                     0, 0, "phasez", "", "nk:phasez:nargin");
     // n (1st numeric after b,a) and optional fs (2nd) — phasez(b,a,n,fs).
     size_t npts = 512;
     double fs = 0.0;
@@ -93,7 +93,7 @@ void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("grpdelay: requires at least 2 arguments",
-                     0, 0, "grpdelay", "", "numkit:grpdelay:nargin");
+                     0, 0, "grpdelay", "", "nk:grpdelay:nargin");
     // n (1st numeric after b,a) and optional fs (2nd) — grpdelay(b,a,n,fs).
     size_t npts = 512;
     double fs = 0.0;
@@ -111,4 +111,4 @@ void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

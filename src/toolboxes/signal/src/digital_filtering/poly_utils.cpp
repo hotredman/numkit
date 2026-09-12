@@ -14,18 +14,18 @@
 // polynomial with the same magnitude response, reflecting any root with
 // |root| > 1 to its conjugate reciprocal 1/conj(root).
 
-#include <numkit/signal/digital_filtering/poly_utils.hpp>
+#include <nk/signal/digital_filtering/poly_utils.hpp>
 
-#include <numkit/builtin/polyfun.hpp>  // numkit::builtin::roots / numkit::builtin::poly
+#include <nk/builtin/polyfun.hpp>  // nk::builtin::roots / nk::builtin::poly
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -91,10 +91,10 @@ Value polyscale(const Value &p, const Value &scale,
     const size_t scaleN = scale.numel();
     const bool scaleScalar = (scaleN == 1);
     if (!scaleScalar && scaleN != n) {
-        throw numkit::Error(
+        throw nk::Error(
             "polyscale: scale must be a scalar or a vector matching the "
             "polynomial length",
-            0, 0, "polyscale", "", "numkit:polyscale:BadScale");
+            0, 0, "polyscale", "", "nk:polyscale:BadScale");
     }
 
     // Result is complex iff either input is complex.
@@ -158,9 +158,9 @@ Value polyscale(const Value &p, const Value &scale,
 // 1/|r|, same angle — which preserves |A(e^jω)| and changes only the
 // phase (Oppenheim & Schafer §5.6, minimum-phase systems).
 // Procedure:
-//   1. roots r_k of a            (numkit::builtin::roots)
+//   1. roots r_k of a            (nk::builtin::roots)
 //   2. r_k ← 1/conj(r_k)  when |r_k| > 1, else keep
-//   3. rebuild monic poly p      (numkit::builtin::poly)
+//   3. rebuild monic poly p      (nk::builtin::poly)
 //   4. p ← p · (first non-zero coefficient of a)   — restore gain
 //   5. a real → take real part to drop round-off
 // ─────────────────────────────────────────────────────────────────────
@@ -168,8 +168,8 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
 {
     // Matrix input is not allowed.
     if (!isVectorShape(a)) {
-        throw numkit::Error("Input must be a vector.",
-                            0, 0, "polystab", "", "numkit:polystab:notVector");
+        throw nk::Error("Input must be a vector.",
+                            0, 0, "polystab", "", "nk:polystab:notVector");
     }
 
     // Empty input → empty result (0×0).
@@ -227,7 +227,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
 
     // ── Step 1: roots of a ───────────────────────────────────────────
     ScratchArena arena(mr);
-    Value rv = numkit::builtin::roots(a, &arena);
+    Value rv = nk::builtin::roots(a, &arena);
     const size_t nr = rv.numel();
 
     // No finite roots (e.g. a degree-0 leftover after stripping) — the
@@ -264,7 +264,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
     }
 
     // ── Step 3: rebuild the monic polynomial from the stabilised roots.
-    // numkit::builtin::poly needs a COMPLEX vector to yield a COMPLEX result;
+    // nk::builtin::poly needs a COMPLEX vector to yield a COMPLEX result;
     // if all stabilised roots are real, a DOUBLE root vector suffices.
     Value rootVec;
     if (rootsComplex) {
@@ -278,7 +278,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
         for (size_t k = 0; k < nr; ++k)
             rd[k] = stabRoots[k].real();
     }
-    Value monic = numkit::builtin::poly(rootVec, &arena);
+    Value monic = nk::builtin::poly(rootVec, &arena);
     const size_t mlen = monic.numel();
 
     // ── Steps 4 & 5: apply gain, drop round-off for real input ───────
@@ -302,4 +302,4 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

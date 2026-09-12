@@ -33,8 +33,8 @@ test.describe('graphics output — visual smoke', () => {
     );
     // Find the figure JSON via the engine, inspect cfg.yDir.
     const yDir = await page.evaluate(() => {
-      const figs = window.__numkit_lastFigure
-        || (window.numkit && window.numkit.figures);
+      const figs = window.__nk_lastFigure
+        || (window.nk && window.nk.figures);
       // Fallback: look at React props attached to the SVG.
       const svg = document.querySelector('.fw-canvas-wrap svg');
       // Last resort — inspect the y-tick label order: small label at top
@@ -66,7 +66,7 @@ test.describe('graphics output — visual smoke', () => {
 
   test('convhull (no output) — should plot the hull polygon', async ({ ide, page }) => {
     // MATLAB: convhull called WITHOUT a return value plots the hull.
-    // numkit may or may not honour this; document the actual behaviour.
+    // nk may or may not honour this; document the actual behaviour.
     await runAndOpen(ide, page,
       'import compat.*;\n'
       + 'x = [0 1 1 0 0.5];\n'
@@ -107,7 +107,7 @@ test.describe('graphics output — visual smoke', () => {
       + 'coneplot(X, Y, Z, U, V, W);\n'
     );
     await snapshot(page, 'coneplot');
-    const canvas = page.locator('.fw-window canvas[data-numkit-3d]');
+    const canvas = page.locator('.fw-window canvas[data-nk-3d]');
     await expect(canvas, 'coneplot did not mount a 3-D WebGL canvas')
       .toBeVisible({ timeout: 5_000 });
     // Verify canvas got rendered to non-zero size (would be 0×0 if the

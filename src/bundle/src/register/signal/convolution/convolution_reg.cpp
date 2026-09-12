@@ -6,13 +6,13 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/signal/convolution/convolution.hpp>
+#include <nk/signal/convolution/convolution.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void conv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("conv: requires at least 2 arguments",
-                     0, 0, "conv", "", "numkit:conv:nargin");
+                     0, 0, "conv", "", "nk:conv:nargin");
 
     std::string shape = "full";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
@@ -46,7 +46,7 @@ void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("deconv: requires 2 arguments",
-                     0, 0, "deconv", "", "numkit:deconv:nargin");
+                     0, 0, "deconv", "", "nk:deconv:nargin");
 
     auto [q, r] = deconv(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(q);
@@ -58,7 +58,7 @@ void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.empty())
         throw Error("xcorr: requires at least 1 argument",
-                     0, 0, "xcorr", "", "numkit:xcorr:nargin");
+                     0, 0, "xcorr", "", "nk:xcorr:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     Value y = x;                 // default: autocorrelation
@@ -118,7 +118,7 @@ void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
             for (size_t i = 0; i < nc; ++i) cd[i] /= denom;
     } else if (!(opt.empty() || opt == "none")) {
         throw Error("xcorr: scaleopt must be 'none', 'biased', 'unbiased', or 'coeff'",
-                     0, 0, "xcorr", "", "numkit:xcorr:badScaleopt");
+                     0, 0, "xcorr", "", "nk:xcorr:badScaleopt");
     }
 
     // maxlag crop (or zero-pad) about lag 0 at index fullMaxLag.
@@ -150,7 +150,7 @@ void xcov_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("xcov: requires at least 1 argument",
-                     0, 0, "xcov", "", "numkit:xcov:nargin");
+                     0, 0, "xcov", "", "nk:xcov:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     Value y = x;                 // default: auto-covariance
@@ -189,7 +189,7 @@ void conv2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("conv2: requires at least 2 arguments",
-                     0, 0, "conv2", "", "numkit:conv2:nargin");
+                     0, 0, "conv2", "", "nk:conv2:nargin");
     std::string shape = "full";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
@@ -201,7 +201,7 @@ void filter2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("filter2: requires at least 2 arguments (h, X)",
-                     0, 0, "filter2", "", "numkit:filter2:nargin");
+                     0, 0, "filter2", "", "nk:filter2:nargin");
     std::string shape = "same";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
@@ -213,7 +213,7 @@ void convn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("convn: requires at least 2 arguments",
-                     0, 0, "convn", "", "numkit:convn:nargin");
+                     0, 0, "convn", "", "nk:convn:nargin");
     std::string shape = "full";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
@@ -222,4 +222,4 @@ void convn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

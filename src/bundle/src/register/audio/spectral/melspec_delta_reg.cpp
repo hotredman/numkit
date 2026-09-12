@@ -7,12 +7,12 @@
 // melSpectrogram compute reconciled to the canonical mr-last API (matching
 // the header) as part of this split. Phase 2b — see project_layering_refactor.
 
-#include <numkit/audio/spectral/melspec_delta.hpp>
+#include <nk/audio/spectral/melspec_delta.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
-namespace numkit::audio {
+namespace nk::audio {
 namespace detail {
 
 void melSpectrogram_reg(Span<const Value> args, size_t nargout,
@@ -20,7 +20,7 @@ void melSpectrogram_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("melSpectrogram: requires (x, fs [, NumBands])",
-                    0, 0, "melSpectrogram", "", "numkit:melSpectrogram:nargin");
+                    0, 0, "melSpectrogram", "", "nk:melSpectrogram:nargin");
     int numBands = 32;
     if (args.size() >= 3) numBands = static_cast<int>(args[2].toScalar());
     auto [S, F, T] = melSpectrogram(args[0], args[1].toScalar(), numBands,
@@ -35,11 +35,11 @@ void audioDelta_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("audioDelta: requires (x [, windowLength])",
-                    0, 0, "audioDelta", "", "numkit:audioDelta:nargin");
+                    0, 0, "audioDelta", "", "nk:audioDelta:nargin");
     int wl = 9;
     if (args.size() >= 2) wl = static_cast<int>(args[1].toScalar());
     outs[0] = audioDelta(args[0], wl, ctx.engine->resource());
 }
 
 } // namespace detail
-} // namespace numkit::audio
+} // namespace nk::audio

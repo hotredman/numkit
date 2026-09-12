@@ -3,13 +3,13 @@
 // Lloyd's algorithm with k-means++ initialisation. Single-threaded
 // portable implementation; SIMD / parallel variants planned later.
 
-#include <numkit/stats/cluster/kmeans.hpp>
+#include <nk/stats/cluster/kmeans.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,13 +22,13 @@
 
 #include "kmeans_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 // Full kmeans with optional 4th D output (N×K squared distances).
 
 KmeansResult
-kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
+kmeans_full(::nk::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
 {
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
@@ -37,7 +37,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     const size_t D = X.dims().cols();
     if (K < 1 || (size_t)K > N)
         throw Error("kmeans: K must be in 1..N", 0, 0, "kmeans", "",
-                    "numkit:kmeans:badK");
+                    "nk:kmeans:badK");
 
     ScratchArena scratch(mr);
 
@@ -100,11 +100,11 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmeans(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
+kmeans(::nk::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
 {
     auto R = kmeans_full(rng, X, K, max_iter, replicates, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),
                            std::move(R.sumd));
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

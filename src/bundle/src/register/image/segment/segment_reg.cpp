@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/segment/segment.hpp>
+#include <nk/image/segment/segment.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void reducepoly_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("reducepoly: requires (P[, tolerance])",
-                    0, 0, "reducepoly", "", "numkit:reducepoly:nargin");
+                    0, 0, "reducepoly", "", "nk:reducepoly:nargin");
     double tol = 0.001;
     if (a.size() >= 2 && !a[1].isEmpty()) tol = a[1].toScalar();
     o[0] = reducepoly(a[0], tol, c.engine->resource());
@@ -44,7 +44,7 @@ void imoverlay_reg(Span<const Value> a, size_t, Span<Value> o,
 {
     if (a.size() < 3)
         throw Error("imoverlay: requires (I, BW, color)",
-                    0, 0, "imoverlay", "", "numkit:imoverlay:nargin");
+                    0, 0, "imoverlay", "", "nk:imoverlay:nargin");
     o[0] = imoverlay(a[0], a[1], a[2], c.engine->resource());
 }
 
@@ -53,7 +53,7 @@ void grayconnected_reg(Span<const Value> a, size_t, Span<Value> o,
 {
     if (a.size() < 3)
         throw Error("grayconnected: requires (I, row, col [, tol])",
-                    0, 0, "grayconnected", "", "numkit:grayconnected:nargin");
+                    0, 0, "grayconnected", "", "nk:grayconnected:nargin");
     const int row = static_cast<int>(a[1].toScalar());
     const int col = static_cast<int>(a[2].toScalar());
     double tol = -1.0;
@@ -65,7 +65,7 @@ void dice_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 2)
         throw Error("dice: requires (BW1, BW2)",
-                    0, 0, "dice", "", "numkit:dice:nargin");
+                    0, 0, "dice", "", "nk:dice:nargin");
     o[0] = dice(a[0], a[1], c.engine->resource());
 }
 
@@ -73,7 +73,7 @@ void jaccard_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 2)
         throw Error("jaccard: requires (BW1, BW2)",
-                    0, 0, "jaccard", "", "numkit:jaccard:nargin");
+                    0, 0, "jaccard", "", "nk:jaccard:nargin");
     o[0] = jaccard(a[0], a[1], c.engine->resource());
 }
 
@@ -82,7 +82,7 @@ void boundarymask_reg(Span<const Value> a, size_t, Span<Value> o,
 {
     if (a.empty())
         throw Error("boundarymask: requires (L_or_BW [, conn])",
-                    0, 0, "boundarymask", "", "numkit:boundarymask:nargin");
+                    0, 0, "boundarymask", "", "nk:boundarymask:nargin");
     const int conn = (a.size() >= 2 && !a[1].isEmpty())
                      ? static_cast<int>(a[1].toScalar()) : 8;
     o[0] = boundarymask(a[0], conn, c.engine->resource());
@@ -98,7 +98,7 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
     if (a.size() < 2)
         throw Error("graydiffweight: requires (I, refGrayVal | MASK | "
                     "C, R [, P]) [, NV...]",
-                    0, 0, "graydiffweight", "", "numkit:graydiffweight:nargin");
+                    0, 0, "graydiffweight", "", "nk:graydiffweight:nargin");
     auto *mr = c.engine->resource();
     const Value &I = a[0];
     const auto &d = I.dims();
@@ -119,14 +119,14 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
         // (I, MASK) — mean of I over MASK = true.
         if (a[1].numel() != N)
             throw Error("graydiffweight: MASK must match I in shape",
-                        0, 0, "graydiffweight", "", "numkit:graydiffweight:mask");
+                        0, 0, "graydiffweight", "", "nk:graydiffweight:mask");
         long double sum = 0.0L; std::size_t cnt = 0;
         const std::uint8_t *m = a[1].logicalData();
         for (std::size_t i = 0; i < N; ++i)
             if (m[i]) { sum += I.elemAsDouble(i); ++cnt; }
         if (cnt == 0)
             throw Error("graydiffweight: MASK must contain at least one true",
-                        0, 0, "graydiffweight", "", "numkit:graydiffweight:emptyMask");
+                        0, 0, "graydiffweight", "", "nk:graydiffweight:emptyMask");
         ref_gray_val = static_cast<double>(sum / static_cast<long double>(cnt));
         nv_start = 2;
     }
@@ -143,7 +143,7 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
         const Value *Pi = has_P ? &a[3] : nullptr;
         if (C.numel() != R.numel() || (Pi && Pi->numel() != C.numel()))
             throw Error("graydiffweight: C, R [, P] must have equal length",
-                        0, 0, "graydiffweight", "", "numkit:graydiffweight:crp");
+                        0, 0, "graydiffweight", "", "nk:graydiffweight:crp");
         long double sum = 0.0L; std::size_t cnt = 0;
         for (std::size_t i = 0; i < C.numel(); ++i) {
             const std::size_t c1 = static_cast<std::size_t>(C.elemAsDouble(i));
@@ -153,7 +153,7 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
             if (c1 < 1 || c1 > W_ || r1 < 1 || r1 > H || p1 < 1 || p1 > P)
                 throw Error("graydiffweight: (C, R [, P]) index out of range",
                             0, 0, "graydiffweight", "",
-                            "numkit:graydiffweight:idx");
+                            "nk:graydiffweight:idx");
             // Column-major linear: r-1 + H*(c-1) + H*W*(p-1).
             const std::size_t lin = (r1 - 1) + H * (c1 - 1)
                                   + H * W_ * (p1 - 1);
@@ -166,7 +166,7 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
     else {
         throw Error("graydiffweight: 2nd argument must be a numeric "
                     "scalar, a logical MASK, or numeric C [, R [, P]]",
-                    0, 0, "graydiffweight", "", "numkit:graydiffweight:arg2");
+                    0, 0, "graydiffweight", "", "nk:graydiffweight:arg2");
     }
 
     // Name-value pairs.
@@ -177,7 +177,7 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
         if (!is_string(a[i]))
             throw Error("graydiffweight: expected NV-pair name string",
                         0, 0, "graydiffweight", "",
-                        "numkit:graydiffweight:badNvArg");
+                        "nk:graydiffweight:badNvArg");
         std::string name = a[i].toString();
         std::string nlo = name;
         for (auto &ch : nlo)
@@ -191,13 +191,13 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
         else
             throw Error("graydiffweight: unknown option '" + name + "'",
                         0, 0, "graydiffweight", "",
-                        "numkit:graydiffweight:unknownNv");
+                        "nk:graydiffweight:unknownNv");
         i += 2;
     }
     if (i < a.size())
         throw Error("graydiffweight: trailing unpaired NV argument",
                     0, 0, "graydiffweight", "",
-                    "numkit:graydiffweight:unpaired");
+                    "nk:graydiffweight:unpaired");
 
     o[0] = graydiffweight(I, ref_gray_val, rolloff, cutoff, mr);
 }
@@ -211,7 +211,7 @@ void gradientweight_reg(Span<const Value> a, size_t, Span<Value> o,
 {
     if (a.empty())
         throw Error("gradientweight: requires (I [, sigma] [, NV...])",
-                    0, 0, "gradientweight", "", "numkit:gradientweight:nargin");
+                    0, 0, "gradientweight", "", "nk:gradientweight:nargin");
     auto *mr = c.engine->resource();
     const Value &I = a[0];
 
@@ -235,7 +235,7 @@ void gradientweight_reg(Span<const Value> a, size_t, Span<Value> o,
             throw Error("gradientweight: sigma must be a scalar or "
                         "2-element vector",
                         0, 0, "gradientweight", "",
-                        "numkit:gradientweight:sigmaSize");
+                        "nk:gradientweight:sigmaSize");
         }
         nv_start = 2;
     }
@@ -246,7 +246,7 @@ void gradientweight_reg(Span<const Value> a, size_t, Span<Value> o,
         if (!is_string(a[i]))
             throw Error("gradientweight: expected NV-pair name string",
                         0, 0, "gradientweight", "",
-                        "numkit:gradientweight:badNvArg");
+                        "nk:gradientweight:badNvArg");
         std::string name = a[i].toString();
         std::string nlo = name;
         for (auto &ch : nlo)
@@ -261,13 +261,13 @@ void gradientweight_reg(Span<const Value> a, size_t, Span<Value> o,
         else
             throw Error("gradientweight: unknown option '" + name + "'",
                         0, 0, "gradientweight", "",
-                        "numkit:gradientweight:unknownNv");
+                        "nk:gradientweight:unknownNv");
         i += 2;
     }
     if (i < a.size())
         throw Error("gradientweight: trailing unpaired NV argument",
                     0, 0, "gradientweight", "",
-                    "numkit:gradientweight:unpaired");
+                    "nk:gradientweight:unpaired");
 
     o[0] = gradientweight(I, sigma_x, sigma_y, rolloff, cutoff, mr);
 }
@@ -278,7 +278,7 @@ void regionfill_reg(Span<const Value> a, size_t, Span<Value> o,
 {
     if (a.size() < 2)
         throw Error("regionfill: requires (I, MASK) or (I, X, Y)",
-                    0, 0, "regionfill", "", "numkit:regionfill:nargin");
+                    0, 0, "regionfill", "", "nk:regionfill:nargin");
     auto *mr = c.engine->resource();
     if (a.size() == 2) {
         o[0] = regionfill(a[0], a[1], mr);
@@ -301,7 +301,7 @@ void roipoly_reg(Span<const Value> a, size_t nargout, Span<Value> o,
         throw Error("roipoly: interactive forms not supported; use "
                     "(A, xi, yi) | (M, N, xi, yi) | (x, y, A, xi, yi) "
                     "| (x, y, M, N, xi, yi)",
-                    0, 0, "roipoly", "", "numkit:roipoly:nargin");
+                    0, 0, "roipoly", "", "nk:roipoly:nargin");
     auto *mr = c.engine->resource();
 
     // Helper: pull [lo, hi] from a Value that's either a 2-elem extent
@@ -338,7 +338,7 @@ void roipoly_reg(Span<const Value> a, size_t nargout, Span<Value> o,
             const double Nd = a[1].toScalar();
             if (Md < 0 || Nd < 0 || Md != std::floor(Md) || Nd != std::floor(Nd))
                 throw Error("roipoly: M and N must be non-negative integers",
-                            0, 0, "roipoly", "", "numkit:roipoly:mn");
+                            0, 0, "roipoly", "", "nk:roipoly:mn");
             M = static_cast<std::size_t>(Md);
             N = static_cast<std::size_t>(Nd);
             xlo = 1.0;  xhi = static_cast<double>(N);
@@ -362,7 +362,7 @@ void roipoly_reg(Span<const Value> a, size_t nargout, Span<Value> o,
             const double Nd = a[3].toScalar();
             if (Md < 0 || Nd < 0 || Md != std::floor(Md) || Nd != std::floor(Nd))
                 throw Error("roipoly: M and N must be non-negative integers",
-                            0, 0, "roipoly", "", "numkit:roipoly:mn");
+                            0, 0, "roipoly", "", "nk:roipoly:mn");
             M = static_cast<std::size_t>(Md);
             N = static_cast<std::size_t>(Nd);
             extent(a[0], 1.0, static_cast<double>(N), xlo, xhi);
@@ -414,7 +414,7 @@ void roipoly_reg(Span<const Value> a, size_t nargout, Span<Value> o,
                 o[4] = std::move(yiOut); break;
         default:
             throw Error("roipoly: too many output arguments (max 5)",
-                        0, 0, "roipoly", "", "numkit:roipoly:tooManyOutputs");
+                        0, 0, "roipoly", "", "nk:roipoly:tooManyOutputs");
     }
 }
 
@@ -425,7 +425,7 @@ void graydist_reg(Span<const Value> a, size_t, Span<Value> o,
     if (a.size() < 2)
         throw Error("graydist: requires (A, mask | ind | C, R "
                     "[, method])",
-                    0, 0, "graydist", "", "numkit:graydist:nargin");
+                    0, 0, "graydist", "", "nk:graydist:nargin");
     auto *mr = c.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -454,7 +454,7 @@ void graydist_reg(Span<const Value> a, size_t, Span<Value> o,
             // Mask: same size as A.
             if (arg2.numel() != H * W)
                 throw Error("graydist: MASK must be the same size as A",
-                            0, 0, "graydist", "", "numkit:graydist:maskSize");
+                            0, 0, "graydist", "", "nk:graydist:maskSize");
             const std::uint8_t *m = arg2.logicalData();
             for (std::size_t i = 0; i < arg2.numel(); ++i)
                 if (m[i]) indices.push_back(static_cast<double>(i + 1));
@@ -470,21 +470,21 @@ void graydist_reg(Span<const Value> a, size_t, Span<Value> o,
         const Value &R = a[2];
         if (C.numel() != R.numel())
             throw Error("graydist: C and R must have equal length",
-                        0, 0, "graydist", "", "numkit:graydist:cr");
+                        0, 0, "graydist", "", "nk:graydist:cr");
         indices.reserve(C.numel());
         for (std::size_t i = 0; i < C.numel(); ++i) {
             const std::size_t cc = static_cast<std::size_t>(C.elemAsDouble(i));
             const std::size_t rr = static_cast<std::size_t>(R.elemAsDouble(i));
             if (cc < 1 || cc > W || rr < 1 || rr > H)
                 throw Error("graydist: (C, R) out of bounds",
-                            0, 0, "graydist", "", "numkit:graydist:crBounds");
+                            0, 0, "graydist", "", "nk:graydist:crBounds");
             // Column-major 1-based linear index.
             const std::size_t lin = (cc - 1) * H + rr;  // 1-based
             indices.push_back(static_cast<double>(lin));
         }
     } else {
         throw Error("graydist: too many positional arguments",
-                    0, 0, "graydist", "", "numkit:graydist:nargin");
+                    0, 0, "graydist", "", "nk:graydist:nargin");
     }
 
     Value seedVec = Value::matrix(indices.size(), 1, ValueType::DOUBLE, mr);
@@ -501,7 +501,7 @@ void bwdistgeodesic_reg(Span<const Value> a, size_t, Span<Value> o,
         throw Error("bwdistgeodesic: requires (BW, mask | ind | C, R "
                     "[, method])",
                     0, 0, "bwdistgeodesic", "",
-                    "numkit:bwdistgeodesic:nargin");
+                    "nk:bwdistgeodesic:nargin");
     auto *mr = c.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -528,7 +528,7 @@ void bwdistgeodesic_reg(Span<const Value> a, size_t, Span<Value> o,
             if (arg2.numel() != H * W)
                 throw Error("bwdistgeodesic: MASK must be the same size as BW",
                             0, 0, "bwdistgeodesic", "",
-                            "numkit:bwdistgeodesic:maskSize");
+                            "nk:bwdistgeodesic:maskSize");
             const std::uint8_t *m = arg2.logicalData();
             for (std::size_t i = 0; i < arg2.numel(); ++i)
                 if (m[i]) indices.push_back(static_cast<double>(i + 1));
@@ -543,7 +543,7 @@ void bwdistgeodesic_reg(Span<const Value> a, size_t, Span<Value> o,
         if (C.numel() != R.numel())
             throw Error("bwdistgeodesic: C and R must have equal length",
                         0, 0, "bwdistgeodesic", "",
-                        "numkit:bwdistgeodesic:cr");
+                        "nk:bwdistgeodesic:cr");
         indices.reserve(C.numel());
         for (std::size_t i = 0; i < C.numel(); ++i) {
             const std::size_t cc = static_cast<std::size_t>(C.elemAsDouble(i));
@@ -551,14 +551,14 @@ void bwdistgeodesic_reg(Span<const Value> a, size_t, Span<Value> o,
             if (cc < 1 || cc > W || rr < 1 || rr > H)
                 throw Error("bwdistgeodesic: (C, R) out of bounds",
                             0, 0, "bwdistgeodesic", "",
-                            "numkit:bwdistgeodesic:crBounds");
+                            "nk:bwdistgeodesic:crBounds");
             const std::size_t lin = (cc - 1) * H + rr;
             indices.push_back(static_cast<double>(lin));
         }
     } else {
         throw Error("bwdistgeodesic: too many positional arguments",
                     0, 0, "bwdistgeodesic", "",
-                    "numkit:bwdistgeodesic:nargin");
+                    "nk:bwdistgeodesic:nargin");
     }
 
     Value seedVec = Value::matrix(indices.size(), 1, ValueType::DOUBLE, mr);
@@ -572,7 +572,7 @@ void poly2mask_reg(Span<const Value> a, size_t, Span<Value> o,
 {
     if (a.size() < 4)
         throw Error("poly2mask: requires (X, Y, M, N)",
-                    0, 0, "poly2mask", "", "numkit:poly2mask:nargin");
+                    0, 0, "poly2mask", "", "nk:poly2mask:nargin");
     auto *mr = c.engine->resource();
     const double Md = a[2].toScalar();
     const double Nd = a[3].toScalar();
@@ -580,7 +580,7 @@ void poly2mask_reg(Span<const Value> a, size_t, Span<Value> o,
      || Md < 0.0 || Nd < 0.0
      || Md != std::floor(Md) || Nd != std::floor(Nd))
         throw Error("poly2mask: M and N must be non-negative integers",
-                    0, 0, "poly2mask", "", "numkit:poly2mask:mn");
+                    0, 0, "poly2mask", "", "nk:poly2mask:mn");
     o[0] = poly2mask(a[0], a[1],
                      static_cast<std::size_t>(Md),
                      static_cast<std::size_t>(Nd), mr);
@@ -590,10 +590,10 @@ void label2idx_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("label2idx: requires (L)",
-                    0, 0, "label2idx", "", "numkit:label2idx:nargin");
+                    0, 0, "label2idx", "", "nk:label2idx:nargin");
     o[0] = label2idx(a[0], c.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

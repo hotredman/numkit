@@ -4,10 +4,10 @@
 // Reference values from MATLAB R2025b, bit-exact across all 4
 // non-interactive signatures and the multi-output variants.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RoipolyTest : public ::testing::Test
 {

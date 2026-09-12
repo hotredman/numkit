@@ -13,5 +13,5 @@
     "cc(2)", "cc(3)",
     "cf(2)", "cf(3)"
   ],
-  "comment": "Sig: n = histcounts(x, edges, 'Normalization', mode). Covers count(def)/probability(/N)/countdensity(/binwidth)/pdf(/(N*binwidth))/cumcount/cdf, with uniform and nonuniform edges, and out-of-range data so the divisor N = numel(x) (not the in-range count) — e.g. cdf(end)=7/9 not 1. Queue-clearing 2026-05-29: numkit previously silently ignored 'Normalization' (always raw counts)."
+  "comment": "Sig: n = histcounts(x, edges, 'Normalization', mode). Covers count(def)/probability(/N)/countdensity(/binwidth)/pdf(/(N*binwidth))/cumcount/cdf, with uniform and nonuniform edges, and out-of-range data so the divisor N = numel(x) (not the in-range count) — e.g. cdf(end)=7/9 not 1. Queue-clearing 2026-05-29: nk previously silently ignored 'Normalization' (always raw counts)."
 }

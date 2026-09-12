@@ -1,7 +1,7 @@
 # Memory: Doxygen MATLAB-Authentic Topic Hierarchy & Theme UX
 
 ## Context & Problem
-NumKit exposes more than 1,000 public C++ functions and types across 15+ toolboxes and language domains. Previously, Doxygen dumped all functions into large, flat namespace pages (`numkit::builtin`), making logical discovery difficult. Furthermore, the default Doxygen theme featured an oversized header consuming substantial vertical space.
+NK exposes more than 1,000 public C++ functions and types across 15+ toolboxes and language domains. Previously, Doxygen dumped all functions into large, flat namespace pages (`nk::builtin`), making logical discovery difficult. Furthermore, the default Doxygen theme featured an oversized header consuming substantial vertical space.
 
 ## Solution & Architectural Decisions
 1. **Topic Hierarchy (`doxygen/groups.dox`)**:
@@ -22,8 +22,8 @@ NumKit exposes more than 1,000 public C++ functions and types across 15+ toolbox
    - `code-publish`, `web-run`, `web-build`, `web-publish`, `desktop-run`, `desktop-build`, `doxy-run`, `doxy-publish`, `all-publish`.
 
 ## Verification & Deployment
-- Automated tests pass in `numkit_gtest` (29 tests in General/Help).
+- Automated tests pass in `nk_gtest` (29 tests in General/Help).
 - Full pipeline deployed:
-  - Source Code: `https://github.com/hotredman/numkit`
-  - Web IDE Demo: `https://hotredman.github.io/numkit-demo/`
-  - Doxygen API: `https://hotredman.github.io/numkit-doxy/`
+  - Source Code: `https://github.com/hotredman/nk`
+  - Web IDE Demo: `https://hotredman.github.io/nk-demo/`
+  - Doxygen API: `https://hotredman.github.io/nk-doxy/`

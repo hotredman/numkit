@@ -12,19 +12,19 @@
 // Internally we slice rows/columns as length-K Value vectors, hand
 // them to dwt / idwt, and stitch the results back into MxN matrices.
 
-#include <numkit/wavelet/dwt/dwt2.hpp>
-#include <numkit/wavelet/dwt/dwt.hpp>
+#include <nk/wavelet/dwt/dwt2.hpp>
+#include <nk/wavelet/dwt/dwt.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The dwt2 / idwt2
 // builtins (CallContext wrappers) live in dwt/dwt2_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <utility>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -235,4 +235,4 @@ Value idwt2(const Value &cA, const Value &cH,
     return idwt_rows(LoR, HiR, wname, targetCols, mr);
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

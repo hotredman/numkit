@@ -11,7 +11,7 @@ input — either "Not a double array" (they read `doubleData()` with no complex
 branch) or an explicit "complex inputs are not supported" stub. MATLAB
 accepts complex for all of them.
 
-| Function | numkit | MATLAB |
+| Function | nk | MATLAB |
 |---|---|---|
 | `conv([1 1i],[1 1])` | ✅ FIXED 2026-06-05 → `[1  1+1i  1i]` | `[1  1+1i  1i]` |
 | `filter([1 1],1,[1i 1i])` | ✅ FIXED 2026-06-05 → `[1i 2i]` | `[1i  2i]` |

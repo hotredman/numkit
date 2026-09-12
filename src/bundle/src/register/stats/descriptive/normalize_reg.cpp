@@ -3,14 +3,14 @@
 // CallContext register half of descriptive/normalize.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "descriptive/normalize_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -31,13 +31,13 @@ void normalize_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("normalize: requires (A [, method])",
-                    0, 0, "normalize", "", "numkit:normalize:nargin");
+                    0, 0, "normalize", "", "nk:normalize:nargin");
     std::string method = "zscore";
     const Value *param = nullptr;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("normalize: method must be a string",
-                        0, 0, "normalize", "", "numkit:normalize:type");
+                        0, 0, "normalize", "", "nk:normalize:type");
         method = args[1].toString();
         // Optional method parameter: range bounds / norm-p / scale divisor
         // / center reference. (Previously dropped -> options were ignored.)
@@ -59,7 +59,7 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rescale: requires (A [, lo, hi])",
-                    0, 0, "rescale", "", "numkit:rescale:nargin");
+                    0, 0, "rescale", "", "nk:rescale:nargin");
     double lo = 0.0, hi = 1.0;
     double inputMin = std::numeric_limits<double>::quiet_NaN();
     double inputMax = std::numeric_limits<double>::quiet_NaN();
@@ -78,14 +78,14 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
     for (; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("rescale: expected 'InputMin'/'InputMax'",
-                        0, 0, "rescale", "", "numkit:rescale:badOpt");
+                        0, 0, "rescale", "", "nk:rescale:badOpt");
         std::string nm = args[i].toString();
         for (char &c : nm) if (c >= 'A' && c <= 'Z') c = char(c + 32);
         if      (nm == "inputmin") inputMin = args[i + 1].toScalar();
         else if (nm == "inputmax") inputMax = args[i + 1].toScalar();
         else
             throw Error("rescale: name must be 'InputMin' or 'InputMax'",
-                        0, 0, "rescale", "", "numkit:rescale:badOpt");
+                        0, 0, "rescale", "", "nk:rescale:badOpt");
     }
     outs[0] = rescale(args[0], lo, hi, ctx.engine->resource(), inputMin, inputMax);
 }
@@ -95,7 +95,7 @@ void zscore_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("zscore: requires (A [, flag [, dim]])",
-                    0, 0, "zscore", "", "numkit:zscore:nargin");
+                    0, 0, "zscore", "", "nk:zscore:nargin");
     int flag = 0, dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) flag = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty()) dim  = static_cast<int>(args[2].toScalar());
@@ -111,4 +111,4 @@ void zscore_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

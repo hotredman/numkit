@@ -7,12 +7,12 @@
 
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 /// True if the byte buffer carries a TIFF magic header (II* / MM*, classic or BigTIFF).
 bool isTiffBytes(const std::string &b);
@@ -38,4 +38,4 @@ std::uint32_t tiffNumPages(const std::string &path);
 void writeTiff(const Value &A, const std::string &path, const std::string &compression, bool appendMode);
 std::vector<std::uint8_t> writeTiffToBytes(const Value &A, const std::string &compression, const std::vector<std::uint8_t> *existing);
 
-} // namespace numkit::image
+} // namespace nk::image

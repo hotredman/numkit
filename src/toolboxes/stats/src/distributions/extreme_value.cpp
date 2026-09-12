@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/extreme_value.cpp
 
-#include <numkit/stats/distributions/extreme_value.hpp>
+#include <nk/stats/distributions/extreme_value.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -16,7 +16,7 @@
 
 #include "extreme_value_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value evpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
@@ -53,7 +53,7 @@ Value evinv(const Value &p, double mu, double sigma, std::pmr::memory_resource *
     }, mr);
 }
 
-Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value evrnd(::nk::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -86,4 +86,4 @@ std::tuple<double, double> evstat(double mu, double sigma)
                            sigma * sigma * kPi2Over6);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

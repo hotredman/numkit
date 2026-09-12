@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/unifpdf_test.cpp
 // unifpdf.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class UnifpdfTest : public ::testing::Test
 {

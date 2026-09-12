@@ -1,10 +1,10 @@
-# Memory: Consolidation of `numkit::math` and `numkit::lang` into `numkit::builtin` (Variant 1)
+# Memory: Consolidation of `nk::math` and `nk::lang` into `nk::builtin` (Variant 1)
 
 ## Context & Problem
-Previously, the standard library functions in numkit were partitioned across several distinct layers and namespaces:
-- `numkit::math` (in `src/math/` and subdirectories `complex`, `discrete`, `exponents`, `geom`, `integration`, `interp`, `misc`, `permutations`, `polynomials`, `reductions`, `rng`, `rounding`, `special`, `trigonometry`).
-- `numkit::lang` (in `src/lang/` and subdirectories `binary_ops`, `coder`, `format`, `int_math`, `manip`, `matrix`, `nd_manip`, `print`, `regex`, `scan`, `strings`, `types`, `unary_ops`).
-- `numkit::builtin` (in `src/builtin/`).
+Previously, the standard library functions in nk were partitioned across several distinct layers and namespaces:
+- `nk::math` (in `src/math/` and subdirectories `complex`, `discrete`, `exponents`, `geom`, `integration`, `interp`, `misc`, `permutations`, `polynomials`, `reductions`, `rng`, `rounding`, `special`, `trigonometry`).
+- `nk::lang` (in `src/lang/` and subdirectories `binary_ops`, `coder`, `format`, `int_math`, `manip`, `matrix`, `nd_manip`, `print`, `regex`, `scan`, `strings`, `types`, `unary_ops`).
+- `nk::builtin` (in `src/builtin/`).
 
 This separation caused inconsistent namespace usage across toolboxes and tests, duplicated functions across layers, and complicated header includes with transitional mappings.
 
@@ -26,15 +26,15 @@ Following MATLAB standard library organization, all standard library compute fun
    - `lang/`: Language control and environment functions
 
 2. **Unified Flat Namespace**:
-   - All 13 categories are defined under `namespace numkit::builtin`.
-   - No sub-namespaces like `numkit::math` or `numkit::lang` remain in the codebase.
-   - Public C++ API headers live under `<numkit/builtin/<category>.hpp>`.
+   - All 13 categories are defined under `namespace nk::builtin`.
+   - No sub-namespaces like `nk::math` or `nk::lang` remain in the codebase.
+   - Public C++ API headers live under `<nk/builtin/<category>.hpp>`.
 
 3. **Strict Layer Separation**:
    - `src/builtin/` (L2) contains 100% pure C++ engine-free compute kernels.
    - `src/bundle/src/register/builtin/` (L3) contains all `Engine` adapters, registration functions, and `CallContext` wrappers (`*_reg.cpp`).
    - `src/runtime/` (L2) handles engine-coupled runtime builtins (`eval`, `rehash`, `print_io`, `scan_io`).
-   - Toolboxes (`signal`, `stats`, `image`, `control`, etc.) call `numkit::builtin::*` directly.
+   - Toolboxes (`signal`, `stats`, `image`, `control`, etc.) call `nk::builtin::*` directly.
 
 4. **Tests & Benchmarks**:
    - All tests migrated from `src/math/tests/` and `src/lang/tests/` to `src/builtin/tests/`.
@@ -42,6 +42,6 @@ Following MATLAB standard library organization, all standard library compute fun
    - Removed obsolete `src/math/` and `src/lang/` directories.
 
 ## Validation & Verification
-- Pure compute libraries (`numkit_builtin_obj.lib`), runtime (`numkit_runtime_obj.lib`), bundle (`numkit_bundle_obj.lib`), toolboxes (`numkit_toolboxes_obj.lib`), and full static library (`numkit.lib`) compile cleanly with zero errors.
+- Pure compute libraries (`nk_builtin_obj.lib`), runtime (`nk_runtime_obj.lib`), bundle (`nk_bundle_obj.lib`), toolboxes (`nk_toolboxes_obj.lib`), and full static library (`nk.lib`) compile cleanly with zero errors.
 - `tools/check_layering.py` passes with zero violations.
 - Test suite passes cleanly across all builtins, standard library categories, toolboxes, and file I/O.

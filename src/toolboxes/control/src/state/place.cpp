@@ -5,28 +5,28 @@
 //   K = [0 … 0 1] · ctrb(A, B)⁻¹ · φ(A),
 //
 // where φ(s) = ∏ (s − p_i) is the desired closed-loop characteristic
-// polynomial. We use numkit::builtin::poly to expand p into coefficients in
+// polynomial. We use nk::builtin::poly to expand p into coefficients in
 // MATLAB convention (descending powers, leading 1), then evaluate
 // φ(A) by Horner-style matrix multiplications, and finally solve
 // the n×n linear system  ctrb(A, B)ᵀ · Kᵀ = (e_nᵀ · φ(A))ᵀ via the
 // partial-pivot LU kernel.
 
-#include <numkit/control/state/place.hpp>
-#include <numkit/control/state/state.hpp>
-#include <numkit/control/internal/numerics.hpp>
+#include <nk/control/state/place.hpp>
+#include <nk/control/state/state.hpp>
+#include <nk/control/internal/numerics.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The acker / place
 // builtins (CallContext wrappers) live in state/place_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -75,24 +75,24 @@ Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
         throw Error("acker: A must be square",
-                    0, 0, "acker", "", "numkit:acker:A");
+                    0, 0, "acker", "", "nk:acker:A");
     if (Bv.dims().rows() != n || Bv.dims().cols() != 1)
         throw Error("acker: B must be n×1 (SISO only)",
-                    0, 0, "acker", "", "numkit:acker:B");
+                    0, 0, "acker", "", "nk:acker:B");
     if (pv.numel() != n)
         throw Error("acker: pole list must have length n",
-                    0, 0, "acker", "", "numkit:acker:p");
+                    0, 0, "acker", "", "nk:acker:p");
 
     auto A = readMat(Av, n, n);
     auto B = readMat(Bv, n, 1);
 
     // Desired characteristic polynomial φ(s) = ∏(s − p_i).
-    Value coeffs = numkit::builtin::poly(pv, mr);
+    Value coeffs = nk::builtin::poly(pv, mr);
     Vec c(coeffs.numel());
     for (size_t i = 0; i < coeffs.numel(); ++i) c[i] = coeffs.elemAsDouble(i);
     if (c.size() != n + 1)
         throw Error("acker: poly(p) returned unexpected length",
-                    0, 0, "acker", "", "numkit:acker:poly");
+                    0, 0, "acker", "", "nk:acker:poly");
 
     // φ(A) — n×n.
     Mat phi = phiOfA(A, n, c);
@@ -117,7 +117,7 @@ Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_
     if (!solveInPlace(CoT, eN, n, 1))
         throw Error("acker: controllability matrix is singular "
                     "(system is uncontrollable)",
-                    0, 0, "acker", "", "numkit:acker:singular");
+                    0, 0, "acker", "", "nk:acker:singular");
     // eN now holds vᵀ.  v is a length-n row vector.
 
     // K[k] = sum_j v[j] · phi[j, k].   (column-major phi: phi[j,k] = phi[k*n + j])
@@ -136,4 +136,4 @@ Value place(const Value &A, const Value &B, const Value &p, std::pmr::memory_res
     return acker(A, B, p, mr);
 }
 
-} // namespace numkit::control
+} // namespace nk::control

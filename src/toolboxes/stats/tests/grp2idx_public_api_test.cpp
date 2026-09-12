@@ -1,16 +1,16 @@
 // toolboxes/stats/tests/grp2idx_public_api_test.cpp
 //
 // Direct C++ API guard for grp2idx after the lift from adapter-only to the
-// public typed entry point numkit::stats::grp2idx (multi-output via the
+// public typed entry point nk::stats::grp2idx (multi-output via the
 // Grp2idxResult struct { G, GN, GL }).
 
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/core/engine.hpp>
 
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 Value gv(Engine &e, const char *expr, const char *name)

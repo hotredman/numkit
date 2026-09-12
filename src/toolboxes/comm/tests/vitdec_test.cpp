@@ -5,11 +5,11 @@
 // vitdec for the same reason as convenc (MATLAB -batch shutdown crash on
 // Communications Toolbox scripts) — so this gtest is the primary guard.
 
-#include <numkit/comm/coding/convcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/convcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class VitdecTest : public ::testing::Test
 {

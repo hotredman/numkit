@@ -6,12 +6,12 @@
 // rgbwide2ycbcr → ycbcr2rgbwide recovers every input pixel exactly
 // (uint16 quantisation may introduce ±1 ulp at the very edges).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class YcbcrRgbWideTest : public ::testing::Test
 {

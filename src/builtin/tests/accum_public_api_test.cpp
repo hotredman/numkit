@@ -1,13 +1,13 @@
 // src/builtin/tests/accum_public_api_test.cpp
 //
-// Direct C++ API test for numkit::builtin::accumarray and numkit::builtin::AccumReducer.
+// Direct C++ API test for nk::builtin::accumarray and nk::builtin::AccumReducer.
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/value/value.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
-using namespace numkit::builtin;
+using namespace nk;
+using namespace nk::builtin;
 
 TEST(AccumPublicApi, BasicSumReduction)
 {

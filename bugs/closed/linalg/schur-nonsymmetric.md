@@ -20,8 +20,8 @@ symmetric-only `schur` path.
 ```matlab
 [U, T] = schur([2 1; 0 3]);
 % MATLAB: T upper-triangular, diag(T) = [2 3], U orthogonal, U*T*U' = A
-% numkit: Error — "only symmetric matrices supported ... deferred to Phase 2b"
-eig([2 1; 0 3])   % numkit == MATLAB == [3 2]  (eigenVALUES already work)
+% nk: Error — "only symmetric matrices supported ... deferred to Phase 2b"
+eig([2 1; 0 3])   % nk == MATLAB == [3 2]  (eigenVALUES already work)
 ```
 
 ## Root cause
@@ -31,7 +31,7 @@ double-shift QR with `U` accumulation). The eigenvalue-only path is wired
 elsewhere, creating the asymmetry above.
 
 ## Fix (2026-06-18)
-Implemented `numkit::linalg::schur_general` in `eig.cpp` on top of the existing
+Implemented `nk::linalg::schur_general` in `eig.cpp` on top of the existing
 `hessReduceInplace` (Householder Hessenberg): **Francis double-shift QR**
 (`francisSchur`) chases bulges down the active block, deflates 1×1/2×2 blocks,
 and accumulates every reflector into `U` (seeded with the Hessenberg transform).
@@ -54,7 +54,7 @@ This is the kernel `care`/`dare` + general `eig`-vectors / `qz` need
 
 ## References
 - `src/toolboxes/linalg/src/eig.cpp` (`francisSchur`, `standardizeSchur2x2`,
-  `schur_general`), `.../include/numkit/linalg/eig.hpp`,
+  `schur_general`), `.../include/nk/linalg/eig.hpp`,
   `src/bundle/src/register/linalg/eig_reg.cpp` (`schur_reg` dispatch).
 - `tools/parity/specs/schur_general.json`.
 - related: linalg/qz-gsvd.md, control/care-dare.md (same Schur machinery)

@@ -12,5 +12,5 @@
     "double(s4(1))",
     "d1", "d2", "d3"
   ],
-  "comment": "Sig s=dec2base(d,base[,len]) / d=base2dec(s,base), base 2..36 (digits 0-9 then A-Z). dec2base(100,16)='64' (chars 54,52), dec2base(10,2,8)='00001010' (len 8, first '0'=48), dec2base(255,16)='FF' ('F'=70), dec2base(35,36)='Z'=90; base2dec('64',16)=100, base2dec('1010',2)=10, base2dec('Z',36)=35; char matrix -> column vector. numkit previously had neither -- added. Matches MATLAB R2025b."
+  "comment": "Sig s=dec2base(d,base[,len]) / d=base2dec(s,base), base 2..36 (digits 0-9 then A-Z). dec2base(100,16)='64' (chars 54,52), dec2base(10,2,8)='00001010' (len 8, first '0'=48), dec2base(255,16)='FF' ('F'=70), dec2base(35,36)='Z'=90; base2dec('64',16)=100, base2dec('1010',2)=10, base2dec('Z',36)=35; char matrix -> column vector. nk previously had neither -- added. Matches MATLAB R2025b."
 }

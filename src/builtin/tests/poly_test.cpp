@@ -372,7 +372,7 @@ TEST_P(PolyTest, PadecoefN0IsConstant)
 }
 // zp2tf returns b with the SAME length as a: when there are fewer zeros
 // than poles, the numerator is LEFT-padded with zeros (MATLAB R2025b).
-// (Regression: numkit used to return the minimal-length numerator.)
+// (Regression: nk used to return the minimal-length numerator.)
 TEST_P(PolyTest, Zp2tfPadsNumeratorToDenominatorLength)
 {
     // One zero (0.5), two complex-conjugate poles, gain 2.

@@ -1,12 +1,12 @@
 // core/tests/complex_math_test.cpp
 //
-// Complex-input support for the elementary math that numkit used to reject with
+// Complex-input support for the elementary math that nk used to reject with
 // "Not a double array": floor/ceil/round/fix apply component-wise to the real
 // and imaginary parts (MATLAB R2025b), and expm1(z) = exp(z) - 1. Expected
 // values verified against MATLAB R2025b. Both backends.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
@@ -14,9 +14,9 @@
 
 namespace {
 
-class ComplexMathTest : public ::testing::TestWithParam<numkit::Engine::Backend> {
+class ComplexMathTest : public ::testing::TestWithParam<nk::Engine::Backend> {
 protected:
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     void SetUp() override { e.setBackend(GetParam()); }
     double re(const char *expr) {
         return e.eval(std::string("real(") + expr + ")").toScalar();
@@ -60,7 +60,7 @@ TEST_P(ComplexMathTest, Expm1Complex) {
     EXPECT_NEAR(e.eval("max(abs(y - w))").toScalar(), 0.0, 1e-15);
 }
 
-// numkit has TWO round implementations: the real/SIMD path uses
+// nk has TWO round implementations: the real/SIMD path uses
 // Trunc(v+CopySign(0.5,v)); the complex path applies std::round to each
 // component. They must agree on tie-prone magnitudes so real-round and
 // complex-component-round never silently diverge (the fused kernels mirror
@@ -184,7 +184,7 @@ TEST_P(ComplexMathTest, TraceCummaxCumminComplex) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, ComplexMathTest,
-                         ::testing::Values(numkit::Engine::Backend::TreeWalker,
-                                           numkit::Engine::Backend::VM));
+                         ::testing::Values(nk::Engine::Backend::TreeWalker,
+                                           nk::Engine::Backend::VM));
 
 } // namespace

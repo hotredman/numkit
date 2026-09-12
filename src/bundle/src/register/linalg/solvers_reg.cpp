@@ -8,23 +8,23 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/solvers.hpp>
+#include <nk/linalg/solvers.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 #include <utility>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2 || args.size() > 3)
         throw Error("linsolve: requires (A, B[, opts])",
-                    0, 0, "linsolve", "", "numkit:linsolve:nargin");
+                    0, 0, "linsolve", "", "nk:linsolve:nargin");
     // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
     outs[0] = linsolve(args[0], args[1], ctx.engine->resource());
 }
@@ -34,7 +34,7 @@ void lsqminnorm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("lsqminnorm: requires (A, B [, tol])",
-                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:nargin");
+                    0, 0, "lsqminnorm", "", "nk:lsqminnorm:nargin");
     bool have_tol = (args.size() >= 3);
     double tol = have_tol ? args[2].toScalar() : 0.0;
     outs[0] = lsqminnorm(args[0], args[1], have_tol, tol, ctx.engine->resource());
@@ -45,7 +45,7 @@ void lsqnonneg_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("lsqnonneg: requires (C, d)",
-                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:nargin");
+                    0, 0, "lsqnonneg", "", "nk:lsqnonneg:nargin");
     auto R = lsqnonneg_impl(args[0], args[1], ctx.engine->resource());
     outs[0] = R.x;
     if (nargout >= 2 && outs.size() >= 2)
@@ -69,4 +69,4 @@ void lsqnonneg_reg(Span<const Value> args, size_t nargout,
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

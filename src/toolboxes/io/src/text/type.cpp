@@ -2,15 +2,15 @@
 //
 // type(filename) — read a file via the VFS and stream it to a caller-provided
 // output sink. Core-free: the Engine coupling (its output sink) is injected by
-// the caller, so this compute TU includes no <numkit/core/...>. The bundle
+// the caller, so this compute TU includes no <nk/core/...>. The bundle
 // `type_reg` adapter binds the sink to `engine.outputText`. The VFS read goes
 // through the shared slurpFile (extras.hpp).
-#include <numkit/io/text/extras.hpp>
+#include <nk/io/text/extras.hpp>
 
 #include <functional>
 #include <string>
 
-namespace numkit::io {
+namespace nk::io {
 
 // ── type ──────────────────────────────────────────────────────────────
 void type(FsContext &fs,
@@ -23,4 +23,4 @@ void type(FsContext &fs,
         out("\n");
 }
 
-} // namespace numkit::io
+} // namespace nk::io

@@ -7,8 +7,8 @@
 // CallbackFS staging is exercised separately in fileio_test.cpp's
 // FileIoTest.SaveLoadMat* group.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/value/object.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/object.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 #include <string>
 
-using namespace numkit;
+using namespace nk;
 
 class SaveLoadMatTest : public ::testing::Test
 {
@@ -29,7 +29,7 @@ public:
     void SetUp() override
     {
                 auto td = std::filesystem::temp_directory_path();
-        matPath = td / ("numkit_savemat_"
+        matPath = td / ("nk_savemat_"
                         + std::to_string(std::hash<std::string>()(
                               ::testing::UnitTest::GetInstance()
                                   ->current_test_info()->name()))
@@ -493,7 +493,7 @@ TEST_F(SaveLoadMatTest, FileBeginsWithV5Magic)
 TEST_F(SaveLoadMatTest, LoadNonexistentFileThrows)
 {
     auto p = std::filesystem::temp_directory_path()
-             / "numkit_does_not_exist_xyz_zzz.mat";
+             / "nk_does_not_exist_xyz_zzz.mat";
     std::error_code ec; std::filesystem::remove(p, ec);
     EXPECT_THROW(eval("load('" + pathLiteralOf(p) + "');"), std::exception);
 }
@@ -561,7 +561,7 @@ TEST_F(SaveLoadMatTest, RoundTripObjectScalar)
 {
     auto st = std::make_shared<ObjectState>(engine.resource());
     st->props["x"] = Value::scalar(42.0);
-    st->props["name"] = Value::fromString("NumKitObject", engine.resource());
+    st->props["name"] = Value::fromString("NKObject", engine.resource());
     auto obj = Value::object("MyCustomClass", st, false);
     engine.setVariable("obj", obj);
 
@@ -577,7 +577,7 @@ TEST_F(SaveLoadMatTest, RoundTripObjectScalar)
     EXPECT_NE(lst, nullptr);
     if (lst) {
         EXPECT_DOUBLE_EQ(lst->props.at("x").toScalar(), 42.0);
-        EXPECT_EQ(lst->props.at("name").toString(), "NumKitObject");
+        EXPECT_EQ(lst->props.at("name").toString(), "NKObject");
     }
 }
 

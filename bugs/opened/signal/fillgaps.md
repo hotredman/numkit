@@ -13,7 +13,7 @@ registered.
 ```matlab
 clear;
 fillgaps([1 2 NaN 4 5])
-% numkit: Error — VM: undefined function 'fillgaps'
+% nk: Error — VM: undefined function 'fillgaps'
 % MATLAB: 1 2 3 4 5  (AR-model interpolation of the gap)
 ```
 
@@ -23,7 +23,7 @@ Not implemented.
 ## Suggested fix
 MATLAB `fillgaps(x)` / `fillgaps(x, maxlen)` / `fillgaps(x, maxlen, order)`
 fits a forward+backward autoregressive model over the surrounding samples
-and predicts the missing values. Needs Levinson/AR machinery (numkit already
+and predicts the missing values. Needs Levinson/AR machinery (nk already
 has `arburg`/`aryule`/`levinson`).
 
 ## ⚠️ Attempt + DEFER (2026-06-18)

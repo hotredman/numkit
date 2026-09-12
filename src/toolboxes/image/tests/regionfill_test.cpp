@@ -5,10 +5,10 @@
 // the same machine-precision Laplacian fix-point as MATLAB's
 // sparse-direct (UMFPACK) approach.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RegionfillTest : public ::testing::Test
 {

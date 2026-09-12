@@ -8,7 +8,7 @@
 ## Symptom
 `corner(I)` — return the `[x y]` coordinates of detected corner points — is
 not registered. The underlying response map `cornermetric` **is** present in
-numkit, so the missing piece is the peak-finding / thresholding layer on top
+nk, so the missing piece is the peak-finding / thresholding layer on top
 of it.
 
 ## Repro
@@ -16,7 +16,7 @@ of it.
 I = zeros(20,20); I(6:15,6:15) = 1;   % a bright square block
 C = corner(I);
 % MATLAB: C is 4x2 (the 4 block corners), first row [6 6]
-% numkit: Error — VM: undefined function 'corner'
+% nk: Error — VM: undefined function 'corner'
 ```
 
 ## Root cause
@@ -44,7 +44,7 @@ only its inner corner).
 **Ordering subtlety:** MATLAB sorts by strength (a strong corner at a high
 column beats a weak one at a low column — `corner(W,1)` returns the strong
 one), and its cornermetric is **bit-exactly symmetric**, so a symmetric
-square's four equal-strength corners keep `find` order. numkit's
+square's four equal-strength corners keep `find` order. nk's
 cornermetric matches MATLAB only to ~1e-8 and carries ~1-ULP asymmetry at
 symmetric corners, which a raw strength sort would surface as a wrong order.
 Fix: quantise the strength to `~1e-9·max` before the stable sort — ULP
@@ -58,7 +58,7 @@ truncates; `corner(W,1)` → `[20 20]` (strength beats position); edge block →
 
 ## References
 - `src/toolboxes/image/src/object/object.cpp` (`corner`),
-  `include/numkit/image/object/object.hpp`,
+  `include/nk/image/object/object.hpp`,
   `src/bundle/src/register/image/object/object_reg.cpp` (`corner_reg`),
   `image_library.cpp` (reg)
 - `tools/parity/specs/corner.json`,

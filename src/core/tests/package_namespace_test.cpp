@@ -9,8 +9,8 @@
 //     (calling bare `foo()` without import still fails)
 //   * Mtime-based re-parse after editing a +pkg file
 
-#include <numkit/core/engine.hpp>
-#include <numkit/fs/vfs.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/fs/vfs.hpp>
 
 #include <chrono>
 #include <filesystem>
@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 #include <thread>
 
-using namespace numkit;
+using namespace nk;
 
 namespace {
 
@@ -32,7 +32,7 @@ protected:
     {
         const auto *info = ::testing::UnitTest::GetInstance()->current_test_info();
         workDir = std::filesystem::temp_directory_path()
-                  / (std::string{"numkit-pkg-test-"} + info->name());
+                  / (std::string{"nk-pkg-test-"} + info->name());
         std::error_code ec;
         std::filesystem::remove_all(workDir, ec);
         std::filesystem::create_directories(workDir);

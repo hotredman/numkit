@@ -3,16 +3,16 @@
 // CallContext register half of anova/anova.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/anova/anova.hpp>
-#include <numkit/stats/distributions/chi2.hpp>
-#include <numkit/stats/distributions/fisher_f.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/anova/anova.hpp>
+#include <nk/stats/distributions/chi2.hpp>
+#include <nk/stats/distributions/fisher_f.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "anova/anova_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("anova1: requires (y, group[, 'off']) or a data matrix",
-                    0, 0, "anova1", "", "numkit:anova1:nargin");
+                    0, 0, "anova1", "", "nk:anova1:nargin");
     auto *mr = ctx.engine->resource();
 
     // Two input forms:
@@ -63,7 +63,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
     } else {
         if (args.size() < 2)
             throw Error("anova1: requires (y, group[, 'off'])",
-                        0, 0, "anova1", "", "numkit:anova1:nargin");
+                        0, 0, "anova1", "", "nk:anova1:nargin");
         yp = &args[0];
         gp = &args[1];
     }
@@ -160,7 +160,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("kruskalwallis: requires (y[, group][, 'off'])",
-                    0, 0, "kruskalwallis", "", "numkit:kruskalwallis:nargin");
+                    0, 0, "kruskalwallis", "", "nk:kruskalwallis:nargin");
     auto *mr = ctx.engine->resource();
 
     // Matrix-only form: when group is omitted (or the 2nd arg is the
@@ -192,7 +192,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         gArg = std::move(gFlat);
     } else if (!haveExplicitGroup) {
         throw Error("kruskalwallis: vector y requires explicit group argument",
-                    0, 0, "kruskalwallis", "", "numkit:kruskalwallis:noGroup");
+                    0, 0, "kruskalwallis", "", "nk:kruskalwallis:noGroup");
     }
     (void)flagPos;   // 'off'/'on' display flag accepted but ignored
     auto [p, H, df, sumR2] = kruskalwallis(yArg, gArg, mr);
@@ -305,7 +305,7 @@ void dummyvar_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("dummyvar: requires GROUP",
-                    0, 0, "dummyvar", "", "numkit:dummyvar:nargin");
+                    0, 0, "dummyvar", "", "nk:dummyvar:nargin");
     outs[0] = dummyvar(args[0], ctx.engine->resource());
 }
 
@@ -314,7 +314,7 @@ void anova2_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("anova2: requires (Y[, reps])",
-                    0, 0, "anova2", "", "numkit:anova2:nargin");
+                    0, 0, "anova2", "", "nk:anova2:nargin");
     // reps argument: only reps=1 (default) supported in this revision.
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const int reps = static_cast<int>(args[1].toScalar());
@@ -322,7 +322,7 @@ void anova2_reg(Span<const Value> args, size_t nargout,
             throw Error("anova2: reps > 1 (with replication / interaction) "
                         "is deferred -- only reps=1 (without replication) "
                         "supported in this revision",
-                        0, 0, "anova2", "", "numkit:anova2:reps");
+                        0, 0, "anova2", "", "nk:anova2:reps");
     }
     auto *mr = ctx.engine->resource();
     auto [pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE] =
@@ -384,7 +384,7 @@ void friedman_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("friedman: requires (x[, reps][, 'off'])",
-                    0, 0, "friedman", "", "numkit:friedman:nargin");
+                    0, 0, "friedman", "", "nk:friedman:nargin");
     auto *mr = ctx.engine->resource();
 
     // reps: numeric 2nd arg (default 1). A char 2nd/3rd arg is the
@@ -395,11 +395,11 @@ void friedman_reg(Span<const Value> args, size_t nargout,
         reps = static_cast<int>(args[1].toScalar());
 
     // reps>1 (replicates per cell) uses a two-way layout whose ranking does
-    // NOT reduce to averaging-then-rank — numkit doesn't match MATLAB there
+    // NOT reduce to averaging-then-rank — nk doesn't match MATLAB there
     // yet, so reject rather than return a wrong p. bugs/stats/friedman.
     if (reps != 1)
         throw Error("friedman: reps > 1 is not yet supported (use reps = 1)",
-                    0, 0, "friedman", "", "numkit:friedman:reps");
+                    0, 0, "friedman", "", "nk:friedman:reps");
 
     auto [p, Q, df] = friedman(args[0], reps, mr);
     outs[0] = std::move(p);
@@ -409,4 +409,4 @@ void friedman_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

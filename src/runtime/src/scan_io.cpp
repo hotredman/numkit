@@ -4,21 +4,21 @@
 // lang/src/strings/scan.cpp in C6c-2b: both read through the engine fid table
 // (findFile / OpenFile), so they belong in the core-aware runtime layer. The
 // pure parse+shape core (scanfEmit) and the pure sscanf stay in lang; fscanf
-// reads the file buffer then delegates to numkit::builtin::detail::scanfEmit.
-// Namespace stays numkit::lang (cell/struct precedent: runtime-located,
+// reads the file buffer then delegates to nk::builtin::detail::scanfEmit.
+// Namespace stays nk::lang (cell/struct precedent: runtime-located,
 // language-namespaced builtins). textscan + its format parser are textscan-
 // only, so they ride along here whole.
 
-#include <numkit/runtime/io.hpp>
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/builtin/scan_core.hpp>     // detail::scanfEmit + ScanfOut
-#include <numkit/core/engine.hpp>          // Engine, findFile, OpenFile
+#include <nk/runtime/io.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/builtin/scan_core.hpp>     // detail::scanfEmit + ScanfOut
+#include <nk/core/engine.hpp>          // Engine, findFile, OpenFile
 
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/io_helpers.hpp>       // SizeSpec / parseReadSize (numkit::builtin::detail)
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/io_helpers.hpp>       // SizeSpec / parseReadSize (nk::builtin::detail)
 
 #include <algorithm>
 #include <array>
@@ -31,10 +31,10 @@
 #include <string>
 #include <utility>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
-using numkit::builtin::detail::scanfEmit;
-using numkit::builtin::detail::ScanfOut;
+using nk::builtin::detail::scanfEmit;
+using nk::builtin::detail::ScanfOut;
 
 void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
@@ -46,9 +46,9 @@ void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
     if (!f || !f->forRead)
         throw Error("fscanf: invalid file identifier");
 
-    numkit::ops::SizeSpec sz{numkit::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    nk::ops::SizeSpec sz{nk::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
-        sz = numkit::ops::parseReadSize(args[2], "fscanf");
+        sz = nk::ops::parseReadSize(args[2], "fscanf");
 
     std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
     std::string fmt = args[1].toString();
@@ -516,4 +516,4 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     outs[0] = std::move(result);
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

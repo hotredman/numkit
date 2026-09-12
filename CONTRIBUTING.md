@@ -1,10 +1,10 @@
-# Contributing to numkit
+# Contributing to nk
 
 Contributions are welcome.
 
 ## Licensing of contributions
  
-numkit is open-source software released under the [BSD Zero Clause License (0BSD)](LICENSE).
+nk is open-source software released under the [BSD Zero Clause License (0BSD)](LICENSE).
  
 By submitting a pull request or contributing code to this repository, you agree that your contributions are licensed under the terms of the 0BSD license.
  
@@ -15,7 +15,7 @@ repository conventions.
 
 ## Public API conventions
 
-Every public function in `toolboxes/<ns>/include/numkit/<ns>/**` must follow
+Every public function in `toolboxes/<ns>/include/nk/<ns>/**` must follow
 the signature rules in [dev-docs/handbook/library_api.md](dev-docs/handbook/library_api.md) —
 argument order, native scalar types, `const Value &` vs
 `Span<const double>`, `FnHandle` callbacks, no `Engine *` in the public

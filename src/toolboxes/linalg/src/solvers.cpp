@@ -3,21 +3,21 @@
 // linsolve / lsqminnorm / lsqnonneg — and engine adapters.
 // Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/{matrix,lsq}.cpp.
 
-#include <numkit/linalg/solvers.hpp>
-#include <numkit/linalg/decompositions.hpp>
+#include <nk/linalg/solvers.hpp>
+#include <nk/linalg/decompositions.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/linalg/pseudo_subspace.hpp>      // pinv
-#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
-#include <numkit/builtin/ops.hpp>  // mtimes
+#include <nk/linalg/pseudo_subspace.hpp>      // pinv
+#include <nk/ops/la_solve.hpp>   // nk::ops::la_solve
+#include <nk/builtin/ops.hpp>  // mtimes
 
 // Compute-only TU: Value substrate + Error, no engine. The linsolve /
 // lsqminnorm / lsqnonneg builtins (CallContext wrappers) live in
 // solvers_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,20 +26,20 @@
 #include <string>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
         throw Error("linsolve: A and B must be 2D matrices",
-                    0, 0, "linsolve", "", "numkit:linsolve:notMatrix");
+                    0, 0, "linsolve", "", "nk:linsolve:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t mb = static_cast<std::size_t>(B.dims().dim(0));
     const std::size_t nrhs = static_cast<std::size_t>(B.dims().dim(1));
     if (m != mb)
         throw Error("linsolve: A and B must have the same number of rows",
-                    0, 0, "linsolve", "", "numkit:linsolve:badDims");
+                    0, 0, "linsolve", "", "nk:linsolve:badDims");
 
     if (A.isComplex() || B.isComplex()) {
         if (m == n) {
@@ -62,9 +62,9 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
             }
 
             Value out = Value::complexMatrix(n, nrhs, mr);
-            if (!numkit::ops::la_solve(A_buf.data(), n, n, B_buf.data(), nrhs, out.complexDataMut(), mr)) {
+            if (!nk::ops::la_solve(A_buf.data(), n, n, B_buf.data(), nrhs, out.complexDataMut(), mr)) {
                 throw Error("linsolve: A is singular or rank-deficient",
-                            0, 0, "linsolve", "", "numkit:linsolve:singular");
+                            0, 0, "linsolve", "", "nk:linsolve:singular");
             }
             return detail::narrow_if_real(out, mr);
         } else if (m > n) {
@@ -113,7 +113,7 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
                     detail::Complex diag = Rd[static_cast<std::size_t>(i) + static_cast<std::size_t>(i) * m];
                     if (detail::abs_sq(diag) == 0.0) {
                         throw Error("linsolve: A is singular or rank-deficient",
-                                    0, 0, "linsolve", "", "numkit:linsolve:singular");
+                                    0, 0, "linsolve", "", "nk:linsolve:singular");
                     }
                     Xd[static_cast<std::size_t>(i) + col * n] = s / diag;
                 }
@@ -121,16 +121,16 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
             return detail::narrow_if_real(X, mr);
         } else {
             throw Error("linsolve: complex wide matrices (m < n) deferred",
-                        0, 0, "linsolve", "", "numkit:linsolve:wide");
+                        0, 0, "linsolve", "", "nk:linsolve:wide");
         }
     }
 
     ScratchArena scratch(mr);
     auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
-    if (!numkit::ops::la_solve(A.doubleData(), m, n, B.doubleData(), nrhs,
+    if (!nk::ops::la_solve(A.doubleData(), m, n, B.doubleData(), nrhs,
                                out.doubleDataMut(), &scratch))
         throw Error("linsolve: A is singular or rank-deficient",
-                    0, 0, "linsolve", "", "numkit:linsolve:singular");
+                    0, 0, "linsolve", "", "nk:linsolve:singular");
     return out;
 }
 
@@ -139,15 +139,15 @@ Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
 {
     if (A.dims().is3D() || B.dims().is3D())
         throw Error("lsqminnorm: inputs must be 2D",
-                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:Not2D");
+                    0, 0, "lsqminnorm", "", "nk:lsqminnorm:Not2D");
 
     const size_t M = A.dims().rows();
     if (B.dims().rows() != M)
         throw Error("lsqminnorm: A and B must have same number of rows",
-                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:DimMismatch");
+                    0, 0, "lsqminnorm", "", "nk:lsqminnorm:DimMismatch");
 
     Value Ap = pinv(A, have_tol ? tol_user : -1.0, mr);
-    return numkit::builtin::mtimes(Ap, B, mr);
+    return nk::builtin::mtimes(Ap, B, mr);
 }
 
 // ── lsqnonneg ─────────────────────────────────────────────────────────
@@ -158,15 +158,15 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
 {
     if (C.dims().is3D() || d.dims().is3D())
         throw Error("lsqnonneg: inputs must be 2D",
-                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:Not2D");
+                    0, 0, "lsqnonneg", "", "nk:lsqnonneg:Not2D");
     if (C.isComplex() || d.isComplex())
         throw Error("lsqnonneg: real-only inputs in v1",
-                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:NoComplex");
+                    0, 0, "lsqnonneg", "", "nk:lsqnonneg:NoComplex");
     const size_t M = C.dims().rows();
     const size_t N = C.dims().cols();
     if (d.numel() != M)
         throw Error("lsqnonneg: C and d must have compatible sizes",
-                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:DimMismatch");
+                    0, 0, "lsqnonneg", "", "nk:lsqnonneg:DimMismatch");
 
     NnlsResult R;
     R.exitflag = 1;
@@ -264,7 +264,7 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
                 Ctd[a] = sum;
             }
             sP.assign(p, 0.0);
-            if (!numkit::ops::la_solve(CtC.data(), p, p, Ctd.data(), 1,
+            if (!nk::ops::la_solve(CtC.data(), p, p, Ctd.data(), 1,
                                                     sP.data(), &scratch)) {
                 R.exitflag = 1;
                 break;
@@ -308,4 +308,4 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
     return R;
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

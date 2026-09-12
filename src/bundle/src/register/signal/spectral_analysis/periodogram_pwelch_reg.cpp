@@ -3,14 +3,14 @@
 // CallContext register half of spectral_analysis/periodogram_pwelch.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -35,7 +35,7 @@ void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("periodogram: requires at least 1 argument",
-                     0, 0, "periodogram", "", "numkit:periodogram:nargin");
+                     0, 0, "periodogram", "", "nk:periodogram:nargin");
 
     // Positional args (x, window, nfft, fs) precede any string flag
     // ('onesided'/'twosided'/'power'/'psd'/'ConfidenceLevel', value).
@@ -77,7 +77,7 @@ void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("pwelch: requires at least 1 argument",
-                     0, 0, "pwelch", "", "numkit:pwelch:nargin");
+                     0, 0, "pwelch", "", "nk:pwelch:nargin");
 
     Value window = Value();
     if (args.size() >= 2 && !args[1].isChar())
@@ -97,7 +97,7 @@ void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.size() < 2)
         throw Error("cpsd: requires (x, y[, window, noverlap, nfft, fs])",
-                    0, 0, "cpsd", "", "numkit:cpsd:nargin");
+                    0, 0, "cpsd", "", "nk:cpsd:nargin");
     Value window = Value();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4 && !args[3].isEmpty()) ? static_cast<size_t>(args[3].toScalar()) : 0;
@@ -112,7 +112,7 @@ void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("mscohere: requires (x, y[, window, noverlap, nfft, fs])",
-                    0, 0, "mscohere", "", "numkit:mscohere:nargin");
+                    0, 0, "mscohere", "", "nk:mscohere:nargin");
     Value window = Value();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4 && !args[3].isEmpty()) ? static_cast<size_t>(args[3].toScalar()) : 0;
@@ -127,7 +127,7 @@ void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("tfestimate: requires (x, y[, window, noverlap, nfft, fs])",
-                    0, 0, "tfestimate", "", "numkit:tfestimate:nargin");
+                    0, 0, "tfestimate", "", "nk:tfestimate:nargin");
     Value window = Value();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4 && !args[3].isEmpty()) ? static_cast<size_t>(args[3].toScalar()) : 0;
@@ -140,4 +140,4 @@ void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

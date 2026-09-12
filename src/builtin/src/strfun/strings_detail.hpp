@@ -3,11 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 // Format a SCALAR complex value as "re±|im|i" (MATLAB num2str). A common
@@ -244,7 +244,7 @@ Value strCmpElementwise(const Value &a, const Value &b, Pred cmp,
         else if (nb == 1)  { n = na; shapeOf(a, rr, cc); }
         else
             throw Error(std::string(fn) + ": cell array sizes must match",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":cellSize");
+                        0, 0, fn, "", std::string("nk:") + fn + ":cellSize");
     } else if (ac) { n = na; shapeOf(a, rr, cc); }
     else           { n = nb; shapeOf(b, rr, cc); }
 
@@ -442,10 +442,10 @@ Value applyCharPred(const Value &s, PredFn pred, std::pmr::memory_resource *mr)
             return r;
         }
         throw Error("char-predicate: string-array form not supported",
-                     0, 0, "isstrprop", "", "numkit:isstrprop:stringArray");
+                     0, 0, "isstrprop", "", "nk:isstrprop:stringArray");
     }
     throw Error("char-predicate: input must be char or string",
-                 0, 0, "isstrprop", "", "numkit:isstrprop:type");
+                 0, 0, "isstrprop", "", "nk:isstrprop:type");
 }
 } // anon
 namespace {
@@ -557,11 +557,11 @@ uint64_t parseBase(const std::string &s, int base)
         else if (c >= 'A' && c <= 'F') d = 10 + (c - 'A');
         else throw Error(std::string("invalid digit '") + c + "' for base "
                           + std::to_string(base),
-                          0, 0, "base", "", "numkit:base:badDigit");
+                          0, 0, "base", "", "nk:base:badDigit");
         if (d >= base)
             throw Error(std::string("digit '") + c + "' out of range for base "
                           + std::to_string(base),
-                          0, 0, "base", "", "numkit:base:badDigit");
+                          0, 0, "base", "", "nk:base:badDigit");
         v = v * static_cast<uint64_t>(base) + static_cast<uint64_t>(d);
     }
     return v;
@@ -577,7 +577,7 @@ Value vecToBaseMatrix(const Value &d, int base, int minWidth, std::pmr::memory_r
     if (n == 1) {
         const double v = d.toScalar();
         if (v < 0) throw Error("dec2*: value must be non-negative",
-                                0, 0, "dec2", "", "numkit:dec2:negative");
+                                0, 0, "dec2", "", "nk:dec2:negative");
         return Value::fromString(
             toBaseString(static_cast<uint64_t>(v), base, minWidth), mr);
     }
@@ -589,7 +589,7 @@ Value vecToBaseMatrix(const Value &d, int base, int minWidth, std::pmr::memory_r
     for (size_t i = 0; i < n; ++i) {
         const double v = d.elemAsDouble(i);
         if (v < 0) throw Error("dec2*: value must be non-negative",
-                                0, 0, "dec2", "", "numkit:dec2:negative");
+                                0, 0, "dec2", "", "nk:dec2:negative");
         rows.emplace_back(toBaseString(static_cast<uint64_t>(v), base, 0));
         maxW = std::max<int>(maxW, static_cast<int>(rows.back().size()));
     }
@@ -627,7 +627,7 @@ double hexBitsToDouble(const std::string &raw)
         else if (c >= 'a' && c <= 'f') d = 10 + (c - 'a');
         else if (c >= 'A' && c <= 'F') d = 10 + (c - 'A');
         else throw Error(std::string("hex2num: invalid hex digit '") + c + "'",
-                          0, 0, "hex2num", "", "numkit:hex2num:badDigit");
+                          0, 0, "hex2num", "", "nk:hex2num:badDigit");
         bits = (bits << 4) | static_cast<uint64_t>(d);
     }
     double out;
@@ -648,11 +648,11 @@ uint64_t parseBaseN(const std::string &s, int base)
         else if (c >= 'a' && c <= 'z') d = 10 + (c - 'a');
         else if (c >= 'A' && c <= 'Z') d = 10 + (c - 'A');
         else throw Error(std::string("base2dec: invalid digit '") + c + "'",
-                          0, 0, "base2dec", "", "numkit:base2dec:badDigit");
+                          0, 0, "base2dec", "", "nk:base2dec:badDigit");
         if (d >= base)
             throw Error(std::string("base2dec: digit '") + c +
                             "' out of range for base " + std::to_string(base),
-                          0, 0, "base2dec", "", "numkit:base2dec:badDigit");
+                          0, 0, "base2dec", "", "nk:base2dec:badDigit");
         v = v * static_cast<uint64_t>(base) + static_cast<uint64_t>(d);
     }
     return v;
@@ -852,4 +852,4 @@ void splitKeepEmpty(const std::string &s, const std::string &delim,
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

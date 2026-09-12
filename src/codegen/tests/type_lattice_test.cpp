@@ -5,12 +5,12 @@
 // type-instability collapse, shape generalisation, and the
 // "can I emit this as an unboxed C++ scalar?" predicate.
 
-#include <numkit/codegen/type_lattice.hpp>
+#include <nk/codegen/type_lattice.hpp>
 
 #include <gtest/gtest.h>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 // A concrete scalar of a primitive numeric type is unboxable; aggregates,
 // non-scalars, and Dynamic are not.

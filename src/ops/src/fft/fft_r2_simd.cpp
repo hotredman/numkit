@@ -7,7 +7,7 @@
 // touch (see feedback_fft_msvc_limits memory). With the split each
 // kernel inlines cleanly inside its own file.
 
-#include <numkit/ops/fft/fft_kernels.hpp>
+#include <nk/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
@@ -19,7 +19,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -83,12 +83,12 @@ void Radix2(Complex *buf, std::size_t N, const Complex *W)
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::ops::detail {
+namespace nk::ops::detail {
 
 HWY_EXPORT(Radix2);
 
@@ -97,6 +97,6 @@ void fftRadix2Dispatch(Complex *buf, std::size_t N, const Complex *W)
     HWY_DYNAMIC_DISPATCH(Radix2)(buf, N, W);
 }
 
-} // namespace numkit::ops::detail
+} // namespace nk::ops::detail
 
 #endif // HWY_ONCE

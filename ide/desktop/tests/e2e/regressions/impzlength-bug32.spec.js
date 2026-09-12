@@ -1,7 +1,7 @@
 // impzlength-bug32.spec.js — confirm BUG #32 stayed fixed.
 //
 // MATLAB:  impzlength([1 -0.5], [1 -0.99]) = 985
-// numkit:  used to return 1146 (cap at 50, then 1146 with conservative
+// nk:  used to return 1146 (cap at 50, then 1146 with conservative
 //          decay tolerance). Commit 67e8a8a1 swapped to the canonical
 //          floor(log(5e-5)/log(rho)) formula. This test pins the post-
 //          fix value so a future regression is loud.

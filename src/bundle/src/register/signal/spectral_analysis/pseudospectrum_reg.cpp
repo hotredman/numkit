@@ -2,11 +2,11 @@
 //
 // CallContext register half of spectral_analysis/pseudospectrum.cpp
 // (pmusic / peig). Parses (x, p[, nfft[, fs]]) and threads (P, F) by nargout.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/spectral_analysis/signal_modeling.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/spectral_analysis/signal_modeling.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <tuple>
 #include <utility>
@@ -15,7 +15,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -23,7 +23,7 @@ void pmusic_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("pmusic: requires (x, p[, nfft[, fs]])",
-                    0, 0, "pmusic", "", "numkit:pmusic:nargin");
+                    0, 0, "pmusic", "", "nk:pmusic:nargin");
     const int    p    = static_cast<int>(args[1].toScalar());
     const int    nfft = (args.size() >= 3 && !args[2].isEmpty()) ? static_cast<int>(args[2].toScalar()) : 256;
     const double fs   = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 2.0 * M_PI;
@@ -36,7 +36,7 @@ void peig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.size() < 2)
         throw Error("peig: requires (x, p[, nfft[, fs]])",
-                    0, 0, "peig", "", "numkit:peig:nargin");
+                    0, 0, "peig", "", "nk:peig:nargin");
     const int    p    = static_cast<int>(args[1].toScalar());
     const int    nfft = (args.size() >= 3 && !args[2].isEmpty()) ? static_cast<int>(args[2].toScalar()) : 256;
     const double fs   = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 2.0 * M_PI;
@@ -47,4 +47,4 @@ void peig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

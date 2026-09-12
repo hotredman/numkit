@@ -5,9 +5,9 @@
 // plus a symmetric equal-length case at the low end.
 
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/signal/convolution/convolution.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
+#include <nk/signal/convolution/convolution.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -16,9 +16,9 @@
 
 namespace {
 
-numkit::Value makeRealVector(size_t n, uint32_t seed)
+nk::Value makeRealVector(size_t n, uint32_t seed)
 {
-    using namespace numkit;
+    using namespace nk;
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
@@ -35,7 +35,7 @@ numkit::Value makeRealVector(size_t n, uint32_t seed)
 // typical filter() / conv(sig, kernel) shape seen in DSP pipelines.
 static void BM_Conv_FixedKernel64(benchmark::State &state)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     Value sig    = makeRealVector(n, 11);
     Value kernel = makeRealVector(64, 22);
@@ -58,7 +58,7 @@ BENCHMARK(BM_Conv_FixedKernel64)
 // hot path vs any future FFT-based fallback.
 static void BM_Conv_SquareLen(benchmark::State &state)
 {
-    using namespace numkit;
+    using namespace nk;
     const size_t n = static_cast<size_t>(state.range(0));
     Value a = makeRealVector(n, 33);
     Value b = makeRealVector(n, 44);

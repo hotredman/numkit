@@ -3,7 +3,7 @@ clear
 % bugs/linalg/cross-integer-class.md — cross preserves the integer class of
 % integer operands, with MATLAB R2025b's PER-OPERATION saturating integer
 % arithmetic (each product saturates before the subtraction). Previously
-% numkit threw "Not a double array" on any integer operand.
+% nk threw "Not a double array" on any integer operand.
 
 c1 = cross(int8([1 2 3]), int8([4 5 6]));
 fprintf('cross(int8,int8) = [%g %g %g] class=%s   expect [-3 6 -3] int8\n', c1(1), c1(2), c1(3), class(c1));

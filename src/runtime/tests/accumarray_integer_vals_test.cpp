@@ -4,11 +4,11 @@
 // vals (MATLAB R2025b). Output class follows the reducer: sum/prod/mean ->
 // double, but max/min PRESERVE the integer class. Offline regression guard.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class AccumarrayIntegerValsTest : public ::testing::Test
 {

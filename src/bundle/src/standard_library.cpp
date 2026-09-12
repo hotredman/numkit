@@ -2,27 +2,27 @@
 //
 // StandardLibrary::install — the one place that wires all toolboxes and core runtime.
 
-#include <numkit/bundle/standard_library.hpp>
+#include <nk/bundle/standard_library.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
-#include <numkit/runtime/runtime.hpp>
-#include <numkit/bundle/builtin_library.hpp>
-#include <numkit/linalg/library.hpp>
-#include <numkit/signal/library.hpp>
-#include <numkit/stats/library.hpp>
-#include <numkit/image/library.hpp>
-#include <numkit/comm/library.hpp>
-#include <numkit/wavelet/library.hpp>
-#include <numkit/control/library.hpp>
-#include <numkit/graphics/library.hpp>
-#include <numkit/io/library.hpp>
-#include <numkit/optim/library.hpp>
-#include <numkit/bundle/help.hpp>
-#include <numkit/audio/library.hpp>
-#include <numkit/ode/library.hpp>
+#include <nk/runtime/runtime.hpp>
+#include <nk/bundle/builtin_library.hpp>
+#include <nk/linalg/library.hpp>
+#include <nk/signal/library.hpp>
+#include <nk/stats/library.hpp>
+#include <nk/image/library.hpp>
+#include <nk/comm/library.hpp>
+#include <nk/wavelet/library.hpp>
+#include <nk/control/library.hpp>
+#include <nk/graphics/library.hpp>
+#include <nk/io/library.hpp>
+#include <nk/optim/library.hpp>
+#include <nk/bundle/help.hpp>
+#include <nk/audio/library.hpp>
+#include <nk/ode/library.hpp>
 
-namespace numkit {
+namespace nk {
 
 // Defined in register/fusion/fused_rules.cpp — registers element-wise fusion
 // rules (idiom -> ops kernel) on the engine's FusionRule registry.
@@ -64,4 +64,4 @@ std::unique_ptr<Engine> makeStandardEngine(std::pmr::memory_resource *mr)
     return engine;
 }
 
-} // namespace numkit
+} // namespace nk

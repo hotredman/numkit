@@ -9,5 +9,5 @@
     "k(1)", "k(2)", "k(3)", "r0",
     "k2(1)", "k2(2)"
   ],
-  "comment": "Sig [k,r0]=poly2rc(a,efinal): AR poly -> reflection coeffs via step-down, plus zero-lag autocorrelation R0=efinal/prod(1-k.^2). For a=[1 .6 .2 -.1], efinal=4: k=[0.496 0.262626 -0.1], r0=5.755727. Single-output k=poly2rc([1 .6 .2])=[0.5; 0.2]. numkit previously returned only k (no r0 2nd output) -- added efinal arg + R0."
+  "comment": "Sig [k,r0]=poly2rc(a,efinal): AR poly -> reflection coeffs via step-down, plus zero-lag autocorrelation R0=efinal/prod(1-k.^2). For a=[1 .6 .2 -.1], efinal=4: k=[0.496 0.262626 -0.1], r0=5.755727. Single-output k=poly2rc([1 .6 .2])=[0.5; 0.2]. nk previously returned only k (no r0 2nd output) -- added efinal arg + R0."
 }

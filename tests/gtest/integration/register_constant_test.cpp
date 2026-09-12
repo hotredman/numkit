@@ -6,11 +6,11 @@
 // debug Workspace panel, shadowable, un-shadowable via `clear name`,
 // and surviving `clear all`.
 
-#include <numkit/core/debug_session.hpp>
+#include <nk/core/debug_session.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit;
+using namespace nk;
 
 class RegisterConstantTest : public DualEngineTest
 {

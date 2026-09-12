@@ -5,11 +5,11 @@
 // MATLAB R2025b reference values. (FIXED builtin bugs get real tests in
 // their own files, e.g. sort-missingplacement -> matrix_test.cpp.)
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class BuiltinKnownBug : public ::testing::Test
 {
@@ -469,11 +469,11 @@ TEST_F(EvalFamilyKnownBug, EvalFamilyCallerVarVisibility)
 // (function heads) keep command semantics; the write side of
 // eval-family (an eval-DEFINED name read later in the SAME chunk)
 // resolves too.
-class CommandGlueTest : public ::testing::TestWithParam<numkit::Engine::Backend> {
+class CommandGlueTest : public ::testing::TestWithParam<nk::Engine::Backend> {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override { engine.setBackend(GetParam()); }
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
@@ -511,8 +511,8 @@ TEST_P(CommandGlueTest, EvalWriteSideVisibleLaterInChunk)
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, CommandGlueTest,
-                         ::testing::Values(numkit::Engine::Backend::VM,
-                                           numkit::Engine::Backend::TreeWalker));
+                         ::testing::Values(nk::Engine::Backend::VM,
+                                           nk::Engine::Backend::TreeWalker));
 
 // bugs/closed/lang/dotted-rvalue-on-call-result.md — `gcf.Number`
 // (dotted rvalue whose head is a FUNCTION, not a variable) must evaluate
@@ -551,7 +551,7 @@ TEST_P(CommandGlueTest, ExistFileInsideFunction)
 
 // bugs/opened/runtime/dir-nargout-in-argument.md — a call in ARGUMENT
 // position must request one output: MATLAB gives numel(dir(path))==1
-// inside fprintf(...) just like in an assignment. numkit currently
+// inside fprintf(...) just like in an assignment. nk currently
 // invokes the argument call with nargout=0, so dir prints its listing
 // and returns nothing → numel = 0.
 TEST_P(CommandGlueTest, DISABLED_DirNargoutInsideCallArgument)

@@ -8,9 +8,9 @@
 // scalar -- registering it precisely needs rank tracking, so for now it
 // is intentionally left unregistered (-> Dynamic, the sound fallback).
 
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/transfer.hpp>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 namespace {
 
@@ -182,7 +182,7 @@ InferredType sortrowsTransfer(const std::vector<ArgInfo> &args)
 }
 
 // [u, ia, ic] = unique(x): u = sorted distinct values; ia s.t. u = x(ia) (the FIRST occurrence,
-// numkit default -- probed); ic s.t. x = u(ic). All three are 1-D DOUBLE vectors (u/ia length =
+// nk default -- probed); ic s.t. x = u(ic). All three are 1-D DOUBLE vectors (u/ia length =
 // #distinct, ic length = numel(x); all runtime -> Unknown). v1: a 1-D DOUBLE vector; a matrix ->
 // Dynamic (stays bridged -- the bridged-multi-output e2e exemplar uses a matrix unique).
 std::vector<InferredType> uniqueMultiTransfer(const std::vector<ArgInfo> &args)
@@ -896,4 +896,4 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("sprintf", sprintfTransfer);  // sprintf(fmt, args) -> CHAR row (bridged; G3b)
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

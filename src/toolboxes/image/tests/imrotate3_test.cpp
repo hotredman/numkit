@@ -3,10 +3,10 @@
 // Regression guard for imrotate3 — 3-D volumetric rotation around
 // an arbitrary axis via the Rodrigues formula.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Imrotate3Test : public ::testing::Test
 {

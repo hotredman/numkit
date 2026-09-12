@@ -5,15 +5,15 @@
 //   dwtest  — Durbin-Watson test for first-order autocorrelation in
 //             regression residuals
 
-#include <numkit/stats/test/hypothesis.hpp>
+#include <nk/stats/test/hypothesis.hpp>
 
-#include <numkit/stats/distributions/normal.hpp>
-#include <numkit/stats/distributions/beta.hpp>
-#include <numkit/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
+#include <nk/stats/distributions/normal.hpp>
+#include <nk/stats/distributions/beta.hpp>
+#include <nk/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -22,7 +22,7 @@
 
 #include "ad_dw_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -52,7 +52,7 @@ adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0)
         throw Error("adtest: alpha must be in (0, 1)",
-                    0, 0, "adtest", "", "numkit:adtest:badAlpha");
+                    0, 0, "adtest", "", "nk:adtest:badAlpha");
 
     // Pull data as DOUBLE vector, drop NaNs.
     const std::size_t N = x.numel();
@@ -66,7 +66,7 @@ adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
     const std::size_t n = v.size();
     if (n < 4)
         throw Error("adtest: need at least 4 non-NaN observations",
-                    0, 0, "adtest", "", "numkit:adtest:tooFewObs");
+                    0, 0, "adtest", "", "nk:adtest:tooFewObs");
 
     // Sample mean and unbiased std.
     double mean = 0.0;
@@ -81,7 +81,7 @@ adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
     const double sd = std::sqrt(s2);
     if (!(sd > 0.0))
         throw Error("adtest: sample has zero variance",
-                    0, 0, "adtest", "", "numkit:adtest:zeroVar");
+                    0, 0, "adtest", "", "nk:adtest:zeroVar");
 
     // Standardise + sort.
     std::vector<double> z = v;
@@ -146,7 +146,7 @@ void invertSmall(std::vector<double> &A, std::size_t D)
         }
         if (pmax < 1e-14)
             throw Error("dwtest: design matrix X is rank-deficient (X''X singular)",
-                        0, 0, "dwtest", "", "numkit:dwtest:singular");
+                        0, 0, "dwtest", "", "nk:dwtest:singular");
         if (piv != kk)
             for (std::size_t c = 0; c < 2 * D; ++c)
                 std::swap(aug[kk * 2 * D + c], aug[piv * 2 * D + c]);
@@ -269,7 +269,7 @@ double dwExactPLeft(const Value &X, std::size_t n, std::size_t k, double dw,
             for (std::size_t l = 0; l < n; ++l) s += M[i * n + l] * AM[l * n + j];
             sd[j * n + i] = s;   // column-major store
         }
-    auto [V, D] = ::numkit::linalg::eig_symmetric(S, mr);
+    auto [V, D] = ::nk::linalg::eig_symmetric(S, mr);
     (void)V;
     std::vector<double> eig(n);
     { const double *dd = D.doubleData();
@@ -303,14 +303,14 @@ double dwStatAndPLeft(const Value &r, const Value &X, bool exact,
     const std::size_t n = r.numel();
     if (n < 3)
         throw Error("dwtest: need at least 3 residuals",
-                    0, 0, "dwtest", "", "numkit:dwtest:tooFewObs");
+                    0, 0, "dwtest", "", "nk:dwtest:tooFewObs");
     const std::size_t k = X.dims().cols();
     if (X.dims().rows() != n)
         throw Error("dwtest: rows(X) must equal length(r)",
-                    0, 0, "dwtest", "", "numkit:dwtest:shapeMismatch");
+                    0, 0, "dwtest", "", "nk:dwtest:shapeMismatch");
     if (k >= n)
         throw Error("dwtest: design matrix has no degrees of freedom",
-                    0, 0, "dwtest", "", "numkit:dwtest:noDOF");
+                    0, 0, "dwtest", "", "nk:dwtest:noDOF");
 
     std::vector<double> rv(n);
     for (std::size_t i = 0; i < n; ++i) rv[i] = r.elemAsDouble(i);
@@ -319,7 +319,7 @@ double dwStatAndPLeft(const Value &r, const Value &X, bool exact,
     for (std::size_t i = 1; i < n; ++i) { const double d = rv[i] - rv[i - 1]; num += d * d; }
     if (!(den > 0.0))
         throw Error("dwtest: residuals are all zero",
-                    0, 0, "dwtest", "", "numkit:dwtest:zeroResid");
+                    0, 0, "dwtest", "", "nk:dwtest:zeroResid");
     dwOut = num / den;
     return exact ? dwExactPLeft(X, n, k, dwOut, mr)
                  : dwApproxPLeft(dwOut, n, mr);
@@ -335,4 +335,4 @@ dwtest(const Value &r, const Value &X, std::pmr::memory_resource *mr)
     return { Value::scalar(pBoth, mr), Value::scalar(dw, mr) };
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

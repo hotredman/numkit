@@ -2,10 +2,10 @@
 //
 // Regression guard for corr (Pearson alias) and detrend.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CorrDetrendTest : public ::testing::Test
 {
@@ -117,7 +117,7 @@ TEST_F(CorrDetrendTest, DetrendStringMode)
 }
 
 // detrend(x, 1, bp) — continuous piecewise-linear detrend with
-// breakpoints. Values verified against MATLAB R2025b. Previously numkit
+// breakpoints. Values verified against MATLAB R2025b. Previously nk
 // silently ignored the breakpoint argument (returned the plain linear
 // detrend).
 TEST_F(CorrDetrendTest, DetrendBreakpointSingle)

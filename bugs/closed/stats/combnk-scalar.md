@@ -10,16 +10,16 @@
   `src/toolboxes/stats/tests/combnk_test.cpp`.
 
 ## Symptom
-`combnk(N, k)` with a SCALAR `N`: numkit treats it as `combnk(1:N, k)`;
+`combnk(N, k)` with a SCALAR `N`: nk treats it as `combnk(1:N, k)`;
 MATLAB treats the scalar as a 1-element set `[N]`. The vector form
 (`combnk(v, k)`) matches MATLAB.
 
 ## Repro
 ```matlab
 size(combnk(5, 2), 1)
-% numkit: 10   (wrongly enumerated combinations of 1:5)
+% nk: 10   (wrongly enumerated combinations of 1:5)
 % MATLAB: 0    (choosing 2 from the 1-element set {5} -> empty)
-size(combnk(1:4, 2), 1)   % vector form: numkit == MATLAB == 6
+size(combnk(1:4, 2), 1)   % vector form: nk == MATLAB == 6
 ```
 
 ## Root cause

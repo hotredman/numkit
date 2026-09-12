@@ -17,8 +17,8 @@
 // text fails the test loudly. The image is then read back through an
 // explicit `mem:` scheme.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/fs/vfs.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/fs/vfs.hpp>
 #include <gtest/gtest.h>
 
 #include <fstream>
@@ -29,7 +29,7 @@
 
 namespace {
 
-class MemFS final : public numkit::VirtualFS
+class MemFS final : public nk::VirtualFS
 {
 public:
     std::map<std::string, std::string> files;  // path -> raw bytes
@@ -63,7 +63,7 @@ public:
 class ImreadVfsTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     MemFS *mem = nullptr;
 
     void SetUp() override

@@ -3,11 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -183,11 +183,11 @@ allocMinMaxOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memo
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = numkit::ops::outShapeForDimND(&scratch, x, redDim);
+        auto shape = nk::ops::outShapeForDimND(&scratch, x, redDim);
         return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }
-    auto outShape = numkit::ops::outShapeForDim(x, redDim);
+    auto outShape = nk::ops::outShapeForDim(x, redDim);
     return {createMatrix(outShape, outType, mr),
             createMatrix(outShape, ValueType::DOUBLE, mr)};
 }
@@ -240,7 +240,7 @@ reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, std::pmr::memory_re
                                Value::scalar(static_cast<double>(bi + 1), mr));
     }
     // Multi-dim: reduce along first non-singleton dim (MATLAB rule).
-    const int redDim = numkit::ops::firstNonSingletonDim(x);
+    const int redDim = nk::ops::firstNonSingletonDim(x);
     auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, mr);
     ScratchArena scratch(mr);
     minMaxAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()), outIdx.doubleDataMut(), cmp, typeMatch, &scratch);
@@ -256,7 +256,7 @@ reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, std::
         // For vectors, MATLAB ignores explicit dim and reduces all elements
         // when dim == firstNonSingleton; otherwise (dim past ndim or singleton
         // dim) it returns the input unchanged with idx = ones.
-        if (dim != numkit::ops::firstNonSingletonDim(x)) {
+        if (dim != nk::ops::firstNonSingletonDim(x)) {
             // Identity reduction: copy x as outType (cast where needed) and
             // return ones as idx.
             const size_t n = x.numel();
@@ -348,11 +348,11 @@ allocComplexMinMaxOutputs(const Value &x, int redDim, std::pmr::memory_resource 
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = numkit::ops::outShapeForDimND(&scratch, x, redDim);
+        auto shape = nk::ops::outShapeForDimND(&scratch, x, redDim);
         return {Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE,  mr)};
     }
-    auto outShape = numkit::ops::outShapeForDim(x, redDim);
+    auto outShape = nk::ops::outShapeForDim(x, redDim);
     return {createMatrix(outShape, ValueType::COMPLEX, mr),
             createMatrix(outShape, ValueType::DOUBLE,  mr)};
 }
@@ -363,7 +363,7 @@ reduceMinMaxComplexAll(const Value &x, std::pmr::memory_resource *mr, const char
 {
     if (x.numel() == 0)
         throw Error(std::string(fn) + " of empty array is not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":empty");
+                     0, 0, fn, "", std::string("nk:") + fn + ":empty");
     const Complex *data = x.complexData();
     const bool allReal = allImagZero(data, x.numel());
     if (x.isScalar() || x.dims().isVector()) {
@@ -374,7 +374,7 @@ reduceMinMaxComplexAll(const Value &x, std::pmr::memory_resource *mr, const char
         return std::make_tuple(Value::complexScalar(best, mr),
                                Value::scalar(static_cast<double>(bi + 1), mr));
     }
-    const int redDim = numkit::ops::firstNonSingletonDim(x);
+    const int redDim = nk::ops::firstNonSingletonDim(x);
     auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, mr);
     Complex *dst  = out.complexDataMut();
     double  *dstI = outIdx.doubleDataMut();
@@ -412,7 +412,7 @@ std::tuple<Value, Value>
 reduceMinMaxComplexAlongDim(const Value &x, int dim, std::pmr::memory_resource *mr, const char *fn)
 {
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != numkit::ops::firstNonSingletonDim(x)) {
+        if (dim != nk::ops::firstNonSingletonDim(x)) {
             // Identity reduction: copy x as COMPLEX, idx = ones.
             const size_t n = x.numel();
             Value out, outIdx;
@@ -569,7 +569,7 @@ reduceMinMaxNanAllT(const Value &x, Cmp cmp, ValueType outType, std::pmr::memory
         return std::make_tuple(makeScalarT<T>(best, outType, mr),
                                Value::scalar(static_cast<double>(firstValid + 1), mr));
     }
-    const int redDim = numkit::ops::firstNonSingletonDim(x);
+    const int redDim = nk::ops::firstNonSingletonDim(x);
     auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, mr);
     minMaxNanAlongDim<T>(x, redDim,
                          static_cast<T *>(out.rawDataMut()),
@@ -584,7 +584,7 @@ reduceMinMaxNanAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, st
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != numkit::ops::firstNonSingletonDim(x))
+        if (dim != nk::ops::firstNonSingletonDim(x))
             return reduceMinMaxAlongDimT<T>(x, dim, cmp, outType, mr);
         return reduceMinMaxNanAllT<T>(x, cmp, outType, mr);
     }
@@ -604,7 +604,7 @@ reduceMinMaxComplexNanAll(const Value &x, std::pmr::memory_resource *mr, const c
 {
     if (x.numel() == 0)
         throw Error(std::string(fn) + " of empty array is not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":empty");
+                     0, 0, fn, "", std::string("nk:") + fn + ":empty");
     const Complex *data = x.complexData();
     auto isNan = [](Complex c) { return std::isnan(c.real()) || std::isnan(c.imag()); };
     // For all-real check, only consider non-NaN elements.
@@ -637,7 +637,7 @@ reduceMinMaxComplexNanAll(const Value &x, std::pmr::memory_resource *mr, const c
         return std::make_tuple(Value::complexScalar(best, mr),
                                Value::scalar(static_cast<double>(bi + 1), mr));
     }
-    const int redDim = numkit::ops::firstNonSingletonDim(x);
+    const int redDim = nk::ops::firstNonSingletonDim(x);
     auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, mr);
     Complex *dst = out.complexDataMut();
     double *dstI = outIdx.doubleDataMut();
@@ -676,7 +676,7 @@ std::tuple<Value, Value>
 reduceMinMaxComplexNanAlongDim(const Value &x, int dim, std::pmr::memory_resource *mr, const char *fn)
 {
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != numkit::ops::firstNonSingletonDim(x))
+        if (dim != nk::ops::firstNonSingletonDim(x))
             return reduceMinMaxComplexAlongDim<IsMax>(x, dim, mr, fn);
         return reduceMinMaxComplexNanAll<IsMax>(x, mr, fn);
     }
@@ -779,7 +779,7 @@ dispatchMinMaxAll(const Value &x, Cmp cmp, std::pmr::memory_resource *mr, const 
     case ValueType::COMPLEX: return reduceMinMaxComplexAll<IsMax>(x, mr, fn);
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
+                     0, 0, fn, "", std::string("nk:") + fn + ":type");
     }
 }
 
@@ -804,7 +804,7 @@ dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, std::pmr::memory_resour
     case ValueType::COMPLEX: return reduceMinMaxComplexAlongDim<IsMax>(x, dim, mr, fn);
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
+                     0, 0, fn, "", std::string("nk:") + fn + ":type");
     }
 }
 
@@ -816,4 +816,4 @@ std::tuple<Value, Value> minOmitNan(const Value &x, int dim, std::pmr::memory_re
 Value maxOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr);
 Value minOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

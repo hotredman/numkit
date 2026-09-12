@@ -3,10 +3,10 @@
 // Regression guard for chromadapt — Bradford / von Kries / Simple
 // chromatic adaptation. References from MATLAB R2025b probe.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ChromaAdaptTest : public ::testing::Test
 {

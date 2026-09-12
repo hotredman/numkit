@@ -4,8 +4,8 @@
 - **Severity:** P3 (all raster-PNG text was subtly wrong; SVG export and the
   IDE renderer were unaffected — they use real font rendering)
 - **Kind:** bug
-- **Found:** 2026-09-11 portion 34 — the side-by-side MATLAB-vs-numkit visual
-  comparison of the axes-props demo script. The analyzer OCR'd the numkit PNG
+- **Found:** 2026-09-11 portion 34 — the side-by-side MATLAB-vs-nk visual
+  comparison of the axes-props demo script. The analyzer OCR'd the nk PNG
   labels as `wlph`/`Ydohxh` where MATLAB had `time`/`value`: every letter was
   exactly +3 in the alphabet.
 
@@ -23,7 +23,7 @@ clear;
 plot(1:10);
 xlabel('time');
 saveas(gcf, [tempdir 'font_probe.png']);
-% numkit (before fix): the xlabel reads "wlph"
+% nk (before fix): the xlabel reads "wlph"
 % MATLAB R2025b: the xlabel reads "time"
 ```
 

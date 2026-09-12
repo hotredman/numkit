@@ -6,11 +6,11 @@
 #include "../src/io/aiff_codec.hpp"
 #include "../src/io/au_codec.hpp"
 #include "../src/io/midi_codec.hpp"
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 #include <vector>
 
-using namespace numkit;
-using namespace numkit::audio;
+using namespace nk;
+using namespace nk::audio;
 
 TEST(AudioRobustnessTest, EmptyAndTinyBuffersThrowCleanly) {
     const uint8_t tiny[] = "RIF";

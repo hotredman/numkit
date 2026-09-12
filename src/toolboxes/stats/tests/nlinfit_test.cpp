@@ -5,12 +5,12 @@
 //   nlparci  — parameter confidence intervals
 //   nlpredci — prediction confidence intervals
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class NlinfitTest : public ::testing::Test
 {

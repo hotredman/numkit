@@ -15,5 +15,5 @@
     "Ba(1,1)", "Ba(1,2)", "Ba(2,1)", "Ba(2,2)",
     "I0(1)", "I0(2)"
   ],
-  "comment": "Sig: B = topkrows(A, k[, col[, direction]]); [B,I] = topkrows(...). Top k rows by column-priority sort (default: all columns, descending lex). col selects a single column or vector of columns (priority order). direction = 'ascend' | 'descend' applies to all sort columns. 2-output returns 1-indexed row indices. ComparisonMethod NV is accept-and-ignore (numkit is real-only). Bit-identical with MATLAB R2025b on probed cases."
+  "comment": "Sig: B = topkrows(A, k[, col[, direction]]); [B,I] = topkrows(...). Top k rows by column-priority sort (default: all columns, descending lex). col selects a single column or vector of columns (priority order). direction = 'ascend' | 'descend' applies to all sort columns. 2-output returns 1-indexed row indices. ComparisonMethod NV is accept-and-ignore (nk is real-only). Bit-identical with MATLAB R2025b on probed cases."
 }

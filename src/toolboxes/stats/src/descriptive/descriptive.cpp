@@ -10,18 +10,18 @@
 // taxonomy, not core MATLAB. Registration as stats.descriptive.* +
 // compat.* lives in toolboxes/stats/src/library.cpp.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
-#include <numkit/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
-#include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
+#include <nk/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
+#include <nk/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
+#include <nk/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
 #include "datafun/var_reduction.hpp"
 
 #include <algorithm>
@@ -37,15 +37,15 @@
 
 #include "descriptive_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 // `using namespace` aliases for helpers physically rooted in toolboxes/builtin
 // (Phase 7b moved this file out, but the helpers stay there). Reg/impl
 // bodies can call applyAlongDim, resolveDim, compactNonNan,
 // firstNonSingletonDim, outShapeForDim, outShapeForDimND, sliceLenForDim,
 // varianceTwoPass, … by short name as before the move.
-using namespace ::numkit::ops;
-using ::numkit::builtin::varianceTwoPass;
+using namespace ::nk::ops;
+using ::nk::builtin::varianceTwoPass;
 
 // ────────────────────────────────────────────────────────────────────
 // var / std
@@ -136,7 +136,7 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
 //                positions: (k-0.5)/N for k = 1..N
 //                inverse:   q = p*N + 0.5, clamp [1, N], linear interp
 //
-//   * Inclusive (Type-7; numkit's old default)
+//   * Inclusive (Type-7; nk's old default)
 //                positions: (k-1)/(N-1)
 //                inverse:   q = p*(N-1) + 1, clamp [1, N], linear interp
 //
@@ -242,10 +242,10 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
     validateCovInputs(y, "cov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("cov: two-input form requires vector arguments",
-                     0, 0, "cov", "", "numkit:cov:notVector");
+                     0, 0, "cov", "", "nk:cov:notVector");
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
-                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
+                     0, 0, "cov", "", "nk:cov:lengthMismatch");
     const std::size_t n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
@@ -282,4 +282,4 @@ Value corrcoef(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     return corrcoefFromCov(C, mr);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

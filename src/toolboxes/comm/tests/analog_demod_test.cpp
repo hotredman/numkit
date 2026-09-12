@@ -5,11 +5,11 @@
 // MATLAB R2025b. (These depend on the length-N hilbert — see
 // bugs/signal/hilbert-nonpow2.)
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class AnalogDemodTest : public ::testing::Test
 {
@@ -58,7 +58,7 @@ TEST_F(AnalogDemodTest, NyquistThrows)
 }
 
 // amdemod: coherent detection 2*filtfilt(butter(5,fc*2/fs), y.*cos). The
-// interior is machine-exact; edges differ by ~3e-6 (numkit filtfilt edge
+// interior is machine-exact; edges differ by ~3e-6 (nk filtfilt edge
 // conditions vs MATLAB), so assert on a settled interior region.
 TEST_F(AnalogDemodTest, AmDemod)
 {

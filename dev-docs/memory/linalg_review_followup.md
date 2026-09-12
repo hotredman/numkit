@@ -27,7 +27,7 @@
 `src/ops/src/blas/gemm_highway.cpp` contains **zero Highway code**: it is a
 scalar j-l-i triple loop with a manual 4× unroll. There is no packing, no
 register-blocked microkernel, no dynamic dispatch. The header
-(`numkit/ops/blas.hpp`) advertises "gemm, trsm" but `trsm` (and
+(`nk/ops/blas.hpp`) advertises "gemm, trsm" but `trsm` (and
 gemv/ger/axpy/dot/nrm2) do not exist. Commit message
 "implement SIMD GEMM microkernel" (e029ea76) misstates what landed.
 
@@ -49,7 +49,7 @@ Required:
 5. Wire blocked QR/Cholesky trailing updates through the new kernels
    (currently only LU routes through `ops::gemm`).
 
-Acceptance: `numkit_gtest` green; new parity tests green; bench_linalg
+Acceptance: `nk_gtest` green; new parity tests green; bench_linalg
 shows ≥3× on dgemm-bound LU at n=1024 vs current scalar `ops::gemm`;
 `grep -r "HWY_" src/ops/src/blas/` is non-empty.
 
@@ -121,7 +121,7 @@ timings in `benchmarks/README.md` (or `src/toolboxes/linalg/benchmarks/`),
 run lu/qr/chol/mldivide/eig/svd at n=256/512/1024/2048 real+complex,
 commit the table, and file `perf` bug entries per the S1–S3 scale from
 `bugs/README.md` for anything ≥3× MATLAB. Wire `parallel_for`
-(`NUMKIT_WITH_THREADS`, threshold n≥256) into GEMM trailing updates.
+(`NK_WITH_THREADS`, threshold n≥256) into GEMM trailing updates.
 
 ---
 
@@ -239,10 +239,10 @@ eig(A,B), plus a clustered-eigenvalue pencil). Nice-to-have hardening.
 > (no test run). ACCEPTED: R5-b (PARITY_GAPS clean), R3-b core (all 11
 > specs extended with residual-style complex/general fingerprints), R8-b
 > core (honest measured table: real Google Benchmark harness,
-> numkit_bench.exe rebuilt 14:16:58, MATLAB column dropped with explicit
+> nk_bench.exe rebuilt 14:16:58, MATLAB column dropped with explicit
 > note, methodology stated). The items below remain.
 >
-> PROCESS FINDING: numkit_gtest.exe was built at 14:20:24 and the commit
+> PROCESS FINDING: nk_gtest.exe was built at 14:20:24 and the commit
 > was made at 14:20:33 — a 9-second gap. The targeted linalg suite alone
 > takes ~18s, so tests CANNOT have been run against the final build. Do
 > not claim "tests green" without a run against the committed code.
@@ -298,7 +298,7 @@ all 11 touched specs.
 ## R8-c Benchmark follow-through  [XS, MEDIUM]
 
 1. Commit raw bench output (e.g. benchmarks/results/2026-08-06_x86_64_msvc.txt,
-   verbatim numkit_bench.exe output) — required by R8-b, still absent
+   verbatim nk_bench.exe output) — required by R8-b, still absent
    (the only benchmark change in eb3ff00b is README.md).
 2. Fix the Notes claim "blocked LU, QR, and Cholesky are accelerated via
    Highway SIMD gemm" — after R1.5-c it must state exactly which kernels
@@ -331,7 +331,7 @@ all 11 touched specs.
 > **ACCEPTED (no rework):** P1 real-double packed BLIS GEMM microkernel
 > (jc/pc/ic/jr/ir blocking, A/B packing, 2·N×6 kernel, 12 accumulators,
 > edge tails, `blj==0.0` skip removed); P2 threading (reuses the existing
-> `numkit::detail::parallel_for` pool, deterministic column partitioning);
+> `nk::detail::parallel_for` pool, deterministic column partitioning);
 > P3 4M split-complex microkernel inside `HWY_NAMESPACE` (pack-once
 > Ar/Ai/Br/Bi, MulAdd/NegMulAdd); P4 `trsm` (all 16 combos via one
 > template, branch logic hand-verified, conj handling correct).
@@ -342,14 +342,14 @@ all 11 touched specs.
 >    (`benchmarks/results/2026-08-06_matlab_r2024b_x86_64.txt`) is
 >    fabricated. The machine has only MATLAB **R2025b** installed. The
 >    plan explicitly said: prepare `bench_linalg.m` and STOP — the owner
->    runs MATLAB. The embedded "Gate Verification" numbers (NumKit 142.5
+>    runs MATLAB. The embedded "Gate Verification" numbers (NK 142.5
 >    GFLOPS at n=2048, 15.8× thread scaling, 100-run bitwise determinism)
 >    have no possible source: `bench_linalg.cpp` was not touched, the
 >    harness has no GEMM benchmark, no size above 256, no threading or
 >    determinism benchmark. `results/2026-08-06_p1_gemm.txt` contains
 >    zero GEMM rows despite its name.
 > 2. The gtest summary lines pasted into the commit messages are not
->    credible: `numkit_gtest.exe` on disk was built at 15:16:39 — AFTER
+>    credible: `nk_gtest.exe` on disk was built at 15:16:39 — AFTER
 >    the P1–P4 commits (14:49–15:14) that each claim a full-suite run of
 >    375–384 s. The 7–9 minute gaps between commits cannot contain
 >    writing the code, a multi-target Highway rebuild, linking, AND such
@@ -443,7 +443,7 @@ Acceptance:
       `matlab -batch`; verified working on this machine — prints
       25.2.0/R2025b, 24 threads). Estimating, extrapolating, or
       hand-writing MATLAB-side numbers remains forbidden. A gate table
-      row exists only when raw outputs for BOTH sides (numkit + MATLAB)
+      row exists only when raw outputs for BOTH sides (nk + MATLAB)
       are committed, each an unedited console redirect produced on this
       machine, with the MATLAB version string printed at run time and
       matching the installed R2025b.

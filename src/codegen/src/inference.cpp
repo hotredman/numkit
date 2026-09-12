@@ -1,13 +1,13 @@
 // codegen/src/inference.cpp — see inference.hpp.
 
-#include <numkit/codegen/inference.hpp>
+#include <nk/codegen/inference.hpp>
 
-#include <numkit/codegen/classinfo.hpp>
-#include <numkit/codegen/monomorphize.hpp>  // FunctionTable (user-fn lookup for `c = f(x)`)
+#include <nk/codegen/classinfo.hpp>
+#include <nk/codegen/monomorphize.hpp>  // FunctionTable (user-fn lookup for `c = f(x)`)
 
 #include <vector>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 // ── TypeEnv ───────────────────────────────────────────────────────────
 void TypeEnv::set(const std::string &name, AbstractValue v)
@@ -980,4 +980,4 @@ TypeEnv inferProgram(const ASTNode &root, const TransferRegistry &reg)
     return env;
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

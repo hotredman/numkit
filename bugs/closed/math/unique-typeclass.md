@@ -40,9 +40,9 @@ values in the SAME class (`ia`/`ic` stay double).
 
 ## Repro
 ```matlab
-unique('cbabc')              % numkit: ERROR "Not a double array"; MATLAB: 'abc' (char)
-unique(logical([1 0 1 1]))   % numkit: ERROR;                      MATLAB: [0 1] (logical)
-unique(int8([3 1 3 2]))      % numkit: ERROR;                      MATLAB: int8 [1 2 3]
+unique('cbabc')              % nk: ERROR "Not a double array"; MATLAB: 'abc' (char)
+unique(logical([1 0 1 1]))   % nk: ERROR;                      MATLAB: [0 1] (logical)
+unique(int8([3 1 3 2]))      % nk: ERROR;                      MATLAB: int8 [1 2 3]
 ```
 
 ## Root cause
@@ -51,7 +51,7 @@ with no per-class handling, so `doubleData()` threw for any non-double type.
 
 ## Related (found in the same sweep — separate, NOT fixed here)
 - **`max('abc')` / `min('abc')` return char**, but MATLAB returns **double**
-  (`max('abc')`=99, `min('abc')`=97). numkit has a live test
+  (`max('abc')`=99, `min('abc')`=97). nk has a live test
   `ReductionDimTest.MaxCharReturnsChar` enshrining the (wrong) char result, so
   fixing this is a behavior change + test flip — its own ticket.
 - **`ismember` / `intersect` / `setdiff` / `union` throw on char/logical** too

@@ -18,5 +18,5 @@
     "BM(1,1)", "BM(1,2)", "BM(2,1)", "BM(2,2)",
     "BNn(1)", "BNn(2)", "BNn(3)"
   ],
-  "comment": "groupsummary array form — methods: sum/mean/median/max/min/std/numunique/nnz/mode/all/any. 3-output [B, BG, BC]. NaN groups form a trailing bucket. Table form, groupbins, function-handle methods, multi-grouping-vars, IncludeMissingGroups/IncludeEmptyGroups NV are deferred (table type not in numkit, binning/handle paths need engine plumbing)."
+  "comment": "groupsummary array form — methods: sum/mean/median/max/min/std/numunique/nnz/mode/all/any. 3-output [B, BG, BC]. NaN groups form a trailing bucket. Table form, groupbins, function-handle methods, multi-grouping-vars, IncludeMissingGroups/IncludeEmptyGroups NV are deferred (table type not in nk, binning/handle paths need engine plumbing)."
 }

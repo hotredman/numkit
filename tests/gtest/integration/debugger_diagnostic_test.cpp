@@ -1,11 +1,11 @@
 // tests/test_debugger_diagnostic.cpp — Diagnostic: what actually works?
 #include "dual_engine_fixture.hpp"
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
 using namespace m_test;
-using namespace numkit;
+using namespace nk;
 
 class DebugDiagnostic : public DualEngineTest
 {};

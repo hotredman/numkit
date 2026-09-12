@@ -9,17 +9,17 @@
 // fast feedback) to 64k (where the FFT-backed kernels start to show
 // their cost).
 
-#include <numkit/signal/convolution/convolution.hpp>
-#include <numkit/signal/digital_filtering/filter.hpp>
-#include <numkit/signal/filter_design/filter_design.hpp>
-#include <numkit/signal/measurements/findpeaks.hpp>
-#include <numkit/signal/smoothing/medfilt.hpp>
-#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
-#include <numkit/signal/transforms/dct.hpp>
-#include <numkit/signal/transforms/hilbert.hpp>
+#include <nk/signal/convolution/convolution.hpp>
+#include <nk/signal/digital_filtering/filter.hpp>
+#include <nk/signal/filter_design/filter_design.hpp>
+#include <nk/signal/measurements/findpeaks.hpp>
+#include <nk/signal/smoothing/medfilt.hpp>
+#include <nk/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <nk/signal/transforms/dct.hpp>
+#include <nk/signal/transforms/hilbert.hpp>
 #include <memory_resource>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -27,7 +27,7 @@
 
 namespace {
 
-using namespace numkit;
+using namespace nk;
 
 Value makeSignal(size_t n, uint32_t seed = 7)
 {

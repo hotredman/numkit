@@ -3,7 +3,7 @@ clear
 % sgolayfilt matrix + weights + dim (DEEP-PROBE 2026-05-31). MATLAB's
 % sgolayfilt filters each 1-D slice of a matrix along dim (default = first
 % non-singleton: columns for a matrix), and supports a weighted
-% least-squares fit. numkit previously errored on matrices ("input must be
+% least-squares fit. nk previously errored on matrices ("input must be
 % a vector") and silently ignored the weights/dim arguments. vs MATLAB R2025b.
 
 fprintf('=== weighted vs unweighted (vector) ===\n');

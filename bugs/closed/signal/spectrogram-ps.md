@@ -12,7 +12,7 @@
 ## Repro (pre-fix)
 ```matlab
 [s, f, t, ps] = spectrogram((1:64)', 8, 4, 16, 100);
-% numkit (pre-fix): Error — Too many output arguments
+% nk (pre-fix): Error — Too many output arguments
 % MATLAB: ps(1,1)=1.08212  ps(3,2)=1.98718  sum(ps(:))=3254.62
 ```
 

@@ -3,13 +3,13 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
-#include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
-#include <numkit/ops/quantile_select.hpp>   // ops::sliceQuantile (visible via the using-directive below)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
+#include <nk/ops/reductions.hpp>  // nk::builtin::detail dim-infra (engine-free, ops re-export)
+#include <nk/ops/quantile_select.hpp>   // ops::sliceQuantile (visible via the using-directive below)
 
 #include <algorithm>
 #include <cmath>
@@ -28,9 +28,9 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
-using namespace ::numkit::ops;
+using namespace ::nk::ops;
 
 // result structs (Value-based) + file-scope worker forward-decls (defs in
 // descriptive_extras.cpp, external) — the reg adapters call these.
@@ -58,11 +58,11 @@ KsdensityFull ksdensity_full(const Value &x, const Value &pts, double bw_user, c
 
 namespace {
 
-using ::numkit::ops::applyAlongDim;
-using ::numkit::ops::firstNonSingletonDim;
-using ::numkit::ops::validateDim;
-using ::numkit::ops::applyAlongDimWithIndex;
-using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
+using ::nk::ops::applyAlongDim;
+using ::nk::ops::firstNonSingletonDim;
+using ::nk::ops::validateDim;
+using ::nk::ops::applyAlongDimWithIndex;
+using ::nk::ops::resolveDim;   // 0 -> first non-singleton, else validate
 
 double sliceMin(const double *s, size_t n)
 {
@@ -83,8 +83,8 @@ double sliceMax(const double *s, size_t n)
 }
 
 // sliceQuantile (linear-interpolation quantile of a flat buffer, MATLAB type 5)
-// moved to the kernel layer — numkit::ops::sliceQuantile (numkit/ops/
-// quantile_select.hpp), reached here through the `using namespace ::numkit::ops`
+// moved to the kernel layer — nk::ops::sliceQuantile (nk/ops/
+// quantile_select.hpp), reached here through the `using namespace ::nk::ops`
 // directive above. iqr / mad / median-of-slice call it unqualified, unchanged.
 
 } // namespace
@@ -100,7 +100,7 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
 {
     if (kReq < 0)
         throw Error(std::string(fn) + ": k must be non-negative",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badK");
+                     0, 0, fn, "", std::string("nk:") + fn + ":badK");
     if (x.isEmpty()) {
         if (idxOut) *idxOut = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -140,7 +140,7 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
         throw Error(std::string(fn) + ": ND (rank>=4) input not yet supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":nd");
+                     0, 0, fn, "", std::string("nk:") + fn + ":nd");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -833,7 +833,7 @@ KsKernel parse_ks_kernel(const std::string &raw) {
     if (s == "triangle" || s == "triangular")              return KsKernel::Triangle;
     if (s == "epanechnikov" || s == "epan")                return KsKernel::Epanechnikov;
     throw Error("ksdensity: unknown Kernel '" + raw + "'",
-                0, 0, "ksdensity", "", "numkit:ksdensity:kernel");
+                0, 0, "ksdensity", "", "nk:ksdensity:kernel");
 }
 inline double ks_pdf(double u, KsKernel k) {
     switch (k) {
@@ -910,4 +910,4 @@ Value pack_filtered(const std::vector<double> &src, const std::vector<uint8_t> &
 
 } // anonymous
 
-} // namespace numkit::stats
+} // namespace nk::stats

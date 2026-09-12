@@ -12,19 +12,19 @@ if ! command -v node &>/dev/null; then
     exit 1
 fi
 
-if [ -f "${WASM_DIST}/numkit_ide.wasm" ]; then
-    cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
-    cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
+if [ -f "${WASM_DIST}/nk_ide.wasm" ]; then
+    cp "${WASM_DIST}/nk_ide.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/nk_ide.wasm" "${IDE_DIR}/public/"
     if [ -d "${DESKTOP_DIR}/dist" ]; then
-        cp "${WASM_DIST}/numkit_ide.js"   "${DESKTOP_DIR}/dist/"
-        cp "${WASM_DIST}/numkit_ide.wasm" "${DESKTOP_DIR}/dist/"
+        cp "${WASM_DIST}/nk_ide.js"   "${DESKTOP_DIR}/dist/"
+        cp "${WASM_DIST}/nk_ide.wasm" "${DESKTOP_DIR}/dist/"
     fi
     echo "WASM engine found"
 else
     echo "WASM not built — fallback mode"
 fi
 
-NATIVE_REPL="${PROJECT_DIR}/build/linux/release/apps/numkit/numkit_repl"
+NATIVE_REPL="${PROJECT_DIR}/build/linux/release/apps/nk/nk_repl"
 if [ -f "$NATIVE_REPL" ] && [ -d "${PROJECT_DIR}/deploy/desktop" ]; then
     cp "$NATIVE_REPL" "${PROJECT_DIR}/deploy/desktop/"
 fi

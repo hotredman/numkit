@@ -4,10 +4,10 @@
 //   y = x · cos(2π·Fc·t + ini_phase) ± imag(hilbert(x)) · sin(...)
 // (lower sideband uses +, upper uses -).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SsbmodTest : public ::testing::Test
 {

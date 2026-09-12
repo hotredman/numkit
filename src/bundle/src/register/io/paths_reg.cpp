@@ -2,16 +2,16 @@
 // CallContext adapters for io.paths filesep/fullfile/fileparts/tempdir/tempname.
 // Compute is Engine-free in toolboxes/io/src/paths/paths.cpp; these bridge via
 // engine.fsContext()/resource(). IoLibrary::install registers them by name.
-#include <numkit/io/paths/paths.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/io/paths/paths.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
 #include <string>
 #include <vector>
 
-namespace numkit::io::detail {
+namespace nk::io::detail {
 
 void filesep_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
@@ -29,7 +29,7 @@ void fullfile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     for (const auto &a : args) {
         if (!a.isChar() && !a.isString())
             throw Error("fullfile: all arguments must be strings",
-                         0, 0, "fullfile", "", "numkit:fullfile:badArg");
+                         0, 0, "fullfile", "", "nk:fullfile:badArg");
         parts.push_back(a.toString());
     }
     outs[0] = fullfile(Span<const std::string>(parts.data(), parts.size()), ctx.engine->resource());
@@ -39,7 +39,7 @@ void fileparts_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 {
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("fileparts: requires a string path",
-                     0, 0, "fileparts", "", "numkit:fileparts:nargin");
+                     0, 0, "fileparts", "", "nk:fileparts:nargin");
     auto [folder, name, ext] = fileparts(args[0].toString(), ctx.engine->resource());
     outs[0] = std::move(folder);
     if (nargout > 1) outs[1] = std::move(name);
@@ -86,10 +86,10 @@ void genpath_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty() || !args[0].isChar())
         throw Error("genpath: requires a string directory name",
-                     0, 0, "genpath", "", "numkit:genpath:nargin");
+                     0, 0, "genpath", "", "nk:genpath:nargin");
     std::string result;
     genpathCollect(*ctx.engine, args[0].toString(), result);
     outs[0] = Value::fromString(result, ctx.engine->resource());
 }
 
-} // namespace numkit::io::detail
+} // namespace nk::io::detail

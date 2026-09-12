@@ -5,13 +5,13 @@
 // (b^a · Γ(a)). cdf composes gammainc on x/b; icdf uses gammaincinv;
 // rnd uses std::gamma_distribution directly.
 
-#include <numkit/stats/distributions/gamma_dist.hpp>
+#include <nk/stats/distributions/gamma_dist.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -22,7 +22,7 @@
 
 #include "gamma_dist_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
@@ -58,7 +58,7 @@ Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
         return (xi <= 0.0) ? 0.0 : xi / b;
     }, mr);
     Value av = Value::scalar(a, mr);
-    return ::numkit::builtin::gammainc(xs, av, mr);
+    return ::nk::builtin::gammainc(xs, av, mr);
 }
 
 Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
@@ -72,11 +72,11 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
                                             : std::numeric_limits<double>::quiet_NaN();
         }, mr);
     Value av = Value::scalar(a, mr);
-    Value q  = ::numkit::builtin::gammaincinv(p, av, mr);
+    Value q  = ::nk::builtin::gammaincinv(p, av, mr);
     return elementwise(q, [=](double qi){ return b * qi; }, mr);
 }
 
-Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value gamrnd(::nk::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -88,14 +88,14 @@ Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, si
     return out;
 }
 
-Value randg(::numkit::ops::RngContext &rng, double shape, size_t rows, size_t cols,
+Value randg(::nk::ops::RngContext &rng, double shape, size_t rows, size_t cols,
             std::pmr::memory_resource *mr)
 {
     // randg(shape) ≡ gamrnd(shape, 1, rows, cols) — pure scale = 1.
     return gamrnd(rng, shape, 1.0, rows, cols, mr);
 }
 
-Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray, std::pmr::memory_resource *mr)
+Value randg(::nk::ops::RngContext &rng, const Value &shapeArray, std::pmr::memory_resource *mr)
 {
     const std::size_t rows = shapeArray.dims().rows();
     const std::size_t cols = shapeArray.dims().cols();
@@ -125,4 +125,4 @@ std::tuple<double, double> gamstat(double a, double b)
     return std::make_tuple(a * b, a * b * b);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

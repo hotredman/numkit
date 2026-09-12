@@ -7,11 +7,11 @@
 //   - Scalar/scalar and matrix/scalar : pre-existing elementwise paths
 // All hardcoded expected values verified bit-identical vs MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MldivideTest : public ::testing::Test
 {

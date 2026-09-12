@@ -1,4 +1,4 @@
-#include <numkit/core/stack_guard.hpp>
+#include <nk/core/stack_guard.hpp>
 #include <stdexcept>
 #include <cstdint>
 
@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <processthreadsapi.h>
 
-namespace numkit {
+namespace nk {
 
 void StackGuard::check(const char *stage)
 {
@@ -24,12 +24,12 @@ void StackGuard::check(const char *stage)
     }
 }
 
-} // namespace numkit
+} // namespace nk
 
 #elif defined(__EMSCRIPTEN__)
 #include <emscripten/stack.h>
 
-namespace numkit {
+namespace nk {
 
 void StackGuard::check(const char *stage)
 {
@@ -40,12 +40,12 @@ void StackGuard::check(const char *stage)
     }
 }
 
-} // namespace numkit
+} // namespace nk
 
 #elif defined(__APPLE__)
 #include <pthread.h>
 
-namespace numkit {
+namespace nk {
 
 void StackGuard::check(const char *stage)
 {
@@ -61,12 +61,12 @@ void StackGuard::check(const char *stage)
     }
 }
 
-} // namespace numkit
+} // namespace nk
 
 #elif defined(__linux__) || defined(__unix__) || defined(_POSIX_VERSION)
 #include <pthread.h>
 
-namespace numkit {
+namespace nk {
 
 void StackGuard::check(const char *stage)
 {
@@ -94,17 +94,17 @@ void StackGuard::check(const char *stage)
     }
 }
 
-} // namespace numkit
+} // namespace nk
 
 #else
 
-namespace numkit {
+namespace nk {
 
 void StackGuard::check(const char *stage)
 {
     (void)stage;
 }
 
-} // namespace numkit
+} // namespace nk
 
 #endif

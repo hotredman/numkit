@@ -1,14 +1,14 @@
 // bundle/src/register/ode/ode45_reg.cpp — Engine adapter + embedded-.m registration relocated from the
 // ode toolbox in Phase D (solver 3-way split): the toolbox keeps the
 // Engine-free FnHandle kernel; this core-coupled glue lives in bundle.
-#include <numkit/ode/solvers.hpp>
-#include <numkit/ode/options.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/ode/solvers.hpp>
+#include <nk/ode/options.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
-namespace numkit::ode {
+namespace nk::ode {
 
 // ── Engine adapter ──────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ void ode45_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("ode45: requires (f, tspan, y0[, opts])",
-                    0, 0, "ode45", "", "numkit:ode45:nargin");
+                    0, 0, "ode45", "", "nk:ode45:nargin");
     auto *mr = ctx.engine->resource();
     const Value opts_v = (args.size() > 3) ? args[3] : Value::Empty;
     // Bridge the MATLAB function-handle into an Engine-free FnHandle: the
@@ -44,7 +44,7 @@ void ode45_reg(Span<const Value> args, size_t nargout,
 // vectorised transcription of the C++ above — the stage/dense linear algebra is
 // vector ops (`y + h*(a21*k1)`, `sum((er./sc).^2)`), so it still runs on the
 // SIMD-backed kernels and is bit-identical to the retained `Value ode45(...)`
-// API. (numkit doesn't bind varargin with no extra args → fixed `opts` param.)
+// API. (nk doesn't bind varargin with no extra args → fixed `opts` param.)
 static const char *kOde45MSource = R"NKM(
 function [t, y] = ode45(fn, tspan, y0, opts)
   rel_tol = 1e-3; abs_tol = 1e-6; max_step = inf; initial_step = 0; refine = 4;
@@ -59,21 +59,21 @@ function [t, y] = ode45(fn, tspan, y0, opts)
     end
   end
   ts = tspan(:); nspan = numel(ts);
-  if nspan < 2, error('numkit:ode45:tspanShort', 'ode45: tspan must have at least 2 elements'); end
+  if nspan < 2, error('nk:ode45:tspanShort', 'ode45: tspan must have at least 2 elements'); end
   t0 = ts(1); tf = ts(nspan);
-  if t0 == tf, error('numkit:ode45:tspanDegenerate', 'ode45: tspan(end) must differ from tspan(1)'); end
+  if t0 == tf, error('nk:ode45:tspanDegenerate', 'ode45: tspan(end) must differ from tspan(1)'); end
   if tf > t0, dir = 1; else, dir = -1; end
   for i = 2:nspan
     if (ts(i) - ts(i-1))*dir <= 0
-      error('numkit:ode45:tspanMono', 'ode45: tspan must be strictly monotonic');
+      error('nk:ode45:tspanMono', 'ode45: tspan must be strictly monotonic');
     end
   end
   yc = y0(:); d = numel(yc);
   if numel(abs_tol) ~= 1 && numel(abs_tol) ~= d
-    error('numkit:ode45:absTolSize', 'ode45: AbsTol must be scalar or match length(y0)');
+    error('nk:ode45:absTolSize', 'ode45: AbsTol must be scalar or match length(y0)');
   end
   k1 = fn(t0, yc); k1 = k1(:);
-  if numel(k1) ~= d, error('numkit:ode45:badRhsSize', 'ode45: RHS size mismatch'); end
+  if numel(k1) ~= d, error('nk:ode45:badRhsSize', 'ode45: RHS size mismatch'); end
   h = initial_step;
   if ~(h > 0)
     sc0 = abs_tol + rel_tol*abs(yc);
@@ -130,11 +130,11 @@ function [t, y] = ode45(fn, tspan, y0, opts)
       failed = failed + 1;
       fac = max(0.1, 0.9*(1/err_norm)^(1/5));
       h = th*fac;
-      if failed > 10, error('numkit:ode45:tooManyFailures', 'ode45: too many step rejections'); end
-      if h < abs(tc)*1e-15, error('numkit:ode45:stepUnderflow', 'ode45: step size underflow'); end
+      if failed > 10, error('nk:ode45:tooManyFailures', 'ode45: too many step rejections'); end
+      if h < abs(tc)*1e-15, error('nk:ode45:stepUnderflow', 'ode45: step size underflow'); end
     end
   end
-  if step_count >= max_steps, error('numkit:ode45:tooManySteps', 'ode45: exceeded integration steps'); end
+  if step_count >= max_steps, error('nk:ode45:tooManySteps', 'ode45: exceeded integration steps'); end
   t = T; y = Y;
 end
 
@@ -177,4 +177,4 @@ void registerOde45M(Engine &engine)
 }
 
 
-} // namespace numkit::ode
+} // namespace nk::ode

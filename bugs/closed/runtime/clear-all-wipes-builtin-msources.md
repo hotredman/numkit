@@ -18,7 +18,7 @@ example does) loses every engine-startup-registered m-source function and the
   decomposition, integral (19 m-source registrations + 1 classdef).
 
 In MATLAB, `clear all` unloads compiled functions/classes from memory but they
-reload TRANSPARENTLY from the toolbox installation on the next call. numkit's
+reload TRANSPARENTLY from the toolbox installation on the next call. nk's
 startup registrations have no on-disk backing in the session, so once
 `clearUserFunctions()`/`clearClassDefs()` removes them they are gone forever.
 
@@ -29,13 +29,13 @@ clear;
 f = inline('2*t', 't');
 clear all;
 g = inline('2*t', 't');
-% numkit (R2025b-09-05 build): VM: undefined function 'inline'
+% nk (R2025b-09-05 build): VM: undefined function 'inline'
 % MATLAB R2025b: works — g is a 1x1 inline object
 ```
 
 ```matlab
 clear; clear all; th = 0:.5:2; h = impulse([1], [1 3 2], th);
-% numkit: control response: expected an LTI struct (m-source impulse gone,
+% nk: control response: expected an LTI struct (m-source impulse gone,
 %         resolution falls to the control-toolbox overload)
 % MATLAB R2025b: h is the 1x5 analog impulse response
 ```

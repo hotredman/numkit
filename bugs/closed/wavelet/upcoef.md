@@ -14,11 +14,11 @@ levels) is not registered. (Split from the original wenergy/upcoef entry;
 ```matlab
 y = upcoef('a', 5, 'db1', 2);
 % MATLAB: y = [2.5 2.5 2.5 2.5]
-% numkit: Error — VM: undefined function 'upcoef'
+% nk: Error — VM: undefined function 'upcoef'
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::wavelet::upcoef` (`multilevel.cpp`). `upcoef(O, X,
+Implemented `nk::wavelet::upcoef` (`multilevel.cpp`). `upcoef(O, X,
 wname, N[, L])` runs the synthesis cascade `N` times: each level
 **interleaves zeros** (`[x0, 0, x1, 0, …, x_{n-1}]`, length `2n−1`) and
 **full-convolves** with the reconstruction lowpass `Lo_R` — except the first
@@ -39,7 +39,7 @@ upcoef cluster.**
 
 ## References
 - `src/toolboxes/wavelet/src/dwt/multilevel.cpp` (`upcoef`, `convFull`),
-  `.../include/numkit/wavelet/dwt/multilevel.hpp`,
+  `.../include/nk/wavelet/dwt/multilevel.hpp`,
   `src/bundle/src/register/wavelet/dwt/multilevel_reg.cpp` (`upcoef_reg`).
 - `tools/parity/specs/upcoef.json`.
 - shipped + reused: `wavelet_filters` (wfilters)

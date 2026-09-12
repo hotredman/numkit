@@ -3,17 +3,17 @@
 // CallContext register half of distributions/poisson.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/stats/distributions/poisson.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/stats/distributions/poisson.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/poisson_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,14 +25,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void poisspdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("poisspdf: requires (k, lambda)", 0, 0, "poisspdf", "", "numkit:poisspdf:nargin");
+        throw Error("poisspdf: requires (k, lambda)", 0, 0, "poisspdf", "", "nk:poisspdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &lam = args[1];
     if (lam.isScalar())
@@ -46,7 +46,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "numkit:poisscdf:nargin");
+        throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "nk:poisscdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &lam = a[1];
     Value v;
@@ -62,7 +62,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         } else {
             const size_t N = dist_match_numel({nk, nl}, "poisscdf");
             Value xs = elementwise(k, [](double ki) { return ki < 0.0 ? 1.0 : std::floor(ki) + 1.0; }, mr);
-            Value lower = ::numkit::builtin::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
+            Value lower = ::nk::builtin::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
             const Value &ref = (nl == N) ? lam : k;
             v = dist_empty_like(ref, mr);
             double *od = v.doubleDataMut();
@@ -85,7 +85,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("poissinv: requires (p, lambda)", 0, 0, "poissinv", "", "numkit:poissinv:nargin");
+        throw Error("poissinv: requires (p, lambda)", 0, 0, "poissinv", "", "nk:poissinv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &lam = args[1];
     if (lam.isScalar()) {
@@ -114,7 +114,7 @@ void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("poissrnd: requires lambda[, sz...]", 0, 0, "poissrnd", "", "numkit:poissrnd:nargin");
+        throw Error("poissrnd: requires lambda[, sz...]", 0, 0, "poissrnd", "", "nk:poissrnd:nargin");
     const double lambda = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
@@ -129,4 +129,4 @@ void poisstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/math/elementary/backends/cumsum_portable.cpp
 //
-// Scalar inclusive prefix-sum. Compiled when NUMKIT_WITH_SIMD=OFF.
+// Scalar inclusive prefix-sum. Compiled when NK_WITH_SIMD=OFF.
 // The loop has a serial data dependency (`s += src[i]; dst[i] = s;`)
 // so this is fundamentally one-add-per-cycle on the portable build.
 
@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 void cumsumScan(const double *src, double *dst, std::size_t n)
 {
@@ -60,4 +60,4 @@ void cumminScan(const double *src, double *dst, std::size_t n)
     }
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

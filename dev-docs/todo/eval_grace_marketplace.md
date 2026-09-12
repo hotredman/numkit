@@ -8,7 +8,7 @@ engineering: .grace/ XML artifacts, semantic source markup, spec→plan→
 execute skills) will NOT be adopted. User decision after review.
 
 **Why not** (agreed reasoning):
-- numkit's protocol is already mechanically enforced where GRACE is
+- nk's protocol is already mechanically enforced where GRACE is
   declarative: bugs_audit.py links bugs↔guards, parity specs diff
   against the live MATLAB R2025b reference, compare groups produce
   PASS/KNOWN/NEW on the real corpus. GRACE would describe what we
@@ -22,6 +22,6 @@ execute skills) will NOT be adopted. User decision after review.
 **Revisit only if** the multi-agent parallel-session model is revived
 (coordination.md): GRACE's change-scoping/drift-detection target that
 specific pain. If so — a bounded pilot on ONE subsystem (e.g.
-packages/numkit-mcp), not a repo-wide adoption.
+packages/nk-mcp), not a repo-wide adoption.
 
 This file exists so the question does not get re-litigated from scratch.

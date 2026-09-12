@@ -3,13 +3,13 @@
 // Unit tests for funm (Schur-Parlett general matrix functions).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/matrix_functions.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/matrix_functions.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(FunmParlettTest, FunmJordanBlockDefective) {
     // J = [1 1; 0 1] (defective 2x2 matrix with confluent eigenvalue 1)

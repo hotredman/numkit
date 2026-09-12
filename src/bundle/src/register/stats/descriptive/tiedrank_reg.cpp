@@ -3,13 +3,13 @@
 // CallContext register half of descriptive/tiedrank.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/descriptive/descriptive.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ void tiedrank_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("tiedrank: requires at least one argument",
-                    0, 0, "tiedrank", "", "numkit:tiedrank:nargin");
+                    0, 0, "tiedrank", "", "nk:tiedrank:nargin");
     auto *mr = ctx.engine->resource();
     auto [r, ta] = tiedrank(args[0], mr);
     outs[0] = std::move(r);
@@ -39,4 +39,4 @@ void tiedrank_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

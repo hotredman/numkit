@@ -40,7 +40,7 @@ returning a double.
 ## Repro
 ```matlab
 trapz(logical([1 0 1 1]))
-% numkit: ERROR "Not a double array (in call to 'trapz')"
+% nk: ERROR "Not a double array (in call to 'trapz')"
 % MATLAB: 2   (class double)
 
 trapz([1 3 4 7], logical([1 0 1 1]))   % MATLAB: 4.5

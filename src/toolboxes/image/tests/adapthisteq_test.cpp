@@ -8,14 +8,14 @@
 // tests below are pinned to MATLAB R2025b with a ±2 tolerance; the property
 // tests at the end give a MATLAB-independent correctness check.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class AdaptHistEqTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void   SetUp() override {  }
     double eval_scalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };

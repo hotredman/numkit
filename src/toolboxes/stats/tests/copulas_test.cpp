@@ -2,11 +2,11 @@
 //
 // Regression guard for copulapdf + copulacdf across all 5 families.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class CopulasTest : public ::testing::Test {
 public:

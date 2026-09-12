@@ -6,19 +6,19 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/color/color.hpp>
+#include <nk/image/color/color.hpp>
 #include "color/illum_detail.hpp"
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cctype>
 #include <cstddef>
 #include <string>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -32,7 +32,7 @@ static void parse_nv_pairs(Span<const Value> args, std::size_t start_idx,
     while (start_idx + 1 < args.size()) {
         if (!args[start_idx].isChar() && !args[start_idx].isString())
             throw Error(std::string(fn) + ": expected option name string",
-                        0, 0, fn, "", "numkit:image:badNvArg");
+                        0, 0, fn, "", "nk:image:badNvArg");
         std::string name = args[start_idx].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(
             static_cast<unsigned char>(c)));
@@ -42,13 +42,13 @@ static void parse_nv_pairs(Span<const Value> args, std::size_t start_idx,
             norm_exp = args[start_idx + 1].toScalar();
         } else {
             throw Error(std::string(fn) + ": unknown option '" + name + "'",
-                        0, 0, fn, "", "numkit:image:unknownNvArg");
+                        0, 0, fn, "", "nk:image:unknownNvArg");
         }
         start_idx += 2;
     }
     if (start_idx < args.size())
         throw Error(std::string(fn) + ": trailing unpaired name-value arg",
-                    0, 0, fn, "", "numkit:image:unpairedNv");
+                    0, 0, fn, "", "nk:image:unpairedNv");
 }
 
 void illumwhite_reg(Span<const Value> args, size_t /*nargout*/,
@@ -56,7 +56,7 @@ void illumwhite_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 1)
         throw Error("illumwhite: requires (A [, P] [, 'Mask', M])",
-                    0, 0, "illumwhite", "", "numkit:illumwhite:nargin");
+                    0, 0, "illumwhite", "", "nk:illumwhite:nargin");
     auto *mr = ctx.engine->resource();
     double P = 1.0;       // MATLAB default percentile = 1%.
     std::size_t i = 1;
@@ -76,7 +76,7 @@ void imcolordiff_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imcolordiff: requires (I1, I2 [, NameValue...])",
-                    0, 0, "imcolordiff", "", "numkit:imcolordiff:nargin");
+                    0, 0, "imcolordiff", "", "nk:imcolordiff:nargin");
     auto *mr = ctx.engine->resource();
     std::string standard = "CIE94";
     bool is_input_lab = false;
@@ -85,7 +85,7 @@ void imcolordiff_reg(Span<const Value> args, size_t /*nargout*/,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("imcolordiff: expected option name string",
-                        0, 0, "imcolordiff", "", "numkit:imcolordiff:badNvArg");
+                        0, 0, "imcolordiff", "", "nk:imcolordiff:badNvArg");
         std::string name = args[i].toString();
         std::string name_lo = name;
         for (auto &c : name_lo)
@@ -99,12 +99,12 @@ void imcolordiff_reg(Span<const Value> args, size_t /*nargout*/,
         else if (name_lo == "k2")        K2 = args[i + 1].toScalar();
         else
             throw Error("imcolordiff: unknown option '" + name + "'",
-                        0, 0, "imcolordiff", "", "numkit:imcolordiff:unknownNv");
+                        0, 0, "imcolordiff", "", "nk:imcolordiff:unknownNv");
         i += 2;
     }
     if (i < args.size())
         throw Error("imcolordiff: trailing unpaired name-value arg",
-                    0, 0, "imcolordiff", "", "numkit:imcolordiff:unpaired");
+                    0, 0, "imcolordiff", "", "nk:imcolordiff:unpaired");
     outs[0] = imcolordiff(args[0], args[1], standard, is_input_lab,
                           kL, kC, kH, K1, K2, mr);
 }
@@ -114,7 +114,7 @@ void illumpca_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 1)
         throw Error("illumpca: requires (A [, P] [, 'Mask', M])",
-                    0, 0, "illumpca", "", "numkit:illumpca:nargin");
+                    0, 0, "illumpca", "", "nk:illumpca:nargin");
     auto *mr = ctx.engine->resource();
     double P = 3.5;       // MATLAB default percentage.
     std::size_t i = 1;
@@ -134,7 +134,7 @@ void illumgray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 1)
         throw Error("illumgray: requires (A [, P] [, 'Mask', M] [, 'Norm', n])",
-                    0, 0, "illumgray", "", "numkit:illumgray:nargin");
+                    0, 0, "illumgray", "", "nk:illumgray:nargin");
     auto *mr = ctx.engine->resource();
     std::vector<double> P;
     std::size_t i = 1;
@@ -146,7 +146,7 @@ void illumgray_reg(Span<const Value> args, size_t /*nargout*/,
             P.push_back(args[1].elemAsDouble(1));
         } else if (n != 0) {
             throw Error("illumgray: percentile must be scalar or 2-vector",
-                        0, 0, "illumgray", "", "numkit:illumgray:percentile");
+                        0, 0, "illumgray", "", "nk:illumgray:percentile");
         }
         i = 2;
     }
@@ -158,4 +158,4 @@ void illumgray_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::image
+} // namespace nk::image

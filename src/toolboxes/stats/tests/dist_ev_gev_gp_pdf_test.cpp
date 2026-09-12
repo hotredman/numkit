@@ -10,7 +10,7 @@
 //   gev*  generalized extreme value        gevpdf(x, k, sigma, mu)
 //   gp*   generalized Pareto               gppdf(x, k, sigma, theta)
 //
-// Reference values verified against the numkit engine (parity-validated).
+// Reference values verified against the nk engine (parity-validated).
 
 #include "dual_engine_fixture.hpp"
 

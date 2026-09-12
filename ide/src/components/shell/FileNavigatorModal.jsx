@@ -385,7 +385,7 @@ export default function FileNavigatorModal({
             <button
               className="ve-btn"
               onClick={handleSetCurrent}
-              title="Set this folder as the MATLAB/Numkit Current Working Directory"
+              title="Set this folder as the MATLAB/NK Current Working Directory"
               style={{ background: 'var(--accent)', color: 'var(--accent-contrast, #fff)', fontWeight: 600 }}
             >
               Select as Current Folder

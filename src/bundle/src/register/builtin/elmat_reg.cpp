@@ -1,17 +1,17 @@
 // src/bundle/src/register/builtin/elmat_reg.cpp
 
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/builtin/elmat.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 void blkdiag_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -115,63 +115,63 @@ struct BsxfunCallbackBuiltin : CallbackBuiltin
     }
 };
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
-namespace numkit::bundle::builtin {
+namespace nk::bundle::builtin {
 
 void register_elmat(Engine &engine) {
-    engine.registerFunction("blkdiag",    &::numkit::builtin::detail::blkdiag_reg);
-    engine.registerFunction("cat",        &::numkit::builtin::detail::cat_reg);
-    engine.registerFunction("circshift",  &::numkit::builtin::detail::circshift_reg);
-    engine.registerFunction("colon",      &::numkit::builtin::detail::colon_reg);
-    engine.registerFunction("compan",     &::numkit::builtin::detail::compan_reg);
-    engine.registerFunction("cylinder",   &::numkit::builtin::detail::cylinder_reg);
-    engine.registerFunction("ellipsoid",  &::numkit::builtin::detail::ellipsoid_reg);
-    engine.registerFunction("eye",        &::numkit::builtin::detail::eye_reg);
-    engine.registerFunction("false",      &::numkit::builtin::detail::false_reg);
-    engine.registerFunction("flip",       &::numkit::builtin::detail::flip_reg);
-    engine.registerFunction("fliplr",     &::numkit::builtin::detail::fliplr_reg);
-    engine.registerFunction("flipud",     &::numkit::builtin::detail::flipud_reg);
-    engine.registerFunction("hadamard",   &::numkit::builtin::detail::hadamard_reg);
-    engine.registerFunction("hankel",     &::numkit::builtin::detail::hankel_reg);
-    engine.registerFunction("hilb",       &::numkit::builtin::detail::hilb_reg);
-    engine.registerFunction("ind2sub",    &::numkit::builtin::detail::ind2sub_reg);
-    engine.registerFunction("inf",        &::numkit::builtin::detail::inf_reg);
-    engine.registerFunction("Inf",        &::numkit::builtin::detail::inf_reg);
-    engine.registerFunction("invhilb",    &::numkit::builtin::detail::invhilb_reg);
-    engine.registerFunction("ipermute",   &::numkit::builtin::detail::ipermute_reg);
-    engine.registerFunction("length",     &::numkit::builtin::detail::length_reg);
-    engine.registerFunction("magic",      &::numkit::builtin::detail::magic_reg);
-    engine.registerFunction("nan",        &::numkit::builtin::detail::nan_reg);
-    engine.registerFunction("NaN",        &::numkit::builtin::detail::nan_reg);
-    engine.registerFunction("ndims",      &::numkit::builtin::detail::ndims_reg);
-    engine.registerFunction("numel",      &::numkit::builtin::detail::numel_reg);
-    engine.registerFunction("ones",       &::numkit::builtin::detail::ones_reg);
-    engine.registerFunction("pagectranspose", &::numkit::builtin::detail::pagectranspose_reg);
-    engine.registerFunction("pagetranspose",  &::numkit::builtin::detail::pagetranspose_reg);
-    engine.registerFunction("pascal",     &::numkit::builtin::detail::pascal_reg);
-    engine.registerFunction("peaks",      &::numkit::builtin::detail::peaks_reg);
-    engine.registerFunction("permute",    &::numkit::builtin::detail::permute_reg);
-    engine.registerFunction("repelem",    &::numkit::builtin::detail::repelem_reg);
-    engine.registerFunction("repmat",     &::numkit::builtin::detail::repmat_reg);
-    engine.registerFunction("reshape",    &::numkit::builtin::detail::reshape_reg);
-    engine.registerFunction("resize",     &::numkit::builtin::detail::resize_reg);
-    engine.registerFunction("rosser",     &::numkit::builtin::detail::rosser_reg);
-    engine.registerFunction("rot90",      &::numkit::builtin::detail::rot90_reg);
-    engine.registerFunction("shiftdim",   &::numkit::builtin::detail::shiftdim_reg);
-    engine.registerFunction("size",       &::numkit::builtin::detail::size_reg);
-    engine.registerFunction("sparse",     &::numkit::builtin::detail::sparse_reg);
-    engine.registerFunction("sphere",     &::numkit::builtin::detail::sphere_reg);
-    engine.registerFunction("squeeze",    &::numkit::builtin::detail::squeeze_reg);
-    engine.registerFunction("sub2ind",    &::numkit::builtin::detail::sub2ind_reg);
-    engine.registerFunction("toeplitz",   &::numkit::builtin::detail::toeplitz_reg);
-    engine.registerFunction("topkrows",   &::numkit::builtin::detail::topkrows_reg);
-    engine.registerFunction("transpose",  &::numkit::builtin::detail::transpose_reg);
-    engine.registerFunction("tril",       &::numkit::builtin::detail::tril_reg);
-    engine.registerFunction("triu",       &::numkit::builtin::detail::triu_reg);
-    engine.registerFunction("true",       &::numkit::builtin::detail::true_reg);
-    engine.registerFunction("vander",     &::numkit::builtin::detail::vander_reg);
-    engine.registerFunction("wilkinson",  &::numkit::builtin::detail::wilkinson_reg);
+    engine.registerFunction("blkdiag",    &::nk::builtin::detail::blkdiag_reg);
+    engine.registerFunction("cat",        &::nk::builtin::detail::cat_reg);
+    engine.registerFunction("circshift",  &::nk::builtin::detail::circshift_reg);
+    engine.registerFunction("colon",      &::nk::builtin::detail::colon_reg);
+    engine.registerFunction("compan",     &::nk::builtin::detail::compan_reg);
+    engine.registerFunction("cylinder",   &::nk::builtin::detail::cylinder_reg);
+    engine.registerFunction("ellipsoid",  &::nk::builtin::detail::ellipsoid_reg);
+    engine.registerFunction("eye",        &::nk::builtin::detail::eye_reg);
+    engine.registerFunction("false",      &::nk::builtin::detail::false_reg);
+    engine.registerFunction("flip",       &::nk::builtin::detail::flip_reg);
+    engine.registerFunction("fliplr",     &::nk::builtin::detail::fliplr_reg);
+    engine.registerFunction("flipud",     &::nk::builtin::detail::flipud_reg);
+    engine.registerFunction("hadamard",   &::nk::builtin::detail::hadamard_reg);
+    engine.registerFunction("hankel",     &::nk::builtin::detail::hankel_reg);
+    engine.registerFunction("hilb",       &::nk::builtin::detail::hilb_reg);
+    engine.registerFunction("ind2sub",    &::nk::builtin::detail::ind2sub_reg);
+    engine.registerFunction("inf",        &::nk::builtin::detail::inf_reg);
+    engine.registerFunction("Inf",        &::nk::builtin::detail::inf_reg);
+    engine.registerFunction("invhilb",    &::nk::builtin::detail::invhilb_reg);
+    engine.registerFunction("ipermute",   &::nk::builtin::detail::ipermute_reg);
+    engine.registerFunction("length",     &::nk::builtin::detail::length_reg);
+    engine.registerFunction("magic",      &::nk::builtin::detail::magic_reg);
+    engine.registerFunction("nan",        &::nk::builtin::detail::nan_reg);
+    engine.registerFunction("NaN",        &::nk::builtin::detail::nan_reg);
+    engine.registerFunction("ndims",      &::nk::builtin::detail::ndims_reg);
+    engine.registerFunction("numel",      &::nk::builtin::detail::numel_reg);
+    engine.registerFunction("ones",       &::nk::builtin::detail::ones_reg);
+    engine.registerFunction("pagectranspose", &::nk::builtin::detail::pagectranspose_reg);
+    engine.registerFunction("pagetranspose",  &::nk::builtin::detail::pagetranspose_reg);
+    engine.registerFunction("pascal",     &::nk::builtin::detail::pascal_reg);
+    engine.registerFunction("peaks",      &::nk::builtin::detail::peaks_reg);
+    engine.registerFunction("permute",    &::nk::builtin::detail::permute_reg);
+    engine.registerFunction("repelem",    &::nk::builtin::detail::repelem_reg);
+    engine.registerFunction("repmat",     &::nk::builtin::detail::repmat_reg);
+    engine.registerFunction("reshape",    &::nk::builtin::detail::reshape_reg);
+    engine.registerFunction("resize",     &::nk::builtin::detail::resize_reg);
+    engine.registerFunction("rosser",     &::nk::builtin::detail::rosser_reg);
+    engine.registerFunction("rot90",      &::nk::builtin::detail::rot90_reg);
+    engine.registerFunction("shiftdim",   &::nk::builtin::detail::shiftdim_reg);
+    engine.registerFunction("size",       &::nk::builtin::detail::size_reg);
+    engine.registerFunction("sparse",     &::nk::builtin::detail::sparse_reg);
+    engine.registerFunction("sphere",     &::nk::builtin::detail::sphere_reg);
+    engine.registerFunction("squeeze",    &::nk::builtin::detail::squeeze_reg);
+    engine.registerFunction("sub2ind",    &::nk::builtin::detail::sub2ind_reg);
+    engine.registerFunction("toeplitz",   &::nk::builtin::detail::toeplitz_reg);
+    engine.registerFunction("topkrows",   &::nk::builtin::detail::topkrows_reg);
+    engine.registerFunction("transpose",  &::nk::builtin::detail::transpose_reg);
+    engine.registerFunction("tril",       &::nk::builtin::detail::tril_reg);
+    engine.registerFunction("triu",       &::nk::builtin::detail::triu_reg);
+    engine.registerFunction("true",       &::nk::builtin::detail::true_reg);
+    engine.registerFunction("vander",     &::nk::builtin::detail::vander_reg);
+    engine.registerFunction("wilkinson",  &::nk::builtin::detail::wilkinson_reg);
     engine.registerFunction("rands",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             auto *mr = ctx.engine->resource();
@@ -192,7 +192,7 @@ void register_elmat(Engine &engine) {
             outs[0] = std::move(out);
         });
 
-    engine.registerFunction("zeros",      &::numkit::builtin::detail::zeros_reg);
+    engine.registerFunction("zeros",      &::nk::builtin::detail::zeros_reg);
 
     engine.registerFunction("paddata",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
@@ -201,7 +201,7 @@ void register_elmat(Engine &engine) {
             size_t len = static_cast<size_t>(args[1].toScalar());
             int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
             std::string side = (args.size() >= 4) ? args[3].toString() : "right";
-            outs[0] = numkit::builtin::paddata(args[0], len, dim, side, ctx.engine->resource());
+            outs[0] = nk::builtin::paddata(args[0], len, dim, side, ctx.engine->resource());
         });
 
     engine.registerFunction("trimdata",
@@ -211,21 +211,21 @@ void register_elmat(Engine &engine) {
             size_t len = static_cast<size_t>(args[1].toScalar());
             int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
             std::string side = (args.size() >= 4) ? args[3].toString() : "right";
-            outs[0] = numkit::builtin::trimdata(args[0], len, dim, side, ctx.engine->resource());
+            outs[0] = nk::builtin::trimdata(args[0], len, dim, side, ctx.engine->resource());
         });
 
     engine.registerFunction("head",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.empty()) throw std::runtime_error("head requires at least 1 argument");
             size_t k = (args.size() > 1) ? static_cast<size_t>(args[1].toScalar()) : 8;
-            outs[0] = numkit::builtin::head(args[0], k, ctx.engine->resource());
+            outs[0] = nk::builtin::head(args[0], k, ctx.engine->resource());
         });
 
     engine.registerFunction("tail",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.empty()) throw std::runtime_error("tail requires at least 1 argument");
             size_t k = (args.size() > 1) ? static_cast<size_t>(args[1].toScalar()) : 8;
-            outs[0] = numkit::builtin::tail(args[0], k, ctx.engine->resource());
+            outs[0] = nk::builtin::tail(args[0], k, ctx.engine->resource());
         });
 
     engine.registerFunction("bsxfun",
@@ -241,14 +241,14 @@ void register_elmat(Engine &engine) {
                 const std::string name = fn.funcHandleName();
                 if (!name.empty() && name[0] != '@') {
                     try {
-                        outs[0] = numkit::builtin::bsxfun(name, a, b, mr);
+                        outs[0] = nk::builtin::bsxfun(name, a, b, mr);
                         return;
                     } catch (...) {
                     }
                 }
             } else if (fn.isChar() || fn.isString()) {
                 try {
-                    outs[0] = numkit::builtin::bsxfun(fn.toString(), a, b, mr);
+                    outs[0] = nk::builtin::bsxfun(fn.toString(), a, b, mr);
                     return;
                 } catch (...) {
                 }
@@ -283,7 +283,7 @@ void register_elmat(Engine &engine) {
             outs[0] = std::move(res);
         });
 
-    engine.registerCallbackBuiltin("bsxfun", std::make_shared<::numkit::builtin::detail::BsxfunCallbackBuiltin>());
+    engine.registerCallbackBuiltin("bsxfun", std::make_shared<::nk::builtin::detail::BsxfunCallbackBuiltin>());
 }
 
-} // namespace numkit::bundle::builtin
+} // namespace nk::bundle::builtin

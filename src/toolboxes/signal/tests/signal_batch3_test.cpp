@@ -8,11 +8,11 @@
 // 14 verified bit-identical MATLAB R2025b; 6 deferred with separate specs
 // notes for default-NFFT or boundary-handling gaps.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SignalBatch3Test : public ::testing::Test
 {
@@ -70,7 +70,7 @@ TEST_F(SignalBatch3Test, Bilinear)
 }
 
 // DEEP-PROBE 2026-05-31: bilinear(b,a,fs,fp) prewarp. The scale must be
-// K = 2*pi*fp/tan(pi*fp/fs); numkit double-scaled it (K = 2x too big).
+// K = 2*pi*fp/tan(pi*fp/fs); nk double-scaled it (K = 2x too big).
 TEST_F(SignalBatch3Test, BilinearPrewarp)
 {
     eval("[bp, ap] = bilinear([1 0], [1 2 1], 10, 2);");

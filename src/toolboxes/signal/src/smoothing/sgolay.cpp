@@ -1,18 +1,18 @@
 // toolboxes/signal/src/smoothing/sgolay.cpp
 
-#include <numkit/signal/smoothing/sgolay.hpp>
+#include <nk/signal/smoothing/sgolay.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <cstring>
 #include <memory_resource>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -31,7 +31,7 @@ void gaussJordan(double *A, double *B, int N, int M)
         if (maxAbs < 1e-300)
             throw Error("sgolay: singular normal equations "
                          "(framelen too small for order)",
-                         0, 0, "sgolay", "", "numkit:sgolay:singular");
+                         0, 0, "sgolay", "", "nk:sgolay:singular");
         if (piv != k) {
             for (int c = 0; c < N; ++c) std::swap(A[k * N + c], A[piv * N + c]);
             for (int c = 0; c < M; ++c) std::swap(B[k * M + c], B[piv * M + c]);
@@ -158,16 +158,16 @@ void validateSgolayArgs(int order, int framelen)
 {
     if (framelen <= 0)
         throw Error("sgolay: framelen must be positive",
-                     0, 0, "sgolay", "", "numkit:sgolay:badArg");
+                     0, 0, "sgolay", "", "nk:sgolay:badArg");
     if ((framelen & 1) == 0)
         throw Error("sgolay: framelen must be odd",
-                     0, 0, "sgolay", "", "numkit:sgolay:evenFramelen");
+                     0, 0, "sgolay", "", "nk:sgolay:evenFramelen");
     if (order < 0)
         throw Error("sgolay: order must be non-negative",
-                     0, 0, "sgolay", "", "numkit:sgolay:badArg");
+                     0, 0, "sgolay", "", "nk:sgolay:badArg");
     if (order >= framelen)
         throw Error("sgolay: order must be less than framelen",
-                     0, 0, "sgolay", "", "numkit:sgolay:orderTooHigh");
+                     0, 0, "sgolay", "", "nk:sgolay:orderTooHigh");
 }
 
 } // namespace
@@ -245,23 +245,23 @@ Value sgolayfiltImpl(const Value &x, int order, int framelen,
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("sgolayfilt: complex inputs are not supported",
-                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:complex");
+                     0, 0, "sgolayfilt", "", "nk:sgolayfilt:complex");
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("sgolayfilt: N-D (>2) inputs are not supported",
-                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:ndims");
+                     0, 0, "sgolayfilt", "", "nk:sgolayfilt:ndims");
 
     const size_t R = d.rows(), C = d.cols();
     int useDim = dim;
     if (useDim <= 0) useDim = (R > 1) ? 1 : 2;       // first non-singleton
     if (useDim != 1 && useDim != 2)
         throw Error("sgolayfilt: dim must be 1 or 2",
-                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:badDim");
+                     0, 0, "sgolayfilt", "", "nk:sgolayfilt:badDim");
 
     const int n = static_cast<int>(useDim == 1 ? R : C);
     if (n < framelen)
         throw Error("sgolayfilt: signal length along dim must be >= framelen",
-                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:tooShort");
+                     0, 0, "sgolayfilt", "", "nk:sgolayfilt:tooShort");
 
     ScratchArena scratch(mr);
     auto B = buildProjection(order, framelen, &scratch, w);  // throws if shape invalid
@@ -307,20 +307,20 @@ Value sgolayfilt(const Value &x, int order, int framelen,
         return sgolayfiltImpl(x, order, framelen, nullptr, dim, mr);
     if (weights.type() == ValueType::COMPLEX)
         throw Error("sgolayfilt: weights must be real and positive",
-                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:weights");
+                     0, 0, "sgolayfilt", "", "nk:sgolayfilt:weights");
     if (static_cast<int>(weights.numel()) != framelen)
         throw Error("sgolayfilt: weights must have length framelen",
-                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:weightsLen");
+                     0, 0, "sgolayfilt", "", "nk:sgolayfilt:weightsLen");
     ScratchArena wa(mr);
     auto w = ScratchVec<double>(static_cast<std::size_t>(framelen), &wa);
     for (int i = 0; i < framelen; ++i) {
         const double wi = weights.elemAsDouble(i);
         if (!(wi > 0.0))
             throw Error("sgolayfilt: weights must be real and positive",
-                         0, 0, "sgolayfilt", "", "numkit:sgolayfilt:weights");
+                         0, 0, "sgolayfilt", "", "nk:sgolayfilt:weights");
         w[i] = wi;
     }
     return sgolayfiltImpl(x, order, framelen, w.data(), dim, mr);
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

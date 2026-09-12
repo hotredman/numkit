@@ -15,11 +15,11 @@ registered. It is the companion that `decode`/`syndrome` decoding needs.
 H = [1 0 1 1 0 0; 0 1 1 0 1 0; 1 1 0 0 0 1];   % [n-k]x[n] = 3x6
 t = syndtable(H);
 % MATLAB: size(t) = [8 6]  (2^(n-k)=8 coset leaders, each length n=6)
-% numkit: Error — VM: undefined function 'syndtable'
+% nk: Error — VM: undefined function 'syndtable'
 ```
 
 ## Fix (2026-06-19)
-Implemented `numkit::comm::syndtable` (`blockcoding.cpp`, next to
+Implemented `nk::comm::syndtable` (`blockcoding.cpp`, next to
 `hammgen`/`gen2par`/`decode`). Returns the `2^(n-k) × n` table whose row
 `s+1` is the minimum-weight error pattern with syndrome `s = bi2de(mod(H·eᵀ,
 2), 'left-msb')` (row 1 of `H` is the MSB; each column's single-bit
@@ -39,7 +39,7 @@ Hamming-perfect / weight-2+ties / repro-size), `known_bugs_test.cpp`
 
 ## References
 - `src/toolboxes/comm/src/coding/blockcoding.cpp` (`syndtable`,
-  `nextCombination`), `.../include/numkit/comm/coding/blockcoding.hpp`,
+  `nextCombination`), `.../include/nk/comm/coding/blockcoding.hpp`,
   `src/bundle/src/register/comm/coding/blockcoding_reg.cpp` (`syndtable_reg`).
 - `tools/parity/specs/syndtable.json`.
 - shipped + reused: `hammgen`/`gen2par`

@@ -228,10 +228,10 @@ export function MatrixPanel({
   const [showPlot, setShowPlot]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [plotWidth, setPlotWidth] = useState(() => {
-    const stored = parseInt(localStorage.getItem('numkit.ve.plotWidth') || '', 10);
+    const stored = parseInt(localStorage.getItem('nk.ve.plotWidth') || '', 10);
     return Number.isFinite(stored) && stored >= 200 && stored <= 1600 ? stored : 520;
   });
-  useEffect(() => { localStorage.setItem('numkit.ve.plotWidth', String(plotWidth)); }, [plotWidth]);
+  useEffect(() => { localStorage.setItem('nk.ve.plotWidth', String(plotWidth)); }, [plotWidth]);
 
   const [internalActiveCell, setInternalActiveCell] = useState({ r: 0, c: 0 });
   const activeCell = externalActiveCell !== undefined ? externalActiveCell : internalActiveCell;

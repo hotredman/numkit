@@ -7,12 +7,12 @@
 
 ## Symptom
 `[Q,R,P] = qr(A)` (column-pivoting QR) throws "Too many output arguments".
-numkit's `qr` returns only `[Q,R]` (plain Householder, no pivoting).
+nk's `qr` returns only `[Q,R]` (plain Householder, no pivoting).
 
 ## Repro
 ```matlab
 [Q,R,P] = qr([1 2; 3 4; 5 6]);
-% numkit: Error — Too many output arguments
+% nk: Error — Too many output arguments
 % MATLAB: P = [0 1; 1 0]  (A*P = Q*R; columns ordered by decreasing norm)
 %         R(1,1) = -7.483315
 [Q,R,p] = qr([1 2; 3 4; 5 6], 'vector');   % p = [2 1]  (permutation vector)
@@ -43,7 +43,7 @@ the column order vs MATLAB.
   rank-revealing decreasing; `qr(A,0)` 3-output → `P` is a vector, `Q` economy.
 - **Sign note:** `Q`/`R` signs match MATLAB for **tall** matrices (m>n), but the
   *trailing 1×1* diagonal of a **square** matrix differs — a *pre-existing*
-  numkit convention (numkit always applies the reflector; LAPACK skips the
+  nk convention (nk always applies the reflector; LAPACK skips the
   identity reflector when the sub-diagonal is already zero). This affects the
   unpivoted path too and is independent of pivoting. The QR is valid either way
   (`A*P=Q*R` holds); validation uses `abs(diag(R))` + reconstruction, as the

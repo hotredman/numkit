@@ -12,5 +12,5 @@
     "ru(3)", "ru(2)", "ru(1)",
     "double(numel(rm))", "rm(2)"
   ],
-  "comment": "Sig r=xcorr(x[,y][,maxlag][,scaleopt]). Raw xcorr([1 2 3]) = [3 8 14 8 3]. scaleopt: 'biased' (/N), 'unbiased' (/(N-|lag|)), 'coeff'/'normalized' (/sqrt(Rxx0*Ryy0), autocorr peak->1). maxlag crops to lags -maxlag..maxlag. coeff: rc=[.2143 .5714 1 .5714 .2143]; biased=[1 2.667 4.667 2.667 1]; unbiased=[3 4 4.667 4 3]; maxlag 1 -> [8 14 8]. numkit previously accepted-and-IGNORED scaleopt+maxlag -- now honored. Matches MATLAB R2025b."
+  "comment": "Sig r=xcorr(x[,y][,maxlag][,scaleopt]). Raw xcorr([1 2 3]) = [3 8 14 8 3]. scaleopt: 'biased' (/N), 'unbiased' (/(N-|lag|)), 'coeff'/'normalized' (/sqrt(Rxx0*Ryy0), autocorr peak->1). maxlag crops to lags -maxlag..maxlag. coeff: rc=[.2143 .5714 1 .5714 .2143]; biased=[1 2.667 4.667 2.667 1]; unbiased=[3 4 4.667 4 3]; maxlag 1 -> [8 14 8]. nk previously accepted-and-IGNORED scaleopt+maxlag -- now honored. Matches MATLAB R2025b."
 }

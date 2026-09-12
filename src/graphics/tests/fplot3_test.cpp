@@ -5,18 +5,18 @@
 // 200-point grid, emits a `plot3` dataset via the FigureManager.
 //
 // Like other plot fns, the test verifies the call runs without
-// throwing — numkit's figure-data is JSON to stdout, not a queryable
+// throwing — nk's figure-data is JSON to stdout, not a queryable
 // handle, so the assertion is "doesn't crash" rather than data shape.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/figure/figure_manager.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/figure/figure_manager.hpp>
 #include <gtest/gtest.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class Fplot3Test : public ::testing::Test
 {

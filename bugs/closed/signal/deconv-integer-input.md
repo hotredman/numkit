@@ -17,7 +17,7 @@
 - **Lenient edge (documented, NOT MATLAB parity):** MATLAB ERRORS on the
   `na > nb` divisor-longer branch with INTEGER input ("Inputs must be
   floats, namely single or double" — the same `superiorfloat` quirk that
-  makes `polyval` reject a vector integer x). Because numkit promotes before
+  makes `polyval` reject a vector integer x). Because nk promotes before
   that branch, it stays lenient and returns double (q scalar 0, r =
   numerator). This is the directive's preferred stance (don't add errors to
   match MATLAB; cf. `dot`); the edge is intentionally not fingerprinted in
@@ -41,12 +41,12 @@
 or logical array. MATLAB R2025b accepts integer/logical input, promoting to
 double and returning double quotient/remainder.
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
-deconv(int8([1 3 5 3]), int8([1 1]))   % numkit: ERROR "Not a double array"
+deconv(int8([1 3 5 3]), int8([1 1]))   % nk: ERROR "Not a double array"
 %                                        MATLAB: double [1 2 3]
 [q,r] = deconv(int8([1 3 5 3]), int8([1 1]))  % MATLAB: q=[1 2 3] r=[0 0 0 0] (double)
-deconv([1 3 5 3], int8([1 1]))         % numkit: ERROR; MATLAB: double [1 2 3]
+deconv([1 3 5 3], int8([1 1]))         % nk: ERROR; MATLAB: double [1 2 3]
 ```
 
 ## Root cause
@@ -61,7 +61,7 @@ but ERRORS on a *vector* integer x ("Inputs must be floats" via
 a clean fix; `accumarray` rejects integer/logical vals (MATLAB → double);
 `cross` throws on integer input (MATLAB preserves the int class with
 intermediate per-product saturation — harder). `dot` is the reverse —
-numkit lenient where MATLAB errors.
+nk lenient where MATLAB errors.
 
 ## Guard
 `src/toolboxes/signal/tests/known_bugs_test.cpp` → `SignalKnownBug.DeconvIntegerInput`

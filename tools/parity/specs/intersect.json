@@ -11,5 +11,5 @@
     "imag(cs(1))", "real(cs(2))",
     "nr", "cr11", "cr21", "ndd", "dd11"
   ],
-  "comment": "Sig intersect(A,B[,setOrder | 'rows']). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order. COMPLEX (C output only): exact-equality, |z|+angle order. DEEP-PROBE 2026-05-31: added the 'rows' flag (was IGNORING it and flattening element-wise); returns sorted unique rows present in both: intersect([1 2;3 4;5 6],[3 4;9 9;1 2],'rows')=[1 2;3 4]; row-distinguishing intersect([1 2;3 4],[2 1;3 4],'rows')=[3 4] (1x2, NOT 1x4). 'rows' ia/ib outputs deferred. numkit previously IGNORED 'stable' (fixed) and threw on COMPLEX (added 2026-05-29)."
+  "comment": "Sig intersect(A,B[,setOrder | 'rows']). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order. COMPLEX (C output only): exact-equality, |z|+angle order. DEEP-PROBE 2026-05-31: added the 'rows' flag (was IGNORING it and flattening element-wise); returns sorted unique rows present in both: intersect([1 2;3 4;5 6],[3 4;9 9;1 2],'rows')=[1 2;3 4]; row-distinguishing intersect([1 2;3 4],[2 1;3 4],'rows')=[3 4] (1x2, NOT 1x4). 'rows' ia/ib outputs deferred. nk previously IGNORED 'stable' (fixed) and threw on COMPLEX (added 2026-05-29)."
 }

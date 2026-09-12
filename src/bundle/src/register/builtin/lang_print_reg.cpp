@@ -1,12 +1,12 @@
-#include <numkit/core/engine.hpp>
-#include <numkit/runtime/io.hpp>
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/builtin/iofun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/shape_ops.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/runtime/io.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/builtin/iofun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/shape_ops.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -18,8 +18,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;
+namespace nk::builtin {
+using namespace nk::builtin;
 
 namespace detail {
 
@@ -37,12 +37,12 @@ void fprintf_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                  CallContext &ctx)
 {
     if (args.empty())
-        throw Error("fprintf: requires at least 1 argument", 0, 0, "fprintf", "", "numkit:fprintf:nargin");
-    size_t count = ::numkit::runtime::fprintf(*ctx.engine, args);
+        throw Error("fprintf: requires at least 1 argument", 0, 0, "fprintf", "", "nk:fprintf:nargin");
+    size_t count = ::nk::runtime::fprintf(*ctx.engine, args);
     if (nargout >= 1 && !outs.empty())
         outs[0] = Value::scalar(static_cast<double>(count), ctx.engine->resource());
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -2,12 +2,12 @@
 //
 // db / db2mag / mag2db / pow2db / db2pow.
 
-#include <numkit/signal/measurements/dbconv.hpp>
+#include <nk/signal/measurements/dbconv.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>  // createLike (toolboxes/builtin/src/)
+#include <nk/ops/helpers.hpp>  // createLike (toolboxes/builtin/src/)
 
 #include <algorithm>
 #include <cctype>
@@ -15,7 +15,7 @@
 #include <complex>
 #include <string>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -55,7 +55,7 @@ Value db(const Value &x, const std::string &signalType, std::pmr::memory_resourc
         scale = 10.0;
     else
         throw Error("db: signalType must be 'voltage' or 'power'",
-                     0, 0, "db", "", "numkit:db:badType");
+                     0, 0, "db", "", "nk:db:badType");
     auto out = createLike(x, ValueType::DOUBLE, mr);
     forEachAsMag(x, out.doubleDataMut(),
                  [scale](double v) { return scale * std::log10(v); });
@@ -98,4 +98,4 @@ Value pow2db(const Value &p, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

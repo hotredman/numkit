@@ -2,7 +2,7 @@
 
 - **Status:** ✅ FIXED (8fee45c65, 2026-09-07)
 - **Severity:** P1 wrong result
-- **Found:** 2026-08-29 via npm CLI corpus run (examples/ through packages/numkit, WASM engine); reproduces identically on the native `numkit_repl` CLI, so it is engine-level, not WASM/packaging.
+- **Found:** 2026-08-29 via npm CLI corpus run (examples/ through packages/nk, WASM engine); reproduces identically on the native `nk_repl` CLI, so it is engine-level, not WASM/packaging.
 
 ## Symptom
 A function that receives values via `assignin('caller', name, value)` from a
@@ -28,7 +28,7 @@ end
 
 total = f();
 
-% numkit:  Error (line 39): Undefined function or variable 'cfg_one'
+% nk:  Error (line 39): Undefined function or variable 'cfg_one'
 % MATLAB:  Constants visible in the caller:
 %              cfg_one   = 1 … total = 6
 ```
@@ -43,7 +43,7 @@ names directly, yet the write-through still does not land.
 
 ## Notes
 - Corpus impact: 3 of 184 examples; all other Frame_Introspection cases pass.
-- Native repro: `build/.../numkit_repl.exe examples/Frame_Introspection/assignin_setter.m` → same error (and see `apps` exit-code bug: the native CLI still exits 0 on it).
+- Native repro: `build/.../nk_repl.exe examples/Frame_Introspection/assignin_setter.m` → same error (and see `apps` exit-code bug: the native CLI still exits 0 on it).
 
 ## References
 - **Guard:** deferred — engine-level; guard pending a compiled-frame fixture.

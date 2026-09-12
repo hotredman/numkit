@@ -1,15 +1,15 @@
 // src/builtin/src/ops/binary_ops_detail.hpp
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
-#include <numkit/ops/compare.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
+#include <nk/ops/compare.hpp>
 
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/shape_ops.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/shape_ops.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,24 +28,24 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
-using namespace ::numkit::ops;
+using namespace ::nk::ops;
 
 namespace {
 
-inline bool sameShapeDoubleFastPath(const numkit::Value &a,
-                                    const numkit::Value &b)
+inline bool sameShapeDoubleFastPath(const nk::Value &a,
+                                    const nk::Value &b)
 {
     return !a.isScalar() && !b.isScalar() && a.dims() == b.dims();
 }
 
-inline numkit::Value coerceLogicalToDouble(const numkit::Value &v,
+inline nk::Value coerceLogicalToDouble(const nk::Value &v,
                                            std::pmr::memory_resource *mr)
 {
-    using namespace numkit;
+    using namespace nk;
     if (v.type() != ValueType::LOGICAL) return v;
-    Value out = numkit::createLike(v, ValueType::DOUBLE, mr);
+    Value out = nk::createLike(v, ValueType::DOUBLE, mr);
     const uint8_t *src = v.logicalData();
     double *dst = out.doubleDataMut();
     const size_t n = v.numel();
@@ -89,12 +89,12 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
     const std::size_t k  = B.dims().cols();
     if (bm != m)
         throw Error(std::string(opname) + ": matrix dimensions must agree",
-                    0, 0, opname, "", std::string("numkit:") + opname + ":dim");
+                    0, 0, opname, "", std::string("nk:") + opname + ":dim");
     if (m < n)
         throw Error(std::string(opname)
                     + ": underdetermined (wide A, m<n) not yet supported",
                     0, 0, opname, "",
-                    std::string("numkit:") + opname + ":wide");
+                    std::string("nk:") + opname + ":wide");
 
     ScratchArena arena(mr);
 
@@ -115,11 +115,11 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
             for (std::size_t i = 0; i < m * k; ++i) B_buf[i] = Complex(bd[i], 0.0);
         }
         Value X = Value::complexMatrix(n, k, mr);
-        if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), k, X.complexDataMut(), &arena))
+        if (!nk::ops::la_solve(A_buf.data(), m, n, B_buf.data(), k, X.complexDataMut(), &arena))
             throw Error(std::string(opname)
                         + ": matrix is singular or rank-deficient",
                         0, 0, opname, "",
-                        std::string("numkit:") + opname + ":singular");
+                        std::string("nk:") + opname + ":singular");
         return narrowIfReal(X, mr);
     }
 
@@ -130,11 +130,11 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
 
     Value X = Value::matrix(n, k, ValueType::DOUBLE, mr);
     double *Xd = X.doubleDataMut();
-    if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), k, Xd, &arena))
+    if (!nk::ops::la_solve(A_buf.data(), m, n, B_buf.data(), k, Xd, &arena))
         throw Error(std::string(opname)
                     + ": matrix is singular or rank-deficient",
                     0, 0, opname, "",
-                    std::string("numkit:") + opname + ":singular");
+                    std::string("nk:") + opname + ":singular");
     return X;
 }
 
@@ -199,7 +199,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
             if (v.isString() || v.isChar())
                 return v.toString();
             throw Error("Comparison between string and non-string is not supported",
-                         0, 0, "compare", "", "numkit:compare:stringType");
+                         0, 0, "compare", "", "nk:compare:stringType");
         };
         std::string sa = toStr(a), sb = toStr(b);
         switch (c) {
@@ -257,7 +257,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         }
         if (a.dims() != b.dims())
             throw Error("Matrix dimensions must agree for comparison. a=[" + std::to_string(a.dims().rows()) + "x" + std::to_string(a.dims().cols()) + "], b=[" + std::to_string(b.dims().rows()) + "x" + std::to_string(b.dims().cols()) + "]",
-                        0, 0, "compareImpl", "", "numkit:compare:dimMismatch");
+                        0, 0, "compareImpl", "", "nk:compare:dimMismatch");
         auto r = createLike(a, ValueType::LOGICAL, nullptr);
         for (size_t i = 0; i < a.numel(); ++i)
             r.logicalDataMut()[i] = cmpC(getC(a, i), getC(b, i)) ? 1 : 0;
@@ -317,7 +317,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         Dims outD;
         if (!broadcastDimsND(a.dims(), b.dims(), outD))
             throw Error("ND dimensions must broadcast for comparison: each axis must match or be 1",
-                         0, 0, "compare", "", "numkit:dimagree");
+                         0, 0, "compare", "", "nk:dimagree");
         auto r = createForDims(outD, ValueType::LOGICAL, nullptr);
         uint8_t *dst = r.logicalDataMut();
         forEachNDPair(a.dims(), b.dims(), outD,
@@ -349,7 +349,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         size_t outR, outC, outP;
         if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
             throw Error("3D dimensions must broadcast for comparison: each axis must match or be 1",
-                         0, 0, "compare", "", "numkit:dimagree");
+                         0, 0, "compare", "", "nk:dimagree");
 
         if (aR == bR && aC == bC && aP == bP) {
             auto r = createLike(a, ValueType::LOGICAL, nullptr);
@@ -376,7 +376,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
         throw Error("Matrix dimensions must agree for comparison. a=[" + std::to_string(ar) + "x" + std::to_string(ac) + "], b=[" + std::to_string(br) + "x" + std::to_string(bc) + "]",
-                    0, 0, "compareString", "", "numkit:compare:dimMismatch");
+                    0, 0, "compareString", "", "nk:compare:dimMismatch");
 
     auto r = Value::matrix(outR, outC, ValueType::LOGICAL, nullptr);
     uint8_t *dst = r.logicalDataMut();
@@ -451,7 +451,7 @@ Value logicalBinary(const char *opName, Op op,
     }
     if (a.numel() != b.numel())
         throw Error(std::string("Matrix dimensions must agree for ") + opName + ". a=[" + std::to_string(a.dims().rows()) + "x" + std::to_string(a.dims().cols()) + "], b=[" + std::to_string(b.dims().rows()) + "x" + std::to_string(b.dims().cols()) + "]",
-                    0, 0, opName, "", "numkit:binary_ops:dimMismatch");
+                    0, 0, opName, "", "nk:binary_ops:dimMismatch");
     auto aa = toBoolArray(a, &scratch);
     auto bb = toBoolArray(b, &scratch);
     auto r = createLike(a, ValueType::LOGICAL, mr);
@@ -566,7 +566,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const int ynd = yd.ndim();
     if (xnd < 2 || ynd < 2)
         throw Error("pagemtimes: each input must have at least 2 dimensions",
-                     0, 0, "pagemtimes", "", "numkit:pagemtimes:rank");
+                     0, 0, "pagemtimes", "", "nk:pagemtimes:rank");
 
     const size_t xRowDim = xd.dim(0), xColDim = xd.dim(1);
     const size_t yRowDim = yd.dim(0), yColDim = yd.dim(1);
@@ -577,7 +577,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const size_t N  = (ty == TranspOp::None) ? yColDim : yRowDim;
     if (Kx != Ky)
         throw Error("pagemtimes: inner matrix dimensions must agree",
-                     0, 0, "pagemtimes", "", "numkit:pagemtimes:innerdim");
+                     0, 0, "pagemtimes", "", "nk:pagemtimes:innerdim");
     const size_t K = Kx;
 
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -591,7 +591,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
         if (xBatch[i] != yBatch[i] && xBatch[i] != 1 && yBatch[i] != 1)
             throw Error("pagemtimes: batch dimensions must broadcast "
                          "(each axis must match or be 1)",
-                         0, 0, "pagemtimes", "", "numkit:pagemtimes:dimagree");
+                         0, 0, "pagemtimes", "", "nk:pagemtimes:dimagree");
         outBatch[i] = std::max(xBatch[i], yBatch[i]);
     }
 
@@ -670,4 +670,4 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

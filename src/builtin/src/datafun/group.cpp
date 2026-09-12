@@ -6,9 +6,9 @@
 //   groupsummary   — per-group, per-column reduction
 //   grouptransform — per-group data transformation
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,7 +16,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -131,7 +131,7 @@ GroupsummaryResult groupsummary(const Value &A, const Value &G,
     const std::size_t nCols = (A.dims().ndim() >= 2) ? A.dims().cols() : 1;
     if (G.numel() != nRows)
         throw Error("groupsummary: groupvars must have length size(A, 1)",
-                    0, 0, "groupsummary", "", "numkit:groupsummary:shape");
+                    0, 0, "groupsummary", "", "nk:groupsummary:shape");
 
     // Group the rows.
     std::vector<std::size_t> groups;
@@ -236,7 +236,7 @@ GroupsummaryResult groupsummary(const Value &A, const Value &G,
                 throw Error("groupsummary: method '" + method
                             + "' not supported in this revision",
                             0, 0, "groupsummary", "",
-                            "numkit:groupsummary:badMethod");
+                            "nk:groupsummary:badMethod");
             }
             bd[g + c * nGroups] = out;
         }
@@ -268,7 +268,7 @@ Value grouptransform(const Value &A, const Value &G,
     if (G.numel() != nRows)
         throw Error("grouptransform: groupvars must have length size(A,1)",
                     0, 0, "grouptransform", "",
-                    "numkit:grouptransform:shape");
+                    "nk:grouptransform:shape");
 
     if (method != "zscore" && method != "norm" &&
         method != "meancenter" && method != "rescale" &&
@@ -277,7 +277,7 @@ Value grouptransform(const Value &A, const Value &G,
         throw Error("grouptransform: method must be 'zscore', 'norm', "
                     "'meancenter', 'rescale', 'meanfill', or 'linearfill'",
                     0, 0, "grouptransform", "",
-                    "numkit:grouptransform:badMethod");
+                    "nk:grouptransform:badMethod");
     }
 
     std::vector<std::size_t> groups;
@@ -405,4 +405,4 @@ Value grouptransform(const Value &A, const Value &G,
     return B;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

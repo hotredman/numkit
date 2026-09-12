@@ -1,20 +1,20 @@
 // fzero_reg.cpp — Engine adapters + embedded-.m registration relocated from
 // the optim toolbox in Phase D. Toolbox keeps the Engine-free FnHandle
 // kernels (fzero/fminbnd/fminsearch); this core-coupled glue lives in bundle.
-#include <numkit/optim/local/fzero.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/optim/local/fzero.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
 
-namespace numkit::optim {
+namespace nk::optim {
 
 // ── Engine adapter ───────────────────────────────────────────────────
 //
 // Each adapter validates that the user passed a function handle, then
 // wraps the (Engine, handle) pair into a stack-resident lambda that
-// looks like a numkit::FnHandle to the library functions. The lambda
+// looks like a nk::FnHandle to the library functions. The lambda
 // outlives the call into fzero/fminbnd/fminsearch.
 namespace detail {
 
@@ -25,7 +25,7 @@ void requireFuncHandle(const Value &fn, const char *who)
     if (!fn.isFuncHandle()
         && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
         throw Error(std::string(who) + ": 1st argument must be a function handle",
-                     0, 0, who, "", std::string("numkit:") + who + ":fnType");
+                     0, 0, who, "", std::string("nk:") + who + ":fnType");
 }
 
 // Evaluate the objective at a point (scalar or vector Value) → scalar.
@@ -51,7 +51,7 @@ void emitFvalExitflag(CallContext &ctx, const Value &handle, const Value &x,
     if (outs.size() >= 4)
         throw Error(std::string(who) + ": the 4th output (output struct) is "
                      "not yet supported (use [x, fval, exitflag])",
-                     0, 0, who, "", std::string("numkit:") + who + ":outputStruct");
+                     0, 0, who, "", std::string("nk:") + who + ":outputStruct");
 }
 } // anon
 
@@ -59,7 +59,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
-                     0, 0, "fzero", "", "numkit:fzero:nargin");
+                     0, 0, "fzero", "", "nk:fzero:nargin");
     requireFuncHandle(args[0], "fzero");
     auto handle = args[0];
     auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
@@ -77,7 +77,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     } else {
         throw Error("fzero: 2nd argument must be a scalar x0 or a 2-element "
                      "interval [a, b]",
-                     0, 0, "fzero", "", "numkit:fzero:badX0");
+                     0, 0, "fzero", "", "nk:fzero:badX0");
     }
     emitFvalExitflag(ctx, args[0], outs[0], outs, "fzero");
 }
@@ -86,7 +86,7 @@ void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("fminbnd: requires (fn, lo, hi[, tol])",
-                     0, 0, "fminbnd", "", "numkit:fminbnd:nargin");
+                     0, 0, "fminbnd", "", "nk:fminbnd:nargin");
     requireFuncHandle(args[0], "fminbnd");
     const double lo = args[1].toScalar();
     const double hi = args[2].toScalar();
@@ -106,7 +106,7 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2)
         throw Error("fminsearch: requires (fn, x0[, tol])",
-                     0, 0, "fminsearch", "", "numkit:fminsearch:nargin");
+                     0, 0, "fminsearch", "", "nk:fminsearch:nargin");
     requireFuncHandle(args[0], "fminsearch");
     const double tol = (args.size() >= 3 && !args[2].isEmpty()) ? args[2].toScalar() : 1e-4;
     auto handle = args[0];
@@ -150,7 +150,7 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 static const char *kFzeroMSource = R"NKM(
 function [x, fval, exitflag] = fzero(fn, x0)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:fzero:notHandle', 'fzero: first argument must be a function handle');
+    error('nk:fzero:notHandle', 'fzero: first argument must be a function handle');
   end
   if numel(x0) == 1
     [a, b] = nk_fzero_bracket(fn, x0);
@@ -165,11 +165,11 @@ function [x, fval, exitflag] = fzero(fn, x0)
   elseif numel(x0) == 2
     a = x0(1); b = x0(2);
     if ~(isfinite(a) && isfinite(b)) || a >= b
-      error('numkit:fzero:badInterval', 'fzero: interval [a, b] must satisfy a < b and be finite');
+      error('nk:fzero:badInterval', 'fzero: interval [a, b] must satisfy a < b and be finite');
     end
     x = nk_fzero_brent(fn, a, b);
   else
-    error('numkit:fzero:badX0', 'fzero: 2nd argument must be a scalar x0 or a 2-element interval [a, b]');
+    error('nk:fzero:badX0', 'fzero: 2nd argument must be a scalar x0 or a 2-element interval [a, b]');
   end
   fval = fn(x);
   exitflag = 1;
@@ -177,7 +177,7 @@ end
 
 function [a, b] = nk_fzero_bracket(fn, x0)
   if ~isfinite(x0)
-    error('numkit:fzero:badX0', 'fzero: x0 must be finite');
+    error('nk:fzero:badX0', 'fzero: x0 must be finite');
   end
   if x0 == 0
     step = 0.02;
@@ -212,7 +212,7 @@ function [a, b] = nk_fzero_bracket(fn, x0)
       b = aprev; return;
     end
   end
-  error('numkit:fzero:noBracket', 'fzero: failed to find a bracket containing a sign change near x0');
+  error('nk:fzero:noBracket', 'fzero: failed to find a bracket containing a sign change near x0');
 end
 
 function r = nk_fzero_brent(fn, a, b)
@@ -221,7 +221,7 @@ function r = nk_fzero_brent(fn, a, b)
   if fa == 0, r = a; return; end
   if fb == 0, r = b; return; end
   if (fa < 0) == (fb < 0)
-    error('numkit:fzero:noSignChange', 'fzero: f(a) and f(b) must have opposite signs (no sign change in the supplied interval)');
+    error('nk:fzero:noSignChange', 'fzero: f(a) and f(b) must have opposite signs (no sign change in the supplied interval)');
   end
   c = a; fc = fa; d = b - a; e = d;
   for it = 1:200
@@ -270,7 +270,7 @@ function r = nk_fzero_brent(fn, a, b)
     end
     fb = fn(b);
   end
-  error('numkit:fzero:noConverge', 'fzero: failed to converge within iteration limit');
+  error('nk:fzero:noConverge', 'fzero: failed to converge within iteration limit');
 end
 )NKM";
 
@@ -292,11 +292,11 @@ void registerFzeroM(Engine &engine)
 static const char *kFminsearchMSource = R"NKM(
 function [x, fval, exitflag] = fminsearch(fn, x0, tol)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
-    error('numkit:fminsearch:fnType', 'fminsearch: 1st argument must be a function handle');
+    error('nk:fminsearch:fnType', 'fminsearch: 1st argument must be a function handle');
   end
   n = numel(x0);
   if n == 0
-    error('numkit:fminsearch:badX0', 'fminsearch: x0 must be non-empty');
+    error('nk:fminsearch:badX0', 'fminsearch: x0 must be non-empty');
   end
   if nargin < 3 || isempty(tol) || ~(tol > 0)
     tol = 1e-4;
@@ -373,4 +373,4 @@ void registerFminsearchM(Engine &engine)
 }
 
 
-} // namespace numkit::optim
+} // namespace nk::optim

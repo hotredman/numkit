@@ -4,14 +4,14 @@
 // across PNG, JPEG, BMP, TGA, PNM, and TIFF.
 
 #include <gtest/gtest.h>
-#include <numkit/core/engine.hpp>
-#include <numkit/fs/vfs.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/fs/vfs.hpp>
+#include <nk/value/value.hpp>
 
 #include <filesystem>
 #include <random>
 
-using namespace numkit;
+using namespace nk;
 
 class ImageE2EIoTest : public ::testing::Test {
 public:

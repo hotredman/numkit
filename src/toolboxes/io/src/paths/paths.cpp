@@ -2,11 +2,11 @@
 //
 // filesep / fullfile / fileparts / tempdir / tempname.
 
-#include <numkit/io/paths/paths.hpp>
+#include <nk/io/paths/paths.hpp>
 
-#include <numkit/value/error.hpp>
-#include <numkit/fs/vfs.hpp>
-#include <numkit/fs/fs_context.hpp>
+#include <nk/value/error.hpp>
+#include <nk/fs/vfs.hpp>
+#include <nk/fs/fs_context.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -16,7 +16,7 @@
 #include <sstream>
 #include <string>
 
-namespace numkit::io {
+namespace nk::io {
 
 namespace {
 
@@ -159,4 +159,4 @@ Value tempname(FsContext &fs, std::pmr::memory_resource *mr)
 }
 
 
-} // namespace numkit::io
+} // namespace nk::io

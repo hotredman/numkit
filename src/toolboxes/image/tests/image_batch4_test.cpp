@@ -13,11 +13,11 @@
 //
 // 25 verified bit-identical MATLAB R2025b; 3 deferred.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImageBatch4Test : public ::testing::Test
 {
@@ -239,7 +239,7 @@ TEST_F(ImageBatch4Test, ImHmaxImHmin)
 
 // DEEP-PROBE c176: imbinarize 'global' / 'adaptive' method-string forms.
 // 'adaptive' rewires to adaptthresh + the per-pixel binarize comparison.
-// numkit previously misread 'adaptive' as a per-pixel threshold and threw.
+// nk previously misread 'adaptive' as a per-pixel threshold and threw.
 // Deterministic 16x16 mod-product image; sums pinned to MATLAB R2025b.
 TEST_F(ImageBatch4Test, ImbinarizeMethodStrings)
 {
@@ -259,7 +259,7 @@ TEST_F(ImageBatch4Test, ImbinarizeMethodStrings)
     EXPECT_THROW(eval("imbinarize(J, 'bogus');"), std::exception);
 }
 
-// DEEP-PROBE c181: multithresh REWRITE. numkit binned float data over [0,1]
+// DEEP-PROBE c181: multithresh REWRITE. nk binned float data over [0,1]
 // (via imhist) and returned normalised/midpoint-of-means thresholds, so
 // non-[0,1] data was wildly wrong (multithresh(reshape(1:36,6,6)) -> 0.49 vs
 // MATLAB 18.43). Now matches MATLAB's getpdf + Otsu + map2OriginalScale.

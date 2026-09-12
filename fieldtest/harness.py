@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dual-run harness: real scripts through MATLAB R2025b vs numkit (WASM + native).
+"""Dual-run harness: real scripts through MATLAB R2025b vs nk (WASM + native).
 
   python harness.py harvest [N] [flt]   static candidate selection -> candidates.json
   python harness.py qualify [N] [flt]   MATLAB-verify candidates -> runnable.json
@@ -37,19 +37,19 @@ RUNNABLE = HERE / "runnable.json"
 CANDIDATES = HERE / "candidates.json"
 TMP = HERE / "corpus" / "tmp"
 CATALOG_CACHE = HERE / "corpus" / "catalog.json"
-NUMKIT = HERE.parent
-WASM_CLI = NUMKIT / "packages" / "numkit" / "bin" / "cli.js"
+NK = HERE.parent
+WASM_CLI = NK / "packages" / "nk" / "bin" / "cli.js"
 def _resolve_native_cli():
     # OS-scoped presets first (build/<os>/<type>, the canonical layout
     # since the scripts reorg), legacy desktop-fast as fallback — same
     # pattern as tools/parity/run_parity.py and ide/desktop/main.js.
-    for c in (NUMKIT / "build" / "windows" / "release" / "apps" / "numkit" / "Release" / "numkit_repl.exe",
-              NUMKIT / "build" / "windows" / "release" / "apps" / "numkit" / "numkit_repl.exe",
-              NUMKIT / "build" / "linux" / "release" / "apps" / "numkit" / "numkit_repl",
-              NUMKIT / "build" / "desktop-fast" / "apps" / "numkit" / "Release" / "numkit_repl.exe"):
+    for c in (NK / "build" / "windows" / "release" / "apps" / "nk" / "Release" / "nk_repl.exe",
+              NK / "build" / "windows" / "release" / "apps" / "nk" / "nk_repl.exe",
+              NK / "build" / "linux" / "release" / "apps" / "nk" / "nk_repl",
+              NK / "build" / "desktop-fast" / "apps" / "nk" / "Release" / "nk_repl.exe"):
         if c.exists():
             return c
-    return NUMKIT / "build" / "windows" / "release" / "apps" / "numkit" / "Release" / "numkit_repl.exe"
+    return NK / "build" / "windows" / "release" / "apps" / "nk" / "Release" / "nk_repl.exe"
 
 NATIVE_CLI = _resolve_native_cli()
 MATLAB = Path(r"C:\Program Files\MATLAB\R2025b\bin\matlab.exe")
@@ -61,7 +61,7 @@ BAD_TOKENS = ["input(", "urlread", "system(", "java.", "actxserver", "parfor",
               "clock", "now,", "datenum", "websave", "webread", "video",
               "aviread", "VideoReader"]
 # Graphics calls are NOT filtered: both engines execute them headless
-# (numkit runs its graphics system and emits __FIGURE_DATA__ for the IDE;
+# (nk runs its graphics system and emits __FIGURE_DATA__ for the IDE;
 # MATLAB -batch creates invisible figures) and the verdict comes from the
 # workspace .mat comparison (R4), to which plots are irrelevant. Excluding
 # plotting scripts was a stdout-comparison-era restriction.
@@ -77,7 +77,7 @@ def answers_for(script):
     """Canned input() answers for INTERACTIVE scripts (list[str] or None).
 
     Scripts listed here qualify and compare through run_engine(answers=...):
-    numkit reads the lines on piped stdin (the real input() builtin);
+    nk reads the lines on piped stdin (the real input() builtin);
     MATLAB runs with a harness-generated input() stub (Windows -batch
     rejects the real one). Same answers on both sides — apples-to-apples.
     """
@@ -162,11 +162,11 @@ def run_engine(kind, script, mat_out=None, answers=None):
 
     cwd stays the script's directory so sibling data files resolve (MATLAB
     CLI semantics); the .mat target is absolute so nothing pollutes the
-    corpus. numkit kinds run a generated wrapper (`run(...); save(...)`)
+    corpus. nk kinds run a generated wrapper (`run(...); save(...)`)
     because the CLI executes exactly one file per invocation.
 
     `answers` (list of strings, one per input() call) makes INTERACTIVE
-    scripts runnable: numkit kinds receive the lines on piped stdin (the
+    scripts runnable: nk kinds receive the lines on piped stdin (the
     real input() builtin reads them); MATLAB gets an input.m stub in the
     script's dir for the duration of the run — Windows -batch rejects the
     real input() outright ("Support for user input is required"), and the
@@ -184,7 +184,7 @@ def run_engine(kind, script, mat_out=None, answers=None):
             quoted = " ".join("'{}'".format(a.replace("'", "''")) for a in answers)
             stub.write_text(
                 "function varargout = input(prompt, fmt)\n"
-                "% numkit fieldtest stub (harness-generated): answers injected\n"
+                "% nk fieldtest stub (harness-generated): answers injected\n"
                 "% because Windows MATLAB -batch rejects the real input().\n"
                 "persistent QUEUE\n"
                 "if isempty(QUEUE)\n"
@@ -321,7 +321,7 @@ def matdiff(path_a, path_b):
     only_a = sorted(set(a) - set(b))
     only_b = sorted(set(b) - set(a))
     if only_a:
-        lines.append(f"only-in-{'numkit' if 'numkit' in str(path_a) else 'A'}: {', '.join(only_a[:8])}")
+        lines.append(f"only-in-{'nk' if 'nk' in str(path_a) else 'A'}: {', '.join(only_a[:8])}")
     if only_b:
         lines.append(f"only-in-{'matlab' if 'matlab' in str(path_b) else 'B'}: {', '.join(only_b[:8])}")
     return ok, lines
@@ -369,7 +369,7 @@ def classify(nk, ml):
     if ml["exit"] == "timeout":
         return "matlab-timeout", ""
     if nk["exit"] == "timeout":
-        return "numkit-hang", ""
+        return "nk-hang", ""
     nk_err, ml_err = nk["exit"] != 0, ml["exit"] != 0
     if ml_err:
         detail = (ml["err"] or ml["out"]).strip()[:120]
@@ -458,7 +458,7 @@ def run(scripts):
              "wasm_ms": wasm["ms"], "matlab_ms": ml["ms"], "native_ms": native["ms"],
              "stdout_match": stdout_ok,
              "mat_diff": mat_lines[:20],
-             "numkit_out": (wasm["out"] or wasm["err"])[:800],
+             "nk_out": (wasm["out"] or wasm["err"])[:800],
              "matlab_out": (ml["out"] or ml["err"])[:800]}
         results.append(r)
         print(f"[{i+1}/{len(scripts)}] {Path(rel).name:<40} {v:<20} "

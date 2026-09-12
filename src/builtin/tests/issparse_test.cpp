@@ -1,13 +1,13 @@
 // toolboxes/builtin/tests/issparse_test.cpp
 //
-// Regression guard for issparse stub. Numkit has no sparse-matrix
+// Regression guard for issparse stub. NK has no sparse-matrix
 // storage class, so issparse always returns false. Matches MATLAB on
-// dense inputs (which is all numkit can produce).
+// dense inputs (which is all nk can produce).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class IssparseTest : public ::testing::Test
 {

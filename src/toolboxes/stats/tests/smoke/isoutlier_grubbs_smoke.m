@@ -6,7 +6,7 @@ clear
 % deviation G = max|x-mean|/std (std with N-1) is compared to the Grubbs
 % critical value G_crit = ((N-1)/sqrt(N))*sqrt(t^2/(N-2+t^2)) with
 % t = tinv(alpha/(2N), N-2); if G > G_crit that point is flagged and removed,
-% then the test repeats (down to N>=3). numkit previously threw
+% then the test repeats (down to N>=3). nk previously threw
 % "method 'grubbs' is not supported".
 
 fprintf('--- a lone large outlier ---\n');

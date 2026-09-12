@@ -10,7 +10,7 @@ import {
 } from './valueColumns';
 import { useChooser, ChooserButton } from './chooser';
 
-const STORAGE_KEY = 'numkit.ide.matrixstats';
+const STORAGE_KEY = 'nk.ide.matrixstats';
 
 /** Persisted active-stats set for the matrix viewer. */
 export function useStatChooser() {

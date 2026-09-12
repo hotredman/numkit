@@ -4,16 +4,16 @@
 // differences the real AND imaginary parts of a complex array (honouring n
 // and dim) instead of silently dropping the imaginary part. MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class DiffComplexTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
@@ -47,7 +47,7 @@ TEST_F(DiffComplexTest, AlongDim2)
 }
 
 // NOTE: diff(X,0) is intentionally NOT asserted here — MATLAB rejects n=0
-// ("N must be a positive integer scalar"); numkit's acceptance of it is a
+// ("N must be a positive integer scalar"); nk's acceptance of it is a
 // separate pre-existing divergence (see bugs/builtin/diff-zero-order.md).
 // The n=0 code path was only updated to preserve the complex parts.
 

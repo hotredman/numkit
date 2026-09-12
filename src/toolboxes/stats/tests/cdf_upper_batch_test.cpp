@@ -9,11 +9,11 @@
 // All hardcoded "upper" expected values are computed by hand as 1 - p
 // from the lower-tail value the function would otherwise return.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CdfUpperBatchTest : public ::testing::Test
 {

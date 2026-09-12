@@ -1,7 +1,7 @@
-# tests/gtest/CMakeLists.txt — owner of the single numkit_gtest binary
+# tests/gtest/CMakeLists.txt — owner of the single nk_gtest binary
 #
 # After this runs, each component can contribute its unit tests via
-#   target_sources(numkit_gtest PRIVATE ...)
+#   target_sources(nk_gtest PRIVATE ...)
 # from its own <component>/tests/CMakeLists.txt. The root CMakeLists
 # invokes add_subdirectory(<component>/tests) for each.
 #
@@ -12,9 +12,9 @@
 #   tests/gtest/compat/         non-C++ MATLAB parity scripts (not compiled)
 #
 # Run examples:
-#   ./numkit_gtest                                   # all tests
-#   ./numkit_gtest --gtest_filter="TW_VM/*"          # dual-backend only
-#   ./numkit_gtest --gtest_filter="CommandSyntax*"   # parser tests
+#   ./nk_gtest                                   # all tests
+#   ./nk_gtest --gtest_filter="TW_VM/*"          # dual-backend only
+#   ./nk_gtest --gtest_filter="CommandSyntax*"   # parser tests
 
 # ── Cross-cutting / integration tests (debugger, diagnostics, parity) ─────
 set(INTEGRATION_TESTS
@@ -41,34 +41,34 @@ set(INTEGRATION_TESTS
 )
 
 # ── The one test binary ───────────────────────────────────────────────────
-add_executable(numkit_gtest
+add_executable(nk_gtest
     main.cpp
     ${INTEGRATION_TESTS}
 )
 
 # Each component's tests/CMakeLists.txt appends its sources via
-# target_sources(numkit_gtest PRIVATE ...). That happens after this file runs.
+# target_sources(nk_gtest PRIVATE ...). That happens after this file runs.
 
-target_include_directories(numkit_gtest
+target_include_directories(nk_gtest
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/support   # dual_engine_fixture.hpp
 )
 
-target_link_libraries(numkit_gtest
+target_link_libraries(nk_gtest
     PRIVATE
-        numkit::numkit
+        nk::nk
         GTest::gtest_main
 )
 
 # Force-include StandardEngine into every test TU, so the suite's `StandardEngine engine;`
 # (a fully-loaded engine — the standard library auto-installed) needs no
-# per-file include. Resolved via numkit's public bundle/ include dir, which the
+# per-file include. Resolved via nk's public bundle/ include dir, which the
 # link above propagates. (core's Engine ctor no longer installs libraries.)
 if(MSVC)
-    target_compile_options(numkit_gtest PRIVATE /FInumkit/bundle/standard_engine.hpp)
+    target_compile_options(nk_gtest PRIVATE /FInk/bundle/standard_engine.hpp)
 else()
-    target_compile_options(numkit_gtest PRIVATE -include numkit/bundle/standard_engine.hpp)
+    target_compile_options(nk_gtest PRIVATE -include nk/bundle/standard_engine.hpp)
 endif()
 
 include(GoogleTest)
-gtest_discover_tests(numkit_gtest DISCOVERY_MODE PRE_TEST)
+gtest_discover_tests(nk_gtest DISCOVERY_MODE PRE_TEST)

@@ -3,11 +3,11 @@
 // Backfill gtest for the normlike censoring + freq upgrade shipped
 // in commit bb17c91. Reference values from MATLAB R2025b probe.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class NormlikeUpgradeTest : public ::testing::Test
 {

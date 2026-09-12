@@ -13,10 +13,10 @@ all handle complex — `cumsum`/`cumprod` are the outliers.)
 ## Repro
 ```matlab
 cumsum([1+1i 2+2i])
-% numkit: Error — Not a double array
+% nk: Error — Not a double array
 % MATLAB: [1+1i  3+3i]
 cumprod([1+1i 1-1i])
-% numkit: Error — Not a double array
+% nk: Error — Not a double array
 % MATLAB: [1+1i  2+0i]
 ```
 

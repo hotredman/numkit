@@ -85,7 +85,7 @@ save/restore.
 
 The builtin's C++ for-loop is removed; the builtin becomes a resumable state
 machine that returns to the dispatch loop between callbacks, so each callback is
-an ordinary VM frame. See [`core/include/numkit/core/callback_builtin.hpp`](../core/include/numkit/core/callback_builtin.hpp).
+an ordinary VM frame. See [`core/include/nk/core/callback_builtin.hpp`](../core/include/nk/core/callback_builtin.hpp).
 
 - **Foundation (`core`):** `VmContinuation` (resumable native computation),
   `LoopContinuation` (ready-made "apply handle to N items, collect, pack":
@@ -172,7 +172,7 @@ before an external builtin). Keep the C++ `Value foo(...)` API.
 static const char *kMyfunM = R"NKM(
 function r = myfun(fn, a, b, opt, optval)   % fixed optional params, NOT varargin
   if ~(strcmp(class(fn),'function_handle') || iscell(fn))
-    error('numkit:myfun:fnType', 'myfun: 1st arg must be a function handle');
+    error('nk:myfun:fnType', 'myfun: 1st arg must be a function handle');
   end
   ...                       % f-calls here run as bytecode → pausable
 end
@@ -224,7 +224,7 @@ the chunk via the `Engine::resolve*`/`classGetter` helpers, `pushCallFrame` +
     `CompilerRegisterAlloc.*` in `compiler_assigned_vars_test.cpp`.
 - **Register exhaustion now fails LOUDLY**, not silently. The compiler throws a
   typed `RegisterExhaustionError`; `registerBuiltinMSource` re-throws it as a
-  clear `numkit:compiler:registerExhaustion` Error (our wrappers MUST run on the
+  clear `nk:compiler:registerExhaustion` Error (our wrappers MUST run on the
   VM), the m-file loader (`resolveMFile_`) surfaces it instead of dropping to a
   TW-only chunk that would later look like an "undefined function" on the VM, and
   the lazy classdef-method compiler (`ensureClassMethodCompiled`) re-throws it
@@ -232,7 +232,7 @@ the chunk via the `Engine::resolve*`/`classGetter` helpers, `pushCallFrame` +
   method body. (Other compile failures — e.g. a not-yet-supported construct —
   still fall back to the TreeWalker.) Still: **add a VM-level pause-proof test** (`DebugSession`
   break inside the callback) for every embedded `.m` wrapper, and a quick
-  pre-build `numkit.exe` run compiles the `.m` at runtime and reports any
+  pre-build `nk.exe` run compiles the `.m` at runtime and reports any
   exhaustion immediately.
 
 ---

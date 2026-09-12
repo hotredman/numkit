@@ -19,13 +19,13 @@
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 
-#include <numkit/audio/spectral/shape_descriptors.hpp>
+#include <nk/audio/spectral/shape_descriptors.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The spectral*
 // builtins (CallContext wrappers) live in spectral/shape_descriptors_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include "fft_one_sided.hpp"
 
@@ -39,7 +39,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::audio {
+namespace nk::audio {
 
 namespace {
 
@@ -398,4 +398,4 @@ Value spectralFlux(const Value &x, const Value &f, double p,
     return out;
 }
 
-} // namespace numkit::audio
+} // namespace nk::audio

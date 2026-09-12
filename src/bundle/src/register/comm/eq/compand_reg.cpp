@@ -6,15 +6,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/eq/compand.hpp>
+#include <nk/comm/eq/compand.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <string>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void compand_reg(Span<const Value> args, size_t /*nargout*/,
@@ -22,10 +22,10 @@ void compand_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("compand: requires (x, param, V, method)",
-                    0, 0, "compand", "", "numkit:compand:nargin");
+                    0, 0, "compand", "", "nk:compand:nargin");
     if (!args[3].isChar() && !args[3].isString())
         throw Error("compand: method must be a string",
-                    0, 0, "compand", "", "numkit:compand:method");
+                    0, 0, "compand", "", "nk:compand:method");
     const double param = args[1].toScalar();
     const double V     = args[2].toScalar();
     const std::string method = args[3].toString();
@@ -34,4 +34,4 @@ void compand_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

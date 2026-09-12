@@ -3,20 +3,20 @@
 // CallContext register half of test/hypothesis.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/distributions/binomial.hpp>
-#include <numkit/stats/distributions/chi2.hpp>
-#include <numkit/stats/distributions/fisher_f.hpp>
-#include <numkit/stats/distributions/normal.hpp>
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/stats/test/hypothesis.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/distributions/binomial.hpp>
+#include <nk/stats/distributions/chi2.hpp>
+#include <nk/stats/distributions/fisher_f.hpp>
+#include <nk/stats/distributions/normal.hpp>
+#include <nk/stats/distributions/students_t.hpp>
+#include <nk/stats/test/hypothesis.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "test/hypothesis_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -52,7 +52,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("ttest: requires (X[, m | y][, alpha, tail | name-value])",
-                    0, 0, "ttest", "", "numkit:ttest:nargin");
+                    0, 0, "ttest", "", "nk:ttest:nargin");
     auto *mr = ctx.engine->resource();
 
     // Detect paired form: ttest(x, y) where y is a non-scalar numeric
@@ -65,7 +65,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
         const Value &y = args[1];
         if (y.numel() != args[0].numel())
             throw Error("ttest: paired vectors must have equal length",
-                        0, 0, "ttest", "", "numkit:ttest:pairedLen");
+                        0, 0, "ttest", "", "nk:ttest:pairedLen");
         Value diff = Value::matrix(1, y.numel(), ValueType::DOUBLE, mr);
         double *dst = diff.doubleDataMut();
         for (size_t i = 0; i < y.numel(); ++i)
@@ -93,7 +93,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
                 tail = parse_tail(args[i + 1].toString(), tail); i += 2;
             } else if (sl == "dim") {
                 throw Error("ttest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ttest", "", "numkit:ttest:dim");
+                            0, 0, "ttest", "", "nk:ttest:dim");
             } else {
                 tail = parse_tail(sl, tail); ++i;
             }
@@ -113,7 +113,7 @@ void ttest2_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("ttest2: requires (X, Y[, alpha, tail, vartype])",
-                    0, 0, "ttest2", "", "numkit:ttest2:nargin");
+                    0, 0, "ttest2", "", "nk:ttest2:nargin");
     double alpha = parse_alpha(args, 2, 0.05);
     TestTail tail = TestTail::Both;
     // MATLAB R2025b default is 'equal' (pooled variance), NOT Welch.
@@ -127,7 +127,7 @@ void ttest2_reg(Span<const Value> args, size_t nargout,
             else if (k == "alpha")   alpha = args[i + 1].toScalar();
             else if (k == "dim")
                 throw Error("ttest2: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ttest2", "", "numkit:ttest2:dim");
+                            0, 0, "ttest2", "", "nk:ttest2:dim");
         }
     }
     auto [h, p, ci, t] = ttest2(args[0], args[1], alpha, tail, vartype, ctx.engine->resource());
@@ -142,7 +142,7 @@ void ztest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("ztest: requires (X, m, sigma[, alpha, tail | name-value])",
-                    0, 0, "ztest", "", "numkit:ztest:nargin");
+                    0, 0, "ztest", "", "nk:ztest:nargin");
     const double m     = args[1].toScalar();
     const double sigma = args[2].toScalar();
     double alpha = 0.05;
@@ -157,7 +157,7 @@ void ztest_reg(Span<const Value> args, size_t nargout,
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
             else if (sl == "dim")
                 throw Error("ztest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ztest", "", "numkit:ztest:dim");
+                            0, 0, "ztest", "", "nk:ztest:dim");
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
@@ -173,7 +173,7 @@ void vartest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("vartest: requires (X, v[, alpha, tail | name-value])",
-                    0, 0, "vartest", "", "numkit:vartest:nargin");
+                    0, 0, "vartest", "", "nk:vartest:nargin");
     const double v = args[1].toScalar();
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
@@ -187,7 +187,7 @@ void vartest_reg(Span<const Value> args, size_t nargout,
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
             else if (sl == "dim")
                 throw Error("vartest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "vartest", "", "numkit:vartest:dim");
+                            0, 0, "vartest", "", "nk:vartest:dim");
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
@@ -203,7 +203,7 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("vartest2: requires (X, Y[, alpha, tail | name-value])",
-                    0, 0, "vartest2", "", "numkit:vartest2:nargin");
+                    0, 0, "vartest2", "", "nk:vartest2:nargin");
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
     size_t i = 2;
@@ -216,7 +216,7 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
             else if (sl == "dim")
                 throw Error("vartest2: 'Dim' not yet supported (parity gap)",
-                            0, 0, "vartest2", "", "numkit:vartest2:dim");
+                            0, 0, "vartest2", "", "nk:vartest2:dim");
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
@@ -232,7 +232,7 @@ void kstest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("kstest: requires X", 0, 0, "kstest", "",
-                    "numkit:kstest:nargin");
+                    "nk:kstest:nargin");
     Value cdf = (args.size() >= 2 && !(args[1].isChar() || args[1].isString()))
                   ? args[1] : Value();  // empty default
     double alpha = 0.05;
@@ -275,7 +275,7 @@ void kstest2_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("kstest2: requires (X, Y[, alpha, tail | name-value])",
-                    0, 0, "kstest2", "", "numkit:kstest2:nargin");
+                    0, 0, "kstest2", "", "nk:kstest2:nargin");
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
     size_t i = 2;
@@ -307,7 +307,7 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("jbtest: requires X[, alpha[, mctol]]", 0, 0, "jbtest", "",
-                    "numkit:jbtest:nargin");
+                    "nk:jbtest:nargin");
     double alpha = parse_alpha(args, 1, 0.05);
     // 3rd arg = mctol (Monte-Carlo standard-error tolerance).
     const double mctol = (args.size() > 2 && !args[2].isEmpty())
@@ -325,7 +325,7 @@ void fishertest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("fishertest: requires (T[, alpha, tail | name-value])",
-                    0, 0, "fishertest", "", "numkit:fishertest:nargin");
+                    0, 0, "fishertest", "", "nk:fishertest:nargin");
     auto *mr = ctx.engine->resource();
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
@@ -358,7 +358,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("chi2gof: requires X[, 'Frequency'/'Expected'/'Edges'/"
                     "'NBins'/'Ctrs'/'NParams'/'EMin'/'Alpha', val, ...]",
-                    0, 0, "chi2gof", "", "numkit:chi2gof:nargin");
+                    0, 0, "chi2gof", "", "nk:chi2gof:nargin");
     auto *mr = ctx.engine->resource();
     auto lower = [](std::string s) {
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
@@ -392,9 +392,9 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
 
     if (cdf_supplied)
         throw Error("chi2gof: 'CDF' function-handle argument is not yet "
-                    "supported in numkit; supply 'Expected' or rely on "
+                    "supported in nk; supply 'Expected' or rely on "
                     "the default normal auto-fit instead",
-                    0, 0, "chi2gof", "", "numkit:chi2gof:cdf_nyi");
+                    0, 0, "chi2gof", "", "nk:chi2gof:cdf_nyi");
 
     // Path A: explicit Frequency + Expected (existing behavior).
     if (freq_set && expected_set) {
@@ -429,7 +429,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
     const size_t N = x.numel();
     if (N < 2)
         throw Error("chi2gof: data vector must have at least 2 elements",
-                    0, 0, "chi2gof", "", "numkit:chi2gof:size");
+                    0, 0, "chi2gof", "", "nk:chi2gof:size");
 
     ScratchArena scratch(mr);
 
@@ -589,7 +589,7 @@ void vartestn_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("vartestn: requires (X[, GROUP][, N-V pairs])",
-                    0, 0, "vartestn", "", "numkit:vartestn:nargin");
+                    0, 0, "vartestn", "", "nk:vartestn:nargin");
     auto *mr = ctx.engine->resource();
     auto lower = [](std::string s) {
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
@@ -619,7 +619,7 @@ void vartestn_reg(Span<const Value> args, size_t nargout,
             else if (v == "brownforsythe")   test = 3;
             else if (v == "obrien")          test = 4;
             else throw Error("vartestn: unknown TestType '" + v + "'",
-                             0, 0, "vartestn", "", "numkit:vartestn:badtype");
+                             0, 0, "vartestn", "", "nk:vartestn:badtype");
         }
         // 'display' / 'alpha' silently ignored (Display has no console
         // effect; alpha doesn't change p/stat output).
@@ -632,7 +632,7 @@ void vartestn_reg(Span<const Value> args, size_t nargout,
         const size_t C = X.dims().cols();
         if (R == 0 || C < 2)
             throw Error("vartestn: matrix input must have >=2 columns",
-                        0, 0, "vartestn", "", "numkit:vartestn:size");
+                        0, 0, "vartestn", "", "nk:vartestn:size");
         ScratchArena scratch(mr);
         ScratchVec<double> vv(R * C, &scratch);
         ScratchVec<double> gg(R * C, &scratch);
@@ -674,7 +674,7 @@ void runstest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("runstest: requires X[, v | 'ud'][, alpha, tail | name-value]",
-                    0, 0, "runstest", "", "numkit:runstest:nargin");
+                    0, 0, "runstest", "", "nk:runstest:nargin");
     auto *mr = ctx.engine->resource();
 
     // arg[1] is positional v (scalar), 'ud' string for up-down test, or a
@@ -753,7 +753,7 @@ void ranksum_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("ranksum: requires (X, Y[, alpha, tail | name-value])",
-                    0, 0, "ranksum", "", "numkit:ranksum:nargin");
+                    0, 0, "ranksum", "", "nk:ranksum:nargin");
     auto *mr = ctx.engine->resource();
 
     double alpha = 0.05;
@@ -792,7 +792,7 @@ void signrank_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("signrank: requires X[, m | y][, alpha, tail or "
-                    "name-value]", 0, 0, "signrank", "", "numkit:signrank:nargin");
+                    "name-value]", 0, 0, "signrank", "", "nk:signrank:nargin");
     auto *mr = ctx.engine->resource();
 
     Value y_or_m = Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -838,7 +838,7 @@ void signtest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("signtest: requires X[, m | y][, alpha, tail or "
-                    "name-value]", 0, 0, "signtest", "", "numkit:signtest:nargin");
+                    "name-value]", 0, 0, "signtest", "", "nk:signtest:nargin");
     auto *mr = ctx.engine->resource();
 
     // arg[1] may be: missing, scalar median, or paired y vector. Skip it
@@ -893,7 +893,7 @@ void lillietest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("lillietest: requires at least 1 argument",
-                    0, 0, "lillietest", "", "numkit:lillietest:nargin");
+                    0, 0, "lillietest", "", "nk:lillietest:nargin");
     double alpha = 0.05;
     if (args.size() >= 2 && !args[1].isEmpty()) alpha = args[1].toScalar();
     auto [h, p, kstat, critval] =
@@ -909,7 +909,7 @@ void ansaribradley_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("ansaribradley: requires (X, Y[, alpha or name-value])",
-                    0, 0, "ansaribradley", "", "numkit:ansaribradley:nargin");
+                    0, 0, "ansaribradley", "", "nk:ansaribradley:nargin");
     auto *mr = ctx.engine->resource();
 
     double alpha = 0.05;
@@ -943,4 +943,4 @@ void ansaribradley_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

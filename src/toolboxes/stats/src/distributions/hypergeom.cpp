@@ -3,12 +3,12 @@
 // Hypergeometric distribution: drawing N items without replacement from a
 // population of M with K successes. f(k; M, K, N) = C(K, k)·C(M-K, N-k)/C(M, N).
 
-#include <numkit/stats/distributions/hypergeom.hpp>
+#include <nk/stats/distributions/hypergeom.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -20,7 +20,7 @@
 
 #include "hypergeom_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value hygepdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr)
@@ -44,7 +44,7 @@ Value hygeinv(const Value &q, double M, double K, double N, std::pmr::memory_res
     return elementwise(q, [=](double qi){ return hyge_inv_scalar(qi, M, K, N); }, mr);
 }
 
-Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value hygernd(::nk::ops::RngContext &rng, double M, double K, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -69,4 +69,4 @@ std::tuple<double, double> hygestat(double M, double K, double N)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

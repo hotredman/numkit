@@ -1,8 +1,8 @@
-# numkit Namespace Design
+# nk Namespace Design
 
-Дизайн-документ для namespace-механизма в numkit движке. Цель —
+Дизайн-документ для namespace-механизма в nk движке. Цель —
 управляемое расширение API: по мере добавления тулбоксов (signal,
-stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичных
+stats, graphics, linalg, sparse, ode, table, …) и nk-специфичных
 расширений (gpu, experimental, …) плоский глобальный scope перестаёт
 работать. Вводим namespace-ы заранее.
 
@@ -10,12 +10,12 @@ stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичны
 1. Чистое решение (без policy-флагов и hidden state)
 2. Совместимость с MATLAB (через `import compat.*`)
 3. Возможность сделать лучше MATLAB (иерархия, `as`, разделение
-   numkit-only от MATLAB-mirror)
+   nk-only от MATLAB-mirror)
 
 Связанные документы:
 - [PROGRESS.md](../../tools/parity/PROGRESS.md) — живая карта парити со
   всеми функциями MATLAB-doc, разбитая по секциям/namespace. Колонки:
-  status (✅/❌/⚠️), numkit_ms, vs_MATLAB, vs_Octave, correctness.
+  status (✅/❌/⚠️), nk_ms, vs_MATLAB, vs_Octave, correctness.
 
 ---
 
@@ -124,7 +124,7 @@ import compat.*                  % MATLAB-режим
 
 **Convention:** функция в MATLAB-mirror либе регистрируется **дважды**:
 в своём namespace (по иерархии каталогов) и в `compat` (под коротким
-именем). Функция в numkit-only либе — **один раз** в своём namespace.
+именем). Функция в nk-only либе — **один раз** в своём namespace.
 
 **Эргономика:** каждая `library.cpp` имеет **локальную lambda**, которая
 скрывает повторную регистрацию.
@@ -160,14 +160,14 @@ void SignalLibrary::install(Engine &engine) {
 }
 ```
 
-**Регистрация в numkit-only либе:**
+**Регистрация в nk-only либе:**
 
 ```cpp
-// Будущая toolboxes/numkit_gpu/src/library.cpp:
+// Будущая toolboxes/nk_gpu/src/library.cpp:
 void GPULibrary::install(Engine &engine) {
-    // numkit_gpu НЕ MATLAB-mirror — регистрируется только в собственном namespace.
+    // nk_gpu НЕ MATLAB-mirror — регистрируется только в собственном namespace.
     auto reg = [&](const std::string &name, ExternalFunc f) {
-        engine.registerFunction("numkit_gpu", name, f);
+        engine.registerFunction("nk_gpu", name, f);
     };
 
     reg("matmul_gpu", &matmul_gpu_reg);
@@ -184,7 +184,7 @@ hamming(N)                    % ✅
 std(x)                        % ✅ (после переезда в stats.*)
 plot(x, y)                    % ✅
 
-import numkit_gpu.*           % явный отдельный импорт
+import nk_gpu.*           % явный отдельный импорт
 matmul_gpu(A, B)              % ✅
 ```
 
@@ -473,13 +473,13 @@ core.
 Каждая регистрирует свои функции и в собственном namespace, и в
 `compat.*` (через локальный helper в своей `library.cpp`).
 
-### 9.7 Будущие numkit-only либы
+### 9.7 Будущие nk-only либы
 
 | Library | Namespace | Регистрируется в compat? |
 |---|---|---|
-| `toolboxes/numkit_gpu/` | `numkit_gpu.*` | **НЕТ** (нет MATLAB-аналога) |
+| `toolboxes/nk_gpu/` | `nk_gpu.*` | **НЕТ** (нет MATLAB-аналога) |
 | `toolboxes/experimental/` | `experimental.*` | **НЕТ** (beta features) |
-| `toolboxes/numkit_extras/` | `numkit_extras.*` | **НЕТ** |
+| `toolboxes/nk_extras/` | `nk_extras.*` | **НЕТ** |
 
 ## 10. Directory layout — Variant B (сокращённые MATLAB-mirror имена)
 
@@ -603,7 +603,7 @@ MATLAB-doc (line/polar/contour/surface/volume/geographic/layout/bar).
 ## 11. VFS-инвариант
 
 > **Любой доступ к файловой системе из `core/` и `toolboxes/*` идёт через
-> `numkit::VirtualFS`. Прямые `std::filesystem`, `fopen`, `ifstream`,
+> `nk::VirtualFS`. Прямые `std::filesystem`, `fopen`, `ifstream`,
 > `ofstream`, native `_open`, `CreateFile*` — запрещены.** Единственное
 > исключение — реализация `FilesystemFS` сама.
 
@@ -617,7 +617,7 @@ VFS-абстракцию, которая в native сборке делегиру
 - Future toolboxes/*
 
 **Исключения (whitelist):**
-- `core/src/vfs.cpp`, `core/include/numkit/core/vfs.hpp` — VFS impl
+- `core/src/vfs.cpp`, `core/include/nk/core/vfs.hpp` — VFS impl
 - `*/tests/*` — тестовая инфраструктура
 - `bench*/` — benchmark harnesses
 - Host/IDE code — регистрирует VFS backends, не входит в WASM bundle
@@ -639,7 +639,7 @@ user m-файлов** из path-ов через VFS.
 class Engine {
 public:
     // Добавить директорию в path. Принимает VFS-путь
-    // ("native:/usr/local/numkit", "local:/scripts", "temporary:/work").
+    // ("native:/usr/local/nk", "local:/scripts", "temporary:/work").
     void addPath(const std::string &dir);
     void rmPath(const std::string &dir);
     std::vector<std::string> path() const;

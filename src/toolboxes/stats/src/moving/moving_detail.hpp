@@ -3,12 +3,12 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/ops/reductions.hpp>  // nk::builtin::detail dim-infra (engine-free, ops re-export)
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -27,13 +27,13 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
-using ::numkit::ops::firstNonSingletonDim;
-using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
-using ::numkit::ops::validateDim;
+using ::nk::ops::firstNonSingletonDim;
+using ::nk::ops::resolveDim;   // 0 -> first non-singleton, else validate
+using ::nk::ops::validateDim;
 
 // Decode the `k` argument: scalar → MATLAB backward-leaning window
 // [floor(k/2), floor((k-1)/2)] (even k centred on current+previous; odd k
@@ -49,7 +49,7 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
+                    0, 0, fn, "", std::string("nk:") + fn + ":badK");
     };
     if (k.size() == 1) {
         const size_t n = k[0];
@@ -57,7 +57,7 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
         // MATLAB: a scalar window of even length is centred about the CURRENT
         // and PREVIOUS elements — it leans BACKWARD: kb = floor(k/2),
         // kf = floor((k-1)/2). e.g. movsum([1 2 3 4],2) = [1 3 5 7] (window
-        // [i-1, i]). Odd k is symmetric (kb == kf). numkit previously leaned
+        // [i-1, i]). Odd k is symmetric (kb == kf). nk previously leaned
         // forward (kb/kf swapped), diverging from MATLAB for even windows.
         return {static_cast<long>(n / 2), static_cast<long>((n - 1) / 2)};
     }
@@ -78,7 +78,7 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
+                    0, 0, fn, "", std::string("nk:") + fn + ":badK");
     };
     ScratchVec<size_t> out(&scratch);
     if (k.isScalar()) {
@@ -151,7 +151,7 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected a Name-Value pair",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
+                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
         const std::string name = toLower(args[i].toString());
         const Value &val = args[i + 1];
         if (name == "endpoints") {
@@ -164,33 +164,33 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
                 else
                     throw Error(std::string(fn) + ": Endpoints must be "
                                 "'shrink', 'discard', 'fill' or a scalar",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":ep");
+                                0, 0, fn, "", std::string("nk:") + fn + ":ep");
             } else if (val.isScalar()) {
                 o.ep = EndpointMode::Scalar;
                 o.ep_fill = val.toScalar();
             } else {
                 throw Error(std::string(fn) + ": Endpoints must be a string "
                             "or numeric scalar",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":ep");
+                            0, 0, fn, "", std::string("nk:") + fn + ":ep");
             }
         } else if (name == "samplepoints") {
             throw Error(std::string(fn) + ": 'SamplePoints' is not yet "
-                        "supported in numkit (parity gap)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
+                        "supported in nk (parity gap)",
+                        0, 0, fn, "", std::string("nk:") + fn + ":samplePts");
         } else if (name == "datavariables" || name == "replacevalues") {
             throw Error(std::string(fn) + ": '" + name + "' is for table/"
-                        "timetable inputs (numkit does not implement those)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
+                        "timetable inputs (nk does not implement those)",
+                        0, 0, fn, "", std::string("nk:") + fn + ":tableOnly");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
+                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
         }
         i += 2;
     }
     if (i != args.size())
         throw Error(std::string(fn) + ": dangling argument at position " +
                     std::to_string(i + 1),
-                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("nk:") + fn + ":nargin");
     return o;
 }
 
@@ -612,7 +612,7 @@ Value movvar_impl(const Value &x, Span<const size_t> k, int normFlag, const MovO
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error("movvar: normFlag must be 0 or 1",
-                     0, 0, "movvar", "", "numkit:movvar:badNormFlag");
+                     0, 0, "movvar", "", "nk:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
     const int d = resolveDim(x, opt.dim, "movvar");
     return movingDriverDim(x, w, d, opt, [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); }, mr);
@@ -649,4 +649,4 @@ void hampelCore(const double *src, std::size_t n, int k, double nsigmas,
                 double *dst, std::uint8_t *mask, double *median,
                 double *sigma, std::pmr::memory_resource *mr);
 
-} // namespace numkit::stats
+} // namespace nk::stats

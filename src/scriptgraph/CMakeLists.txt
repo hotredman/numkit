@@ -8,16 +8,16 @@
 
 add_subdirectory(src)  # exports SCRIPTGRAPHLIB_SOURCES via PARENT_SCOPE
 
-list(APPEND NUMKIT_LIBS_SOURCES ${SCRIPTGRAPHLIB_SOURCES})
-list(APPEND NUMKIT_LIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+list(APPEND NK_LIBS_SOURCES ${SCRIPTGRAPHLIB_SOURCES})
+list(APPEND NK_LIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-list(APPEND NUMKIT_LIBS_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/scriptgraph/node_graph.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/scriptgraph/lowering.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/scriptgraph/serialize.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/scriptgraph/ast_serialize.hpp
+list(APPEND NK_LIBS_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/scriptgraph/node_graph.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/scriptgraph/lowering.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/scriptgraph/serialize.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/scriptgraph/ast_serialize.hpp
 )
 
-set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)
-set(NUMKIT_LIBS_HEADERS      ${NUMKIT_LIBS_HEADERS}      PARENT_SCOPE)
-set(NUMKIT_LIBS_INCLUDE_DIRS ${NUMKIT_LIBS_INCLUDE_DIRS} PARENT_SCOPE)
+set(NK_LIBS_SOURCES      ${NK_LIBS_SOURCES}      PARENT_SCOPE)
+set(NK_LIBS_HEADERS      ${NK_LIBS_HEADERS}      PARENT_SCOPE)
+set(NK_LIBS_INCLUDE_DIRS ${NK_LIBS_INCLUDE_DIRS} PARENT_SCOPE)

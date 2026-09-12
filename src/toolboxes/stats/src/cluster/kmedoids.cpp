@@ -1,13 +1,13 @@
 // toolboxes/stats/src/cluster/kmedoids.cpp
 
-#include <numkit/stats/cluster/kmedoids.hpp>
+#include <nk/stats/cluster/kmedoids.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/ops/rng_context.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/ops/rng_context.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -19,7 +19,7 @@
 
 #include "kmedoids_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -125,7 +125,7 @@ ScratchVec<double> read_rows(const Value &X, std::pmr::memory_resource *scratch_
 // `info` (the 6th MATLAB output) is built by the adapter via Value::structure.
 
 KmedoidsResult
-kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
+kmedoids_full(::nk::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
@@ -135,7 +135,7 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
     const size_t D = X.dims().cols();
     if (K < 1 || (size_t)K > N)
         throw Error("kmedoids: K must be in 1..N", 0, 0, "kmedoids", "",
-                    "numkit:kmedoids:badK");
+                    "nk:kmedoids:badK");
 
     ScratchArena scratch(mr);
     ScratchVec<double> Xv = read_rows(X, &scratch);
@@ -272,7 +272,7 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
+kmedoids(::nk::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
     auto R = kmedoids_full(rng, X, K, max_iter, replicates, metric_name, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),
@@ -287,7 +287,7 @@ std::tuple<Value, Value>
 dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, double p, std::pmr::memory_resource *mr)
 {
     if (eps <= 0.0)  throw Error("dbscan: eps must be positive",
-                                 0, 0, "dbscan", "", "numkit:dbscan:badeps");
+                                 0, 0, "dbscan", "", "nk:dbscan:badeps");
     if (minpts <= 0) minpts = 1;
     const Metric m = parse_metric(metric_name);
 
@@ -303,7 +303,7 @@ dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, d
     if (precomputed) {
         if (X.dims().cols() != N)
             throw Error("dbscan: precomputed distance matrix must be N×N",
-                        0, 0, "dbscan", "", "numkit:dbscan:badprecomp");
+                        0, 0, "dbscan", "", "nk:dbscan:badprecomp");
         Dmat.assign(N * N, 0.0);
         for (size_t i = 0; i < N; ++i)
             for (size_t j = 0; j < N; ++j)
@@ -382,4 +382,4 @@ dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, s
     return dbscan(X, eps, minpts, metric_name, 2.0, mr);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -1,8 +1,8 @@
-#include <numkit/core/lexer.hpp>
+#include <nk/core/lexer.hpp>
 #include <gtest/gtest.h>
 #include <algorithm>
 
-using namespace numkit;
+using namespace nk;
 
 // ============================================================
 // Вспомогательные функции

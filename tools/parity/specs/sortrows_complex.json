@@ -11,5 +11,5 @@
     "real(D(1,1))", "real(D(4,1))",
     "real(v(1))", "imag(v(2))", "imag(v(3))"
   ],
-  "comment": "Sig: [B,idx] = sortrows(A). COMPLEX sortrows orders rows lexicographically; each column compares by magnitude |z| then phase angle arg(z) ascending (negative col index = descending on that column); NaN component sorts last. sortrows([3+4i 2;1 1;3+4i 0;1 5i]) -> rows [2 4 3 1]: col1=[1 1 3+4i 3+4i], col2=[1 5i 0 2]. DEEP-PROBE 2026-05-29: numkit previously routed complex through toDoubleMatrix2D, SILENTLY DROPPING the imaginary part and returning wrong rows; added sortRowsComplex()."
+  "comment": "Sig: [B,idx] = sortrows(A). COMPLEX sortrows orders rows lexicographically; each column compares by magnitude |z| then phase angle arg(z) ascending (negative col index = descending on that column); NaN component sorts last. sortrows([3+4i 2;1 1;3+4i 0;1 5i]) -> rows [2 4 3 1]: col1=[1 1 3+4i 3+4i], col2=[1 5i 0 2]. DEEP-PROBE 2026-05-29: nk previously routed complex through toDoubleMatrix2D, SILENTLY DROPPING the imaginary part and returning wrong rows; added sortRowsComplex()."
 }

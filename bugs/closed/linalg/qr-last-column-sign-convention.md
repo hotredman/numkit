@@ -20,11 +20,11 @@ REMAINING 4 scripts — CLOSED as not-a-defect (distillate 2026-09-06):
 the Hessenberg output and the FIRST qr call are identical to 10
 digits; iteration traces stay identical to 12 digits for 10 RQ steps;
 the FIRST divergence is 1 ulp at iteration 11 (A(2,1) ...054599 vs
-...054598) — matmul rounding order (numkit vs MATLAB's MKL). Over the
+...054598) — matmul rounding order (nk vs MATLAB's MKL). Over the
 remaining ~990 chaotic iterations that 1-ulp seed decorrelates the
 trajectory and the converged 2x2 Schur block lands with the opposite
 sign layout: identical spectrum, identical |values|, deterministic
-within each engine (numkit's wasm double-run in the compare harness
+within each engine (nk's wasm double-run in the compare harness
 proves self-consistency). Per the playbook rule 5 (summation-order
 variance is not a bug) — matching would require a bit-identical BLAS,
 which is out of scope by design. The 4 scripts carry a
@@ -38,7 +38,7 @@ which is out of scope by design. The 4 scripts carry a
 clear;
 [Q1, R1] = qr([0 -5 2; 6 0 -12; 1 3 0]);
 % MATLAB R1(3,3) = 2.7164,  Q1(:,3) = [0.5093; -0.1415; 0.8489]
-% numkit R1(3,3) = -2.71638, Q1(:,3) = [-0.5093; 0.1415; -0.8489]
+% nk R1(3,3) = -2.71638, Q1(:,3) = [-0.5093; 0.1415; -0.8489]
 % (the other columns/rows match; A = Q1*R1 holds in both)
 % Control: 50 RQ iterations converge to the SAME A in both engines.
 ```

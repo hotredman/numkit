@@ -3,15 +3,15 @@
 // Unit tests for blocked QR decomposition (Phase 4.2).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/value/value.hpp>
 
 #include <cmath>
 #include <complex>
 #include <random>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(BlockedQrTest, BlockedQr256Real) {
     const size_t m = 256;

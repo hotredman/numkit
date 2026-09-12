@@ -2,10 +2,10 @@
 //
 // Regression guard for firpmord (Phase 4.7). Bit-equal MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FirpmordTest : public ::testing::Test
 {

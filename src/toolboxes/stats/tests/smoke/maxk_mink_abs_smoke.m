@@ -2,7 +2,7 @@ clear
 
 % maxk / mink now support 'ComparisonMethod','abs', which ranks elements by
 % MAGNITUDE |x| (returning the ORIGINAL signed values, not their absolute
-% values); ties break by ascending original index. numkit previously threw
+% values); ties break by ascending original index. nk previously threw
 % "ComparisonMethod='abs' not yet supported". The default ('real'/'auto') is
 % unchanged.
 

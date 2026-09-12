@@ -3,15 +3,15 @@
 // Nonlinear least-squares fit via Levenberg-Marquardt + parameter and
 // prediction confidence intervals.
 
-#include <numkit/stats/regress/regress.hpp>
+#include <nk/stats/regress/regress.hpp>
 
-#include <numkit/stats/distributions/students_t.hpp>     // tinv
-#include <numkit/linalg/solvers.hpp>                     // linsolve
-#include <numkit/linalg/properties.hpp>                  // inv
+#include <nk/stats/distributions/students_t.hpp>     // tinv
+#include <nk/linalg/solvers.hpp>                     // linsolve
+#include <nk/linalg/properties.hpp>                  // inv
 
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/fn_handle.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/fn_handle.hpp>
 
 #include <algorithm>
 #include <array>
@@ -20,7 +20,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -201,7 +201,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     const std::size_t p = beta0.numel();
     if (p == 0)
         throw Error("nlinfit: beta0 cannot be empty",
-                    0, 0, "nlinfit", "", "numkit:nlinfit:emptyBeta0");
+                    0, 0, "nlinfit", "", "nk:nlinfit:emptyBeta0");
 
     std::vector<double> beta = toFlatDouble(beta0);
     std::vector<double> yv = toFlatDouble(y);
@@ -281,10 +281,10 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
     const std::size_t n = R.numel();
     if (J.dims().rows() != n || J.dims().cols() != p)
         throw Error("nlparci: J must be (n × p) consistent with R, beta",
-                    0, 0, "nlparci", "", "numkit:nlparci:shapeMismatch");
+                    0, 0, "nlparci", "", "nk:nlparci:shapeMismatch");
     if (n <= p)
         throw Error("nlparci: need n > p degrees of freedom",
-                    0, 0, "nlparci", "", "numkit:nlparci:noDOF");
+                    0, 0, "nlparci", "", "nk:nlparci:noDOF");
 
     // MSE = ||R||² / (n - p).
     double sse = 0.0;
@@ -324,10 +324,10 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
     const std::size_t m = X.dims().rows();
     if (J.dims().rows() != n || J.dims().cols() != p)
         throw Error("nlpredci: J must be (n × p) consistent with R, beta",
-                    0, 0, "nlpredci", "", "numkit:nlpredci:shapeMismatch");
+                    0, 0, "nlpredci", "", "nk:nlpredci:shapeMismatch");
     if (n <= p)
         throw Error("nlpredci: need n > p degrees of freedom",
-                    0, 0, "nlpredci", "", "numkit:nlpredci:noDOF");
+                    0, 0, "nlpredci", "", "nk:nlpredci:noDOF");
 
     double sse = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
@@ -381,4 +381,4 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
     return { std::move(ypred), std::move(delta) };
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -15,7 +15,7 @@
     "ri2",
     "cri"
   ],
-  "comment": "Sig: r = fix(...). Element-wise libm-backed primitive. INTEGER input is the IDENTITY and keeps the class: fix(int32([-7 7]))=[-7 7] int32 (numkit previously threw 'Not a double array'; fixed 2026-05-30). Spec-extension batch 2026-05-09 + integer-class. NOTE: ; only inside matrix-literal INPUTS.",
+  "comment": "Sig: r = fix(...). Element-wise libm-backed primitive. INTEGER input is the IDENTITY and keeps the class: fix(int32([-7 7]))=[-7 7] int32 (nk previously threw 'Not a double array'; fixed 2026-05-30). Spec-extension batch 2026-05-09 + integer-class. NOTE: ; only inside matrix-literal INPUTS.",
   "bench_setup": "xb = mod((1:N)*7919,2000)*0.01 - 10;",
   "bench_expr": "rb=fix(xb);"
 }

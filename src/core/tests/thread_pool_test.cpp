@@ -2,17 +2,17 @@
 //
 // Unit tests for the std::thread-based pool used by SIMD kernels above
 // their parallel thresholds. Compiled in every build but only registers
-// gtest cases when NUMKIT_WITH_THREADS is defined; on non-threaded
+// gtest cases when NK_WITH_THREADS is defined; on non-threaded
 // builds this file produces a translation unit with zero test bodies
 // (the unused-helper trick keeps the linker happy without #if'ing the
 // whole file).
 
 #include <gtest/gtest.h>
 
-#if defined(NUMKIT_WITH_THREADS)
+#if defined(NK_WITH_THREADS)
 
-#include <numkit/ops/parallel_for.hpp>
-#include <numkit/ops/thread_pool.hpp>
+#include <nk/ops/parallel_for.hpp>
+#include <nk/ops/thread_pool.hpp>
 
 #include <atomic>
 #include <cstddef>
@@ -20,8 +20,8 @@
 #include <thread>
 #include <vector>
 
-using numkit::detail::parallel_for;
-using numkit::detail::ThreadPool;
+using nk::detail::parallel_for;
+using nk::detail::ThreadPool;
 
 namespace {
 
@@ -159,4 +159,4 @@ TEST(ParallelForTest, ZeroNIsNoOp)
 
 } // namespace
 
-#endif // NUMKIT_WITH_THREADS
+#endif // NK_WITH_THREADS

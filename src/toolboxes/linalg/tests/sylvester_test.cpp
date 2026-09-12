@@ -2,10 +2,10 @@
 //
 // Regression guard for builtin::sylvester (symmetric A and B form).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SylvesterTest : public ::testing::Test
 {

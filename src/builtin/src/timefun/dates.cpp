@@ -1,10 +1,10 @@
 // src/builtin/src/timefun/dates.cpp
 //
-// Date conversions, calendar operations, and formatting for numkit::builtin.
+// Date conversions, calendar operations, and formatting for nk::builtin.
 
-#include <numkit/builtin/timefun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/builtin/timefun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 static inline double civilToSerial(double yd, double md, double dd, double hd, double mind, double sd) {
     double dInt;
@@ -887,4 +887,4 @@ Value yyyymmdd(Span<const Value> args, std::pmr::memory_resource *mr) {
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

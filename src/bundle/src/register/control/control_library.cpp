@@ -8,12 +8,12 @@
 // `regOnly` so engine startup doesn't trip the duplicate-registration
 // guard.
 
-#include <numkit/control/library.hpp>
+#include <nk/control/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::control::detail {
+namespace nk::control::detail {
 // lti/lti.cpp
 void tf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zpk_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -81,9 +81,9 @@ void lqr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dlqr_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in toolboxes/builtin and toolboxes/signal — we don't shadow them here.)
-} // namespace numkit::control::detail
+} // namespace nk::control::detail
 
-namespace numkit {
+namespace nk {
 
 void ControlLibrary::install(Engine &engine)
 {
@@ -167,4 +167,4 @@ void ControlLibrary::install(Engine &engine)
     reg("riccati", "dlqr", &control::detail::dlqr_reg);
 }
 
-} // namespace numkit
+} // namespace nk

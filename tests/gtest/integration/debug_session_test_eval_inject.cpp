@@ -1,9 +1,9 @@
 // Test: variables created in debug eval are accessible after continue
-#include <numkit/core/debug_session.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/debug_session.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 // Test 1: Modify existing variable during debug, verify change persists
 TEST(DebugEvalInjectTest, ModifiedVarSurvivesContinue)

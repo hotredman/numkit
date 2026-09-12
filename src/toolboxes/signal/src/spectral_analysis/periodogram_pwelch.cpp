@@ -3,13 +3,13 @@
 // periodogram + pwelch. Split from spectral_analysis/. spectrogram lives in
 // time_frequency/spectrogram.cpp.
 
-#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <nk/signal/spectral_analysis/periodogram_pwelch.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/signal/transforms/fft.hpp>
 
 #include "../dsp_helpers.hpp"
 
@@ -18,7 +18,7 @@
 #include <complex>
 #include <memory_resource>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -120,8 +120,8 @@ periodogramConf(const Value &Pxx, double confidenceLevel, bool realInput, bool n
     //   chi2inv(q, 1) = (√2 · erfinv(q))²     (folded normal / 1 DOF)
     const double c2Lo = -2.0 * std::log(1.0 - qLo);
     const double c2Hi = -2.0 * std::log(1.0 - qHi);
-    const double eLo  = numkit::builtin::erfinv(Value::scalar(qLo, mr)).toScalar();
-    const double eHi  = numkit::builtin::erfinv(Value::scalar(qHi, mr)).toScalar();
+    const double eLo  = nk::builtin::erfinv(Value::scalar(qLo, mr)).toScalar();
+    const double eHi  = nk::builtin::erfinv(Value::scalar(qHi, mr)).toScalar();
     const double c1Lo = 2.0 * eLo * eLo;
     const double c1Hi = 2.0 * eHi * eHi;
 
@@ -250,7 +250,7 @@ CrossWelchOut crossWelch(const Value &x, const Value &y, const Value &window, si
     const size_t ny = y.numel();
     if (nx != ny)
         throw Error("cpsd/mscohere: x and y must have the same length",
-                    0, 0, "cpsd", "", "numkit:cpsd:size");
+                    0, 0, "cpsd", "", "nk:cpsd:size");
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
 
@@ -395,4 +395,4 @@ tfestimate(const Value &x, const Value &y, const Value &window, size_t noverlap,
     return std::make_tuple(std::move(Txy), std::move(F));
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

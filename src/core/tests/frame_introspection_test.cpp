@@ -552,15 +552,15 @@ INSTANTIATE_DUAL(EvalRegressionTest);
 // ============================================================
 
 #include <gtest/gtest.h>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
 namespace {
 
-class CoreBuiltinsNoCompatTest : public ::testing::TestWithParam<numkit::Engine::Backend> {};
+class CoreBuiltinsNoCompatTest : public ::testing::TestWithParam<nk::Engine::Backend> {};
 
 TEST_P(CoreBuiltinsNoCompatTest, ClearWorksWithoutImport)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     // NO `import compat.*` here.
     e.eval("x = 42;");
@@ -571,7 +571,7 @@ TEST_P(CoreBuiltinsNoCompatTest, ClearWorksWithoutImport)
 
 TEST_P(CoreBuiltinsNoCompatTest, ClearAllWorksWithoutImport)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     e.eval("a=1; b=2; c=3;");
     EXPECT_NO_THROW(e.eval("clear all;"));
@@ -582,7 +582,7 @@ TEST_P(CoreBuiltinsNoCompatTest, ClearAllWorksWithoutImport)
 
 TEST_P(CoreBuiltinsNoCompatTest, WhoWhosWorkWithoutImport)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     e.eval("v = 5;");
     EXPECT_NO_THROW(e.eval("who;"));
@@ -591,7 +591,7 @@ TEST_P(CoreBuiltinsNoCompatTest, WhoWhosWorkWithoutImport)
 
 TEST_P(CoreBuiltinsNoCompatTest, EvalWorksWithoutImport)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     EXPECT_NO_THROW(e.eval("eval('q = 7;');"));
     auto *q = e.getVariable("q");
@@ -601,7 +601,7 @@ TEST_P(CoreBuiltinsNoCompatTest, EvalWorksWithoutImport)
 
 TEST_P(CoreBuiltinsNoCompatTest, AssigninEvalinWorkWithoutImport)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     EXPECT_NO_THROW(e.eval("assignin('base', 'foo', 99);"));
     auto *foo = e.getVariable("foo");
@@ -616,7 +616,7 @@ TEST_P(CoreBuiltinsNoCompatTest, AssigninEvalinWorkWithoutImport)
 
 TEST_P(CoreBuiltinsNoCompatTest, ImportItselfWorksWithoutCompat)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     // `import` is a builtin too — must be available without import.
     EXPECT_NO_THROW(e.eval("import('signal.windows.*');"));
@@ -628,7 +628,7 @@ TEST_P(CoreBuiltinsNoCompatTest, ImportItselfWorksWithoutCompat)
 // without `import compat.*` or `import graphics.*`.
 TEST_P(CoreBuiltinsNoCompatTest, FigureClosePromotedToCore)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     EXPECT_NO_THROW(e.eval("figure(1);"));
     EXPECT_NO_THROW(e.eval("figure(2);"));
@@ -638,7 +638,7 @@ TEST_P(CoreBuiltinsNoCompatTest, FigureClosePromotedToCore)
 
 TEST_P(CoreBuiltinsNoCompatTest, HoldPromotedToCore)
 {
-    numkit::StandardEngine e;
+    nk::StandardEngine e;
     e.setBackend(GetParam());
     EXPECT_NO_THROW(e.eval("figure(1);"));
     EXPECT_NO_THROW(e.eval("hold on;"));
@@ -646,10 +646,10 @@ TEST_P(CoreBuiltinsNoCompatTest, HoldPromotedToCore)
 }
 
 INSTANTIATE_TEST_SUITE_P(TW_VM, CoreBuiltinsNoCompatTest,
-    ::testing::Values(numkit::Engine::Backend::TreeWalker,
-                      numkit::Engine::Backend::VM),
-    [](const ::testing::TestParamInfo<numkit::Engine::Backend> &info) {
-        return info.param == numkit::Engine::Backend::TreeWalker ? "TW" : "VM";
+    ::testing::Values(nk::Engine::Backend::TreeWalker,
+                      nk::Engine::Backend::VM),
+    [](const ::testing::TestParamInfo<nk::Engine::Backend> &info) {
+        return info.param == nk::Engine::Backend::TreeWalker ? "TW" : "VM";
     });
 
 } // namespace

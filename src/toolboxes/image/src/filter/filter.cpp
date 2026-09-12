@@ -1,15 +1,15 @@
 // toolboxes/image/src/filter/filter.cpp
 
-#include <numkit/image/filter/filter.hpp>
-#include <numkit/image/type_convert/type_convert.hpp>
+#include <nk/image/filter/filter.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/signal/convolution/convolution.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/signal/convolution/convolution.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/parallel_for.hpp>
 #include "filter_detail.hpp"
 
 #include <cctype>
@@ -28,7 +28,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -136,7 +136,7 @@ Value padarray(const Value &x, const std::vector<int> &padsize, PadMode mode, do
             }
             default:
                 throw Error("padarray: unsupported class", 0, 0, "padarray", "",
-                            "numkit:padarray:badtype");
+                            "nk:padarray:badtype");
         }
     };
 
@@ -173,7 +173,7 @@ Value fspecial_average(int rows, int cols, std::pmr::memory_resource *mr) {
 
 Value fspecial_gaussian(int rows, int cols, double sigma, std::pmr::memory_resource *mr) {
     if (sigma <= 0.0) throw Error("fspecial: sigma must be positive",
-                                  0, 0, "fspecial", "", "numkit:fspecial:sigma");
+                                  0, 0, "fspecial", "", "nk:fspecial:sigma");
     const double cy = (rows - 1) / 2.0;
     const double cx = (cols - 1) / 2.0;
     const double inv2s2 = 1.0 / (2.0 * sigma * sigma);
@@ -250,7 +250,7 @@ Value fspecial_prewitt(std::pmr::memory_resource *mr) {
 
 Value fspecial_disk(double rad, std::pmr::memory_resource *mr) {
     if (rad <= 0.0) throw Error("fspecial: radius must be positive",
-                                0, 0, "fspecial", "", "numkit:fspecial:radius");
+                                0, 0, "fspecial", "", "nk:fspecial:radius");
     // MATLAB R2025b fspecial('disk',rad): each cell's weight is the EXACT
     // area of the unit cell that lies inside the disk of radius rad (the
     // sub-pixel area-coverage integral), not a linear-taper approximation.
@@ -382,7 +382,7 @@ Value fspecial_unsharp(double alpha, std::pmr::memory_resource *mr) {
     // corners -a, edge-mids a-1, centre a+5).
     if (!(alpha >= 0.0 && alpha <= 1.0))
         throw Error("fspecial: unsharp alpha must be in [0, 1]",
-                    0, 0, "fspecial", "", "numkit:fspecial:alpha");
+                    0, 0, "fspecial", "", "nk:fspecial:alpha");
     const double a = alpha;
     const double d = a + 1.0;
     std::vector<double> k = {
@@ -435,7 +435,7 @@ Value fspecial(const std::string &type, const std::vector<double> &params, std::
         return fspecial_motion(len, theta, mr);
     }
     throw Error("fspecial: unknown filter type '" + type + "'",
-                0, 0, "fspecial", "", "numkit:fspecial:badtype");
+                0, 0, "fspecial", "", "nk:fspecial:badtype");
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -473,7 +473,7 @@ inline void store_classed(Value &out, size_t i, double v, ValueType t) {
         }
         default:
             throw Error("imfilter: unsupported class", 0, 0, "imfilter", "",
-                        "numkit:imfilter:badtype");
+                        "nk:imfilter:badtype");
     }
 }
 
@@ -544,7 +544,7 @@ Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_valu
         if (ir1 > ir0 && ic1 > ic0) {
             // Each output column writes a disjoint dst column and only reads
             // src + the read-only kernel, so the column loop is data-parallel.
-            // parallel_for is a no-op (plain fn(0,n)) unless NUMKIT_WITH_THREADS
+            // parallel_for is a no-op (plain fn(0,n)) unless NK_WITH_THREADS
             // is set; thread only when the interior work dwarfs the pool
             // hand-off (~1M tap-multiplies), else stay on the caller's thread.
             const std::size_t ncols = (std::size_t)(ic1 - ic0);
@@ -552,7 +552,7 @@ Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_valu
                                       (std::size_t)kH * (std::size_t)kW;
             const std::size_t threshold =
                 (work >= (std::size_t{1} << 20)) ? std::size_t{1} : ncols + 1;
-            numkit::detail::parallel_for(ncols, threshold,
+            nk::detail::parallel_for(ncols, threshold,
                 [&](std::size_t cs, std::size_t ce) {
                     for (std::size_t cc = cs; cc < ce; ++cc) {
                         const int oc = ic0 + (int)cc;
@@ -768,27 +768,27 @@ Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
 {
     if (fH <= 0 || fW <= 0)
         throw Error("integralBoxFilter: filterSize must be positive",
-                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:badSize");
+                    0, 0, "integralBoxFilter", "", "nk:integralBoxFilter:badSize");
     if ((fH & 1) == 0 || (fW & 1) == 0)
         throw Error("integralBoxFilter: filterSize must be odd",
-                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:notOdd");
+                    0, 0, "integralBoxFilter", "", "nk:integralBoxFilter:notOdd");
 
     const auto &d = I.dims();
     if (d.ndim() > 3)
         throw Error("integralBoxFilter: input must be 2-D or 3-D integral image",
-                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:rank");
+                    0, 0, "integralBoxFilter", "", "nk:integralBoxFilter:rank");
 
     const size_t H1 = d.rows();
     const size_t W1 = d.cols();
     if (H1 < 1 || W1 < 1)
         throw Error("integralBoxFilter: integral image must be at least (1+1) × (1+1)",
-                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:tiny");
+                    0, 0, "integralBoxFilter", "", "nk:integralBoxFilter:tiny");
     // Underlying image height / width.
     const size_t H = H1 - 1;
     const size_t W = W1 - 1;
     if (static_cast<size_t>(fH) > H || static_cast<size_t>(fW) > W)
         throw Error("integralBoxFilter: filter size too large for integral image",
-                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:tooLarge");
+                    0, 0, "integralBoxFilter", "", "nk:integralBoxFilter:tooLarge");
 
     const size_t C = (d.ndim() == 3) ? d.pages() : 1;
     const size_t outH = H - static_cast<size_t>(fH) + 1;
@@ -841,27 +841,27 @@ Value integralBoxFilter3(const Value &I, int fH, int fW, int fP,
 {
     if (fH <= 0 || fW <= 0 || fP <= 0)
         throw Error("integralBoxFilter3: filterSize must be positive",
-                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badSize");
+                    0, 0, "integralBoxFilter3", "", "nk:integralBoxFilter3:badSize");
     if ((fH & 1) == 0 || (fW & 1) == 0 || (fP & 1) == 0)
         throw Error("integralBoxFilter3: Expected filterSize to be odd.",
-                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:notOdd");
+                    0, 0, "integralBoxFilter3", "", "nk:integralBoxFilter3:notOdd");
 
     const auto &d = I.dims();
     if (d.ndim() > 3)
         throw Error("integralBoxFilter3: input must be a 3-D integral volume",
-                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:rank");
+                    0, 0, "integralBoxFilter3", "", "nk:integralBoxFilter3:rank");
     const size_t H1 = d.rows();
     const size_t W1 = d.cols();
     const size_t D1 = d.is3D() ? d.pages() : 1;
     if (H1 < 2 || W1 < 2 || D1 < 2)
         throw Error("integralBoxFilter3: integral volume must be at least (1+1)^3",
-                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:tiny");
+                    0, 0, "integralBoxFilter3", "", "nk:integralBoxFilter3:tiny");
     // Underlying volume size.
     const size_t H = H1 - 1, W = W1 - 1, D = D1 - 1;
     if (static_cast<size_t>(fH) > H || static_cast<size_t>(fW) > W
         || static_cast<size_t>(fP) > D)
         throw Error("integralBoxFilter3: Filter size is too large for integral image.",
-                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:tooLarge");
+                    0, 0, "integralBoxFilter3", "", "nk:integralBoxFilter3:tooLarge");
 
     const size_t outH = H - static_cast<size_t>(fH) + 1;
     const size_t outW = W - static_cast<size_t>(fW) + 1;
@@ -918,22 +918,22 @@ static Value modefilt_impl(const Value &A, int fH, int fW, int fD,
     const bool is3D = (fD > 0);
     if (fH <= 0 || fW <= 0 || (is3D && fD <= 0))
         throw Error("modefilt: filter size must be positive",
-                    0, 0, "modefilt", "", "numkit:modefilt:badSize");
+                    0, 0, "modefilt", "", "nk:modefilt:badSize");
     if ((fH & 1) == 0 || (fW & 1) == 0 || (is3D && (fD & 1) == 0))
         throw Error("modefilt: filter size must be odd",
-                    0, 0, "modefilt", "", "numkit:modefilt:notOdd");
+                    0, 0, "modefilt", "", "nk:modefilt:notOdd");
 
     int padMode;  // 0=symmetric, 1=replicate, 2=zeros
     if (padopt.empty() || padopt == "symmetric") padMode = 0;
     else if (padopt == "replicate")              padMode = 1;
     else if (padopt == "zeros" || padopt == "zero") padMode = 2;
     else throw Error("modefilt: padopt must be 'symmetric', 'replicate', or 'zeros'",
-                     0, 0, "modefilt", "", "numkit:modefilt:badPad");
+                     0, 0, "modefilt", "", "nk:modefilt:badPad");
 
     const auto &d = A.dims();
     if (d.ndim() > 3 || (!is3D && d.ndim() > 2))
         throw Error("modefilt: input rank does not match filter rank",
-                    0, 0, "modefilt", "", "numkit:modefilt:rank");
+                    0, 0, "modefilt", "", "nk:modefilt:rank");
     const int H = static_cast<int>(d.rows());
     const int W = static_cast<int>(d.cols());
     const int D = is3D ? static_cast<int>(d.is3D() ? d.pages() : 1) : 1;
@@ -1234,7 +1234,7 @@ Value imsharpen(const Value &I, double radius, double amount, double threshold, 
     if (!(radius > 0.0)) radius = 1.0;
     if (!(threshold >= 0.0 && threshold <= 1.0))
         throw Error("imsharpen: threshold must be in [0, 1]",
-                    0, 0, "imsharpen", "", "numkit:imsharpen:threshold");
+                    0, 0, "imsharpen", "", "nk:imsharpen:threshold");
 
     // Gaussian filter size: 2*ceil(2*sigma)+1 — MATLAB default.
     int fs = 2 * (int)std::ceil(2.0 * radius) + 1;
@@ -1403,7 +1403,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
 {
     if (m <= 0 || n <= 0)
         throw Error("im2col: block size must be positive",
-                    0, 0, "im2col", "", "numkit:im2col:size");
+                    0, 0, "im2col", "", "nk:im2col:size");
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
     const ValueType T = A.type();
@@ -1414,7 +1414,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
     if (sliding) {
         if ((size_t)m > H || (size_t)n > W)
             throw Error("im2col(sliding): block larger than image",
-                        0, 0, "im2col", "", "numkit:im2col:size");
+                        0, 0, "im2col", "", "nk:im2col:size");
         outW = (H - (size_t)m + 1) * (W - (size_t)n + 1);
     } else if (block_type == "distinct") {
         const size_t Hb = (H + (size_t)m - 1) / (size_t)m;
@@ -1422,7 +1422,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
         outW = Hb * Wb;
     } else {
         throw Error("im2col: block_type must be 'sliding' or 'distinct'",
-                    0, 0, "im2col", "", "numkit:im2col:type");
+                    0, 0, "im2col", "", "nk:im2col:type");
     }
 
     Value B = Value::matrix(outH, outW, T, mr);
@@ -1447,7 +1447,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
         }
         default:
             throw Error("im2col: unsupported class",
-                        0, 0, "im2col", "", "numkit:im2col:badtype");
+                        0, 0, "im2col", "", "nk:im2col:badtype");
     }
     return B;
 }
@@ -1475,7 +1475,7 @@ Value imbilatfilt(const Value &I, double degreeOfSmoothing, double spatialSigma,
     if (!(spatialSigma > 0.0)) spatialSigma = 1.0;
     if (!(degreeOfSmoothing > 0.0))
         throw Error("imbilatfilt: degreeOfSmoothing must be > 0",
-                    0, 0, "imbilatfilt", "", "numkit:imbilatfilt:dos");
+                    0, 0, "imbilatfilt", "", "nk:imbilatfilt:dos");
 
     const size_t H = I.dims().rows();
     const size_t W = I.dims().cols();
@@ -1590,7 +1590,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
 {
     if (m <= 0 || n <= 0 || mm <= 0 || nn <= 0)
         throw Error("col2im: dimensions must be positive",
-                    0, 0, "col2im", "", "numkit:col2im:size");
+                    0, 0, "col2im", "", "nk:col2im:size");
     const size_t MM = (size_t)mm;
     const size_t NN = (size_t)nn;
     const ValueType T = B.type();
@@ -1599,12 +1599,12 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
     if (sliding) {
         if ((size_t)m > MM || (size_t)n > NN)
             throw Error("col2im(sliding): block larger than output image",
-                        0, 0, "col2im", "", "numkit:col2im:size");
+                        0, 0, "col2im", "", "nk:col2im:size");
         const size_t Hp = MM - (size_t)m + 1;
         const size_t Wp = NN - (size_t)n + 1;
         if (B.numel() != Hp * Wp)
             throw Error("col2im(sliding): B size mismatch — expected 1×(mm−m+1)·(nn−n+1)",
-                        0, 0, "col2im", "", "numkit:col2im:nelems");
+                        0, 0, "col2im", "", "nk:col2im:nelems");
         Value A = Value::matrix(Hp, Wp, T, mr);
         // Both A and B are column-major linearised; values flow 1:1.
         const size_t N = Hp * Wp;
@@ -1627,14 +1627,14 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
                 std::memcpy(A.logicalDataMut(), B.logicalData(), N); break;
             default:
                 throw Error("col2im: unsupported class",
-                            0, 0, "col2im", "", "numkit:col2im:badtype");
+                            0, 0, "col2im", "", "nk:col2im:badtype");
         }
         return A;
     }
 
     if (block_type != "distinct")
         throw Error("col2im: block_type must be 'sliding' or 'distinct'",
-                    0, 0, "col2im", "", "numkit:col2im:type");
+                    0, 0, "col2im", "", "nk:col2im:type");
 
     const size_t Hb = (MM + (size_t)m - 1) / (size_t)m;
     const size_t Wb = (NN + (size_t)n - 1) / (size_t)n;
@@ -1642,7 +1642,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
     const size_t expCols = Hb * Wb;
     if (B.dims().rows() != expRows || B.dims().cols() != expCols)
         throw Error("col2im(distinct): B shape mismatch — expected m·n × ⌈mm/m⌉·⌈nn/n⌉",
-                    0, 0, "col2im", "", "numkit:col2im:shape");
+                    0, 0, "col2im", "", "nk:col2im:shape");
 
     Value A = Value::matrix(MM, NN, T, mr);
     if (MM == 0 || NN == 0) return A;
@@ -1660,7 +1660,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
         case ValueType::LOGICAL: run(std::uint8_t{}); break;
         default:
             throw Error("col2im: unsupported class",
-                        0, 0, "col2im", "", "numkit:col2im:badtype");
+                        0, 0, "col2im", "", "nk:col2im:badtype");
     }
     return A;
 }
@@ -1681,7 +1681,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
 //   speckle        J = I + I * sqrt(var) * N(0, 1)      multiplicative
 //   poisson        J = Poisson(I * scale) / scale       scale per class
 
-Value imnoise(::numkit::ops::RngContext &rng, const Value &I, const std::string &mode, const Value &p1, const Value &p2, std::pmr::memory_resource *mr)
+Value imnoise(::nk::ops::RngContext &rng, const Value &I, const std::string &mode, const Value &p1, const Value &p2, std::pmr::memory_resource *mr)
 {
     const ValueType T = I.type();
     const size_t H = I.dims().rows();
@@ -1777,7 +1777,7 @@ Value imnoise(::numkit::ops::RngContext &rng, const Value &I, const std::string 
     else if (mode == "localvar") {
         if (p1.numel() != N)
             throw Error("imnoise('localvar', V): V must match I in size",
-                        0, 0, "imnoise", "", "numkit:imnoise:localvar");
+                        0, 0, "imnoise", "", "nk:imnoise:localvar");
         for (size_t i = 0; i < N; ++i) {
             const double x = toUnit(I.elemAsDouble(i));
             const double v = std::max(p1.elemAsDouble(i), 0.0);
@@ -1787,7 +1787,7 @@ Value imnoise(::numkit::ops::RngContext &rng, const Value &I, const std::string 
     }
     else {
         throw Error("imnoise: unknown mode '" + mode + "'",
-                    0, 0, "imnoise", "", "numkit:imnoise:mode");
+                    0, 0, "imnoise", "", "nk:imnoise:mode");
     }
     return out;
 }
@@ -1946,7 +1946,7 @@ Value ordfilt2(const Value &A, int nth, const Value &domain, const Value &S, Pad
     if (M == 0) return out;
     if (nth < 1 || nth > M)
         throw Error("ordfilt2: nth-order index out of range",
-                    0, 0, "ordfilt2", "", "numkit:ordfilt2:nth");
+                    0, 0, "ordfilt2", "", "nk:ordfilt2:nth");
 
     auto sample = [&](int r, int c) -> double {
         if (boundary == PadMode::Constant) {
@@ -2077,10 +2077,10 @@ Value imsmooth(const Value &I, const std::string &name, double sigma, std::pmr::
     for (char c : name) lo.push_back(static_cast<char>(std::tolower(c)));
     if (lo != "gaussian")
         throw Error("imsmooth: only 'Gaussian' mode is implemented",
-                    0, 0, "imsmooth", "", "numkit:imsmooth:mode");
+                    0, 0, "imsmooth", "", "nk:imsmooth:mode");
     if (!(sigma > 0.0))
         throw Error("imsmooth: sigma must be positive",
-                    0, 0, "imsmooth", "", "numkit:imsmooth:sigma");
+                    0, 0, "imsmooth", "", "nk:imsmooth:sigma");
 
     const ValueType cls = I.type();
     const int H = static_cast<int>(I.dims().rows());
@@ -2309,7 +2309,7 @@ Value medfilt3(const Value &V, int M, int N, int P, std::pmr::memory_resource *m
     if (P <= 0) P = 3;
     if (M % 2 == 0 || N % 2 == 0 || P % 2 == 0)
         throw Error("medfilt3: filter sizes must be odd",
-                    0, 0, "medfilt3", "", "numkit:medfilt3:size");
+                    0, 0, "medfilt3", "", "nk:medfilt3:size");
 
     const ValueType cls = V.type();
     const int H = static_cast<int>(V.dims().rows());
@@ -2373,10 +2373,10 @@ Value convmtx2(const Value &h, int m, int n, std::pmr::memory_resource *mr)
     const auto &dh = h.dims();
     if (dh.is3D())
         throw Error("convmtx2: kernel must be 2-D",
-                    0, 0, "convmtx2", "", "numkit:convmtx2:dims");
+                    0, 0, "convmtx2", "", "nk:convmtx2:dims");
     if (m <= 0 || n <= 0)
         throw Error("convmtx2: m, n must be positive integers",
-                    0, 0, "convmtx2", "", "numkit:convmtx2:size");
+                    0, 0, "convmtx2", "", "nk:convmtx2:size");
     const int M = static_cast<int>(dh.rows());
     const int N = static_cast<int>(dh.cols());
     const size_t out_rows = static_cast<size_t>(m + M - 1);
@@ -2509,7 +2509,7 @@ freqz2(const Value &h, size_t M, size_t N, std::pmr::memory_resource *mr)
 {
     if (h.dims().is3D())
         throw Error("freqz2: kernel must be 2-D",
-                    0, 0, "freqz2", "", "numkit:freqz2:dims");
+                    0, 0, "freqz2", "", "nk:freqz2:dims");
     const size_t P = h.dims().rows();
     const size_t Q = h.dims().cols();
     if (M == 0) M = 64;
@@ -2583,10 +2583,10 @@ Value roifilt2_combine(const Value &I, const Value &filtRes, const Value &BW,
     const std::size_t W = I.dims().cols();
     if (BW.dims().rows() != H || BW.dims().cols() != W)
         throw Error("roifilt2: I and BW must be the same size",
-                    0, 0, "roifilt2", "", "numkit:roifilt2:imageMaskSizeMismatch");
+                    0, 0, "roifilt2", "", "nk:roifilt2:imageMaskSizeMismatch");
     if (filtRes.dims().rows() != H || filtRes.dims().cols() != W)
         throw Error("roifilt2: filtered result size mismatch",
-                    0, 0, "roifilt2", "", "numkit:roifilt2:imageSizeMismatch");
+                    0, 0, "roifilt2", "", "nk:roifilt2:imageSizeMismatch");
     const ValueType cls = filtRes.type();
     Value out = Value::matrix(H, W, cls, mr);
     const std::size_t N = H * W;
@@ -2617,7 +2617,7 @@ Value roifilt2(const Value &h, const Value &I, const Value &BW,
 {
     if (I.dims().ndim() > 2)
         throw Error("roifilt2: I must be a 2-D image",
-                    0, 0, "roifilt2", "", "numkit:roifilt2:imageMustBe2D");
+                    0, 0, "roifilt2", "", "nk:roifilt2:imageMustBe2D");
     // imfilter defaults: correlation, zero boundary, same size.
     Value filtFull = imfilter(I, h, PadMode::Constant, 0.0, false, false, mr);
     return roifilt2_combine(I, filtFull, BW, mr);
@@ -2648,12 +2648,12 @@ Value imguidedfilter(const Value &A, const Value &G_in, int nhood,
     if (A.dims().is3D())
         throw Error("imguidedfilter: A must be 2-D",
                     0, 0, "imguidedfilter", "",
-                    "numkit:imguidedfilter:dim");
+                    "nk:imguidedfilter:dim");
     if (nhood < 1 || (nhood % 2) == 0)
         throw Error("imguidedfilter: NeighborhoodSize must be positive odd "
                     "integer",
                     0, 0, "imguidedfilter", "",
-                    "numkit:imguidedfilter:nhood");
+                    "nk:imguidedfilter:nhood");
     const std::size_t H = A.dims().rows();
     const std::size_t W = A.dims().cols();
     if (H == 0 || W == 0) return A;
@@ -2664,7 +2664,7 @@ Value imguidedfilter(const Value &A, const Value &G_in, int nhood,
         throw Error("imguidedfilter: G must be the same H × W as A "
                     "(RGB guidance not yet supported)",
                     0, 0, "imguidedfilter", "",
-                    "numkit:imguidedfilter:gshape");
+                    "nk:imguidedfilter:gshape");
 
     // Resolve default ε per A's class.
     double eps = eps_in;
@@ -2767,17 +2767,17 @@ Value imdiffusefilt(const Value &I,
     if (I.dims().is3D())
         throw Error("imdiffusefilt: 3-D inputs not yet supported",
                     0, 0, "imdiffusefilt", "",
-                    "numkit:imdiffusefilt:dim");
+                    "nk:imdiffusefilt:dim");
     if (connectivity != "maximal" && connectivity != "minimal")
         throw Error("imdiffusefilt: Connectivity must be 'maximal' or "
                     "'minimal'",
                     0, 0, "imdiffusefilt", "",
-                    "numkit:imdiffusefilt:conn");
+                    "nk:imdiffusefilt:conn");
     if (conduction != "exponential" && conduction != "quadratic")
         throw Error("imdiffusefilt: ConductionMethod must be "
                     "'exponential' or 'quadratic'",
                     0, 0, "imdiffusefilt", "",
-                    "numkit:imdiffusefilt:cond");
+                    "nk:imdiffusefilt:cond");
 
     const std::size_t M = I.dims().rows();
     const std::size_t W = I.dims().cols();
@@ -2809,7 +2809,7 @@ Value imdiffusefilt(const Value &I,
                 throw Error("imdiffusefilt: GradientThreshold must be a "
                             "positive finite scalar or vector",
                             0, 0, "imdiffusefilt", "",
-                            "numkit:imdiffusefilt:thresh");
+                            "nk:imdiffusefilt:thresh");
             threshVec.push_back(v);
         }
     }
@@ -2826,7 +2826,7 @@ Value imdiffusefilt(const Value &I,
         throw Error("imdiffusefilt: numel(GradientThreshold) must equal "
                     "NumberOfIterations",
                     0, 0, "imdiffusefilt", "",
-                    "numkit:imdiffusefilt:threshLen");
+                    "nk:imdiffusefilt:threshLen");
     }
 
     // Work in double precision (matches MATLAB for double; for
@@ -2971,16 +2971,16 @@ void imgaborfilt(const Value &A_in, double wavelength, double orientation,
 {
     if (A_in.dims().is3D())
         throw Error("imgaborfilt: A must be 2-D",
-                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:dim");
+                    0, 0, "imgaborfilt", "", "nk:imgaborfilt:dim");
     if (!(wavelength >= 2.0))
         throw Error("imgaborfilt: wavelength must be >= 2",
-                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:wavelength");
+                    0, 0, "imgaborfilt", "", "nk:imgaborfilt:wavelength");
     if (!(sfb > 0))
         throw Error("imgaborfilt: SpatialFrequencyBandwidth must be > 0",
-                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:sfb");
+                    0, 0, "imgaborfilt", "", "nk:imgaborfilt:sfb");
     if (!(aspect > 0))
         throw Error("imgaborfilt: SpatialAspectRatio must be > 0",
-                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:aspect");
+                    0, 0, "imgaborfilt", "", "nk:imgaborfilt:aspect");
 
     const std::size_t M = A_in.dims().rows();
     const std::size_t N = A_in.dims().cols();
@@ -3200,27 +3200,27 @@ void imnlmfilt(const Value &I, double dos,
 {
     if (I.dims().is3D())
         throw Error("imnlmfilt: RGB / colour inputs not yet supported",
-                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:dim");
+                    0, 0, "imnlmfilt", "", "nk:imnlmfilt:dim");
     const std::size_t H = I.dims().rows();
     const std::size_t W = I.dims().cols();
     if (H < 21 || W < 21)
         throw Error("imnlmfilt: image must be at least 21x21",
-                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:size");
+                    0, 0, "imnlmfilt", "", "nk:imnlmfilt:size");
     if (swsize < 1 || (swsize % 2) == 0)
         throw Error("imnlmfilt: SearchWindowSize must be a positive odd "
                     "integer",
-                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:sws");
+                    0, 0, "imnlmfilt", "", "nk:imnlmfilt:sws");
     if (cwsize < 1 || (cwsize % 2) == 0)
         throw Error("imnlmfilt: ComparisonWindowSize must be a positive "
                     "odd integer",
-                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:cws");
+                    0, 0, "imnlmfilt", "", "nk:imnlmfilt:cws");
     if (cwsize > swsize)
         throw Error("imnlmfilt: ComparisonWindowSize must be <= "
                     "SearchWindowSize",
-                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:cwsTooLarge");
+                    0, 0, "imnlmfilt", "", "nk:imnlmfilt:cwsTooLarge");
     if (static_cast<std::size_t>(swsize) > std::min(H, W))
         throw Error("imnlmfilt: SearchWindowSize must be <= min(H, W)",
-                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:swsTooLarge");
+                    0, 0, "imnlmfilt", "", "nk:imnlmfilt:swsTooLarge");
 
     const ValueType outT = I.type();
     const std::size_t N = H * W;
@@ -3332,4 +3332,4 @@ void imnlmfilt(const Value &I, double dos,
     }
 }
 
-} // namespace numkit::image
+} // namespace nk::image

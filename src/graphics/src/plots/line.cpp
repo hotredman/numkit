@@ -1,10 +1,10 @@
-// numkit/graphics — line.cpp
+// nk/graphics — line.cpp
 //
 // graphics.line.* builders (plot / plot3 / stem / stairs / area / errorbar / semilog* / fplot / comet / geoplot / xline), carved out of plots.cpp. Core-free bodies (GraphicsContext); shared
 // JSON/parse helpers come from plot_internal.hpp.
 
 #include "plot_internal.hpp"
-#include <numkit/graphics/graphics_context.hpp>
+#include <nk/graphics/graphics_context.hpp>
 
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit {
+namespace nk {
 
 void buildLinePlots(std::vector<PlotEntry> &table)
 {
@@ -1359,4 +1359,4 @@ void buildLinePlots(std::vector<PlotEntry> &table)
     reg("line", "yline", refLineImpl("yline"));
 }
 
-}  // namespace numkit
+}  // namespace nk

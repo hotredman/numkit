@@ -3,16 +3,16 @@
 // CallContext register half of cluster/linkage.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/cluster/distance.hpp>
-#include <numkit/stats/cluster/linkage.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/cluster/distance.hpp>
+#include <nk/stats/cluster/linkage.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
 #include "cluster/linkage_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void linkage_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("linkage: requires Y[, method[, metric]]",
-                    0, 0, "linkage", "", "numkit:linkage:nargin");
+                    0, 0, "linkage", "", "nk:linkage:nargin");
     auto lower = [](std::string s) {
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
@@ -59,7 +59,7 @@ void cluster_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("cluster: requires (Z, options)", 0, 0, "cluster", "",
-                    "numkit:cluster:nargin");
+                    "nk:cluster:nargin");
     int maxclust = -1;
     double cutoff = -1.0;
     int depth = 2;
@@ -86,7 +86,7 @@ void clusterdata_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("clusterdata: requires (X, ...)", 0, 0, "clusterdata", "",
-                    "numkit:clusterdata:nargin");
+                    "nk:clusterdata:nargin");
     int maxclust = -1;
     double cutoff = -1.0;
     int depth = 2;
@@ -129,7 +129,7 @@ void cophenet_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("cophenet: requires (Z, Y)", 0, 0, "cophenet", "",
-                    "numkit:cophenet:nargin");
+                    "nk:cophenet:nargin");
     auto [c, d] = cophenet_full(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(d);
@@ -140,7 +140,7 @@ void inconsistent_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("inconsistent: requires (Z[, depth])", 0, 0, "inconsistent",
-                    "", "numkit:inconsistent:nargin");
+                    "", "nk:inconsistent:nargin");
     int depth = (args.size() >= 2 && !args[1].isEmpty())
                 ? (int)args[1].toScalar() : 2;
     outs[0] = inconsistent(args[0], depth, ctx.engine->resource());
@@ -148,4 +148,4 @@ void inconsistent_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

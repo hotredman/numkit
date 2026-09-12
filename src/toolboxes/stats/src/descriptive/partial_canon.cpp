@@ -5,13 +5,13 @@
 //   partialcorri — partial correlation with X-column-specific controls
 //   canoncorr    — canonical correlation analysis (QR + SVD)
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/linalg/decompositions.hpp>     // qr_decompose, svd_decompose
+#include <nk/linalg/decompositions.hpp>     // qr_decompose, svd_decompose
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -19,7 +19,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -110,23 +110,23 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
 {
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("partialcorri: X, Y must be 2D matrices",
-                    0, 0, "partialcorri", "", "numkit:partialcorri:notMatrix");
+                    0, 0, "partialcorri", "", "nk:partialcorri:notMatrix");
     const std::size_t n  = static_cast<std::size_t>(Y.dims().dim(0));
     const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
     const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
     if (X.dims().dim(0) != static_cast<long long>(n))
         throw Error("partialcorri: rows(X) must equal rows(Y)",
-                    0, 0, "partialcorri", "", "numkit:partialcorri:dimMismatch");
+                    0, 0, "partialcorri", "", "nk:partialcorri:dimMismatch");
 
     const bool hasZ = !Z.isEmpty();
     std::size_t pZ = 0;
     if (hasZ) {
         if (Z.dims().ndim() > 2)
             throw Error("partialcorri: Z must be a 2D matrix",
-                        0, 0, "partialcorri", "", "numkit:partialcorri:notMatrix");
+                        0, 0, "partialcorri", "", "nk:partialcorri:notMatrix");
         if (Z.dims().dim(0) != static_cast<long long>(n))
             throw Error("partialcorri: rows(Z) must equal rows(Y)",
-                        0, 0, "partialcorri", "", "numkit:partialcorri:dimMismatch");
+                        0, 0, "partialcorri", "", "nk:partialcorri:dimMismatch");
         pZ = static_cast<std::size_t>(Z.dims().dim(1));
     }
 
@@ -198,16 +198,16 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
 {
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("canoncorr: X, Y must be 2D matrices",
-                    0, 0, "canoncorr", "", "numkit:canoncorr:notMatrix");
+                    0, 0, "canoncorr", "", "nk:canoncorr:notMatrix");
     const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
     const std::size_t q = static_cast<std::size_t>(Y.dims().dim(1));
     if (Y.dims().dim(0) != static_cast<long long>(n))
         throw Error("canoncorr: rows(Y) must equal rows(X)",
-                    0, 0, "canoncorr", "", "numkit:canoncorr:dimMismatch");
+                    0, 0, "canoncorr", "", "nk:canoncorr:dimMismatch");
     if (n < p + q)
         throw Error("canoncorr: insufficient observations (need n >= p + q)",
-                    0, 0, "canoncorr", "", "numkit:canoncorr:tooFewRows");
+                    0, 0, "canoncorr", "", "nk:canoncorr:tooFewRows");
 
     const std::size_t k = std::min(p, q);
     ScratchArena scratch(mr);
@@ -239,8 +239,8 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     // Full QR on centred Xc, Yc. QX is n × n orthogonal; RX is n × p
     // upper-triangular. We only need the first p columns of QX (call
     // it QX1) and the top p × p block of RX (call it RX1).
-    auto [QX, RX] = ::numkit::linalg::qr_decompose(Xc, mr);
-    auto [QY, RY] = ::numkit::linalg::qr_decompose(Yc, mr);
+    auto [QX, RX] = ::nk::linalg::qr_decompose(Xc, mr);
+    auto [QY, RY] = ::nk::linalg::qr_decompose(Yc, mr);
 
     // Take the leading `cols` columns of a matrix. The row count MUST come
     // from the source matrix, not the observation count `n`: this helper is
@@ -276,7 +276,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     }
 
     // SVD: M = U · diag(s) · V'. U is p × p, V is q × q, s length min(p,q).
-    auto [U, S, V] = ::numkit::linalg::svd_decompose(M, mr);
+    auto [U, S, V] = ::nk::linalg::svd_decompose(M, mr);
 
     // A_top = RX(1:p, 1:p) \ U(:, 1:k)
     //   ↔ solve RX1 · A_top = U(:, 1:k) for A_top (p × k).
@@ -320,4 +320,4 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     return { std::move(A), std::move(B), std::move(r) };
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

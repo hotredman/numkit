@@ -1,4 +1,4 @@
-#include <numkit/ops/blas2.hpp>
+#include <nk/ops/blas2.hpp>
 
 #include <cmath>
 
@@ -8,7 +8,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -83,11 +83,11 @@ void GerDoubleKernel(std::size_t m, std::size_t n,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(GemvDoubleKernel);
 HWY_EXPORT(GerDoubleKernel);
@@ -108,5 +108,5 @@ void ger(std::size_t m, std::size_t n,
     HWY_DYNAMIC_DISPATCH(GerDoubleKernel)(m, n, alpha, x, incx, y, incy, A, lda);
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif

@@ -13,7 +13,7 @@
     = `conv(a',b) + conv(a,b')`;
   - **2 outputs** `[q,d]` → quotient rule `d/dx(a/b)`,
     `q = conv(a',b) − conv(a,b')`, `d = conv(b,b)`.
-  numkit's adapter returned the quotient NUMERATOR (`num`, the `−` form) for the
+  nk's adapter returned the quotient NUMERATOR (`num`, the `−` form) for the
   single-output case too — so `polyder(a,b)` gave `conv(a',b) − conv(a,b')`
   instead of the product derivative `conv(a',b) + conv(a,b')`.
 - Fix: in `polyder_reg`, the 2-arg `nargout <= 1` path now computes
@@ -36,9 +36,9 @@ quotient-rule numerator instead of the derivative of the product `a*b`.
 
 ## Repro
 ```matlab
-polyder([1 0],[1 1])   % numkit: 1      ;  MATLAB: [2 1]   (d/dx[x*(x+1)])
-polyder([1 2],[1 3])   % numkit: 1      ;  MATLAB: [2 5]
-polyder([1 0 0],[1 1]) % numkit: [1 2 0];  MATLAB: [3 2 0]
+polyder([1 0],[1 1])   % nk: 1      ;  MATLAB: [2 1]   (d/dx[x*(x+1)])
+polyder([1 2],[1 3])   % nk: 1      ;  MATLAB: [2 5]
+polyder([1 0 0],[1 1]) % nk: [1 2 0];  MATLAB: [3 2 0]
 [q,d] = polyder([1 0],[1 1])  % q=1, d=[1 2 1] on BOTH (quotient form OK)
 ```
 

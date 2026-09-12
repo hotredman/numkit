@@ -12,5 +12,5 @@
     "m0", "m1",
     "ssum"
   ],
-  "comment": "Sig: y = meyeraux(x). Element-wise auxiliary polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷. MATLAB clips outside [0, 1]: x<=0 -> 0, x>=1 -> 1. Bug fix 2026-05-08: numkit was applying the raw polynomial outside [0, 1] (e.g. meyeraux(2) = -208 instead of MATLAB's 1)."
+  "comment": "Sig: y = meyeraux(x). Element-wise auxiliary polynomial 35x⁴ − 84x⁵ + 70x⁶ − 20x⁷. MATLAB clips outside [0, 1]: x<=0 -> 0, x>=1 -> 1. Bug fix 2026-05-08: nk was applying the raw polynomial outside [0, 1] (e.g. meyeraux(2) = -208 instead of MATLAB's 1)."
 }

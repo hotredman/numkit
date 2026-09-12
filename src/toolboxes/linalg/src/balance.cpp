@@ -3,18 +3,18 @@
 // MATLAB balance: diagonal-similarity scaling and permutation for eigenvalue computations.
 // Parlett-Reinsch (1969) algorithm; same as EISPACK `balanc`.
 
-#include <numkit/linalg/balance.hpp>
+#include <nk/linalg/balance.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -126,14 +126,14 @@ balance_impl(const Value &A, bool noperm, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("balance: input must be 2D",
-                    0, 0, "balance", "", "numkit:balance:Not2D");
+                    0, 0, "balance", "", "nk:balance:Not2D");
     const size_t n = A.dims().rows();
     if (A.dims().cols() != n)
         throw Error("balance: matrix must be square",
-                    0, 0, "balance", "", "numkit:balance:NotSquare");
+                    0, 0, "balance", "", "nk:balance:NotSquare");
     if (A.isComplex())
         throw Error("balance: complex input not supported in v1",
-                    0, 0, "balance", "", "numkit:balance:NoComplex");
+                    0, 0, "balance", "", "nk:balance:NoComplex");
 
     BalanceResult R;
     R.B = Value::matrix(n, n, ValueType::DOUBLE, mr);
@@ -164,4 +164,4 @@ balance_impl(const Value &A, bool noperm, std::pmr::memory_resource *mr)
     return R;
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

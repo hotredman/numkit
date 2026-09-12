@@ -5,13 +5,13 @@
 // for first-cut digital-comm sims composing with the cycle-17–20
 // modulation primitives.
 
-#include <numkit/comm/channel/fading.hpp>
+#include <nk/comm/channel/fading.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/ops/rng_context.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/ops/rng_context.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <complex>
@@ -19,7 +19,7 @@
 #include <random>
 #include <vector>
 
-namespace numkit::comm {
+namespace nk::comm {
 
 namespace {
 
@@ -27,7 +27,7 @@ using Cd = std::complex<double>;
 
 // Generate N iid samples of complex Gaussian CN(0, 1), i.e.
 //   real, imag ~ N(0, 1/2)  →  E[|h|²] = 1.
-std::vector<Cd> sampleCN01(::numkit::ops::RngContext &rng, size_t N) {
+std::vector<Cd> sampleCN01(::nk::ops::RngContext &rng, size_t N) {
     std::vector<Cd> h(N);
     if (N == 0) return h;
     auto &gen = rng;
@@ -48,7 +48,7 @@ Cd asComplex(const Value &x, size_t i) {
 
 } // anonymous
 
-Value rayleighchan(::numkit::ops::RngContext &rng, const Value &x, std::pmr::memory_resource *mr)
+Value rayleighchan(::nk::ops::RngContext &rng, const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     Value y = Value::matrix(x.dims().rows(), x.dims().cols(),
@@ -60,11 +60,11 @@ Value rayleighchan(::numkit::ops::RngContext &rng, const Value &x, std::pmr::mem
     return y;
 }
 
-Value ricianchan(::numkit::ops::RngContext &rng, const Value &x, double K, std::pmr::memory_resource *mr)
+Value ricianchan(::nk::ops::RngContext &rng, const Value &x, double K, std::pmr::memory_resource *mr)
 {
     if (K < 0.0)
         throw Error("ricianchan: K-factor must be ≥ 0",
-                    0, 0, "ricianchan", "", "numkit:ricianchan:K");
+                    0, 0, "ricianchan", "", "nk:ricianchan:K");
     const size_t N = x.numel();
     Value y = Value::matrix(x.dims().rows(), x.dims().cols(),
                             ValueType::COMPLEX, mr);
@@ -80,4 +80,4 @@ Value ricianchan(::numkit::ops::RngContext &rng, const Value &x, double K, std::
     return y;
 }
 
-} // namespace numkit::comm
+} // namespace nk::comm

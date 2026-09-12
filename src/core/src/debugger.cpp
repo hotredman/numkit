@@ -1,11 +1,11 @@
 // src/debugger.cpp
-#include <numkit/core/debugger.hpp>
-#include <numkit/core/bytecode.hpp>
-#include <numkit/core/environment.hpp>
+#include <nk/core/debugger.hpp>
+#include <nk/core/bytecode.hpp>
+#include <nk/core/environment.hpp>
 
 #include <algorithm>
 
-namespace numkit {
+namespace nk {
 
 // ============================================================
 // StackFrame::variables
@@ -274,4 +274,4 @@ void DebugController::applyAction(DebugAction action, int callDepth)
     }
 }
 
-} // namespace numkit
+} // namespace nk

@@ -1398,7 +1398,7 @@ export default function CompositePlot({
       xMin, xMax, yMin, yMax, xLogActive, yLogActive,
       W, H, lut]);
 
-  // ── WebGL fast-path routing (on by default; opt out 'numkit.plot.gl'='0') ──
+  // ── WebGL fast-path routing (on by default; opt out 'nk.plot.gl'='0') ──
   // Decide which line/stairs layers the WebGL overlay takes over BEFORE the
   // tile/decimation hooks below, so those skip GL-routed layers entirely:
   //   • full-data layers (<1M, already in JS) → selectGLSeries (synchronous)

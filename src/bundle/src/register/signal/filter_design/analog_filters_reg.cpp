@@ -3,16 +3,16 @@
 // CallContext register half of filter_design/analog_filters.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/polyfun.hpp>
-#include <numkit/ops/poly_helpers.hpp>
-#include <numkit/signal/filter_design/analog_filters.hpp>
-#include <numkit/signal/filter_implementation/conversions_extras.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/polyfun.hpp>
+#include <nk/ops/poly_helpers.hpp>
+#include <nk/signal/filter_design/analog_filters.hpp>
+#include <nk/signal/filter_implementation/conversions_extras.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -36,7 +36,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires N",                                    \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         const int N = static_cast<int>(args[0].toScalar());                     \
         auto [z, p, k] = name(N, ctx.engine->resource());                       \
         outs[0] = std::move(z);                                                  \
@@ -50,7 +50,7 @@ namespace detail {
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#name ": requires (N, ripple_or_atten_dB)",             \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         const int N = static_cast<int>(args[0].toScalar());                     \
         const double r = args[1].toScalar();                                    \
         auto [z, p, k] = name(N, r, ctx.engine->resource());                    \
@@ -70,7 +70,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("ellipap: requires (N, Rp, Rs)",
-                     0, 0, "ellipap", "", "numkit:ellipap:nargin");
+                     0, 0, "ellipap", "", "nk:ellipap:nargin");
     const int N     = static_cast<int>(args[0].toScalar());
     const double Rp = args[1].toScalar();
     const double Rs = args[2].toScalar();
@@ -116,7 +116,7 @@ static Value lp2StripLeadingZeros(const Value &b, std::pmr::memory_resource *mr)
             const double Wo = args[2].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, mr);                          \
-            auto [bt, at] = numkit::builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
+            auto [bt, at] = nk::builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
             bt = lp2StripLeadingZeros(bt, mr);                                   \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
@@ -124,7 +124,7 @@ static Value lp2StripLeadingZeros(const Value &b, std::pmr::memory_resource *mr)
         }                                                                        \
         if (args.size() < 4)                                                     \
             throw Error(#name ": requires (z, p, k, Wo) or (b, a, Wo)",         \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
         auto [z, p, k] = fn(args[0], args[1], args[2].toScalar(), Wo, mr);      \
         outs[0] = std::move(z);                                                  \
@@ -151,7 +151,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
             const double Bw = args[3].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, Bw, mr);                      \
-            auto [bt, at] = numkit::builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
+            auto [bt, at] = nk::builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
             bt = lp2StripLeadingZeros(bt, mr);                                   \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
@@ -159,7 +159,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
         }                                                                        \
         if (args.size() < 5)                                                     \
             throw Error(#name ": requires (z, p, k, Wo, Bw) or (b, a, Wo, Bw)", \
-                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
+                         0, 0, #name, "", "nk:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
         const double Bw = args[4].toScalar();                                   \
         auto [z, p, k] = fn(args[0], args[1], args[2].toScalar(), Wo, Bw, mr);  \
@@ -177,7 +177,7 @@ void bilinear_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("bilinear: requires (b, a, fs[, fp])",
-                     0, 0, "bilinear", "", "numkit:bilinear:nargin");
+                     0, 0, "bilinear", "", "nk:bilinear:nargin");
     const double fs = args[2].toScalar();
     const double fp = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 0.0;
     auto [bd, ad] = bilinear(args[0], args[1], fs, fp, ctx.engine->resource());
@@ -189,7 +189,7 @@ void impinvar_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("impinvar: requires (b, a, fs[, tol])",
-                     0, 0, "impinvar", "", "numkit:impinvar:nargin");
+                     0, 0, "impinvar", "", "nk:impinvar:nargin");
     const double fs  = args[2].toScalar();
     const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-3;
     auto [bd, ad] = impinvar(args[0], args[1], fs, tol, ctx.engine->resource());
@@ -229,7 +229,7 @@ struct FreqsRoot {
 
 std::vector<double> freqsAutoGridVec(const Value &b, const Value &a, int npts)
 {
-    using numkit::ops::polyRootsDurandKerner;
+    using nk::ops::polyRootsDurandKerner;
     constexpr double kEps = 2.220446049250313e-16;
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     ScratchArena scratch(mr);
@@ -363,7 +363,7 @@ void freqs_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     }
     if (args.size() < 3)
         throw Error("freqs: requires (b, a, w)",
-                     0, 0, "freqs", "", "numkit:freqs:nargin");
+                     0, 0, "freqs", "", "nk:freqs:nargin");
     // MATLAB freqs(b, a, n): a SCALAR third argument is the NUMBER of
     // auto-spaced points (same freqint grid machinery as the two-arg
     // form, resampled to n); only a VECTOR means "exactly these
@@ -383,4 +383,4 @@ void freqs_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

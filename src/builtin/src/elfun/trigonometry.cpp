@@ -2,16 +2,16 @@
 //
 // Trigonometric coordinate transforms, degree conversions, angle wrapping.
 
-#include <numkit/builtin/elfun.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/builtin/elfun.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <cmath>
 #include <complex>
 #include "_unary_hint.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 Value sin(const Value &x, std::pmr::memory_resource *mr) { return sin(x, nullptr, mr); }
 Value cos(const Value &x, std::pmr::memory_resource *mr) { return cos(x, nullptr, mr); }
@@ -136,7 +136,7 @@ Value cart2pol(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.size() < 2)
         throw Error("cart2pol: requires at least 2 arguments (x, y)",
-                     0, 0, "cart2pol", "", "numkit:cart2pol:nargin");
+                     0, 0, "cart2pol", "", "nk:cart2pol:nargin");
     return cart2pol(args[0], args[1], mr).theta;
 }
 
@@ -144,7 +144,7 @@ Value pol2cart(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.size() < 2)
         throw Error("pol2cart: requires at least 2 arguments (theta, rho)",
-                     0, 0, "pol2cart", "", "numkit:pol2cart:nargin");
+                     0, 0, "pol2cart", "", "nk:pol2cart:nargin");
     return pol2cart(args[0], args[1], mr).x;
 }
 
@@ -152,7 +152,7 @@ Value cart2sph(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.size() < 3)
         throw Error("cart2sph: requires 3 arguments (x, y, z)",
-                     0, 0, "cart2sph", "", "numkit:cart2sph:nargin");
+                     0, 0, "cart2sph", "", "nk:cart2sph:nargin");
     return cart2sph(args[0], args[1], args[2], mr).az;
 }
 
@@ -160,8 +160,8 @@ Value sph2cart(Span<const Value> args, std::pmr::memory_resource *mr)
 {
     if (args.size() < 3)
         throw Error("sph2cart: requires 3 arguments (az, el, r)",
-                     0, 0, "sph2cart", "", "numkit:sph2cart:nargin");
+                     0, 0, "sph2cart", "", "nk:sph2cart:nargin");
     return sph2cart(args[0], args[1], args[2], mr).x;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

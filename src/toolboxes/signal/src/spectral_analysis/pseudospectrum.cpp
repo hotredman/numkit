@@ -12,10 +12,10 @@
 // eigendecomposition-sensitive (peaks are 1/near-zero), so it is NOT bit-matched.
 // bugs/signal/pmusic-peig.
 
-#include <numkit/signal/spectral_analysis/signal_modeling.hpp>   // corrmtx, pmusic, peig
+#include <nk/signal/spectral_analysis/signal_modeling.hpp>   // corrmtx, pmusic, peig
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
@@ -146,4 +146,4 @@ peig(const Value &x, int p, int nfft, double fs, std::pmr::memory_resource *mr)
     return pseudospectrum(x, p, nfft, fs, /*eigWeight=*/true, mr);
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

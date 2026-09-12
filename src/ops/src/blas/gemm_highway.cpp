@@ -2,7 +2,7 @@
 //
 // High-performance column-major Highway SIMD BLAS kernels (gemm, gemv, ger, trsm).
 
-#include <numkit/ops/blas.hpp>
+#include <nk/ops/blas.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::ops {
+namespace nk::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -145,11 +145,11 @@ void GerDoubleKernel(std::size_t m, std::size_t n,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+} // namespace nk::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::ops {
+namespace nk::ops {
 
 HWY_EXPORT(GemmDoubleKernel);
 HWY_EXPORT(GemvDoubleKernel);
@@ -287,5 +287,5 @@ void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag di
     }
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops
 #endif

@@ -7,8 +7,8 @@
 // these (exact integer zeros, sign-of-zero, accuracy at 1/6, and the
 // ~1e-10 drift by x=1e7).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 
 #include <gtest/gtest.h>
 
@@ -16,9 +16,9 @@
 
 class SinpiCospiTest : public ::testing::Test {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 

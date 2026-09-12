@@ -12,7 +12,7 @@ An anonymous function called for several outputs throws *"Too many output
 arguments"* even when its body produces them:
 ```matlab
 h = @(x) deal(x+1, x-1);
-[a, b] = h(5);            % numkit: "Too many output arguments"
+[a, b] = h(5);            % nk: "Too many output arguments"
 % MATLAB: a = 6, b = 4
 ```
 (Multi-output calls to **named** / **user-function** handles already work —

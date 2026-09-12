@@ -23,7 +23,7 @@
   =`[120 121 122]` double; dim-2 `[99 122]`; `'all'`=99; `mode('abc')`=`'a'`
   (CHAR — unchanged, correct).
 - NOTE: the binary `max('a','c')` form is a MATLAB ERROR ("Invalid second
-  argument") — numkit is lenient (the a0/a1 promotion returns a double) but
+  argument") — nk is lenient (the a0/a1 promotion returns a double) but
   that form is NOT MATLAB-matched and is not asserted in the artefacts.
 - The existing live test `ReductionDimTest.MaxCharReturnsChar` enshrined the
   wrong char result — renamed to `MaxCharReturnsDouble` and flipped to assert
@@ -41,8 +41,8 @@ point).
 
 ## Repro
 ```matlab
-max('abc')          % numkit: 'c' (char);  MATLAB: 99 (double)
-min('abc')          % numkit: 'a' (char);  MATLAB: 97 (double)
+max('abc')          % nk: 'c' (char);  MATLAB: 99 (double)
+min('abc')          % nk: 'a' (char);  MATLAB: 97 (double)
 [v,i] = max('abc')  % MATLAB: v=99 (double), i=3
 mode('abc')         % 'a' (char) on BOTH — mode preserves char (correct)
 ```

@@ -1,7 +1,7 @@
 // core/src/value_type.cpp
-#include <numkit/value/value_type.hpp>
+#include <nk/value/value_type.hpp>
 
-namespace numkit {
+namespace nk {
 
 const char *mtypeName(ValueType t)
 {
@@ -61,4 +61,4 @@ bool isFloatType(ValueType t)
     return t == ValueType::DOUBLE || t == ValueType::SINGLE;
 }
 
-} // namespace numkit
+} // namespace nk

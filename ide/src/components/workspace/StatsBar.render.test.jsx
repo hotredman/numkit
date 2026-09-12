@@ -53,11 +53,11 @@ describe('StatChooserButton (toolbar) + persistence', () => {
     const stdItem = [...document.querySelectorAll('.ctx-item')].find((b) => /\bstd\b/.test(b.textContent));
     fireEvent.click(stdItem);
     expect(within(container.querySelector('.ve-statsbar')).getByText('std')).toBeTruthy();
-    expect(JSON.parse(localStorage.getItem('numkit.ide.matrixstats'))).toContain('std');
+    expect(JSON.parse(localStorage.getItem('nk.ide.matrixstats'))).toContain('std');
   });
 
   it('hides the row entirely when every stat is unchecked', () => {
-    localStorage.setItem('numkit.ide.matrixstats', JSON.stringify([]));
+    localStorage.setItem('nk.ide.matrixstats', JSON.stringify([]));
     const { container } = render(<Harness stats={stats} />);
     expect(isEmpty(container)).toBe(true);
   });

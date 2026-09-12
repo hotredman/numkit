@@ -1,7 +1,7 @@
 # Where file-format I/O lives in `toolboxes/`
 
 Authoritative rule for placing readers / writers of any on-disk file
-format inside the numkit codebase. Read this **before** adding a new
+format inside the nk codebase. Read this **before** adding a new
 format implementation (TIFF reader, HDF5 binding, Parquet writer, etc.).
 
 The rule is a placement convention, not an architectural constraint —
@@ -16,14 +16,14 @@ data type it produces or consumes**, not to a separate "formats" library.
 
 | Domain   | Format I/O lives in        | Public C++ namespace        | Example formats |
 | -------- | -------------------------- | --------------------------- | --------------- |
-| Image    | `toolboxes/image/src/io/`       | `numkit::image`             | TIFF, PNG, JPEG, BMP, GIF, HDR, PNM, TGA, EXR (future) |
-| Audio    | `toolboxes/audio/src/io/`       | `numkit::audio` (future)    | WAV, FLAC, OGG, MP3 (future) |
-| Video    | `toolboxes/video/src/io/`       | `numkit::video` (future)    | MP4, AVI, MOV (future) |
-| Workspace| `toolboxes/io/src/workspace/`   | `numkit::io`                | `.mat`, `.npy`, `.npz` (future) |
-| Tabular  | `toolboxes/io/src/text/` *or* `toolboxes/io/src/tabular/` | `numkit::io` | CSV, TSV, Parquet (future), Arrow (future) |
-| Scientific generic | `toolboxes/io/src/scientific/` (when added) | `numkit::io` | HDF5, NetCDF, Zarr |
-| Raw bytes / streams | `toolboxes/io/src/file_io/` | `numkit::io`                | `fopen`/`fread`/`fwrite`/etc. |
-| Paths     | `toolboxes/io/src/paths/`       | `numkit::io`                | `fileparts`, `fullfile`, `tempname` |
+| Image    | `toolboxes/image/src/io/`       | `nk::image`             | TIFF, PNG, JPEG, BMP, GIF, HDR, PNM, TGA, EXR (future) |
+| Audio    | `toolboxes/audio/src/io/`       | `nk::audio` (future)    | WAV, FLAC, OGG, MP3 (future) |
+| Video    | `toolboxes/video/src/io/`       | `nk::video` (future)    | MP4, AVI, MOV (future) |
+| Workspace| `toolboxes/io/src/workspace/`   | `nk::io`                | `.mat`, `.npy`, `.npz` (future) |
+| Tabular  | `toolboxes/io/src/text/` *or* `toolboxes/io/src/tabular/` | `nk::io` | CSV, TSV, Parquet (future), Arrow (future) |
+| Scientific generic | `toolboxes/io/src/scientific/` (when added) | `nk::io` | HDF5, NetCDF, Zarr |
+| Raw bytes / streams | `toolboxes/io/src/file_io/` | `nk::io`                | `fopen`/`fread`/`fwrite`/etc. |
+| Paths     | `toolboxes/io/src/paths/`       | `nk::io`                | `fileparts`, `fullfile`, `tempname` |
 
 Public API (the user-callable function name, e.g. `imread` / `audioread`)
 is registered as a `compat::<fn>` alias in addition to the domain
@@ -98,7 +98,7 @@ Considered and rejected during the discussion that produced this rule
 (see the git log around the time this file was added):
 
 1. **A format and its consumers travel together.** The TIFF reader
-   produces `numkit::Value` shaped like an H×W×C image; its only sensible
+   produces `nk::Value` shaped like an H×W×C image; its only sensible
    caller is image-processing code. Pulling it into `toolboxes/formats/` would
    force every image-processing user to also pull in unrelated formats
    (audio, tabular). The domain split is the natural unit of dependency.

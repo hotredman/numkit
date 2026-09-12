@@ -3,24 +3,24 @@
 // Matrix functions — expm, logm_sym, sqrtm_sym + engine adapters.
 // Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/matrix.cpp.
 
-#include <numkit/linalg/matrix_functions.hpp>
-#include <numkit/linalg/decompositions.hpp>
+#include <nk/linalg/matrix_functions.hpp>
+#include <nk/linalg/decompositions.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/linalg/eig.hpp>                  // eig_symmetric
-#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
+#include <nk/linalg/eig.hpp>                  // eig_symmetric
+#include <nk/ops/la_solve.hpp>   // nk::ops::la_solve
 // Compute-only TU: Value substrate + Error, no engine. The expm/logm/sqrtm/
 // expmv builtins (CallContext wrappers) live in matrix_functions_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <string>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -55,12 +55,12 @@ Value expm(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("expm: input must be a 2D matrix",
-                    0, 0, "expm", "", "numkit:expm:notMatrix");
+                    0, 0, "expm", "", "nk:expm:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("expm: matrix must be square",
-                    0, 0, "expm", "", "numkit:expm:notSquare");
+                    0, 0, "expm", "", "nk:expm:notSquare");
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Padé(6) scaling-and-squaring.
@@ -129,10 +129,10 @@ Value expm(const Value &A, std::pmr::memory_resource *mr)
 
     // Solve Q * X = P for X.
     auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!numkit::ops::la_solve(Q.data(), n, n, P.data(), n,
+    if (!nk::ops::la_solve(Q.data(), n, n, P.data(), n,
                                             out.doubleDataMut(), &scratch))
         throw Error("expm: Padé denominator is singular",
-                    0, 0, "expm", "", "numkit:expm:singular");
+                    0, 0, "expm", "", "nk:expm:singular");
 
     if (s > 0) {
         ScratchVec<double> tmp(n * n, &scratch);
@@ -190,22 +190,22 @@ Value applyScalarFnSym(const Value &A, double (*f)(double),
 Value logm_sym(const Value &A, std::pmr::memory_resource *mr)
 {
     return applyScalarFnSym(A, [](double x) { return std::log(x); },
-                            "logm", "numkit:logm:negativeEigenvalue", mr);
+                            "logm", "nk:logm:negativeEigenvalue", mr);
 }
 
 Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr)
 {
     return applyScalarFnSym(A, [](double x) { return std::sqrt(x); },
-                            "sqrtm", "numkit:sqrtm:negativeEigenvalue", mr);
+                            "sqrtm", "nk:sqrtm:negativeEigenvalue", mr);
 }
 
 Value sqrtm(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("sqrtm: input must be a 2D matrix", 0, 0, "sqrtm", "", "numkit:sqrtm:notMatrix");
+        throw Error("sqrtm: input must be a 2D matrix", 0, 0, "sqrtm", "", "nk:sqrtm:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
-        throw Error("sqrtm: matrix must be square", 0, 0, "sqrtm", "", "numkit:sqrtm:notSquare");
+        throw Error("sqrtm: matrix must be square", 0, 0, "sqrtm", "", "nk:sqrtm:notSquare");
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Schur decomposition A = U * T * U^H
@@ -283,15 +283,15 @@ Value sqrtm(const Value &A, std::pmr::memory_resource *mr)
 Value sylvester(const Value &A, const Value &B, const Value &C, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2 || C.dims().ndim() != 2)
-        throw Error("sylvester: inputs must be 2D matrices", 0, 0, "sylvester", "", "numkit:sylvester:notMatrix");
+        throw Error("sylvester: inputs must be 2D matrices", 0, 0, "sylvester", "", "nk:sylvester:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     if (m != static_cast<std::size_t>(A.dims().dim(1)))
-        throw Error("sylvester: A must be square", 0, 0, "sylvester", "", "numkit:sylvester:badA");
+        throw Error("sylvester: A must be square", 0, 0, "sylvester", "", "nk:sylvester:badA");
     const std::size_t n = static_cast<std::size_t>(B.dims().dim(0));
     if (n != static_cast<std::size_t>(B.dims().dim(1)))
-        throw Error("sylvester: B must be square", 0, 0, "sylvester", "", "numkit:sylvester:badB");
+        throw Error("sylvester: B must be square", 0, 0, "sylvester", "", "nk:sylvester:badB");
     if (static_cast<std::size_t>(C.dims().dim(0)) != m || static_cast<std::size_t>(C.dims().dim(1)) != n)
-        throw Error("sylvester: C dimensions must be m x n", 0, 0, "sylvester", "", "numkit:sylvester:badC");
+        throw Error("sylvester: C dimensions must be m x n", 0, 0, "sylvester", "", "nk:sylvester:badC");
 
     if (m == 0 || n == 0) return Value::matrix(m, n, ValueType::DOUBLE, mr);
 
@@ -393,10 +393,10 @@ Value sylvester(const Value &A, const Value &B, const Value &C, std::pmr::memory
 Value logm(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("logm: input must be a 2D matrix", 0, 0, "logm", "", "numkit:logm:notMatrix");
+        throw Error("logm: input must be a 2D matrix", 0, 0, "logm", "", "nk:logm:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
-        throw Error("logm: matrix must be square", 0, 0, "logm", "", "numkit:logm:notSquare");
+        throw Error("logm: matrix must be square", 0, 0, "logm", "", "nk:logm:notSquare");
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Schur decomposition A = U * T * U^H
@@ -526,14 +526,14 @@ Value expmv(double t, const Value &A, const Value &v, std::pmr::memory_resource 
 {
     if (A.dims().ndim() != 2)
         throw Error("expmv: A must be a 2D matrix",
-                    0, 0, "expmv", "", "numkit:expmv:notMatrix");
+                    0, 0, "expmv", "", "nk:expmv:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (static_cast<std::size_t>(A.dims().dim(1)) != n)
         throw Error("expmv: A must be square",
-                    0, 0, "expmv", "", "numkit:expmv:notSquare");
+                    0, 0, "expmv", "", "nk:expmv:notSquare");
     if (v.numel() != n)
         throw Error("expmv: length(v) must equal size(A, 1)",
-                    0, 0, "expmv", "", "numkit:expmv:badV");
+                    0, 0, "expmv", "", "nk:expmv:badV");
     if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
     // beta = ||v||₂
@@ -623,10 +623,10 @@ Value expmv(double t, const Value &A, const Value &v, std::pmr::memory_resource 
 static Value funm_eval(const Value &A, std::function<Complex(Complex)> f, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("funm: input must be a 2D matrix", 0, 0, "funm", "", "numkit:funm:notMatrix");
+        throw Error("funm: input must be a 2D matrix", 0, 0, "funm", "", "nk:funm:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
-        throw Error("funm: matrix must be square", 0, 0, "funm", "", "numkit:funm:notSquare");
+        throw Error("funm: matrix must be square", 0, 0, "funm", "", "nk:funm:notSquare");
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Schur decomposition A = U * T * U^H
@@ -721,7 +721,7 @@ Value funm(const Value &A, const std::string &fnName, std::pmr::memory_resource 
     if (fnName == "sinh") return funm_eval(A, [](Complex x) { return std::sinh(x); }, mr);
     if (fnName == "cosh") return funm_eval(A, [](Complex x) { return std::cosh(x); }, mr);
 
-    throw Error("funm: unsupported function '" + fnName + "'", 0, 0, "funm", "", "numkit:funm:unknownFn");
+    throw Error("funm: unsupported function '" + fnName + "'", 0, 0, "funm", "", "nk:funm:unknownFn");
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

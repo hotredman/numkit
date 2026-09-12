@@ -1,11 +1,11 @@
 // toolboxes/stats/src/distributions/exponential.cpp
 
-#include <numkit/stats/distributions/exponential.hpp>
+#include <nk/stats/distributions/exponential.hpp>
 
-#include <numkit/builtin/datafun.hpp>
+#include <nk/builtin/datafun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -16,7 +16,7 @@
 
 #include "exponential_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value exppdf(const Value &x, double mu, std::pmr::memory_resource *mr)
@@ -34,7 +34,7 @@ Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr)
     return elementwise(p, [=](double pi) { return expinvK(pi, mu); }, mr);
 }
 
-Value exprnd(::numkit::ops::RngContext &rng, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value exprnd(::nk::ops::RngContext &rng, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -55,4 +55,4 @@ std::tuple<double, double> expstat(double mu)
     return std::make_tuple(mu, mu * mu);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

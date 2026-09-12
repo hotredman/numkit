@@ -1,13 +1,13 @@
 // src/vfs.cpp
 
-#include <numkit/fs/vfs.hpp>
+#include <nk/fs/vfs.hpp>
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 
-namespace numkit {
+namespace nk {
 
 std::string NativeFS::readFile(const std::string &path)
 {
@@ -128,4 +128,4 @@ std::string NativeFS::cwd()
     return p.string();
 }
 
-} // namespace numkit
+} // namespace nk

@@ -2,13 +2,13 @@
 //
 // svdsketch & svdappend — Randomized low-rank SVD and Incremental SVD.
 
-#include <numkit/linalg/svd_sketch.hpp>
-#include <numkit/linalg/decompositions.hpp>
+#include <nk/linalg/svd_sketch.hpp>
+#include <nk/linalg/decompositions.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,7 +16,7 @@
 #include <random>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 namespace {
 
@@ -69,7 +69,7 @@ Value matTranspose(const Value &A, std::pmr::memory_resource *mr)
 std::tuple<Value, Value, Value> svdsketch(const Value &A, double tol, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
-        throw Error("svdsketch: input A must be a 2D matrix", 0, 0, "svdsketch", "", "numkit:svdsketch:notMatrix");
+        throw Error("svdsketch: input A must be a 2D matrix", 0, 0, "svdsketch", "", "nk:svdsketch:notMatrix");
 
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
@@ -155,7 +155,7 @@ std::tuple<Value, Value, Value> svdappend(const Value &U, const Value &S, const 
                                           const Value &A_new, std::pmr::memory_resource *mr)
 {
     if (U.dims().ndim() != 2 || S.dims().ndim() != 2 || V.dims().ndim() != 2 || A_new.dims().ndim() != 2)
-        throw Error("svdappend: inputs must be 2D matrices", 0, 0, "svdappend", "", "numkit:svdappend:notMatrix");
+        throw Error("svdappend: inputs must be 2D matrices", 0, 0, "svdappend", "", "nk:svdappend:notMatrix");
 
     const std::size_t m = static_cast<std::size_t>(U.dims().dim(0));
     const std::size_t k = static_cast<std::size_t>(U.dims().dim(1));
@@ -163,7 +163,7 @@ std::tuple<Value, Value, Value> svdappend(const Value &U, const Value &S, const 
     const std::size_t p = static_cast<std::size_t>(A_new.dims().dim(1));
 
     if (static_cast<std::size_t>(A_new.dims().dim(0)) != m)
-        throw Error("svdappend: A_new must have the same number of rows as U", 0, 0, "svdappend", "", "numkit:svdappend:badDims");
+        throw Error("svdappend: A_new must have the same number of rows as U", 0, 0, "svdappend", "", "nk:svdappend:badDims");
 
     // Brand algorithm:
     // m_k = U^T * A_new  (k x p)
@@ -262,4 +262,4 @@ std::tuple<Value, Value, Value> svdappend(const Value &U, const Value &S, const 
             detail::narrow_if_real(V_new, mr)};
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

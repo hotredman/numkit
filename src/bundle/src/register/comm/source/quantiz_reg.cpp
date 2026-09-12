@@ -6,15 +6,15 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/comm/source/quantiz.hpp>
+#include <nk/comm/source/quantiz.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <utility>
 
-namespace numkit::comm {
+namespace nk::comm {
 namespace detail {
 
 void quantiz_reg(Span<const Value> args, size_t nargout,
@@ -22,7 +22,7 @@ void quantiz_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("quantiz: requires (sig, partition [, codebook])",
-                    0, 0, "quantiz", "", "numkit:quantiz:nargin");
+                    0, 0, "quantiz", "", "nk:quantiz:nargin");
     auto *mr = ctx.engine->resource();
 
     if (nargout <= 1 && args.size() == 2) {
@@ -32,7 +32,7 @@ void quantiz_reg(Span<const Value> args, size_t nargout,
     }
     if (args.size() < 3)
         throw Error("quantiz: codebook required for quantv/distor outputs",
-                    0, 0, "quantiz", "", "numkit:quantiz:fewInputs");
+                    0, 0, "quantiz", "", "nk:quantiz:fewInputs");
     auto r = quantiz(args[0], args[1], args[2], mr);
     outs[0] = std::move(r.indx);
     if (nargout > 1) outs[1] = std::move(r.quantv);
@@ -41,4 +41,4 @@ void quantiz_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::comm
+} // namespace nk::comm

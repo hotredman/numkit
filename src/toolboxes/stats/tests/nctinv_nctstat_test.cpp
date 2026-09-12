@@ -2,12 +2,12 @@
 //
 // Regression guard for nctinv + nctstat.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class NctInvStatTest : public ::testing::Test
 {

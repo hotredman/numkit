@@ -3,7 +3,7 @@ clear
 % imadjust treats an EXPLICITLY-passed empty [] for the in/out range as
 % MATLAB's default [0 1] -> identity mapping (NO contrast stretch). This is
 % DISTINCT from the absent 1-arg form imadjust(I), which auto-stretches via
-% stretchlim (1% saturation). numkit previously treated the empty [] like the
+% stretchlim (1% saturation). nk previously treated the empty [] like the
 % absent case, so imadjust(I,[],[]) wrongly contrast-stretched the image.
 
 I = uint8([10 50 90; 130 170 210; 30 70 110]);

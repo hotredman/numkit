@@ -7,20 +7,20 @@
 
 ## Symptom
 `find(X, k)` should return the first `k` indices of nonzero elements;
-`find(X, k, 'last')` the last `k`. numkit ignores both the count and the
+`find(X, k, 'last')` the last `k`. nk ignores both the count and the
 direction and always returns ALL nonzero indices. (The single-element-result
 idiom `find(x, 1)` / `find(x, 1, 'last')` is extremely common.)
 
 ## Repro
 ```matlab
 find([0 1 0 1 1], 2)
-% numkit: [2 4 5]
+% nk: [2 4 5]
 % MATLAB: [2 4]
 find([0 1 0 1 1], 1, 'last')
-% numkit: [2 4 5]
+% nk: [2 4 5]
 % MATLAB: 5
 find([0 1 0 1 1], 2, 'last')
-% numkit: [2 4 5]
+% nk: [2 4 5]
 % MATLAB: [4 5]
 ```
 `find(X)` (no count) and `[r,c]=find(X)` subscripts are correct.

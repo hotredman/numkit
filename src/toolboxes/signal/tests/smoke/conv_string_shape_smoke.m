@@ -1,7 +1,7 @@
 clear
 
 % conv shape arg as string ("...") vs char ('...') (DEEP-PROBE 2026-05-31).
-% MATLAB R2025b accepts BOTH 'same' and "same" for the shape arg. numkit's
+% MATLAB R2025b accepts BOTH 'same' and "same" for the shape arg. nk's
 % conv_reg checked only isChar(), so a double-quoted shape was SILENTLY
 % IGNORED and fell back to the full convolution. vs MATLAB R2025b.
 

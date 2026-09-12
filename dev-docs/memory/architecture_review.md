@@ -1,4 +1,4 @@
-# Architecture Review — numkit (2026-06-13)
+# Architecture Review — nk (2026-06-13)
 
 Point-in-time review taken right after the Phase-3-A layering refactor closed
 out (11 guarded layers, lock-free compute, no `Engine` in compute signatures).
@@ -39,7 +39,7 @@ closed.
 | 2 | TreeWalker/VM logic duplication (~10–15%) | 🟡 | ✅ DOCUMENTED (keep) | this doc |
 | 3 | `Engine` god-class trend (wide public surface) | 🟡 | ✅ FIXED | `b412edf2` |
 | 4 | `normalize()` violated LIBRARY_API §10/§15 (`const Value*` + out-pointers) | 🟢 | ✅ FIXED | `64b3ff11` |
-| 5 | CMake include-dir aggregation fragility (silent empty `NUMKIT_*_INCLUDE_DIRS`) | 🟢 | ✅ FIXED | `10ff4557` |
+| 5 | CMake include-dir aggregation fragility (silent empty `NK_*_INCLUDE_DIRS`) | 🟢 | ✅ FIXED | `10ff4557` |
 | 6 | No code-coverage visibility | 🟢 | ✅ FIXED | `2d9952ee` |
 | 7 | `apple-m` preset unvalidated | 🟢 | ⏸ DEFERRED (needs Apple hardware) | — |
 

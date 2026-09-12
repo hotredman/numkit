@@ -224,21 +224,21 @@ export default function PreferencesModal({ onClose }) {
                 <div className="prefs-section-divider" />
 
                 <PathRow
-                  label="Interpreter — numkit_repl.exe"
+                  label="Interpreter — nk_repl.exe"
                   settingKey="interpreterPath"
-                  hint="Auto-detects numkit_repl.exe in directory of numkit_ide.exe, then falls back to PATH"
-                  pickTitle="Select numkit_repl executable"
+                  hint="Auto-detects nk_repl.exe in directory of nk_ide.exe, then falls back to PATH"
+                  pickTitle="Select nk_repl executable"
                 />
                 <PathRow
-                  label="Code Generator — numkit_codegen.exe"
+                  label="Code Generator — nk_codegen.exe"
                   settingKey="codegenPath"
-                  hint="Auto-detects numkit_codegen.exe in directory of numkit_ide.exe, then falls back to PATH. Used by Build & Run."
-                  pickTitle="Select numkit_codegen executable"
+                  hint="Auto-detects nk_codegen.exe in directory of nk_ide.exe, then falls back to PATH. Used by Build & Run."
+                  pickTitle="Select nk_codegen executable"
                 />
                 <PathRow
-                  label="C++ Compiler — NUMKIT_CXX override"
+                  label="C++ Compiler — NK_CXX override"
                   settingKey="cxxPath"
-                  hint="Overrides the NUMKIT_CXX environment variable when running Build & Run. Leave empty to use the env var or build-time default."
+                  hint="Overrides the NK_CXX environment variable when running Build & Run. Leave empty to use the env var or build-time default."
                   pickTitle="Select C++ compiler executable"
                 />
               </div>

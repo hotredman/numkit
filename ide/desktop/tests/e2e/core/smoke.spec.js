@@ -20,7 +20,7 @@ test.describe('boot', () => {
   });
 
   test('main window opens with the expected title', async () => {
-    await expect(page).toHaveTitle(/Numkit IDE/);
+    await expect(page).toHaveTitle(/NK IDE/);
   });
 
   test('renderer reaches a ready state (editor + console present)', async () => {
@@ -32,12 +32,12 @@ test.describe('boot', () => {
   test('console banner is printed (engine init completed)', async () => {
     await ide.waitForReady();
     const text = await ide.consoleText();
-    expect(text).toMatch(/Numkit IDE v3/);
+    expect(text).toMatch(/NK IDE v3/);
     expect(text).toMatch(/help/);
   });
 
   test('engine boots in WASM mode, not the demo fallback', async () => {
-    // The "Numkit IDE v3" banner is set by the IDE shell regardless of
+    // The "NK IDE v3" banner is set by the IDE shell regardless of
     // engine, so it's not enough on its own. We assert WASM glue
     // loaded AND the fallback path was not taken — without this, a
     // duplicate-compat registration error during repl_init would

@@ -30,7 +30,7 @@ test.describe('WebGL 3-D — interaction', () => {
     );
     await expect(ide.figureCards).toHaveCount(1, { timeout: 10_000 });
     const card = ide.figureCards.first();
-    const canvas = card.locator('canvas[data-numkit-3d]');
+    const canvas = card.locator('canvas[data-nk-3d]');
     await expect(canvas).toBeVisible({ timeout: 10_000 });
 
     // Hover over the canvas centre. Raycast may or may not find a

@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/raylpdf_test.cpp
 // raylpdf.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RaylpdfTest : public ::testing::Test
 {

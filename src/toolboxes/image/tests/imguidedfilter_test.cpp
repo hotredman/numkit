@@ -3,10 +3,10 @@
 // Regression guard for imguidedfilter — Guided Image Filter (He
 // et al. 2013). Bit-equal MATLAB R2025b at 1e-10 tolerance.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ImguidedfilterTest : public ::testing::Test
 {

@@ -1,7 +1,7 @@
 // ops/src/la_solve.cpp
 
-#include <numkit/ops/la_solve.hpp>
-#include <numkit/value/scratch.hpp>
+#include <nk/ops/la_solve.hpp>
+#include <nk/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -9,10 +9,10 @@
 #include <cstdint>
 #include <cstring>
 
-#include <numkit/ops/blas.hpp>
-#include <numkit/ops/parallel_for.hpp>
+#include <nk/ops/blas.hpp>
+#include <nk/ops/parallel_for.hpp>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 namespace {
 
@@ -50,9 +50,9 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     const std::size_t base_n = (m >= 256) ? 32 : 128;
     if (n <= base_n) {
         if constexpr (std::is_same_v<T, double>) {
-            return ::numkit::ops::lu_panel(reinterpret_cast<double*>(A), lda, piv, m, n, offset_row);
+            return ::nk::ops::lu_panel(reinterpret_cast<double*>(A), lda, piv, m, n, offset_row);
         } else {
-            return ::numkit::ops::lu_panel(reinterpret_cast<std::complex<double>*>(A), lda, piv, m, n, offset_row);
+            return ::nk::ops::lu_panel(reinterpret_cast<std::complex<double>*>(A), lda, piv, m, n, offset_row);
         }
     }
 
@@ -65,7 +65,7 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 
     // 2. Apply permutations piv[0..n1-1] to right panel A2 (m x n2)
     const std::size_t p2_thresh = (n2 >= 64) ? 32 : (n2 + 1);
-    numkit::detail::parallel_for(n2, p2_thresh, [=](std::size_t c_start, std::size_t c_end) {
+    nk::detail::parallel_for(n2, p2_thresh, [=](std::size_t c_start, std::size_t c_end) {
         for (std::size_t col = c_start; col < c_end; ++col) {
             T *col_ptr = A + (n1 + col) * lda;
             for (std::size_t i = 0; i < n1; ++i) {
@@ -81,12 +81,12 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     T *L11 = A;
     T *A12 = A + n1 * lda;
     if constexpr (is_complex_v<T>) {
-        ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+        ::nk::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
                            n1, n2, Complex(1.0, 0.0),
                            reinterpret_cast<const Complex*>(L11), lda,
                            reinterpret_cast<Complex*>(A12), lda);
     } else {
-        ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+        ::nk::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
                            n1, n2, 1.0, reinterpret_cast<double*>(L11), lda, reinterpret_cast<double*>(A12), lda);
     }
 
@@ -97,13 +97,13 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     const std::size_t rem_rows = m - n1;
 
     if constexpr (is_complex_v<T>) {
-        ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, Complex(-1.0, 0.0),
+        ::nk::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, Complex(-1.0, 0.0),
                            reinterpret_cast<const Complex*>(L21), lda,
                            reinterpret_cast<const Complex*>(U12), lda,
                            Complex(1.0, 0.0),
                            reinterpret_cast<Complex*>(A22), lda);
     } else {
-        ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, -1.0,
+        ::nk::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, -1.0,
                            reinterpret_cast<const double*>(L21), lda,
                            reinterpret_cast<const double*>(U12), lda,
                            1.0,
@@ -115,7 +115,7 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 
     // 6. Apply permutations piv[n1..n-1] to left panel L21 ((m - n1) x n1)
     const std::size_t p6_thresh = (n1 >= 64) ? 32 : (n1 + 1);
-    numkit::detail::parallel_for(n1, p6_thresh, [=](std::size_t c_start, std::size_t c_end) {
+    nk::detail::parallel_for(n1, p6_thresh, [=](std::size_t c_start, std::size_t c_end) {
         for (std::size_t col = c_start; col < c_end; ++col) {
             T *col_ptr = A + n1 + col * lda;
             for (std::size_t i = 0; i < n2; ++i) {
@@ -217,7 +217,7 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
     }
 
     if constexpr (std::is_same_v<T, double>) {
-        if (!::numkit::ops::lu_panel(LU_stack, n, piv_stack, n, n, 0)) return false;
+        if (!::nk::ops::lu_panel(LU_stack, n, piv_stack, n, n, 0)) return false;
     } else {
         if (!lu_recursive_inplace(LU_stack, n, piv_stack, n, n, 0)) return false;
     }
@@ -318,7 +318,7 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
                 double *y_ptr = x_col;
                 const std::size_t rem = n - (k + 1);
                 const double neg_x = -xkj;
-                numkit::ops::axpy(rem, neg_x, l_col + (k + 1), y_ptr + (k + 1));
+                nk::ops::axpy(rem, neg_x, l_col + (k + 1), y_ptr + (k + 1));
             } else {
                 for (std::size_t i = k + 1; i < n; ++i) {
                     x_col[i] -= LU_stack[i + k * n] * xkj;
@@ -338,7 +338,7 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
                 double *y_ptr = x_col;
                 const std::size_t rem = static_cast<std::size_t>(k);
                 const double neg_x = -xkj;
-                numkit::ops::axpy(rem, neg_x, u_col, y_ptr);
+                nk::ops::axpy(rem, neg_x, u_col, y_ptr);
             } else {
                 for (std::intptr_t i = k - 1; i >= 0; --i) {
                     x_col[i] -= LU_stack[i + k * n] * xkj;
@@ -405,7 +405,7 @@ void trsm_L_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
                 if (xkc != T(0)) {
                     if constexpr (std::is_same_v<T, double>) {
                         if (jb > k + 1) {
-                            numkit::ops::axpy(jb - (k + 1), -xkc, reinterpret_cast<const double*>(l_col + j + k + 1), reinterpret_cast<double*>(B + j + k + 1 + c * ldb));
+                            nk::ops::axpy(jb - (k + 1), -xkc, reinterpret_cast<const double*>(l_col + j + k + 1), reinterpret_cast<double*>(B + j + k + 1 + c * ldb));
                         }
                     } else {
                         for (std::size_t i = k + 1; i < jb; ++i) {
@@ -422,13 +422,13 @@ void trsm_L_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
             T* B2 = B + (j + jb);
             
             if constexpr (std::is_same_v<T, double>) {
-                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
+                nk::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
                                   reinterpret_cast<const double*>(L21), lda, 
                                   reinterpret_cast<const double*>(B + j), ldb, 
                                   1.0, 
                                   reinterpret_cast<double*>(B2), ldb);
             } else {
-                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                nk::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
                                   reinterpret_cast<const Complex*>(L21), lda, 
                                   reinterpret_cast<const Complex*>(B + j), ldb, 
                                   Complex(1.0, 0.0), 
@@ -456,7 +456,7 @@ void trsm_U_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
                 if (xkc != T(0)) {
                     if constexpr (std::is_same_v<T, double>) {
                         if (k > 0) {
-                            numkit::ops::axpy(k, -xkc, reinterpret_cast<const double*>(u_col + j), reinterpret_cast<double*>(B + j + c * ldb));
+                            nk::ops::axpy(k, -xkc, reinterpret_cast<const double*>(u_col + j), reinterpret_cast<double*>(B + j + c * ldb));
                         }
                     } else {
                         for (std::size_t i = 0; i < k; ++i) {
@@ -473,13 +473,13 @@ void trsm_U_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
             T* B1 = B;
             
             if constexpr (std::is_same_v<T, double>) {
-                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
+                nk::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
                                   reinterpret_cast<const double*>(U12), lda, 
                                   reinterpret_cast<const double*>(B + j), ldb, 
                                   1.0, 
                                   reinterpret_cast<double*>(B1), ldb);
             } else {
-                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                nk::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
                                   reinterpret_cast<const Complex*>(U12), lda, 
                                   reinterpret_cast<const Complex*>(B + j), ldb, 
                                   Complex(1.0, 0.0), 
@@ -515,7 +515,7 @@ bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m,
 
             // Apply permutations to trailing matrix A_right (cache-friendly column major traversal)
             const std::size_t p_thresh = (rem_n >= 64) ? 32 : (rem_n + 1);
-            numkit::detail::parallel_for(rem_n, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
+            nk::detail::parallel_for(rem_n, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
                 for (std::size_t col = c_start; col < c_end; ++col) {
                     T *col_ptr = A_right + col * lda;
                     for (std::size_t i = 0; i < jb; ++i) {
@@ -583,7 +583,7 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
 
         const std::int32_t *piv_ptr = piv.data();
         const std::size_t p_thresh = (nrhs >= 64) ? 32 : (nrhs + 1);
-        numkit::detail::parallel_for(nrhs, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
+        nk::detail::parallel_for(nrhs, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
             for (std::size_t col = c_start; col < c_end; ++col) {
                 T *col_ptr = X + col * n;
                 for (std::size_t k = 0; k < n; ++k) {
@@ -595,7 +595,7 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
             }
         });
 
-        numkit::detail::parallel_for(nrhs, (nrhs >= 64) ? 16 : 1, [=, &A_lu](std::size_t c_start, std::size_t c_end) {
+        nk::detail::parallel_for(nrhs, (nrhs >= 64) ? 16 : 1, [=, &A_lu](std::size_t c_start, std::size_t c_end) {
             std::size_t cols = c_end - c_start;
             T* X_slice = X + c_start * n;
             trsm_L_blocked_seq(n, cols, A_lu.data(), n, X_slice, n);
@@ -634,4 +634,4 @@ bool lu_factor_inplace(std::complex<double> *A, std::size_t lda, std::int32_t *p
     return lu_blocked_inplace(A, lda, piv, m, n, 0);
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

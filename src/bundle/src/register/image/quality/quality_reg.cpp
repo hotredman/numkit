@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/quality/quality.hpp>
+#include <nk/image/quality/quality.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -34,7 +34,7 @@ void immse_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("immse: requires (A, B)", 0, 0, "immse", "",
-                    "numkit:immse:nargin");
+                    "nk:immse:nargin");
     outs[0] = immse(args[0], args[1], ctx.engine->resource());
 }
 
@@ -43,7 +43,7 @@ void psnr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("psnr: requires (A, B[, peak])", 0, 0, "psnr", "",
-                    "numkit:psnr:nargin");
+                    "nk:psnr:nargin");
     const double peak = (args.size() >= 3 && !args[2].isEmpty())
                         ? args[2].toScalar() : std::nan("");
     outs[0] = psnr(args[0], args[1], peak, ctx.engine->resource());
@@ -54,7 +54,7 @@ void ssim_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ssim: requires (A, B)", 0, 0, "ssim", "",
-                    "numkit:ssim:nargin");
+                    "nk:ssim:nargin");
     outs[0] = ssim(args[0], args[1], ctx.engine->resource());
 }
 
@@ -63,7 +63,7 @@ void mean2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("mean2: requires (A)", 0, 0, "mean2", "",
-                    "numkit:mean2:nargin");
+                    "nk:mean2:nargin");
     outs[0] = mean2(args[0], ctx.engine->resource());
 }
 
@@ -72,7 +72,7 @@ void std2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("std2: requires (A)", 0, 0, "std2", "",
-                    "numkit:std2:nargin");
+                    "nk:std2:nargin");
     outs[0] = std2(args[0], ctx.engine->resource());
 }
 
@@ -81,7 +81,7 @@ void corr2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("corr2: requires (A, B)", 0, 0, "corr2", "",
-                    "numkit:corr2:nargin");
+                    "nk:corr2:nargin");
     outs[0] = corr2(args[0], args[1], ctx.engine->resource());
 }
 
@@ -91,7 +91,7 @@ void multissim3_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("multissim3: requires (V, Vref [, NV...])",
                     0, 0, "multissim3", "",
-                    "numkit:multissim3:nargin");
+                    "nk:multissim3:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -104,7 +104,7 @@ void multissim3_reg(Span<const Value> args, size_t nargout,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("multissim3: expected NV-pair name string",
-                        0, 0, "multissim3", "", "numkit:multissim3:badNv");
+                        0, 0, "multissim3", "", "nk:multissim3:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -125,7 +125,7 @@ void multissim3_reg(Span<const Value> args, size_t nargout,
         } else {
             throw Error("multissim3: unknown option '" + name + "'",
                         0, 0, "multissim3", "",
-                        "numkit:multissim3:unknownNv");
+                        "nk:multissim3:unknownNv");
         }
         i += 2;
     }
@@ -146,7 +146,7 @@ void multissim_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("multissim: requires (I, Iref [, NV...])",
-                    0, 0, "multissim", "", "numkit:multissim:nargin");
+                    0, 0, "multissim", "", "nk:multissim:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -159,7 +159,7 @@ void multissim_reg(Span<const Value> args, size_t nargout,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("multissim: expected NV-pair name string",
-                        0, 0, "multissim", "", "numkit:multissim:badNv");
+                        0, 0, "multissim", "", "nk:multissim:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -180,7 +180,7 @@ void multissim_reg(Span<const Value> args, size_t nargout,
         } else {
             throw Error("multissim: unknown option '" + name + "'",
                         0, 0, "multissim", "",
-                        "numkit:multissim:unknownNv");
+                        "nk:multissim:unknownNv");
         }
         i += 2;
     }
@@ -198,4 +198,4 @@ void multissim_reg(Span<const Value> args, size_t nargout,
 }
 
 } // namespace detail
-} // namespace numkit::image
+} // namespace nk::image

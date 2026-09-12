@@ -2,10 +2,10 @@
 //
 // Regression guard for symmetric eig (Phase 2 -- Jacobi rotations).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class EigTest : public ::testing::Test
 {
@@ -159,7 +159,7 @@ TEST_F(EigTest, EigUnknownOptionThrows)
 //
 // Real-world AHP code selects the dominant eigenvector by
 // [~, idx] = max(diag(D)); w = V(:, idx). The engines return eig columns
-// in DIFFERENT orders (numkit idx=3, MATLAB idx=1 for this matrix — both
+// in DIFFERENT orders (nk idx=3, MATLAB idx=1 for this matrix — both
 // legal, MATLAB guarantees no order), so only the selection idiom may be
 // relied upon. Pins it for a perfectly consistent matrix (degenerate
 // zero-eigenvalue space): the selected vector must be the Perron weights.

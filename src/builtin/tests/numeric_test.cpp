@@ -106,7 +106,7 @@ TEST_P(NumericTest, GcdVector)
 }
 
 // [g,u,v]=gcd(a,b): Bezout coefficients with a*u+b*v=g (MATLAB R2025b).
-// numkit previously only supported the 1-output form. DEEP-PROBE 2026-05-30.
+// nk previously only supported the 1-output form. DEEP-PROBE 2026-05-30.
 TEST_P(NumericTest, GcdExtendedBezout)
 {
     eval("[g,u,v] = gcd(12, 18);");

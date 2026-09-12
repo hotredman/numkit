@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/region/region.hpp>
+#include <nk/image/region/region.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -84,7 +84,7 @@ void bwlabel_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("bwlabel: requires (BW[, conn])", 0, 0, "bwlabel", "",
-                    "numkit:bwlabel:nargin");
+                    "nk:bwlabel:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     auto [L, n] = bwlabel(args[0], conn, ctx.engine->resource());
@@ -97,7 +97,7 @@ void bwconncomp_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwconncomp: requires (BW[, conn])", 0, 0, "bwconncomp", "",
-                    "numkit:bwconncomp:nargin");
+                    "nk:bwconncomp:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     outs[0] = bwconncomp(args[0], conn, ctx.engine->resource());
@@ -108,7 +108,7 @@ void labelmatrix_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("labelmatrix: requires (CC)", 0, 0, "labelmatrix", "",
-                    "numkit:labelmatrix:nargin");
+                    "nk:labelmatrix:nargin");
     outs[0] = labelmatrix(args[0], ctx.engine->resource());
 }
 
@@ -117,7 +117,7 @@ void cc2bw_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("cc2bw: requires (CC [, NV...])", 0, 0, "cc2bw", "",
-                    "numkit:cc2bw:nargin");
+                    "nk:cc2bw:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
     Value objs;  // empty → keep all
@@ -125,7 +125,7 @@ void cc2bw_reg(Span<const Value> args, size_t /*nargout*/,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("cc2bw: expected NV-pair name string",
-                        0, 0, "cc2bw", "", "numkit:cc2bw:badNv");
+                        0, 0, "cc2bw", "", "nk:cc2bw:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -136,7 +136,7 @@ void cc2bw_reg(Span<const Value> args, size_t /*nargout*/,
         } else {
             throw Error("cc2bw: unknown option '" + name + "'",
                         0, 0, "cc2bw", "",
-                        "numkit:cc2bw:unknownNv");
+                        "nk:cc2bw:unknownNv");
         }
         i += 2;
     }
@@ -148,7 +148,7 @@ void bwarea_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwarea: requires BW", 0, 0, "bwarea", "",
-                    "numkit:bwarea:nargin");
+                    "nk:bwarea:nargin");
     outs[0] = bwarea(args[0], ctx.engine->resource());
 }
 
@@ -157,7 +157,7 @@ void bwperim_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwperim: requires (BW[, conn])", 0, 0, "bwperim", "",
-                    "numkit:bwperim:nargin");
+                    "nk:bwperim:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     outs[0] = bwperim(args[0], conn, ctx.engine->resource());
@@ -168,7 +168,7 @@ void bwareaopen_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bwareaopen: requires (BW, P[, conn])", 0, 0,
-                    "bwareaopen", "", "numkit:bwareaopen:nargin");
+                    "bwareaopen", "", "nk:bwareaopen:nargin");
     const int P = (int)args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? (int)args[2].toScalar() : 8;
@@ -180,9 +180,9 @@ void bwboundaries_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("bwboundaries: requires (BW[, conn])", 0, 0,
-                    "bwboundaries", "", "numkit:bwboundaries:nargin");
+                    "bwboundaries", "", "nk:bwboundaries:nargin");
     // conn is the first numeric trailing arg; a string (e.g. 'noholes') is a
-    // mode flag (numkit traces objects only either way) and is ignored.
+    // mode flag (nk traces objects only either way) and is ignored.
     int conn = 8;
     if (args.size() >= 2 && !args[1].isEmpty() && !args[1].isChar() &&
         !args[1].isString())
@@ -201,7 +201,7 @@ void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("regionprops: requires (BW_or_L[, I][, props...])",
-                    0, 0, "regionprops", "", "numkit:regionprops:nargin");
+                    0, 0, "regionprops", "", "nk:regionprops:nargin");
     // MATLAB: regionprops(BW_or_L, I, props) — a numeric 2nd argument is the
     // grayscale intensity image for the *Intensity / WeightedCentroid /
     // PixelValues measurements. A string/cell 2nd argument is a property.
@@ -216,7 +216,7 @@ void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
     for (size_t i = propStart; i < args.size(); ++i) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("regionprops: property names must be strings",
-                        0, 0, "regionprops", "", "numkit:regionprops:type");
+                        0, 0, "regionprops", "", "nk:regionprops:type");
         props.push_back(args[i].toString());
     }
     outs[0] = regionprops(args[0], props, intensity, ctx.engine->resource());
@@ -265,7 +265,7 @@ void bwdist_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("bwdist: requires (BW)",
-                    0, 0, "bwdist", "", "numkit:bwdist:nargin");
+                    0, 0, "bwdist", "", "nk:bwdist:nargin");
     auto *mr = ctx.engine->resource();
 
     // Optional distance metric (default 'euclidean'), case-insensitive.
@@ -289,7 +289,7 @@ void bwdist_reg(Span<const Value> args, size_t nargout,
     } else {
         throw Error("bwdist: method must be 'euclidean', 'cityblock', "
                     "'chessboard', or 'quasi-euclidean'",
-                    0, 0, "bwdist", "", "numkit:bwdist:badMethod");
+                    0, 0, "bwdist", "", "nk:bwdist:badMethod");
     }
 
     // 2nd output IDX (nearest-foreground-pixel linear index) on request.
@@ -302,7 +302,7 @@ void roicolor_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("roicolor: requires (A, low, high) or (A, v)",
-                    0, 0, "roicolor", "", "numkit:roicolor:nargin");
+                    0, 0, "roicolor", "", "nk:roicolor:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 3) {
         outs[0] = roicolor(args[0], args[1], args[2].toScalar(), /*is_range=*/true, mr);
@@ -316,7 +316,7 @@ void fchcode_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fchcode: requires (bound)",
-                    0, 0, "fchcode", "", "numkit:fchcode:nargin");
+                    0, 0, "fchcode", "", "nk:fchcode:nargin");
     outs[0] = fchcode(args[0], ctx.engine->resource());
 }
 
@@ -325,7 +325,7 @@ void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bwareafilt: requires (BW, range|n [, keep] [, conn])",
-                    0, 0, "bwareafilt", "", "numkit:bwareafilt:nargin");
+                    0, 0, "bwareafilt", "", "nk:bwareafilt:nargin");
     auto *mr = ctx.engine->resource();
     double lo = 0.0, hi = std::numeric_limits<double>::infinity();
     size_t n_keep = 0;
@@ -354,7 +354,7 @@ void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
             if      (lo_s == "largest")  keep_largest = true;
             else if (lo_s == "smallest") keep_largest = false;
             else throw Error("bwareafilt: keep must be 'largest' or 'smallest'",
-                             0, 0, "bwareafilt", "", "numkit:bwareafilt:keep");
+                             0, 0, "bwareafilt", "", "nk:bwareafilt:keep");
         } else if (a.numel() == 1) {
             conn = static_cast<int>(a.toScalar());
         }
@@ -368,7 +368,7 @@ void bwselect_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("bwselect: requires (BW, cols, rows[, conn])",
-                    0, 0, "bwselect", "", "numkit:bwselect:nargin");
+                    0, 0, "bwselect", "", "nk:bwselect:nargin");
     int conn = 8;
     if (args.size() >= 4 && !args[3].isEmpty())
         conn = static_cast<int>(args[3].toScalar());
@@ -382,7 +382,7 @@ void bweuler_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bweuler: requires (BW [, n])",
-                    0, 0, "bweuler", "", "numkit:bweuler:nargin");
+                    0, 0, "bweuler", "", "nk:bweuler:nargin");
     int conn = 8;
     if (args.size() >= 2 && !args[1].isEmpty())
         conn = static_cast<int>(args[1].toScalar());
@@ -390,4 +390,4 @@ void bweuler_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
-} // namespace numkit::image
+} // namespace nk::image

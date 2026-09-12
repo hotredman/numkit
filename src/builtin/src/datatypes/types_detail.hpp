@@ -3,11 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +27,7 @@
 #endif
 
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 // SIMD/portable cast + isfinite backend (defs in casts_{highway,portable}.cpp /
 // isfinite_{highway,portable}.cpp) — needed by the numericConstructor template below.
 void doubleToInt8 (const double *in, int8_t   *out, std::size_t n);
@@ -38,16 +38,16 @@ void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
 void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
-// isnan/isinf/isfinite backend lives in arithmetic → numkit::builtin::detail (C4).
-namespace numkit::builtin::detail {
+// isnan/isinf/isfinite backend lives in arithmetic → nk::builtin::detail (C4).
+namespace nk::builtin::detail {
 void doubleIsNaNLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -80,14 +80,14 @@ Value numericConstructor(ValueType targetType, const Value &x, std::pmr::memory_
     if constexpr (std::is_integral_v<T>) {
         if (x.type() == ValueType::DOUBLE && n > 0) {
             const double *src = x.doubleData();
-            if constexpr (std::is_same_v<T, int8_t>)        ::numkit::builtin::detail::doubleToInt8 (src, dst, n);
-            else if constexpr (std::is_same_v<T, int16_t>)  ::numkit::builtin::detail::doubleToInt16(src, dst, n);
-            else if constexpr (std::is_same_v<T, int32_t>)  ::numkit::builtin::detail::doubleToInt32(src, dst, n);
-            else if constexpr (std::is_same_v<T, int64_t>)  ::numkit::builtin::detail::doubleToInt64(src, dst, n);
-            else if constexpr (std::is_same_v<T, uint8_t>)  ::numkit::builtin::detail::doubleToUInt8 (src, dst, n);
-            else if constexpr (std::is_same_v<T, uint16_t>) ::numkit::builtin::detail::doubleToUInt16(src, dst, n);
-            else if constexpr (std::is_same_v<T, uint32_t>) ::numkit::builtin::detail::doubleToUInt32(src, dst, n);
-            else if constexpr (std::is_same_v<T, uint64_t>) ::numkit::builtin::detail::doubleToUInt64(src, dst, n);
+            if constexpr (std::is_same_v<T, int8_t>)        ::nk::builtin::detail::doubleToInt8 (src, dst, n);
+            else if constexpr (std::is_same_v<T, int16_t>)  ::nk::builtin::detail::doubleToInt16(src, dst, n);
+            else if constexpr (std::is_same_v<T, int32_t>)  ::nk::builtin::detail::doubleToInt32(src, dst, n);
+            else if constexpr (std::is_same_v<T, int64_t>)  ::nk::builtin::detail::doubleToInt64(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint8_t>)  ::nk::builtin::detail::doubleToUInt8 (src, dst, n);
+            else if constexpr (std::is_same_v<T, uint16_t>) ::nk::builtin::detail::doubleToUInt16(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint32_t>) ::nk::builtin::detail::doubleToUInt32(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint64_t>) ::nk::builtin::detail::doubleToUInt64(src, dst, n);
             return r;
         }
     }
@@ -341,4 +341,4 @@ size_t elemSizeOf(ValueType t)
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

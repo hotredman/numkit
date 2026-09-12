@@ -1,11 +1,11 @@
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/value_type.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/value_type.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 void allunique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitand_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -86,7 +86,7 @@ bool tryParseReducer(const Value &h, AccumReducer &op)
 {
     if (!h.isFuncHandle())
         throw Error("accumarray: fn argument must be a function handle",
-                     0, 0, "accumarray", "", "numkit:accumarray:fnType");
+                     0, 0, "accumarray", "", "nk:accumarray:fnType");
     std::string s = h.funcHandleName();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -104,15 +104,15 @@ size_t toSubIndex(double v, size_t maxAllowed, const char *fn)
 {
     if (!std::isfinite(v) || v < 1.0)
         throw Error(std::string(fn) + ": subscripts must be positive integers",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":subRange");
+                     0, 0, fn, "", std::string("nk:") + fn + ":subRange");
     const double rounded = std::round(v);
     if (std::abs(v - rounded) > 1e-9)
         throw Error(std::string(fn) + ": subscripts must be integer-valued",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":subInt");
+                     0, 0, fn, "", std::string("nk:") + fn + ":subInt");
     const size_t idx = static_cast<size_t>(rounded);
     if (maxAllowed > 0 && idx > maxAllowed)
         throw Error(std::string(fn) + ": subscript exceeds output dimension",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":subOOB");
+                     0, 0, fn, "", std::string("nk:") + fn + ":subOOB");
     return idx;
 }
 
@@ -126,7 +126,7 @@ ScratchVec<size_t> resolveOutShape(const Value &subs, const size_t *userShape,
     if (nUserShape > 0) {
         if (nUserShape < D)
             throw Error(std::string(fn) + ": sz length must be at least size(subs, 2)",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":sizeRank");
+                         0, 0, fn, "", std::string("nk:") + fn + ":sizeRank");
         ScratchVec<size_t> out(userShape, userShape + nUserShape, mr);
         return out;
     }
@@ -182,18 +182,18 @@ Value accumarrayGeneral(const Value &subs, const Value &vals,
 {
     const char *fn = "accumarray";
     if (subs.type() != ValueType::DOUBLE)
-        throw Error("accumarray: subs must be DOUBLE", 0, 0, fn, "", "numkit:accumarray:subType");
+        throw Error("accumarray: subs must be DOUBLE", 0, 0, fn, "", "nk:accumarray:subType");
     if (vals.type() != ValueType::DOUBLE)
-        throw Error("accumarray: vals must be DOUBLE", 0, 0, fn, "", "numkit:accumarray:valType");
+        throw Error("accumarray: vals must be DOUBLE", 0, 0, fn, "", "nk:accumarray:valType");
     const auto &sd = subs.dims();
     if (sd.ndim() > 2)
-        throw Error("accumarray: subs must be a 2D matrix", 0, 0, fn, "", "numkit:accumarray:subND");
+        throw Error("accumarray: subs must be a 2D matrix", 0, 0, fn, "", "nk:accumarray:subND");
     const size_t N = sd.rows();
     const size_t D = (sd.ndim() <= 1 || sd.cols() == 0) ? 1 : sd.cols();
     const bool valIsScalar = vals.isScalar();
     if (!valIsScalar && vals.numel() != N)
         throw Error("accumarray: vals must be a scalar or a length-N vector",
-                     0, 0, fn, "", "numkit:accumarray:valSize");
+                     0, 0, fn, "", "nk:accumarray:valSize");
 
     ScratchArena scratch(mr);
     auto shape = resolveOutShape(subs, outShape.data(), outShape.size(), fn, &scratch);
@@ -238,7 +238,7 @@ ScratchVec<size_t> parseSizeArg(const Value &sz, std::pmr::memory_resource *mr)
     if (sz.isEmpty()) return shape;
     if (sz.type() != ValueType::DOUBLE || !sz.dims().isVector())
         throw Error("accumarray: sz must be a numeric row vector",
-                     0, 0, "accumarray", "", "numkit:accumarray:sizeType");
+                     0, 0, "accumarray", "", "nk:accumarray:sizeType");
     const size_t k = sz.numel();
     shape.resize(k);
     const double *p = sz.doubleData();
@@ -246,7 +246,7 @@ ScratchVec<size_t> parseSizeArg(const Value &sz, std::pmr::memory_resource *mr)
         const double v = p[i];
         if (!std::isfinite(v) || v < 0)
             throw Error("accumarray: sz entries must be non-negative integers",
-                         0, 0, "accumarray", "", "numkit:accumarray:sizeRange");
+                         0, 0, "accumarray", "", "nk:accumarray:sizeRange");
         shape[i] = static_cast<size_t>(std::round(v));
     }
     return shape;
@@ -259,10 +259,10 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("accumarray: requires at least 2 arguments (subs, vals)",
-                     0, 0, "accumarray", "", "numkit:accumarray:nargin");
+                     0, 0, "accumarray", "", "nk:accumarray:nargin");
     if (args.size() > 6)
         throw Error("accumarray: too many arguments",
-                     0, 0, "accumarray", "", "numkit:accumarray:nargin");
+                     0, 0, "accumarray", "", "nk:accumarray:nargin");
 
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
@@ -280,13 +280,13 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 5 && !args[4].isEmpty()) {
         if (!args[4].isScalar())
             throw Error("accumarray: fillval must be a scalar",
-                         0, 0, "accumarray", "", "numkit:accumarray:fillType");
+                         0, 0, "accumarray", "", "nk:accumarray:fillType");
         fillVal = args[4].toScalar();
     }
     if (args.size() >= 6 && !args[5].isEmpty()) {
         if (args[5].toScalar() != 0.0)
             throw Error("accumarray: sparse output (issparse=1) is not supported",
-                         0, 0, "accumarray", "", "numkit:accumarray:sparse");
+                         0, 0, "accumarray", "", "nk:accumarray:sparse");
     }
 
     const Value &valsArg = args[1];
@@ -307,86 +307,86 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
     }
 }
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
-namespace numkit::bundle::builtin {
+namespace nk::bundle::builtin {
 
 void register_datafun(Engine &engine) {
-    engine.registerFunction("linspace", &::numkit::builtin::detail::linspace_reg);
-    engine.registerFunction("logspace", &::numkit::builtin::detail::logspace_reg);
-    engine.registerFunction("rand",     &::numkit::builtin::detail::rand_reg);
-    engine.registerFunction("randn",    &::numkit::builtin::detail::randn_reg);
-    engine.registerFunction("randi",    &::numkit::builtin::detail::randi_reg);
-    engine.registerFunction("randperm", &::numkit::builtin::detail::randperm_reg);
-    engine.registerFunction("rng",      &::numkit::builtin::detail::rng_reg);
+    engine.registerFunction("linspace", &::nk::builtin::detail::linspace_reg);
+    engine.registerFunction("logspace", &::nk::builtin::detail::logspace_reg);
+    engine.registerFunction("rand",     &::nk::builtin::detail::rand_reg);
+    engine.registerFunction("randn",    &::nk::builtin::detail::randn_reg);
+    engine.registerFunction("randi",    &::nk::builtin::detail::randi_reg);
+    engine.registerFunction("randperm", &::nk::builtin::detail::randperm_reg);
+    engine.registerFunction("rng",      &::nk::builtin::detail::rng_reg);
 
-    engine.registerFunction("max",      &::numkit::builtin::detail::max_reg);
-    engine.registerFunction("min",      &::numkit::builtin::detail::min_reg);
-    engine.registerFunction("sum",      &::numkit::builtin::detail::sum_reg);
-    engine.registerFunction("prod",     &::numkit::builtin::detail::prod_reg);
-    engine.registerFunction("mean",     &::numkit::builtin::detail::mean_reg);
+    engine.registerFunction("max",      &::nk::builtin::detail::max_reg);
+    engine.registerFunction("min",      &::nk::builtin::detail::min_reg);
+    engine.registerFunction("sum",      &::nk::builtin::detail::sum_reg);
+    engine.registerFunction("prod",     &::nk::builtin::detail::prod_reg);
+    engine.registerFunction("mean",     &::nk::builtin::detail::mean_reg);
 
-    engine.registerFunction("nthroot",  &::numkit::builtin::detail::nthroot_reg);
-    engine.registerFunction("expm1",    &::numkit::builtin::detail::expm1_reg);
-    engine.registerFunction("log1p",    &::numkit::builtin::detail::log1p_reg);
-    engine.registerFunction("pow2",     &::numkit::builtin::detail::pow2_reg);
-    engine.registerFunction("realpow",  &::numkit::builtin::detail::realpow_reg);
-    engine.registerFunction("reallog",  &::numkit::builtin::detail::reallog_reg);
-    engine.registerFunction("realsqrt", &::numkit::builtin::detail::realsqrt_reg);
+    engine.registerFunction("nthroot",  &::nk::builtin::detail::nthroot_reg);
+    engine.registerFunction("expm1",    &::nk::builtin::detail::expm1_reg);
+    engine.registerFunction("log1p",    &::nk::builtin::detail::log1p_reg);
+    engine.registerFunction("pow2",     &::nk::builtin::detail::pow2_reg);
+    engine.registerFunction("realpow",  &::nk::builtin::detail::realpow_reg);
+    engine.registerFunction("reallog",  &::nk::builtin::detail::reallog_reg);
+    engine.registerFunction("realsqrt", &::nk::builtin::detail::realsqrt_reg);
 
-    engine.registerFunction("bitand",   &::numkit::builtin::detail::bitand_reg);
-    engine.registerFunction("bitor",    &::numkit::builtin::detail::bitor_reg);
-    engine.registerFunction("bitxor",   &::numkit::builtin::detail::bitxor_reg);
-    engine.registerFunction("bitshift", &::numkit::builtin::detail::bitshift_reg);
-    engine.registerFunction("bitcmp",   &::numkit::builtin::detail::bitcmp_reg);
-    engine.registerFunction("bitset",   &::numkit::builtin::detail::bitset_reg);
-    engine.registerFunction("bitget",   &::numkit::builtin::detail::bitget_reg);
+    engine.registerFunction("bitand",   &::nk::builtin::detail::bitand_reg);
+    engine.registerFunction("bitor",    &::nk::builtin::detail::bitor_reg);
+    engine.registerFunction("bitxor",   &::nk::builtin::detail::bitxor_reg);
+    engine.registerFunction("bitshift", &::nk::builtin::detail::bitshift_reg);
+    engine.registerFunction("bitcmp",   &::nk::builtin::detail::bitcmp_reg);
+    engine.registerFunction("bitset",   &::nk::builtin::detail::bitset_reg);
+    engine.registerFunction("bitget",   &::nk::builtin::detail::bitget_reg);
 
-    engine.registerFunction("unique",     &::numkit::builtin::detail::unique_reg);
-    engine.registerFunction("ismember",   &::numkit::builtin::detail::ismember_reg);
-    engine.registerFunction("union",      &::numkit::builtin::detail::union_reg);
-    engine.registerFunction("intersect",  &::numkit::builtin::detail::intersect_reg);
-    engine.registerFunction("setdiff",    &::numkit::builtin::detail::setdiff_reg);
-    engine.registerFunction("setxor",     &::numkit::builtin::detail::setxor_reg);
-    engine.registerFunction("allunique",  &::numkit::builtin::detail::allunique_reg);
-    engine.registerFunction("numunique",  &::numkit::builtin::detail::numunique_reg);
-    engine.registerFunction("ismembertol",&::numkit::builtin::detail::ismembertol_reg);
-    engine.registerFunction("uniquetol",  &::numkit::builtin::detail::uniquetol_reg);
-    engine.registerFunction("histcounts", &::numkit::builtin::detail::histcounts_reg);
-    engine.registerFunction("histc",      &::numkit::builtin::detail::histc_reg);
-    engine.registerFunction("discretize", &::numkit::builtin::detail::discretize_reg);
-    engine.registerFunction("accumarray", &::numkit::builtin::detail::accumarray_reg);
-    engine.registerFunction("deg2rad",    &::numkit::builtin::detail::deg2rad_reg);
-    engine.registerFunction("rad2deg",    &::numkit::builtin::detail::rad2deg_reg);
-    engine.registerFunction("wrapToPi",   &::numkit::builtin::detail::wrapToPi_reg);
-    engine.registerFunction("wrapTo2Pi",  &::numkit::builtin::detail::wrapTo2Pi_reg);
-    engine.registerFunction("wrapTo180",  &::numkit::builtin::detail::wrapTo180_reg);
-    engine.registerFunction("wrapTo360",  &::numkit::builtin::detail::wrapTo360_reg);
+    engine.registerFunction("unique",     &::nk::builtin::detail::unique_reg);
+    engine.registerFunction("ismember",   &::nk::builtin::detail::ismember_reg);
+    engine.registerFunction("union",      &::nk::builtin::detail::union_reg);
+    engine.registerFunction("intersect",  &::nk::builtin::detail::intersect_reg);
+    engine.registerFunction("setdiff",    &::nk::builtin::detail::setdiff_reg);
+    engine.registerFunction("setxor",     &::nk::builtin::detail::setxor_reg);
+    engine.registerFunction("allunique",  &::nk::builtin::detail::allunique_reg);
+    engine.registerFunction("numunique",  &::nk::builtin::detail::numunique_reg);
+    engine.registerFunction("ismembertol",&::nk::builtin::detail::ismembertol_reg);
+    engine.registerFunction("uniquetol",  &::nk::builtin::detail::uniquetol_reg);
+    engine.registerFunction("histcounts", &::nk::builtin::detail::histcounts_reg);
+    engine.registerFunction("histc",      &::nk::builtin::detail::histc_reg);
+    engine.registerFunction("discretize", &::nk::builtin::detail::discretize_reg);
+    engine.registerFunction("accumarray", &::nk::builtin::detail::accumarray_reg);
+    engine.registerFunction("deg2rad",    &::nk::builtin::detail::deg2rad_reg);
+    engine.registerFunction("rad2deg",    &::nk::builtin::detail::rad2deg_reg);
+    engine.registerFunction("wrapToPi",   &::nk::builtin::detail::wrapToPi_reg);
+    engine.registerFunction("wrapTo2Pi",  &::nk::builtin::detail::wrapTo2Pi_reg);
+    engine.registerFunction("wrapTo180",  &::nk::builtin::detail::wrapTo180_reg);
+    engine.registerFunction("wrapTo360",  &::nk::builtin::detail::wrapTo360_reg);
 
-    engine.registerFunction("gradient",   &::numkit::builtin::detail::gradient_reg);
-    engine.registerFunction("del2",       &::numkit::builtin::detail::del2_reg);
-    engine.registerFunction("inpolygon",  &::numkit::builtin::detail::inpolygon_reg);
-    engine.registerFunction("convhull",   &::numkit::builtin::detail::convhull_reg);
-    engine.registerFunction("polyarea",   &::numkit::builtin::detail::polyarea_reg);
-    engine.registerFunction("boundary",   &::numkit::builtin::detail::boundary_reg);
-    engine.registerFunction("delaunay",   &::numkit::builtin::detail::delaunay_reg);
-    engine.registerFunction("histcounts2",&::numkit::builtin::detail::histcounts2_reg);
-    engine.registerFunction("griddata",   &::numkit::builtin::detail::griddata_reg);
-    engine.registerFunction("griddatan",  &::numkit::builtin::detail::griddatan_reg);
-    engine.registerFunction("matchpairs", &::numkit::builtin::detail::matchpairs_reg);
-    engine.registerFunction("findgroups", &::numkit::builtin::detail::findgroups_reg);
-    engine.registerFunction("splitapply", &::numkit::builtin::detail::splitapply_reg);
-    engine.registerFunction("groupcounts",&::numkit::builtin::detail::groupcounts_reg);
-    engine.registerFunction("groupsummary",&::numkit::builtin::detail::groupsummary_reg);
-    engine.registerFunction("grouptransform",&::numkit::builtin::detail::grouptransform_reg);
-    engine.registerFunction("groupfilter",&::numkit::builtin::detail::groupfilter_reg);
-    engine.registerFunction("colperm",    &::numkit::builtin::detail::colperm_reg);
-    engine.registerFunction("symrcm",     &::numkit::builtin::detail::symrcm_reg);
+    engine.registerFunction("gradient",   &::nk::builtin::detail::gradient_reg);
+    engine.registerFunction("del2",       &::nk::builtin::detail::del2_reg);
+    engine.registerFunction("inpolygon",  &::nk::builtin::detail::inpolygon_reg);
+    engine.registerFunction("convhull",   &::nk::builtin::detail::convhull_reg);
+    engine.registerFunction("polyarea",   &::nk::builtin::detail::polyarea_reg);
+    engine.registerFunction("boundary",   &::nk::builtin::detail::boundary_reg);
+    engine.registerFunction("delaunay",   &::nk::builtin::detail::delaunay_reg);
+    engine.registerFunction("histcounts2",&::nk::builtin::detail::histcounts2_reg);
+    engine.registerFunction("griddata",   &::nk::builtin::detail::griddata_reg);
+    engine.registerFunction("griddatan",  &::nk::builtin::detail::griddatan_reg);
+    engine.registerFunction("matchpairs", &::nk::builtin::detail::matchpairs_reg);
+    engine.registerFunction("findgroups", &::nk::builtin::detail::findgroups_reg);
+    engine.registerFunction("splitapply", &::nk::builtin::detail::splitapply_reg);
+    engine.registerFunction("groupcounts",&::nk::builtin::detail::groupcounts_reg);
+    engine.registerFunction("groupsummary",&::nk::builtin::detail::groupsummary_reg);
+    engine.registerFunction("grouptransform",&::nk::builtin::detail::grouptransform_reg);
+    engine.registerFunction("groupfilter",&::nk::builtin::detail::groupfilter_reg);
+    engine.registerFunction("colperm",    &::nk::builtin::detail::colperm_reg);
+    engine.registerFunction("symrcm",     &::nk::builtin::detail::symrcm_reg);
         engine.registerFunction("vec2ind",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.empty())
                 throw Error("vec2ind: requires at least 1 argument",
-                             0, 0, "vec2ind", "", "numkit:vec2ind:nargin");
+                             0, 0, "vec2ind", "", "nk:vec2ind:nargin");
             auto *mr = ctx.engine->resource();
             const Value &v = args[0];
             if (v.dims().rows() == 1 && v.numel() > 0) {
@@ -426,4 +426,4 @@ void register_datafun(Engine &engine) {
         });
 }
 
-} // namespace numkit::bundle::builtin
+} // namespace nk::bundle::builtin

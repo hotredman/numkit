@@ -1,15 +1,15 @@
 // codegen/src/monomorphize.cpp — see monomorphize.hpp.
 
-#include <numkit/codegen/monomorphize.hpp>
+#include <nk/codegen/monomorphize.hpp>
 
-#include <numkit/codegen/classinfo.hpp>
+#include <nk/codegen/classinfo.hpp>
 
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 namespace {
 
@@ -235,4 +235,4 @@ void registerUserFunctions(TransferRegistry &reg, const FunctionTable &table)
     }
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

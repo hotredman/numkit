@@ -1,13 +1,13 @@
 // toolboxes/signal/src/transforms/extras.cpp
 // dftmtx / bitrevorder / dst / idst / rceps / cceps / icceps.
 
-#include <numkit/signal/transforms/extras.hpp>
+#include <nk/signal/transforms/extras.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
-#include <numkit/signal/transforms/fft.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
+#include <nk/signal/transforms/fft.hpp>
 
 #include "../dsp_helpers.hpp"   // fftRadix2, fillFftTwiddles, nextPow2, Complex
 #include "extras_detail.hpp"    // bitReverse (shared compute/register)
@@ -20,7 +20,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::signal {
+namespace nk::signal {
 
 // External linkage (declared in extras_detail.hpp): bit-reversal permutation
 // index, shared by the engine-free compute (bitrevorder) and the CallContext
@@ -80,7 +80,7 @@ Value dftmtx(size_t N, std::pmr::memory_resource *mr)
 {
     if (N == 0)
         throw Error("dftmtx: N must be positive",
-                     0, 0, "dftmtx", "", "numkit:dftmtx:badN");
+                     0, 0, "dftmtx", "", "nk:dftmtx:badN");
     auto out = Value::complexMatrix(N, N, mr);
     Complex *dst = out.complexDataMut();
     const double base = -2.0 * M_PI / static_cast<double>(N);
@@ -98,7 +98,7 @@ Value bitrevorder(const Value &x, std::pmr::memory_resource *mr)
     const size_t n = x.numel();
     if (!isPow2(n))
         throw Error("bitrevorder: input length must be a power of two",
-                     0, 0, "bitrevorder", "", "numkit:bitrevorder:badLength");
+                     0, 0, "bitrevorder", "", "nk:bitrevorder:badLength");
     size_t bits = 0;
     for (size_t v = n; v > 1; v >>= 1) ++bits;
 
@@ -213,7 +213,7 @@ std::pair<Value, Value> rcepsMinPhase(const Value &x, std::pmr::memory_resource 
 // Complex cepstrum: ifft(log(fft(x))) with simple phase unwrapping along
 // the frequency axis. Only the real part of x is used (matches MATLAB
 // when input is real).
-// Sign-convention note (numkit's fftRadix2 dir argument):
+// Sign-convention note (nk's fftRadix2 dir argument):
 //   dir = -1  →  W[k] = exp(-2πj k/N)  →  FORWARD DFT
 //   dir = +1  →  W[k] = exp(+2πj k/N)  →  INVERSE DFT (caller scales by 1/N)
 // The inverse-step here MUST be dir=+1; using -1 produces a forward DFT
@@ -287,4 +287,4 @@ Value icceps(const Value &c, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

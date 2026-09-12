@@ -2,19 +2,19 @@
 %
 % The SAME 2nd-order IIR (biquad, Direct Form I) as
 % benchmarks/interpreter/iir_filter_bench.cpp, written in PORTABLE M-code so the
-% identical file can be timed in MATLAB, Octave and numkit to compare the
+% identical file can be timed in MATLAB, Octave and nk to compare the
 % scalar-loop cost engine-to-engine. The recursion (y[n] depends on y[n-1],
 % y[n-2]) cannot vectorise, so it isolates raw scalar-loop dispatch. Run it in
 % each engine:
 %   MATLAB : matlab -batch "run('benchmarks/m/iir_filter_ref.m')"
 %   Octave : octave-cli benchmarks/m/iir_filter_ref.m
-%   numkit : build/desktop-fast/apps/numkit/Release/numkit.exe \
+%   nk : build/desktop-fast/apps/nk/Release/nk.exe \
 %                benchmarks/m/iir_filter_ref.m
 %
 % Reference snapshot (2026-06-17, N = 5e6, ns/sample):
-%   biquad loop : MATLAB JIT ~4.0  |  numkit VM ~150 (after loop-opt #1+#2)
-%   filter()    : MATLAB ~7.8      |  numkit ~5.5  (numkit beats MATLAB here)
-%   native C++ ~1.6  (numkit_bench BM_Biquad_NativeCpp)
+%   biquad loop : MATLAB JIT ~4.0  |  nk VM ~150 (after loop-opt #1+#2)
+%   filter()    : MATLAB ~7.8      |  nk ~5.5  (nk beats MATLAB here)
+%   native C++ ~1.6  (nk_bench BM_Biquad_NativeCpp)
 % No `import` here so the file stays MATLAB/Octave-portable; filter() is guarded
 % by try/catch (historically needed `import compat.*`; builtins are global now).
 
@@ -45,7 +45,7 @@ t = toc;
 fprintf('biquad loop : %.4f s | %7.2f ns/sample | y(end)=%.6f\n', t, t/N*1e9, y(N));
 
 % filter() builtin -- the C++ kernel doing the same recursion. Built in to
-% MATLAB / Octave; guarded for older numkit builds that lacked the builtin.
+% MATLAB / Octave; guarded for older nk builds that lacked the builtin.
 try
     b = [b0 b1 b2]; a = [1 a1 a2];
     tic; yf = filter(b, a, x); tf = toc;

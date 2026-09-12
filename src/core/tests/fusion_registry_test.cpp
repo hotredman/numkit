@@ -5,8 +5,8 @@
 // rules can be registered and iterated, and fusionEnabled() reflects both the
 // flag and whether any rule is present (a bare engine is never "fused").
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/fusion_rule.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/fusion_rule.hpp>
 
 #include <gtest/gtest.h>
 
@@ -14,20 +14,20 @@
 #include <vector>
 
 TEST(FusionRegistryTest, EmptyRegistryDisablesFusion) {
-    numkit::Engine e;
+    nk::Engine e;
     EXPECT_TRUE(e.fusionRules().empty());
     EXPECT_FALSE(e.fusionEnabled());  // no rules → effectively off
 }
 
 TEST(FusionRegistryTest, AddRuleAndToggleGate) {
-    numkit::Engine e;
-    numkit::FusionRule r;
+    nk::Engine e;
+    nk::FusionRule r;
     r.name = "dummy";
-    r.match = [](const numkit::ASTNode *)
-        -> std::optional<std::vector<const numkit::ASTNode *>> {
+    r.match = [](const nk::ASTNode *)
+        -> std::optional<std::vector<const nk::ASTNode *>> {
         return std::nullopt;
     };
-    r.execute = [](const numkit::Value *, std::size_t, numkit::Value &,
+    r.execute = [](const nk::Value *, std::size_t, nk::Value &,
                    std::pmr::memory_resource *) { return false; };
     e.addFusionRule(std::move(r));
 

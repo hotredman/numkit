@@ -4,12 +4,12 @@
 // Hardcoded expected values pinned against MATLAB R2025b
 // (see tools/parity/specs/condeig.json for the parity sweep).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class CondeigTest : public ::testing::Test
 {

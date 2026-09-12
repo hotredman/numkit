@@ -15,14 +15,14 @@ missing.
 ## Repro (pre-fix)
 ```matlab
 rceps([1 2 3 4 3 2 1])
-% numkit (pre-fix): -258.174 87.005 86.694 86.382 -259.214 86.382 86.694
+% nk (pre-fix): -258.174 87.005 86.694 86.382 -259.214 86.382 86.694
 % MATLAB:            0.396084 0.873038 0.517671 -0.202457 -0.202457 0.517671 0.873038
 [y, ym] = rceps([1 2 3 4 3 2 1])
-% numkit (pre-fix): Error — Too many output arguments
+% nk (pre-fix): Error — Too many output arguments
 % MATLAB ym:         1.603952 2.571895 3.739440 3.372840 2.652253 1.415667 0.643953
 ```
 A padded symmetric input also hit `log(0)` at the Nyquist bin (MATLAB
-rejects such inputs; numkit produced NaN-scale garbage).
+rejects such inputs; nk produced NaN-scale garbage).
 
 ## Root cause
 `fftReal()` in `src/toolboxes/signal/src/transforms/extras.cpp` used `fftRadix2`

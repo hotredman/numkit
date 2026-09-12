@@ -1,15 +1,15 @@
 // toolboxes/builtin/src/math/elementary/polynomials.cpp
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/poly_helpers.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/poly_helpers.hpp>
 
-#include <numkit/builtin/elmat.hpp>  // poly_of_matrix
+#include <nk/builtin/elmat.hpp>  // poly_of_matrix
 
 #include <cmath>
 #include <cstring>
@@ -18,16 +18,16 @@
 
 #include "polynomials_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 Value roots(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error("roots: complex coefficient input is not supported",
-                     0, 0, "roots", "", "numkit:roots:complex");
+                     0, 0, "roots", "", "nk:roots:complex");
     if (!p.dims().isVector() && !p.isScalar() && !p.isEmpty())
         throw Error("roots: argument must be a vector",
-                     0, 0, "roots", "", "numkit:roots:notVector");
+                     0, 0, "roots", "", "nk:roots:notVector");
 
     ScratchArena scratch(mr);
 
@@ -37,7 +37,7 @@ Value roots(const Value &p, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < n; ++i)
         coeffs[i] = p.elemAsDouble(i);
 
-    auto rs = numkit::ops::polyRootsDurandKerner(&scratch, coeffs.data(), coeffs.size());
+    auto rs = nk::ops::polyRootsDurandKerner(&scratch, coeffs.data(), coeffs.size());
     const std::size_t k = rs.size();
 
     // If every root is real, return a real column. Otherwise return COMPLEX.
@@ -128,7 +128,7 @@ tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     auto av = readPolyAsDouble(a, "tf2zp", &scratch);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2zp: leading denominator coefficient must be non-zero",
-                     0, 0, "tf2zp", "", "numkit:tf2zp:badDen");
+                     0, 0, "tf2zp", "", "nk:tf2zp:badDen");
     // MATLAB strips leading zeros from the numerator before forming the
     // ZPK gain: b = [0 0 0 0 1] is the polynomial "1", so the gain is 1,
     // NOT b(1) = 0. The root finder (polyRootsDurandKerner) already ignores
@@ -140,13 +140,13 @@ tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     if (bv.empty() || bnz == bv.size()) {
         // Numerator is empty or all zeros → no zeros, gain 0.
         auto z = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        auto pRoots = numkit::ops::polyRootsDurandKerner(&scratch, av.data(), av.size());
+        auto pRoots = nk::ops::polyRootsDurandKerner(&scratch, av.data(), av.size());
         auto p = realColIfFlat(pRoots.data(), pRoots.size(), mr);
         auto k = Value::scalar(0.0, mr);
         return std::make_tuple(std::move(z), std::move(p), std::move(k));
     }
-    auto zRoots = numkit::ops::polyRootsDurandKerner(&scratch, bv.data(), bv.size());
-    auto pRoots = numkit::ops::polyRootsDurandKerner(&scratch, av.data(), av.size());
+    auto zRoots = nk::ops::polyRootsDurandKerner(&scratch, bv.data(), bv.size());
+    auto pRoots = nk::ops::polyRootsDurandKerner(&scratch, av.data(), av.size());
     const double k = bv[bnz] / av[0];
 
     return std::make_tuple(realColIfFlat(zRoots.data(), zRoots.size(), mr),
@@ -160,8 +160,8 @@ zp2tf(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr)
     ScratchArena scratch(mr);
     auto zv = readVecAsComplex(z, "zp2tf", &scratch);
     auto pv = readVecAsComplex(p, "zp2tf", &scratch);
-    auto bRaw = numkit::ops::polyExpandFromRoots(&scratch, zv.data(), zv.size());
-    auto aRaw = numkit::ops::polyExpandFromRoots(&scratch, pv.data(), pv.size());
+    auto bRaw = nk::ops::polyExpandFromRoots(&scratch, zv.data(), zv.size());
+    auto aRaw = nk::ops::polyExpandFromRoots(&scratch, pv.data(), pv.size());
     for (auto &v : bRaw) v *= k;
     // MATLAB returns b with the SAME length as a: when there are fewer
     // zeros than poles, the numerator is left-padded with zeros (the
@@ -197,7 +197,7 @@ Value poly(const Value &r, std::pmr::memory_resource *mr)
         const double *p = r.doubleData();
         for (size_t i = 0; i < n; ++i) cv[i] = Complex(p[i], 0.0);
     }
-    auto coeffs = numkit::ops::polyExpandFromRoots(&scratch, cv.data(), n);
+    auto coeffs = nk::ops::polyExpandFromRoots(&scratch, cv.data(), n);
     return rowFromVec(coeffs.data(), coeffs.size(), mr);
 }
 
@@ -205,7 +205,7 @@ Value polyvalm(const Value &p, const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() > 2 || A.dims().rows() != A.dims().cols())
         throw Error("polyvalm: A must be a square matrix",
-                     0, 0, "polyvalm", "", "numkit:polyvalm:notSquare");
+                     0, 0, "polyvalm", "", "nk:polyvalm:notSquare");
     const size_t n = A.dims().rows();
     const size_t k = p.numel();
 
@@ -253,7 +253,7 @@ PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     if (a.isEmpty() || a.numel() == 0)
         throw Error("polydiv: divisor must be non-empty",
-                     0, 0, "polydiv", "", "numkit:polydiv:emptyA");
+                     0, 0, "polydiv", "", "nk:polydiv:emptyA");
     const size_t na = a.numel();
     const size_t nb = b.numel();
     // Strip leading zeros from a (matches MATLAB behaviour).
@@ -262,7 +262,7 @@ PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     const size_t aEff = na - aOff;
     if (aEff == 0 || a.doubleData()[aOff] == 0.0)
         throw Error("polydiv: divisor is zero", 0, 0, "polydiv", "",
-                     "numkit:polydiv:zeroDivisor");
+                     "nk:polydiv:zeroDivisor");
 
     if (nb < aEff) {
         // Quotient is 0; remainder == b.
@@ -319,7 +319,7 @@ PadeCoef padecoef(double T, int N, std::pmr::memory_resource *mr)
 {
     if (N < 0)
         throw Error("padecoef: order N must be >= 0",
-                     0, 0, "padecoef", "", "numkit:padecoef:badN");
+                     0, 0, "padecoef", "", "nk:padecoef:badN");
 
     const size_t n = static_cast<size_t>(N) + 1;
 
@@ -394,10 +394,10 @@ std::vector<double> readPolyStripped(const Value &p, const char *fn)
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex coefficients not supported in v1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+                     0, 0, fn, "", std::string("nk:") + fn + ":complex");
     if (!p.isEmpty() && !p.dims().isVector() && !p.isScalar())
         throw Error(std::string(fn) + ": arguments must be vectors",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":notVector");
+                     0, 0, fn, "", std::string("nk:") + fn + ":notVector");
     std::vector<double> v(p.numel());
     for (std::size_t i = 0; i < v.size(); ++i) v[i] = p.elemAsDouble(i);
     std::size_t lo = 0;
@@ -470,7 +470,7 @@ ResidueResult residueS(const Value &b, const Value &a,
     auto B = readPolyStripped(b, fn);
     if (A.empty() || A[0] == 0.0)
         throw Error("residue: denominator must be non-zero",
-                     0, 0, fn, "", "numkit:residue:zeroDenom");
+                     0, 0, fn, "", "nk:residue:zeroDenom");
 
     // Polynomial division: B = K·A + R   (deg R < deg A).
     std::vector<double> K;
@@ -493,7 +493,7 @@ ResidueResult residueS(const Value &b, const Value &a,
 
     // Roots of A → s-domain poles.
     ScratchArena scratch(mr);
-    auto rs = numkit::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
+    auto rs = nk::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
     std::vector<Complex> poles(rs.begin(), rs.end());
 
     // Group the roots into distinct poles. Durand-Kerner converges only
@@ -594,7 +594,7 @@ ResidueResult residueS(const Value &b, const Value &a,
                 if (std::abs(den) < 1e-300)
                     throw Error("residue: derivative vanishes at a pole — "
                                 "likely repeated pole undetected by tolerance",
-                                 0, 0, fn, "", "numkit:residue:denomZero");
+                                 0, 0, fn, "", "nk:residue:denomZero");
                 residues.push_back(num / den);
             }
         } else {
@@ -655,7 +655,7 @@ ResidueResult residueS(const Value &b, const Value &a,
                 if (std::abs(den) < 1e-300)
                     throw Error("residue: derivative vanishes at a pole — "
                                 "likely repeated pole undetected by tolerance",
-                                 0, 0, fn, "", "numkit:residue:denomZero");
+                                 0, 0, fn, "", "nk:residue:denomZero");
                 residues.push_back(R.empty() ? Complex(0, 0) : num / den);
                 polesOut.push_back(g.p);
                 continue;
@@ -669,7 +669,7 @@ ResidueResult residueS(const Value &b, const Value &a,
             if (dser.empty() || std::abs(dser[0]) < 1e-300)
                 throw Error("residue: deflated denominator vanishes at a "
                             "repeated pole",
-                             0, 0, fn, "", "numkit:residue:denomZero");
+                             0, 0, fn, "", "nk:residue:denomZero");
             // Reciprocal series of D_k at p, order m.
             std::vector<Complex> recip(g.m, Complex(0, 0));
             recip[0] = Complex(1, 0) / dser[0];
@@ -721,7 +721,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
     auto bv = readPolyStripped(b, fn);
     if (av.empty() || av[0] == 0.0)
         throw Error("residuez: denominator a[0] must be non-zero",
-                     0, 0, fn, "", "numkit:residuez:zeroDenom");
+                     0, 0, fn, "", "nk:residuez:zeroDenom");
     const double a0 = av[0];
     std::vector<double> A = av, B = bv;
     for (auto &x : A) x /= a0;
@@ -761,7 +761,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
 
     // Poles and mpoles grouping (tol 1e-3 relative, groups consecutive,
     // order = descending |p| — MATLAB mpoles' sort).
-    auto rs = numkit::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
+    auto rs = nk::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
     std::vector<Complex> poles(rs.begin(), rs.end());
     {
         // Real coefficients => a pole carrying only DK conjugate-dust on
@@ -890,7 +890,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
             std::vector<Complex>(temp.rbegin(), temp.rend()), xInv);
         if (std::abs(den) < 1e-300)
             throw Error("residuez: cover-up denominator vanishes",
-                         0, 0, fn, "", "numkit:residuez:denomZero");
+                         0, 0, fn, "", "nk:residuez:denomZero");
         residues[i] = polyvalAt(bflip, xInv) / den;
         jdone[i] = true;
     }
@@ -974,7 +974,7 @@ Value polyfit(const Value &x, const Value &y, int deg, std::pmr::memory_resource
 
     if (static_cast<size_t>(np) > m)
         throw Error("polyfit: not enough data points",
-                     0, 0, "polyfit", "", "numkit:polyfit:tooFewPoints");
+                     0, 0, "polyfit", "", "nk:polyfit:tooFewPoints");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -1025,7 +1025,7 @@ Value polyfit(const Value &x, const Value &y, int deg, std::pmr::memory_resource
         const double pivot = aug[k * (np + 1) + k];
         if (std::abs(pivot) < 1e-15)
             throw Error("polyfit: singular matrix",
-                         0, 0, "polyfit", "", "numkit:polyfit:singular");
+                         0, 0, "polyfit", "", "nk:polyfit:singular");
 
         for (int c = k; c <= np; ++c)
             aug[k * (np + 1) + c] /= pivot;
@@ -1061,4 +1061,4 @@ Value polyval(const Value &p, const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -8,10 +8,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 
-namespace numkit::image {
+namespace nk::image {
 
 /// Decode a JPEG image from an in-memory byte buffer.
 /// @return H×W uint8 (grayscale) or H×W×3 uint8 (truecolor RGB).
@@ -28,4 +28,4 @@ bool peekJpeg(const std::uint8_t *data, std::size_t len,
               std::uint32_t &W, std::uint32_t &H,
               std::uint16_t &bitsPerSample, std::uint16_t &channels);
 
-} // namespace numkit::image
+} // namespace nk::image

@@ -9,10 +9,10 @@
 // correctness MATLAB-independently (it recovers the coefficients of a
 // known AR process).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class DpcmOptTest : public ::testing::Test
 {

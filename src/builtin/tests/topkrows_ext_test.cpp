@@ -4,10 +4,10 @@
 // ('ascend'/'descend'), 2-output index, ComparisonMethod (accept-only).
 // The classic (A, k) form is covered in quickwins5_test.cpp.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TopkRowsExtTest : public ::testing::Test
 {
@@ -84,7 +84,7 @@ TEST_F(TopkRowsExtTest, KZero)
 
 TEST_F(TopkRowsExtTest, ComparisonMethodAcceptIgnore)
 {
-    // ComparisonMethod NV is accepted-and-ignored (numkit only does real).
+    // ComparisonMethod NV is accepted-and-ignored (nk only does real).
     eval("B = topkrows(A, 2, 1, 'ComparisonMethod', 'auto');");
     EXPECT_NEAR(evalScalar("B(1,1)"), 4.0, 1e-12);
 }

@@ -5,14 +5,14 @@
 // strlength / strrep / contains / startsWith / endsWith. The regex
 // builtins (regexp/regexpi/regexprep) live in regex.cpp.
 
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/builtin/iofun.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/builtin/iofun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <array>
@@ -27,7 +27,7 @@
 
 #include "strings_detail.hpp"
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -139,7 +139,7 @@ Value num2str(const Value &x, const std::string &fmt,
     //   num2str([1.5 2.25 3.125],'%8.3f')   -> "1.500   2.250   3.125"  (1 row)
     //   num2str([1.5 2.25;3.1 4],'%8.3f')   -> 2x13 char matrix
     // The format is applied cyclically across each ROW (MATLAB sprintf
-    // semantics), matching numkit's sprintf which cycles a format over a
+    // semantics), matching nk's sprintf which cycles a format over a
     // vector. NOTE: the DEFAULT-precision and integer-N forms for vector/
     // matrix inputs (num2str([1 2 3]) / num2str(v,4)) use MATLAB's
     // magnitude-dependent column-width algorithm and remain a deferred gap
@@ -331,7 +331,7 @@ Value validatestring(const Value &str, const Value &valid,
     } else {
         throw Error("validatestring: second argument must be a cell array of "
                     "char vectors or a string array",
-                     0, 0, "validatestring", "", "numkit:validatestring:badList");
+                     0, 0, "validatestring", "", "nk:validatestring:badList");
     }
 
     // 1) Exact (case-insensitive) match wins.
@@ -348,7 +348,7 @@ Value validatestring(const Value &str, const Value &valid,
     }
     if (pre.empty())
         throw Error("validatestring: '" + s + "' did not match any valid string",
-                     0, 0, "validatestring", "", "numkit:validatestring:unrecognized");
+                     0, 0, "validatestring", "", "nk:validatestring:unrecognized");
     if (pre.size() == 1)
         return Value::fromString(*pre[0], mr);
 
@@ -369,7 +369,7 @@ Value validatestring(const Value &str, const Value &valid,
     if (prefixOfAll)
         return Value::fromString(*shortest, mr);
     throw Error("validatestring: '" + s + "' matches multiple valid strings",
-                 0, 0, "validatestring", "", "numkit:validatestring:ambiguous");
+                 0, 0, "validatestring", "", "nk:validatestring:ambiguous");
 }
 
 Value str2num(const Value &s, std::pmr::memory_resource *mr)
@@ -542,13 +542,13 @@ Value toString(const Value &x, std::pmr::memory_resource *mr)
             } else {
                 throw Error(
                     "string: cell elements must be char, string, or numeric scalar",
-                    0, 0, "string", "", "numkit:string:cellElementType");
+                    0, 0, "string", "", "nk:string:cellElementType");
             }
         }
         return result;
     }
     throw Error("Cannot convert input to string", 0, 0, "string", "",
-                 "numkit:string:unsupportedType");
+                 "nk:string:unsupportedType");
 }
 
 Value toChar(const Value &x, std::pmr::memory_resource *mr)
@@ -569,7 +569,7 @@ Value toChar(const Value &x, std::pmr::memory_resource *mr)
         }
         return Value::fromString(s, p);
     }
-    throw Error("Cannot convert to char", 0, 0, "char", "", "numkit:char:unsupportedType");
+    throw Error("Cannot convert to char", 0, 0, "char", "", "nk:char:unsupportedType");
 }
 
 // ── Comparisons ─────────────────────────────────────────────────────────
@@ -739,7 +739,7 @@ Value strlength(const Value &s, std::pmr::memory_resource *mr)
     if (s.isChar())
         return Value::scalar(static_cast<double>(s.numel()), p);
     throw Error("Input must be a string or char array", 0, 0, "strlength", "",
-                 "numkit:strlength:unsupportedType");
+                 "nk:strlength:unsupportedType");
 }
 
 // ── Search / replace ────────────────────────────────────────────────────
@@ -774,7 +774,7 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
     if (x.isChar()) {
         if (x.dims().ndim() > 2)
             throw Error("mat2str: only 2-D inputs are supported",
-                         0, 0, "mat2str", "", "numkit:mat2str:rank");
+                         0, 0, "mat2str", "", "nk:mat2str:rank");
         const size_t R = x.dims().rows(), C = x.dims().cols();
         const char *cd = (x.numel() > 0) ? x.charData() : nullptr;
         auto quoteRow = [&](size_t r) {
@@ -806,7 +806,7 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("mat2str: only 2-D inputs are supported",
-                     0, 0, "mat2str", "", "numkit:mat2str:rank");
+                     0, 0, "mat2str", "", "nk:mat2str:rank");
     const size_t R = d.rows(), C = d.cols();
 
     // Logical: elements print as the words true / false (MATLAB R2025b),
@@ -895,7 +895,7 @@ Value strjoin(const Value &c, const Value &delim, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("strjoin: first argument must be a cell array",
-                     0, 0, "strjoin", "", "numkit:strjoin:notCell");
+                     0, 0, "strjoin", "", "nk:strjoin:notCell");
     const size_t n = c.numel();
     std::string out;
     if (delim.isCell()) {
@@ -906,7 +906,7 @@ Value strjoin(const Value &c, const Value &delim, std::pmr::memory_resource *mr)
         if (n > 0 && nd != n - 1)
             throw Error("strjoin: delimiter cell array must have one fewer "
                          "element than the first argument",
-                         0, 0, "strjoin", "", "numkit:strjoin:badDelimCount");
+                         0, 0, "strjoin", "", "nk:strjoin:badDelimCount");
         for (size_t i = 0; i < n; ++i) {
             if (i > 0) out += delim.cellAt(i - 1).toString();
             out += c.cellAt(i).toString();
@@ -1015,7 +1015,7 @@ Value replace(const Value &s, const Value &oldPat, const Value &newPat, std::pmr
     if (news.size() != 1 && news.size() != olds.size())
         throw Error("replace: NEW must be a scalar text or match the number of "
                     "OLD patterns",
-                     0, 0, "replace", "", "numkit:replace:sizeMismatch");
+                     0, 0, "replace", "", "nk:replace:sizeMismatch");
 
     std::string out;
     out.reserve(ss.size());
@@ -1103,7 +1103,7 @@ Value pad(const Value &s, size_t n, const Value &side, const Value &padChar, std
     const std::string sd = readSide(side, "right");
     if (sd != "left" && sd != "right" && sd != "both")
         throw Error("pad: side must be 'left', 'right', or 'both'",
-                     0, 0, "pad", "", "numkit:pad:badSide");
+                     0, 0, "pad", "", "nk:pad:badSide");
     char ch = ' ';
     if (!padChar.isEmpty() && (padChar.isChar() || padChar.isString())) {
         const auto p = padChar.toString();
@@ -1236,7 +1236,7 @@ Value isstrprop(const Value &s, const Value &category, std::pmr::memory_resource
 {
     if (!category.isChar() && !category.isString())
         throw Error("isstrprop: category must be a string",
-                     0, 0, "isstrprop", "", "numkit:isstrprop:cat");
+                     0, 0, "isstrprop", "", "nk:isstrprop:cat");
     auto cat = category.toString();
     for (auto &c : cat) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (cat == "alpha")
@@ -1262,7 +1262,7 @@ Value isstrprop(const Value &s, const Value &category, std::pmr::memory_resource
     if (cat == "print")
         return applyCharPred(s, [](unsigned char c) { return std::isprint(c) != 0; }, mr);
     throw Error("isstrprop: unknown category '" + cat + "'",
-                 0, 0, "isstrprop", "", "numkit:isstrprop:badCat");
+                 0, 0, "isstrprop", "", "nk:isstrprop:badCat");
 }
 
 Value isletter(const Value &s, std::pmr::memory_resource *mr)
@@ -1443,7 +1443,7 @@ Value num2hex(const Value &x, std::pmr::memory_resource *mr)
     const bool dbl    = (t == ValueType::DOUBLE);
     if (!single && !dbl)
         throw Error("num2hex: inputs must be floating point (single or double)",
-                     0, 0, "num2hex", "", "numkit:num2hex:notFloat");
+                     0, 0, "num2hex", "", "nk:num2hex:notFloat");
 
     const size_t n = x.numel();
     const int W = single ? 8 : 16;
@@ -1477,7 +1477,7 @@ Value dec2base(const Value &d, int base, int minWidth, std::pmr::memory_resource
 {
     if (base < 2 || base > 36)
         throw Error("dec2base: base must be in 2..36",
-                     0, 0, "dec2base", "", "numkit:dec2base:badBase");
+                     0, 0, "dec2base", "", "nk:dec2base:badBase");
     return vecToBaseMatrix(d, base, minWidth, mr);
 }
 
@@ -1485,7 +1485,7 @@ Value base2dec(const Value &s, int base, std::pmr::memory_resource *mr)
 {
     if (base < 2 || base > 36)
         throw Error("base2dec: base must be in 2..36",
-                     0, 0, "base2dec", "", "numkit:base2dec:badBase");
+                     0, 0, "base2dec", "", "nk:base2dec:badBase");
     const size_t rows = static_cast<size_t>(s.dims().rows());
     // A char MATRIX (multiple rows) parses each row -> column vector.
     if (rows > 1 && s.type() == ValueType::CHAR) {
@@ -1615,7 +1615,7 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
         if (n == 1) n = v;
         else if (v != n)
             throw Error("strrep: nonscalar arguments must match in size",
-                        0, 0, "strrep", "", "numkit:strrep:cellSize");
+                        0, 0, "strrep", "", "nk:strrep:cellSize");
     }
     size_t rr = 1, cc = 1;
     auto setShape = [&](const Value &v) {
@@ -1668,7 +1668,7 @@ Value compose(const Value &fmt, const Value &x, std::pmr::memory_resource *mr)
 {
     if (!fmt.isChar() && !fmt.isString())
         throw Error("compose: format must be a char or string",
-                     0, 0, "compose", "", "numkit:compose:badFmt");
+                     0, 0, "compose", "", "nk:compose:badFmt");
     const std::string fmtStr = fmt.toString();
     // MATLAB: the output class mirrors the FORMAT class — a string format
     // yields a string array, a char format yields a cell of char vectors.
@@ -1724,7 +1724,7 @@ Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource
 {
     if (!M.isChar())
         throw Error("strjust: input must be a char matrix",
-                     0, 0, "strjust", "", "numkit:strjust:badInput");
+                     0, 0, "strjust", "", "nk:strjust:badInput");
     const auto &dims = M.dims();
     const size_t rows = dims.rows();
     const size_t cols = dims.cols();
@@ -1751,7 +1751,7 @@ Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource
         else if (side == "center") target = (cols - len) / 2;
         else if (side == "right")  target = cols - len;
         else throw Error("strjust: side must be 'left', 'right', or 'center'",
-                          0, 0, "strjust", "", "numkit:strjust:badSide");
+                          0, 0, "strjust", "", "nk:strjust:badSide");
 
         for (size_t c = 0; c < len; ++c)
             out[(target + c) * rows + r] = src[(firstNonSp + c) * rows + r];
@@ -1922,4 +1922,4 @@ Value convertContainedStringsToChars(const Value &v, std::pmr::memory_resource *
     return v;
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

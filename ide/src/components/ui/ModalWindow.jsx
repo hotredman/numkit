@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 /**
- * ModalWindow — Unified, accessible modal dialog base for Numkit IDE widgets.
+ * ModalWindow — Unified, accessible modal dialog base for NK IDE widgets.
  *
  * Features:
  * - Backdrop overlay with blur & smooth fade-in

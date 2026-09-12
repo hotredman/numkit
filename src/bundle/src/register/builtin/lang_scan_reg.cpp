@@ -3,15 +3,15 @@
 // CallContext register half of language/strings/scan.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/runtime/io.hpp>
-#include <numkit/builtin/strfun.hpp>
-#include <numkit/builtin/iofun.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/io_helpers.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/runtime/io.hpp>
+#include <nk/builtin/strfun.hpp>
+#include <nk/builtin/iofun.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/io_helpers.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -23,14 +23,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;
+namespace nk::builtin {
+using namespace nk::builtin;
 
 namespace detail {
 
 void fscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    ::numkit::runtime::fscanf(*ctx.engine, args, nargout, outs);
+    ::nk::runtime::fscanf(*ctx.engine, args, nargout, outs);
 }
 
 void sscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -40,9 +40,9 @@ void sscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 void textscan_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    ::numkit::runtime::textscan(*ctx.engine, args, nargout, outs);
+    ::nk::runtime::textscan(*ctx.engine, args, nargout, outs);
 }
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -4,11 +4,11 @@
 // fixed; remove `DISABLED_` to turn into a live regression guard.
 // MATLAB R2025b reference values.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class ControlKnownBug : public ::testing::Test
 {
@@ -99,7 +99,7 @@ TEST_F(ControlKnownBug, Allmargin)
 TEST_F(ControlKnownBug, ZpkEmptyZerosGain)
 {
     eval("[n, d] = tfdata(zpk([], [-1 -2], 2), 'v');");
-    EXPECT_NEAR(evalScalar("n(end)"), 2.0, 1e-12);   // numkit: 0 (gain dropped)
+    EXPECT_NEAR(evalScalar("n(end)"), 2.0, 1e-12);   // nk: 0 (gain dropped)
     EXPECT_NEAR(evalScalar("d(1)"),   1.0, 1e-12);
     EXPECT_NEAR(evalScalar("d(end)"), 2.0, 1e-12);
 }

@@ -3,7 +3,7 @@ clear
 % bilinear prewarp bilinear(b,a,fs,fp) (DEEP-PROBE 2026-05-31). With a
 % prewarp frequency fp, the bilinear scale is K = 2*pi*fp/tan(pi*fp/fs) so
 % the analog response at fp maps exactly onto the digital response at fp.
-% numkit was DOUBLE-scaling K (2x too big). vs MATLAB R2025b.
+% nk was DOUBLE-scaling K (2x too big). vs MATLAB R2025b.
 
 fprintf('=== H(s)=s/(s+1)^2, fs=10, prewarp fp=2 ===\n');
 [bp, ap] = bilinear([1 0], [1 2 1], 10, 2);

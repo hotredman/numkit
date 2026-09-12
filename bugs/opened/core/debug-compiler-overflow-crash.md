@@ -7,7 +7,7 @@
 
 ## Symptom
 
-`numkit_gtest.exe` (Debug) aborts during
+`nk_gtest.exe` (Debug) aborts during
 `TW_VM/CompilerRegisterOverflowTest.OverflowInSingleExpression/TW` — the
 test deliberately compiles a huge single expression to trigger
 RegisterExhaustionError; in Debug the deeper per-frame stack footprint
@@ -17,8 +17,8 @@ assert) before the graceful throw. Release runs green.
 ## Repro
 
 ```
-cmake --build build/windows/release --target numkit_gtest   # Debug
-build/windows/release/tests/gtest/Debug/numkit_gtest.exe --gtest_filter='*OverflowInSingleExpression*'
+cmake --build build/windows/release --target nk_gtest   # Debug
+build/windows/release/tests/gtest/Debug/nk_gtest.exe --gtest_filter='*OverflowInSingleExpression*'
 # → process aborts (no test verdict)
 ```
 
@@ -26,7 +26,7 @@ build/windows/release/tests/gtest/Debug/numkit_gtest.exe --gtest_filter='*Overfl
 
 Suspected stack exhaustion in the recursive compiler/parser on the
 deliberately-oversized expression, Debug stack frames being several×
-larger. numkit has a StackGuard (see dev-docs/memory/
+larger. nk has a StackGuard (see dev-docs/memory/
 stack_safety_architecture.md) — either its threshold doesn't account for
 the Debug frame scale on this path, or the abort is an assert inside the
 debug heap during AST clone/destruction.

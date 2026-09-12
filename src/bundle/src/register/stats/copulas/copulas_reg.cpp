@@ -3,16 +3,16 @@
 // CallContext register half of copulas/copulas.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/copulas/copulas.hpp>
-#include <numkit/stats/distributions/multivariate.hpp>
-#include <numkit/stats/distributions/normal.hpp>
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/copulas/copulas.hpp>
+#include <nk/stats/distributions/multivariate.hpp>
+#include <nk/stats/distributions/normal.hpp>
+#include <nk/stats/distributions/students_t.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -42,7 +42,7 @@ void copulapdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("copulapdf: requires (family, U, param[, nu])",
-                    0, 0, "copulapdf", "", "numkit:copulapdf:nargin");
+                    0, 0, "copulapdf", "", "nk:copulapdf:nargin");
     auto *mr = ctx.engine->resource();
     const std::string fam = family_lower(args[0]);
     if (fam == "gaussian") {
@@ -50,7 +50,7 @@ void copulapdf_reg(Span<const Value> args, size_t /*nargout*/,
     } else if (fam == "t") {
         if (args.size() < 4)
             throw Error("copulapdf 't': requires nu (4th arg)",
-                        0, 0, "copulapdf", "", "numkit:copulapdf:nuMissing");
+                        0, 0, "copulapdf", "", "nk:copulapdf:nuMissing");
         outs[0] = copulapdf_t(args[1], args[2], args[3].toScalar(), mr);
     } else if (fam == "clayton") {
         outs[0] = copulapdf_clayton(args[1], args[2].toScalar(), mr);
@@ -60,7 +60,7 @@ void copulapdf_reg(Span<const Value> args, size_t /*nargout*/,
         outs[0] = copulapdf_gumbel(args[1], args[2].toScalar(), mr);
     } else {
         throw Error("copulapdf: unknown family '" + fam + "'",
-                    0, 0, "copulapdf", "", "numkit:copulapdf:badFamily");
+                    0, 0, "copulapdf", "", "nk:copulapdf:badFamily");
     }
 }
 
@@ -69,7 +69,7 @@ void copulacdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("copulacdf: requires (family, U, param[, nu])",
-                    0, 0, "copulacdf", "", "numkit:copulacdf:nargin");
+                    0, 0, "copulacdf", "", "nk:copulacdf:nargin");
     auto *mr = ctx.engine->resource();
     const std::string fam = family_lower(args[0]);
     if (fam == "gaussian") {
@@ -77,7 +77,7 @@ void copulacdf_reg(Span<const Value> args, size_t /*nargout*/,
     } else if (fam == "t") {
         if (args.size() < 4)
             throw Error("copulacdf 't': requires nu (4th arg)",
-                        0, 0, "copulacdf", "", "numkit:copulacdf:nuMissing");
+                        0, 0, "copulacdf", "", "nk:copulacdf:nuMissing");
         outs[0] = copulacdf_t(args[1], args[2], args[3].toScalar(), mr);
     } else if (fam == "clayton") {
         outs[0] = copulacdf_clayton(args[1], args[2].toScalar(), mr);
@@ -87,10 +87,10 @@ void copulacdf_reg(Span<const Value> args, size_t /*nargout*/,
         outs[0] = copulacdf_gumbel(args[1], args[2].toScalar(), mr);
     } else {
         throw Error("copulacdf: unknown family '" + fam + "'",
-                    0, 0, "copulacdf", "", "numkit:copulacdf:badFamily");
+                    0, 0, "copulacdf", "", "nk:copulacdf:badFamily");
     }
 }
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -2,9 +2,9 @@
 //
 // MATLAB-canonical MT19937 RNG. See header for context.
 
-#include <numkit/ops/matlab_mt19937.hpp>
+#include <nk/ops/matlab_mt19937.hpp>
 
-namespace numkit::ops {
+namespace nk::ops {
 
 // ── Single-uint32 seeding (Matsumoto-Nishimura init_genrand) ──────────
 //
@@ -130,4 +130,4 @@ void MatlabMT19937::setState(const uint32_t in[STATE_SIZE], int inIndex)
     mti_ = inIndex;
 }
 
-} // namespace numkit::ops
+} // namespace nk::ops

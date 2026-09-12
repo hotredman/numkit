@@ -1,16 +1,16 @@
 // src/engine.cpp
 #include <cstdio>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/caching_memory_resource.hpp>
-#include <numkit/core/value_stats.hpp>
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
-// NOTE: core is library-agnostic — it includes ZERO <numkit/<lib>/library.hpp>.
+#include <nk/core/engine.hpp>
+#include <nk/core/caching_memory_resource.hpp>
+#include <nk/core/value_stats.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
+// NOTE: core is library-agnostic — it includes ZERO <nk/<lib>/library.hpp>.
 // The standard library is installed by bundle/ (installStandardLibrary), not
 // by the Engine ctor. This is what keeps core free of any toolbox dependency.
-#include <numkit/core/tree_walker.hpp>
-#include <numkit/core/vm.hpp>
+#include <nk/core/tree_walker.hpp>
+#include <nk/core/vm.hpp>
 #include <algorithm>
 #include <climits>
 #include <cmath>
@@ -19,7 +19,7 @@
 #include <sstream>
 #include <unordered_set>
 
-namespace numkit {
+namespace nk {
 
 // ============================================================
 // Reserved names — see types.hpp for per-set semantics.
@@ -54,10 +54,10 @@ const std::unordered_set<std::string> kBuiltinNames = makeBuiltinNamesUnion();
 // No explicit resource → recycle large transient buffers through a
 // process-wide cache (see caching_memory_resource.hpp). Embedders that supply
 // their own resource are used as-is and never wrapped.
-Engine::Engine() : Engine(numkit::defaultCachedResource()) {}
+Engine::Engine() : Engine(nk::defaultCachedResource()) {}
 
 Engine::Engine(std::pmr::memory_resource *mr)
-    : mr_(mr ? mr : numkit::defaultCachedResource())
+    : mr_(mr ? mr : nk::defaultCachedResource())
 {
     globalsEnv_ = std::make_unique<Environment>();
     constantsEnv_ = std::make_unique<Environment>(nullptr, globalsEnv_.get());
@@ -69,13 +69,13 @@ Engine::Engine(std::pmr::memory_resource *mr)
     reinstallConstants();
     registerVirtualFS(std::make_unique<NativeFS>());
 
-    // Element-wise fusion default: on unless NUMKIT_FUSE=0 (kill switch). No
+    // Element-wise fusion default: on unless NK_FUSE=0 (kill switch). No
     // effect until the standard library registers rules (see fusionEnabled()).
-    if (const char *fe = std::getenv("NUMKIT_FUSE"))
+    if (const char *fe = std::getenv("NK_FUSE"))
         fusionEnabled_ = !(fe[0] == '0' && fe[1] == '\0');
     // No library installs here — a bare Engine has the language runtime,
     // constants and primitive arithmetic, but no named functions. Call
-    // numkit::installStandardLibrary(engine) (bundle/) to load the full set.
+    // nk::installStandardLibrary(engine) (bundle/) to load the full set.
 }
 
 Engine::~Engine()
@@ -1968,7 +1968,7 @@ void Engine::adoptBuiltinMSource_(const std::string &src)
                     + "' needs more than the 255-register VM limit in one chunk — "
                     "split it into helper functions (see dev-docs/handbook/callback_pausability.md)",
                     0, 0, "registerBuiltinMSource", "",
-                    "numkit:compiler:registerExhaustion");
+                    "nk:compiler:registerExhaustion");
             } catch (const std::exception &) {
                 // Other VM-compile failures stay non-fatal — TW dispatches via
                 // userFuncs_.
@@ -2196,7 +2196,7 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
         // MATLAB likewise reports the first path-matched file's error.
         auto loadError = [&](const std::exception &e) -> Error {
             return Error("error loading '" + userPath + "': " + e.what(),
-                         0, 0, "", "", "numkit:mfile:loadError");
+                         0, 0, "", "", "nk:mfile:loadError");
         };
         std::string content;
         try {
@@ -2306,7 +2306,7 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
                 throw Error("function '" + name + "' needs more than the 255-register "
                     "VM limit in one function — split it into smaller functions so it "
                     "can run on the bytecode VM (and be debuggable)",
-                    0, 0, name, "", "numkit:compiler:registerExhaustion");
+                    0, 0, name, "", "nk:compiler:registerExhaustion");
             } catch (const std::exception &) {
                 // Other compiler errors are non-fatal here — TW will still
                 // dispatch through userFuncs_; only VM-mode invocations
@@ -2886,7 +2886,7 @@ ExecStatus Engine::debugResume(DebugAction action)
     // pausing). vm_ is always constructed, so this is a defensive invariant.
     if (!vm_)
         throw Error("debugger requires the VM backend", 0, 0, "",
-                    "", "numkit:debug:requiresVM");
+                    "", "nk:debug:requiresVM");
     if (!vm_->isPaused())
         return ExecStatus::Completed;   // not paused → nothing to resume
 
@@ -3118,7 +3118,7 @@ std::string Engine::workspaceJSON() const
 //
 // State + logic live in FsContext (fs/, L0). Engine HAS-A FsContext and
 // forwards; resolvePath additionally rethrows the fs-layer std::runtime_error
-// as numkit::Error so the MATLAB-visible error type is unchanged for
+// as nk::Error so the MATLAB-visible error type is unchanged for
 // in-engine callers.
 // ============================================================
 
@@ -3160,7 +3160,7 @@ const std::string *Engine::currentScriptDir() const
 Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
 {
     // FsContext throws std::runtime_error for unknown/unavailable
-    // filesystems; rethrow as numkit::Error so the MATLAB-visible error type
+    // filesystems; rethrow as nk::Error so the MATLAB-visible error type
     // (and message) is exactly what in-engine callers saw before.
     try {
         return fsCtx_.resolvePath(userPath);
@@ -3174,4 +3174,4 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
 // ============================================================
 
 
-} // namespace numkit
+} // namespace nk

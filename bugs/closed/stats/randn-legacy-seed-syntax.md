@@ -1,7 +1,7 @@
 # stats.randn — legacy seed syntax `randn('seed', n)` rejected ("Cannot convert char to scalar")
 
 - **Status:** ✅ FIXED (2026-08-31)
-- **Severity:** P2 (works in MATLAB, refused in numkit; classic textbook code depends on it)
+- **Severity:** P2 (works in MATLAB, refused in nk; classic textbook code depends on it)
 - **Kind:** stub (documented MATLAB option not supported)
 - **Found:** 2026-08-31 via fieldtest portion 1 (mdadams book, example_11.m)
 
@@ -18,7 +18,7 @@ clear;
 randn('seed', 5);
 x = randn(2, 1);
 disp(x(1))
-% numkit:  Error: Cannot convert char to scalar (in call to 'randn')
+% nk:  Error: Cannot convert char to scalar (in call to 'randn')
 % MATLAB R2025b: 0.58185  (legacy seed 5, first draw; x(2) = -0.30514)
 ```
 

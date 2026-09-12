@@ -8,13 +8,13 @@
 // random samplers). Single-dim fallback to univariate normcdf works
 // trivially if needed.
 
-#include <numkit/stats/distributions/multivariate.hpp>
+#include <nk/stats/distributions/multivariate.hpp>
 
-#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <nk/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -32,7 +32,7 @@
 
 #include "multivariate_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 // `R = mvnrnd(mu, Sigma)`           — one sample (length-d row)
@@ -41,12 +41,12 @@ namespace numkit::stats {
 //
 // `mu` may be a row or column vector (length d) or an n×d matrix.
 // Sigma is d × d, symmetric positive-definite (Cholesky check).
-Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
+Value mvnrnd(::nk::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
              std::pmr::memory_resource *mr)
 {
     if (Sigma.dims().rows() != Sigma.dims().cols())
         throw Error("mvnrnd: Sigma must be square",
-                     0, 0, "mvnrnd", "", "numkit:mvnrnd:notSquare");
+                     0, 0, "mvnrnd", "", "nk:mvnrnd:notSquare");
     const std::size_t d = Sigma.dims().rows();
     if (d == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -59,13 +59,13 @@ Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma
         else if (mu.dims().cols() == d) muN = mu.dims().rows();
         else
             throw Error("mvnrnd: mu must be 1×d, d×1, or n×d",
-                         0, 0, "mvnrnd", "", "numkit:mvnrnd:badMu");
+                         0, 0, "mvnrnd", "", "nk:mvnrnd:badMu");
     }
 
     if (n == 0) n = std::max(muN, std::size_t(1));
     if (muN > 1 && n != muN)
         throw Error("mvnrnd: n must equal rows(mu) when mu is matrix",
-                     0, 0, "mvnrnd", "", "numkit:mvnrnd:nMismatch");
+                     0, 0, "mvnrnd", "", "nk:mvnrnd:nMismatch");
 
     ScratchArena scratch(mr);
 
@@ -117,14 +117,14 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     const std::size_t d = X.dims().cols();
     if (d == 0)
         throw Error("mvncdf: X must have at least 1 column",
-                    0, 0, "mvncdf", "", "numkit:mvncdf:badX");
+                    0, 0, "mvncdf", "", "nk:mvncdf:badX");
 
     // Resolve mu (default: zeros).
     std::vector<double> muv(d, 0.0);
     if (!mu.isEmpty()) {
         if (mu.numel() != d)
             throw Error("mvncdf: mu must have length d",
-                        0, 0, "mvncdf", "", "numkit:mvncdf:shapeMu");
+                        0, 0, "mvncdf", "", "nk:mvncdf:shapeMu");
         for (std::size_t i = 0; i < d; ++i) muv[i] = mu.elemAsDouble(i);
     }
 
@@ -135,7 +135,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     } else {
         if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
             throw Error("mvncdf: Sigma must be d × d",
-                        0, 0, "mvncdf", "", "numkit:mvncdf:shapeSigma");
+                        0, 0, "mvncdf", "", "nk:mvncdf:shapeSigma");
         // Copy col-major Sigma to row-major buffer.
         std::vector<double> S(d * d);
         for (std::size_t i = 0; i < d; ++i)
@@ -186,15 +186,15 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     return out;
 }
 
-Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, std::size_t n,
+Value mvtrnd(::nk::ops::RngContext &rng, const Value &C, double df, std::size_t n,
               std::pmr::memory_resource *mr)
 {
     if (!(df > 0.0))
         throw Error("mvtrnd: df must be positive",
-                    0, 0, "mvtrnd", "", "numkit:mvtrnd:badDf");
+                    0, 0, "mvtrnd", "", "nk:mvtrnd:badDf");
     if (C.dims().rows() != C.dims().cols())
         throw Error("mvtrnd: C must be square",
-                    0, 0, "mvtrnd", "", "numkit:mvtrnd:notSquare");
+                    0, 0, "mvtrnd", "", "nk:mvtrnd:notSquare");
     const std::size_t d = C.dims().rows();
     if (d == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -225,13 +225,13 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, std::siz
     return out;
 }
 
-Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::size_t m,
+Value mnrnd(::nk::ops::RngContext &rng, std::size_t N, const Value &P, std::size_t m,
               std::pmr::memory_resource *mr)
 {
     const std::size_t k = P.numel();
     if (k == 0)
         throw Error("mnrnd: P must be a non-empty probability vector",
-                    0, 0, "mnrnd", "", "numkit:mnrnd:emptyP");
+                    0, 0, "mnrnd", "", "nk:mnrnd:emptyP");
     // Build cumulative probability table (renormalised).
     std::vector<double> cdf(k);
     double sumP = 0.0;
@@ -239,13 +239,13 @@ Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::
         const double pi = P.elemAsDouble(i);
         if (pi < 0.0)
             throw Error("mnrnd: probabilities must be non-negative",
-                        0, 0, "mnrnd", "", "numkit:mnrnd:negProb");
+                        0, 0, "mnrnd", "", "nk:mnrnd:negProb");
         sumP += pi;
         cdf[i] = sumP;
     }
     if (!(sumP > 0.0))
         throw Error("mnrnd: sum(P) must be positive",
-                    0, 0, "mnrnd", "", "numkit:mnrnd:zeroP");
+                    0, 0, "mnrnd", "", "nk:mnrnd:zeroP");
     for (auto &c : cdf) c /= sumP;
 
     auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
@@ -296,12 +296,12 @@ static void invertLowerTriInPlace(double *L, std::size_t d)
 }
 
 std::tuple<Value, Value>
-wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, const Value &D_in,
+wishrnd_factor(::nk::ops::RngContext &rng, const Value &Sigma, double df, const Value &D_in,
                std::pmr::memory_resource *mr)
 {
     if (Sigma.dims().rows() != Sigma.dims().cols())
         throw Error("wishrnd: Sigma must be square",
-                    0, 0, "wishrnd", "", "numkit:wishrnd:notSquare");
+                    0, 0, "wishrnd", "", "nk:wishrnd:notSquare");
     const std::size_t d = Sigma.dims().rows();
     if (d == 0) {
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -309,7 +309,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     }
     if (!(df > static_cast<double>(d) - 1.0))
         throw Error("wishrnd: df must exceed p - 1",
-                    0, 0, "wishrnd", "", "numkit:wishrnd:badDf");
+                    0, 0, "wishrnd", "", "nk:wishrnd:badDf");
 
     // L = chol(Sigma, 'lower'), row-major. If user supplied
     // D = chol(Sigma, 'upper'), transpose into L.
@@ -317,7 +317,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     if (!D_in.isEmpty()) {
         if (D_in.dims().rows() != d || D_in.dims().cols() != d)
             throw Error("wishrnd: D must be p × p",
-                        0, 0, "wishrnd", "", "numkit:wishrnd:shapeD");
+                        0, 0, "wishrnd", "", "nk:wishrnd:shapeD");
         // D upper-tri: L[i,j] = D[j,i] for j ≤ i.
         for (std::size_t i = 0; i < d; ++i) {
             for (std::size_t j = 0; j < d; ++j)
@@ -378,19 +378,19 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     return {std::move(W), std::move(D)};
 }
 
-Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
+Value wishrnd(::nk::ops::RngContext &rng, const Value &Sigma, double df,
               std::pmr::memory_resource *mr)
 {
     return std::get<0>(wishrnd_factor(rng, Sigma, df, Value::Empty, mr));
 }
 
 std::tuple<Value, Value>
-iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, const Value &DI_in,
+iwishrnd_factor(::nk::ops::RngContext &rng, const Value &Tau, double df, const Value &DI_in,
                 std::pmr::memory_resource *mr)
 {
     if (Tau.dims().rows() != Tau.dims().cols())
         throw Error("iwishrnd: Tau must be square",
-                    0, 0, "iwishrnd", "", "numkit:iwishrnd:notSquare");
+                    0, 0, "iwishrnd", "", "nk:iwishrnd:notSquare");
     const std::size_t d = Tau.dims().rows();
     if (d == 0) {
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -398,7 +398,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     }
     if (!(df > static_cast<double>(d) - 1.0))
         throw Error("iwishrnd: df must exceed p - 1",
-                    0, 0, "iwishrnd", "", "numkit:iwishrnd:badDf");
+                    0, 0, "iwishrnd", "", "nk:iwishrnd:badDf");
 
     // Need L = chol(inv(Tau), 'lower') for Bartlett construction.
     // MATLAB convention: DI is the lower-triangular factor satisfying
@@ -407,7 +407,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     if (!DI_in.isEmpty()) {
         if (DI_in.dims().rows() != d || DI_in.dims().cols() != d)
             throw Error("iwishrnd: DI must be p × p",
-                        0, 0, "iwishrnd", "", "numkit:iwishrnd:shapeDI");
+                        0, 0, "iwishrnd", "", "nk:iwishrnd:shapeDI");
         // DI lower-tri (col-major); copy directly to row-major L.
         for (std::size_t i = 0; i < d; ++i) {
             for (std::size_t j = 0; j < d; ++j) L[i * d + j] = 0.0;
@@ -494,7 +494,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     return {std::move(W), std::move(DI)};
 }
 
-Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, double df,
+Value iwishrnd(::nk::ops::RngContext &rng, const Value &Tau, double df,
                std::pmr::memory_resource *mr)
 {
     return std::get<0>(iwishrnd_factor(rng, Tau, df, Value::Empty, mr));
@@ -508,7 +508,7 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
 {
     if (!(df > 0.0))
         throw Error("mvtcdf: df must be positive",
-                    0, 0, "mvtcdf", "", "numkit:mvtcdf:badDf");
+                    0, 0, "mvtcdf", "", "nk:mvtcdf:badDf");
     auto [d, n] = mvtcdf_shape_check(X, C, "mvtcdf");
     if (d == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
@@ -523,7 +523,7 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
             Value zv = Value::scalar(z, mr);
             Value av = Value::scalar(0.5 * df, mr);
             Value bv = Value::scalar(0.5, mr);
-            const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
+            const double I = ::nk::builtin::betainc(zv, av, bv, mr).toScalar();
             od[i] = (xi >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
         }
         return out;
@@ -557,13 +557,13 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
 {
     if (!(df > 0.0))
         throw Error("mvtcdf: df must be positive",
-                    0, 0, "mvtcdf", "", "numkit:mvtcdf:badDf");
+                    0, 0, "mvtcdf", "", "nk:mvtcdf:badDf");
     auto [d, n] = mvtcdf_shape_check(Lb, C, "mvtcdf");
     if (d == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
     // Ub must have the same shape as Lb.
     if (Ub.numel() != Lb.numel())
         throw Error("mvtcdf: L and U must have the same shape",
-                    0, 0, "mvtcdf", "", "numkit:mvtcdf:shapeUL");
+                    0, 0, "mvtcdf", "", "nk:mvtcdf:shapeUL");
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     if (n == 0) return out;
@@ -581,7 +581,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
                 Value zv = Value::scalar(z, mr);
                 Value av = Value::scalar(0.5 * df, mr);
                 Value bv = Value::scalar(0.5, mr);
-                const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
+                const double I = ::nk::builtin::betainc(zv, av, bv, mr).toScalar();
                 return (x >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
             };
             od[i] = std::max(0.0, cdf_one(Uv) - cdf_one(Lv));
@@ -613,4 +613,4 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

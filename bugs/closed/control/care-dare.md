@@ -15,10 +15,10 @@ Kalman filtering and H∞ design.
 ```matlab
 X = care([0 1; 0 0], [0; 1], eye(2));
 % MATLAB: trace(X)=3.46410161513776, X(1,1)=1.73205080756888 (=√3)
-% numkit: Error — VM: undefined function 'care'
+% nk: Error — VM: undefined function 'care'
 X = dare([1 1; 0 1], [0; 1], eye(2), 1);
 % MATLAB: trace(X)=7.56025722770319
-% numkit: Error — VM: undefined function 'dare'
+% nk: Error — VM: undefined function 'dare'
 ```
 
 ## Root cause
@@ -26,7 +26,7 @@ Not implemented. Solving the (C)ARE needs the stable invariant subspace of
 the Hamiltonian (continuous) / symplectic pencil (discrete).
 
 ## Fix (2026-06-19)
-Implemented `numkit::control::care` / `dare` (`riccati.cpp`) by the **matrix
+Implemented `nk::control::care` / `dare` (`riccati.cpp`) by the **matrix
 sign-function method** — no Schur ordering, only `inv` + a small
 least-squares solve, so it builds purely on toolboxes/control's existing
 `internal::solveInPlace` LU kernel (the general Schur from
@@ -63,7 +63,7 @@ control/lqr-hinfnorm.md).
 
 ## References
 - `src/toolboxes/control/src/riccati/riccati.cpp` (`care`, `dare`, scaled
-  Newton `matsign`, `subspaceToX`), `.../include/numkit/control/riccati/riccati.hpp`,
+  Newton `matsign`, `subspaceToX`), `.../include/nk/control/riccati/riccati.hpp`,
   `src/bundle/src/register/control/riccati/riccati_reg.cpp` (`care_reg`,
   `dare_reg`; default-R + `[X,L,G]` emit).
 - `tools/parity/specs/care.json`, `tools/parity/specs/dare.json`.

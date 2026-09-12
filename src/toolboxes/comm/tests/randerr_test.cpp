@@ -3,10 +3,10 @@
 // Regression guard for randerr() — random binary error matrix.
 // Bit-equal with MATLAB R2025b when seeded.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RanderrTest : public ::testing::Test
 {

@@ -1,11 +1,11 @@
 // toolboxes/wavelet/tests/cmorwavf_test.cpp
 // cmorwavf.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CmorwavfTest : public ::testing::Test
 {

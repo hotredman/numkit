@@ -1,10 +1,10 @@
-#include <numkit/builtin/datatypes.hpp>
-#include <numkit/builtin/strfun.hpp>
+#include <nk/builtin/datatypes.hpp>
+#include <nk/builtin/strfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 // language/datatypes/casts_{highway,portable}.cpp).
 #include "types_detail.hpp"
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 void doubleToInt8 (const double *in, int8_t   *out, std::size_t n);
 void doubleToInt16(const double *in, int16_t  *out, std::size_t n);
 void doubleToInt32(const double *in, int32_t  *out, std::size_t n);
@@ -26,17 +26,17 @@ void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
 void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
 // Forward-declare the isnan/isinf/isfinite backend (defined in
-// math/arithmetic/isfinite_{highway,portable}.cpp — numkit::builtin::detail after C4).
-namespace numkit::builtin::detail {
+// math/arithmetic/isfinite_{highway,portable}.cpp — nk::builtin::detail after C4).
+namespace nk::builtin::detail {
 void doubleIsNaNLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Implementation helpers
@@ -94,9 +94,9 @@ Value isscalar(const Value &x, std::pmr::memory_resource *mr)  { return Value::l
 Value isinteger(const Value &x, std::pmr::memory_resource *mr) { return Value::logicalScalar(isIntegerType(x.type()), mr); }
 Value isfloat(const Value &x, std::pmr::memory_resource *mr)   { return Value::logicalScalar(isFloatType(x.type()), mr); }
 Value issingle(const Value &x, std::pmr::memory_resource *mr)  { return Value::logicalScalar(x.type() == ValueType::SINGLE, mr); }
-// numkit has no sparse-matrix storage class -- issparse always returns
+// nk has no sparse-matrix storage class -- issparse always returns
 // false for any input. Matches MATLAB on dense inputs (which is all
-// numkit can produce). Covers the FAIL row in PROGRESS for issparse.
+// nk can produce). Covers the FAIL row in PROGRESS for issparse.
 Value issparse(const Value & /*x*/, std::pmr::memory_resource *mr) { return Value::logicalScalar(false, mr); }
 
 Value isnan(const Value &x, std::pmr::memory_resource *mr)
@@ -106,7 +106,7 @@ Value isnan(const Value &x, std::pmr::memory_resource *mr)
         return Value::logicalScalar(std::isnan(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
     if (x.numel() == 0) return r;
-    ::numkit::builtin::detail::doubleIsNaNLoop(x.doubleData(), r.logicalDataMut(), x.numel());
+    ::nk::builtin::detail::doubleIsNaNLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -117,7 +117,7 @@ Value isinf(const Value &x, std::pmr::memory_resource *mr)
         return Value::logicalScalar(std::isinf(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
     if (x.numel() == 0) return r;
-    ::numkit::builtin::detail::doubleIsInfLoop(x.doubleData(), r.logicalDataMut(), x.numel());
+    ::nk::builtin::detail::doubleIsInfLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -128,7 +128,7 @@ Value isfinite(const Value &x, std::pmr::memory_resource *mr)
         return Value::logicalScalar(std::isfinite(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
     if (x.numel() == 0) return r;
-    ::numkit::builtin::detail::doubleIsFiniteLoop(x.doubleData(), r.logicalDataMut(), x.numel());
+    ::nk::builtin::detail::doubleIsFiniteLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -159,7 +159,7 @@ Value ismissing(const Value &x, const Value &indicator,
         // Standard missing only: NaN for float, never for ints/logical.
         if (float_class) {
             if (x.type() == ValueType::DOUBLE) {
-                ::numkit::builtin::detail::doubleIsNaNLoop(x.doubleData(), out, n);
+                ::nk::builtin::detail::doubleIsNaNLoop(x.doubleData(), out, n);
             } else {  // SINGLE
                 const float *src = x.singleData();
                 for (std::size_t i = 0; i < n; ++i)
@@ -528,7 +528,7 @@ Value cast(const Value &x, const std::string &classname, std::pmr::memory_resour
     if (classname == "char")    return toChar(x, mr);
     if (classname == "string")  return toString(x, mr);
     throw Error("cast: unsupported class '" + classname + "'",
-                 0, 0, "cast", "", "numkit:cast:badClass");
+                 0, 0, "cast", "", "nk:cast:badClass");
 }
 
 
@@ -539,18 +539,18 @@ Value typecast(const Value &x, const std::string &classname, std::pmr::memory_re
     TypeInfo info = typeInfoFor(classname);
     if (info.elemSize == 0)
         throw Error("typecast: unsupported class '" + classname + "'",
-                     0, 0, "typecast", "", "numkit:typecast:badClass");
+                     0, 0, "typecast", "", "nk:typecast:badClass");
 
     const size_t srcElemSize = elemSizeOf(x.type());
     if (srcElemSize == 0)
         throw Error("typecast: input type does not have a contiguous byte buffer",
-                     0, 0, "typecast", "", "numkit:typecast:badInputType");
+                     0, 0, "typecast", "", "nk:typecast:badInputType");
 
     const size_t totalBytes = x.numel() * srcElemSize;
     if (totalBytes % info.elemSize != 0)
         throw Error("typecast: input byte count must be a multiple of the "
                     "destination element size",
-                     0, 0, "typecast", "", "numkit:typecast:badSize");
+                     0, 0, "typecast", "", "nk:typecast:badSize");
     const size_t newCount = totalBytes / info.elemSize;
 
     // Output is always a row vector (matches MATLAB).
@@ -576,7 +576,7 @@ Value swapbytes(const Value &x, std::pmr::memory_resource *mr)
     case ValueType::DOUBLE:  return swapBytesArray<double>(x, mr);
     default:
         throw Error("swapbytes: input must be a numeric or logical array",
-                     0, 0, "swapbytes", "", "numkit:swapbytes:badType");
+                     0, 0, "swapbytes", "", "nk:swapbytes:badType");
     }
 }
 
@@ -585,4 +585,4 @@ Value swapbytes(const Value &x, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════════
 
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

@@ -1,7 +1,7 @@
 # signal.freqs — two-arg form `freqs(b, a)` (auto frequency grid) rejected: "requires (b, a, w)"
 
 - **Status:** ✅ FIXED (2026-08-31)
-- **Severity:** P2 (works in MATLAB, refused in numkit; the quick-look form)
+- **Severity:** P2 (works in MATLAB, refused in nk; the quick-look form)
 - **Kind:** stub
 - **Found:** 2026-08-31 via fieldtest portion 1 (mdadams book, freqs_example_1.m)
 
@@ -17,7 +17,7 @@ explicit-w 3-arg form is accepted.
 clear;
 h = freqs([1], [1 sqrt(2) 1]);
 disp(numel(h))
-% numkit:  Error: freqs: requires (b, a, w) (in call to 'freqs')
+% nk:  Error: freqs: requires (b, a, w) (in call to 'freqs')
 % MATLAB R2025b: 200  (2nd-order Butterworth prototype, auto grid)
 ```
 

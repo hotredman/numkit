@@ -12,18 +12,18 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/linalg/decompositions.hpp>
-#include <numkit/linalg/qz.hpp>
-#include <numkit/linalg/gsvd.hpp>
-#include <numkit/linalg/ordschur.hpp>
-#include <numkit/linalg/ordqz.hpp>
-#include <numkit/linalg/eigs.hpp>
-#include <numkit/linalg/svd_sketch.hpp>
+#include <nk/linalg/decompositions.hpp>
+#include <nk/linalg/qz.hpp>
+#include <nk/linalg/gsvd.hpp>
+#include <nk/linalg/ordschur.hpp>
+#include <nk/linalg/ordqz.hpp>
+#include <nk/linalg/eigs.hpp>
+#include <nk/linalg/svd_sketch.hpp>
 #include "decompositions_detail.hpp"   // cholUpperFactor / transposeSquare / qr_pivoted
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -34,14 +34,14 @@
 #include <type_traits>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 namespace detail {
 
 void chol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("chol: requires at least 1 argument",
-                    0, 0, "chol", "", "numkit:chol:nargin");
+                    0, 0, "chol", "", "nk:chol:nargin");
     auto *mr = ctx.engine->resource();
     const Value &A = args[0];
 
@@ -51,24 +51,24 @@ void chol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     for (size_t i = 1; i < args.size(); ++i) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("chol: option must be 'lower' or 'upper'",
-                        0, 0, "chol", "", "numkit:chol:BadOpt");
+                        0, 0, "chol", "", "nk:chol:BadOpt");
         std::string s = args[i].toString();
         for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if      (s == "lower") lower = true;
         else if (s == "upper") lower = false;
         else
             throw Error("chol: unknown option '" + args[i].toString() + "'",
-                        0, 0, "chol", "", "numkit:chol:BadOpt");
+                        0, 0, "chol", "", "nk:chol:BadOpt");
     }
 
     if (A.dims().ndim() != 2)
         throw Error("chol: input must be a 2D matrix",
-                    0, 0, "chol", "", "numkit:chol:notMatrix");
+                    0, 0, "chol", "", "nk:chol:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("chol: matrix must be square",
-                    0, 0, "chol", "", "numkit:chol:notSquare");
+                    0, 0, "chol", "", "nk:chol:notSquare");
 
     if (n == 0) {
         outs[0] = Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -90,7 +90,7 @@ void chol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
             // (p-1)×(p-1) factor (no error).
             if (nargout < 2)
                 throw Error("chol: matrix is not positive-definite",
-                            0, 0, "chol", "", "numkit:chol:notPosDef");
+                            0, 0, "chol", "", "nk:chol:notPosDef");
             const std::size_t k = fail - 1;
             Value sub = make_matrix<T>(k, k, mr);
             if (k > 0) {
@@ -173,7 +173,7 @@ bool wantsEcon(Span<const Value> args, const char *fn)
     if (args.size() < 2) return false;
     if (args.size() > 2)
         throw Error(std::string(fn) + ": too many arguments",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("nk:") + fn + ":nargin");
     const Value &o = args[1];
     if (o.type() == ValueType::CHAR) {
         std::string s = o.toString();
@@ -181,11 +181,11 @@ bool wantsEcon(Span<const Value> args, const char *fn)
                        [](unsigned char c) { return std::tolower(c); });
         if (s == "econ") return true;
         throw Error(std::string(fn) + ": unknown option '" + s + "'",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badOption");
+                    0, 0, fn, "", std::string("nk:") + fn + ":badOption");
     }
     if (o.isScalar() && o.toScalar() == 0.0) return true;   // legacy svd(A,0)/qr(A,0)
     throw Error(std::string(fn) + ": invalid second argument",
-                0, 0, fn, "", std::string("numkit:") + fn + ":badArg");
+                0, 0, fn, "", std::string("nk:") + fn + ":badArg");
 }
 
 } // namespace
@@ -194,21 +194,21 @@ void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
 {
     if (args.empty() || args.size() > 2)
         throw Error("lu: requires 1 or 2 arguments",
-                    0, 0, "lu", "", "numkit:lu:nargin");
+                    0, 0, "lu", "", "nk:lu:nargin");
     auto *mr = ctx.engine->resource();
 
     bool vectorP = false;
     if (args.size() == 2) {
         if (args[1].type() != ValueType::CHAR)
             throw Error("lu: second argument must be the flag 'vector'",
-                        0, 0, "lu", "", "numkit:lu:badArg");
+                        0, 0, "lu", "", "nk:lu:badArg");
         std::string s = args[1].toString();
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c) { return std::tolower(c); });
         if (s == "vector") vectorP = true;
         else if (s == "matrix") vectorP = false;   // explicit default
         else throw Error("lu: unknown option '" + s + "'",
-                         0, 0, "lu", "", "numkit:lu:badOption");
+                         0, 0, "lu", "", "nk:lu:badOption");
     }
 
     if (nargout >= 2) {
@@ -239,12 +239,12 @@ void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
             else if (s == "vector") vectorP = true;
             else if (s == "matrix") vectorP = false;
             else throw Error("qr: unknown option '" + s + "'",
-                             0, 0, "qr", "", "numkit:qr:option");
+                             0, 0, "qr", "", "nk:qr:option");
         } else if (o.numel() == 1 && o.toScalar() == 0.0) {
             econ = true;
         } else {
             throw Error("qr: invalid option argument",
-                        0, 0, "qr", "", "numkit:qr:option");
+                        0, 0, "qr", "", "nk:qr:option");
         }
     }
 
@@ -318,7 +318,7 @@ void qrupdate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() != 4)
         throw Error("qrupdate: requires (Q, R, u, v)",
-                    0, 0, "qrupdate", "", "numkit:qrupdate:nargin");
+                    0, 0, "qrupdate", "", "nk:qrupdate:nargin");
     auto [Q1, R1] = qrupdate(args[0], args[1], args[2], args[3], ctx.engine->resource());
     outs[0] = std::move(Q1);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(R1);
@@ -328,17 +328,17 @@ void qrinsert_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 4 || args.size() > 5)
         throw Error("qrinsert: requires (Q, R, k, x[, 'col']) — row form is not yet supported",
-                    0, 0, "qrinsert", "", "numkit:qrinsert:nargin");
+                    0, 0, "qrinsert", "", "nk:qrinsert:nargin");
     if (args.size() == 5) {
         if (!(args[4].isChar() || args[4].isString())
             || args[4].toString() != "col")
             throw Error("qrinsert: row form not supported in v1 — pass 'col' or omit",
-                        0, 0, "qrinsert", "", "numkit:qrinsert:rowDeferred");
+                        0, 0, "qrinsert", "", "nk:qrinsert:rowDeferred");
     }
     const double kd = args[2].toScalar();
     if (kd < 1.0 || kd != std::floor(kd))
         throw Error("qrinsert: k must be a positive integer",
-                    0, 0, "qrinsert", "", "numkit:qrinsert:badK");
+                    0, 0, "qrinsert", "", "nk:qrinsert:badK");
     auto [Q1, R1] = qrinsert(args[0], args[1],
                              static_cast<std::size_t>(kd), args[3],
                              ctx.engine->resource());
@@ -350,17 +350,17 @@ void qrdelete_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3 || args.size() > 4)
         throw Error("qrdelete: requires (Q, R, k[, 'col']) — row form is not yet supported",
-                    0, 0, "qrdelete", "", "numkit:qrdelete:nargin");
+                    0, 0, "qrdelete", "", "nk:qrdelete:nargin");
     if (args.size() == 4) {
         if (!(args[3].isChar() || args[3].isString())
             || args[3].toString() != "col")
             throw Error("qrdelete: row form not supported in v1 — pass 'col' or omit",
-                        0, 0, "qrdelete", "", "numkit:qrdelete:rowDeferred");
+                        0, 0, "qrdelete", "", "nk:qrdelete:rowDeferred");
     }
     const double kd = args[2].toScalar();
     if (kd < 1.0 || kd != std::floor(kd))
         throw Error("qrdelete: k must be a positive integer",
-                    0, 0, "qrdelete", "", "numkit:qrdelete:badK");
+                    0, 0, "qrdelete", "", "nk:qrdelete:badK");
     auto [Q1, R1] = qrdelete(args[0], args[1],
                              static_cast<std::size_t>(kd),
                              ctx.engine->resource());
@@ -372,7 +372,7 @@ void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2 || args.size() > 3)
         throw Error("cholupdate: requires (R, x[, sign])",
-                    0, 0, "cholupdate", "", "numkit:cholupdate:nargin");
+                    0, 0, "cholupdate", "", "nk:cholupdate:nargin");
     int sign = 1;
     if (args.size() == 3) {
         if (args[2].isChar() || args[2].isString()) {
@@ -380,7 +380,7 @@ void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
             if      (s == "+") sign = 1;
             else if (s == "-") sign = -1;
             else throw Error("cholupdate: sign must be '+' or '-'",
-                             0, 0, "cholupdate", "", "numkit:cholupdate:badSign");
+                             0, 0, "cholupdate", "", "nk:cholupdate:badSign");
         } else {
             sign = (args[2].toScalar() >= 0.0) ? 1 : -1;
         }
@@ -391,7 +391,7 @@ void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 void qz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("qz: requires at least 2 arguments (A, B)", 0, 0, "qz", "", "numkit:qz:nargin");
+        throw Error("qz: requires at least 2 arguments (A, B)", 0, 0, "qz", "", "nk:qz:nargin");
     auto [AA, BB, Q, Z] = qz(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(AA);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(BB);
@@ -402,7 +402,7 @@ void qz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
 void gsvd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("gsvd: requires at least 2 arguments (A, B)", 0, 0, "gsvd", "", "numkit:gsvd:nargin");
+        throw Error("gsvd: requires at least 2 arguments (A, B)", 0, 0, "gsvd", "", "nk:gsvd:nargin");
     if (nargout <= 1) {
         outs[0] = gsvd_values(args[0], args[1], ctx.engine->resource());
     } else {
@@ -417,7 +417,7 @@ void gsvd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void ordqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 5)
-        throw Error("ordqz: requires 5 arguments (AA, BB, Q, Z, select/domain)", 0, 0, "ordqz", "", "numkit:ordqz:nargin");
+        throw Error("ordqz: requires 5 arguments (AA, BB, Q, Z, select/domain)", 0, 0, "ordqz", "", "nk:ordqz:nargin");
     Value AA, BB, Q, Z;
     if (args[4].isChar() || args[4].isString()) {
         std::tie(AA, BB, Q, Z) = ordqz(args[0], args[1], args[2], args[3], args[4].toString(), ctx.engine->resource());
@@ -433,7 +433,7 @@ void ordqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 void ordschur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("ordschur: requires at least 3 arguments (U, T, select/domain)", 0, 0, "ordschur", "", "numkit:ordschur:nargin");
+        throw Error("ordschur: requires at least 3 arguments (U, T, select/domain)", 0, 0, "ordschur", "", "nk:ordschur:nargin");
     Value U, T;
     if (args[2].isChar() || args[2].isString()) {
         std::tie(U, T) = ordschur(args[0], args[1], args[2].toString(), ctx.engine->resource());
@@ -447,7 +447,7 @@ void ordschur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 void eigs_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("eigs: requires at least 1 argument", 0, 0, "eigs", "", "numkit:eigs:nargin");
+        throw Error("eigs: requires at least 1 argument", 0, 0, "eigs", "", "nk:eigs:nargin");
     std::size_t k = (args.size() >= 2 && !args[1].isEmpty()) ? static_cast<std::size_t>(args[1].toScalar()) : 6;
     if (nargout <= 1) {
         outs[0] = eigs_values(args[0], k, ctx.engine->resource());
@@ -461,7 +461,7 @@ void eigs_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void svds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("svds: requires at least 1 argument", 0, 0, "svds", "", "numkit:svds:nargin");
+        throw Error("svds: requires at least 1 argument", 0, 0, "svds", "", "nk:svds:nargin");
     std::size_t k = (args.size() >= 2 && !args[1].isEmpty()) ? static_cast<std::size_t>(args[1].toScalar()) : 6;
     if (nargout <= 1) {
         outs[0] = svds_values(args[0], k, ctx.engine->resource());
@@ -476,7 +476,7 @@ void svds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void svdsketch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("svdsketch: requires at least 1 argument (A)", 0, 0, "svdsketch", "", "numkit:svdsketch:nargin");
+        throw Error("svdsketch: requires at least 1 argument (A)", 0, 0, "svdsketch", "", "nk:svdsketch:nargin");
     double tol = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 1e-6;
     auto [U, S, V] = svdsketch(args[0], tol, ctx.engine->resource());
     outs[0] = std::move(U);
@@ -487,7 +487,7 @@ void svdsketch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 void svdappend_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
-        throw Error("svdappend: requires 4 arguments (U, S, V, A_new)", 0, 0, "svdappend", "", "numkit:svdappend:nargin");
+        throw Error("svdappend: requires 4 arguments (U, S, V, A_new)", 0, 0, "svdappend", "", "nk:svdappend:nargin");
     auto [U, S, V] = svdappend(args[0], args[1], args[2], args[3], ctx.engine->resource());
     outs[0] = std::move(U);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(S);
@@ -495,4 +495,4 @@ void svdappend_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 }
 
 } // namespace detail
-} // namespace numkit::linalg
+} // namespace nk::linalg

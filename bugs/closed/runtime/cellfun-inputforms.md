@@ -9,20 +9,20 @@
 Two MATLAB `cellfun` input forms are rejected:
 
 1. **Multiple cell arrays** — `cellfun(fn, C1, C2, ...)` applies
-   `fn(C1{i}, C2{i}, ...)`. numkit treats the second cell as an option name.
+   `fn(C1{i}, C2{i}, ...)`. nk treats the second cell as an option name.
    (`arrayfun` already supports the multi-array form, so this is an
    asymmetry.)
 2. **String function name** (legacy) — `cellfun('isempty', C)` /
-   `cellfun('length', C)` etc. numkit requires a function handle.
+   `cellfun('length', C)` etc. nk requires a function handle.
 
 ## Repro
 ```matlab
 cellfun(@(a,b) a+b, {1,2}, {10,20})
-% numkit: Error — cellfun: option name without value
+% nk: Error — cellfun: option name without value
 % MATLAB: [11 22]
 
 cellfun('isempty', {[],[1],[]})
-% numkit: Error — cellfun: fn argument must be a function handle
+% nk: Error — cellfun: fn argument must be a function handle
 % MATLAB: [1 0 1]
 
 cellfun('length', {[1 2],[1 2 3]})

@@ -3,17 +3,17 @@
 // CallContext register half of distributions/binomial.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/stats/distributions/binomial.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/stats/distributions/binomial.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 #include "distributions/binomial_detail.hpp"
 #include "distributions/dist_helpers.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,14 +25,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
 void binopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("binopdf: requires (k, n, p)", 0, 0, "binopdf", "", "numkit:binopdf:nargin");
+        throw Error("binopdf: requires (k, n, p)", 0, 0, "binopdf", "", "nk:binopdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &n = args[1];
     const Value &p = args[2];
@@ -47,7 +47,7 @@ void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 3)
-        throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "numkit:binocdf:nargin");
+        throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "nk:binocdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &n = a[1];
     const Value &p = a[2];
@@ -83,7 +83,7 @@ void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void binoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("binoinv: requires (p, n, prob)", 0, 0, "binoinv", "", "numkit:binoinv:nargin");
+        throw Error("binoinv: requires (p, n, prob)", 0, 0, "binoinv", "", "nk:binoinv:nargin");
     auto *mr = ctx.engine->resource();
     const Value &n = args[1];
     const Value &p = args[2];
@@ -114,7 +114,7 @@ void binoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("binornd: requires (n, p[, sz...])", 0, 0, "binornd", "", "numkit:binornd:nargin");
+        throw Error("binornd: requires (n, p[, sz...])", 0, 0, "binornd", "", "nk:binornd:nargin");
     const double n = args[0].toScalar();
     const double p = args[1].toScalar();
     size_t rows, cols;
@@ -130,4 +130,4 @@ void binostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/tinv_test.cpp
 // tinv.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TinvTest : public ::testing::Test
 {

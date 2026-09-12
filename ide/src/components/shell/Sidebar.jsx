@@ -325,14 +325,14 @@ function buildGhTree(flat) {
 
 /* GitHub browser pane — replaces the regular tree UI when source === 'github'. */
 function GitHubBrowser({ onOpenFile }) {
-  const [repoUrl, setRepoUrl] = usePersistedState('numkit.ide.fb.github.repoUrl', '');
-  const [branch, setBranch]   = usePersistedState('numkit.ide.fb.github.branch', '');
+  const [repoUrl, setRepoUrl] = usePersistedState('nk.ide.fb.github.repoUrl', '');
+  const [branch, setBranch]   = usePersistedState('nk.ide.fb.github.branch', '');
   const [tree, setTree]       = useState([]);
   const [branches, setBranches] = useState([]);
   const [meta, setMeta]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
-  const [expanded, setExpanded] = usePersistedState('numkit.ide.fb.github.expanded', {});
+  const [expanded, setExpanded] = usePersistedState('nk.ide.fb.github.expanded', {});
   const [filter, setFilter]   = useState('');
 
   const load = useCallback(async (urlOverride, branchOverride) => {
@@ -508,10 +508,10 @@ export default function Sidebar({
   vfsAdapters,
 }) {
   const localAvailable = typeof localFS !== 'undefined' && localFS.isAvailable?.();
-  const [rawSource, setSource] = usePersistedState('numkit.ide.sidebar.source', 'fs');
+  const [rawSource, setSource] = usePersistedState('nk.ide.sidebar.source', 'fs');
   const source = (rawSource === 'localFolder' || rawSource === 'temporary') ? 'fs' : rawSource;
   const [tree, setTree] = useState([]);
-  const [expanded, setExpanded] = usePersistedState(`numkit.ide.fb.expanded.${source}`, {});
+  const [expanded, setExpanded] = usePersistedState(`nk.ide.fb.expanded.${source}`, {});
   const [selected, setSelected] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [creating, setCreating] = useState(null);

@@ -5,11 +5,11 @@
 //   gen2par([P|I_4]) of the Hamming(7,4) generator -> the parity matrix;
 //   gen2par([I_3|P]) -> [P' | I_2]; the map is an involution.
 
-#include <numkit/comm/coding/blockcoding.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/comm/coding/blockcoding.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Gen2parTest : public ::testing::Test
 {

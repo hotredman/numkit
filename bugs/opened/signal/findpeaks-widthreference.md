@@ -6,7 +6,7 @@
 - **Found:** 2026-06 via signal.* DEEP-PROBE sweep (previously known gap)
 
 ## Symptom
-`findpeaks(..., 'WidthReference', 'halfheight'|'halfprom')` throws. numkit
+`findpeaks(..., 'WidthReference', 'halfheight'|'halfprom')` throws. nk
 always measures the width `w` at the half-prominence reference; the
 `'halfheight'` reference (and explicit `'halfprom'`) are rejected.
 
@@ -14,7 +14,7 @@ always measures the width `w` at the half-prominence reference; the
 ```matlab
 clear;
 findpeaks([1 3 2 5 1 6 1], 'WidthReference', 'halfheight')
-% numkit: Error — findpeaks: option 'WidthReference' not supported
+% nk: Error — findpeaks: option 'WidthReference' not supported
 % MATLAB: (returns peaks; width measured at half the absolute peak height)
 ```
 
@@ -52,7 +52,7 @@ before implementing. Deferred as fiddly.
 ## Reverse-engineering notes (probed 2026-06-05, c40 — still blocked)
 Confirmed: the CROSSING case is standard and matchable — e.g. strictly
 descending base `[3 4 5 6 9 6 5 4 3]` gives halfheight w=5.0 by ordinary
-linear interpolation at `h/2=4.5` (crossings at 2.5 and 7.5). numkit's
+linear interpolation at `h/2=4.5` (crossings at 2.5 and 7.5). nk's
 existing `peakWidth` crossing+interp logic reproduces this once `ref=h/2`.
 The current prominence bounds (`peakProminence` lb/rb) span the WHOLE
 interval to the next-higher sample / array end, so the no-crossing fallback

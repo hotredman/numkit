@@ -5,16 +5,16 @@
 //   double / single / logical / char
 // All . Bit-identical MATLAB R2025b
 // on probed inputs.
-// Known sub-gap: numkit's double("string") rejects with error;
+// Known sub-gap: nk's double("string") rejects with error;
 // MATLAB returns NaN, Octave returns ASCII codes. Documented in
 // — only numeric→double paths
 // pinned here.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class TypeConvBatchTest : public ::testing::Test
 {

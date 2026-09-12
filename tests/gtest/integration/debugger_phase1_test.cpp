@@ -1,13 +1,13 @@
 // tests/test_debugger_phase1.cpp — Source mapping, error locations, Error
 // Parameterized: runs on both TreeWalker and VM backends
 
-#include <numkit/core/compiler.hpp>
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/compiler.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit;
+using namespace nk;
 
 // ============================================================
 // Test fixture

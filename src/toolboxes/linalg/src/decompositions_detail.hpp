@@ -15,11 +15,11 @@
 #include <tuple>
 #include <vector>
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/blas.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/blas.hpp>
 #include "linalg_detail.hpp"
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 // Build upper-triangular R (column-major, n×n) such that R'·R = A, reading the
 // upper triangle of A. Returns the 1-based column index where the
@@ -81,4 +81,4 @@ std::tuple<Value, Value>
 qr_pivoted(const Value &A, std::vector<std::size_t> &perm,
            std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

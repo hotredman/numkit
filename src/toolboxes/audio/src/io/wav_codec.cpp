@@ -5,8 +5,8 @@
 
 #include "wav_codec.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 bool isWavBytes(const std::uint8_t *data, std::size_t len)
 {
@@ -173,7 +173,7 @@ AudioInfo peekWav(const std::uint8_t *data, std::size_t len)
 {
     if (!isWavBytes(data, len))
         throw Error("audioinfo: not a valid RIFF/WAVE audio stream",
-                    0, 0, "audioinfo", "", "numkit:audioinfo:badMagic");
+                    0, 0, "audioinfo", "", "nk:audioinfo:badMagic");
 
     auto chunks = findChunks(data, len);
     const RiffChunk *fmtChunk = nullptr;
@@ -188,7 +188,7 @@ AudioInfo peekWav(const std::uint8_t *data, std::size_t len)
 
     if (!fmtChunk || fmtChunk->size < 16)
         throw Error("audioinfo: missing or malformed 'fmt ' chunk in WAV",
-                    0, 0, "audioinfo", "", "numkit:audioinfo:badFmt");
+                    0, 0, "audioinfo", "", "nk:audioinfo:badFmt");
 
     const uint8_t *f = data + fmtChunk->offset;
     uint16_t audioFormat = readU16LE(f);
@@ -240,7 +240,7 @@ AudioData readWav(const std::uint8_t *data, std::size_t len,
 {
     if (!isWavBytes(data, len))
         throw Error("audioread: not a valid RIFF/WAVE audio stream",
-                    0, 0, "audioread", "", "numkit:audioread:badMagic");
+                    0, 0, "audioread", "", "nk:audioread:badMagic");
 
     auto chunks = findChunks(data, len);
     const RiffChunk *fmtChunk = nullptr;
@@ -255,11 +255,11 @@ AudioData readWav(const std::uint8_t *data, std::size_t len,
 
     if (!fmtChunk || fmtChunk->size < 16)
         throw Error("audioread: missing or malformed 'fmt ' chunk in WAV",
-                    0, 0, "audioread", "", "numkit:audioread:badFmt");
+                    0, 0, "audioread", "", "nk:audioread:badFmt");
 
     if (!dataChunk)
         throw Error("audioread: missing 'data' chunk in WAV",
-                    0, 0, "audioread", "", "numkit:audioread:noData");
+                    0, 0, "audioread", "", "nk:audioread:noData");
 
     const uint8_t *f = data + fmtChunk->offset;
     uint16_t audioFormat = readU16LE(f);
@@ -274,7 +274,7 @@ AudioData readWav(const std::uint8_t *data, std::size_t len,
 
     if (numChannels == 0)
         throw Error("audioread: audio has zero channels",
-                    0, 0, "audioread", "", "numkit:audioread:channels");
+                    0, 0, "audioread", "", "nk:audioread:channels");
 
     size_t bytesPerSample = (bitsPerSample + 7) / 8;
     size_t expectedBlockAlign = numChannels * bytesPerSample;
@@ -324,7 +324,7 @@ AudioData readWav(const std::uint8_t *data, std::size_t len,
     const size_t rawBytes = numFrames * blockAlign;
     if (dataChunk->offset + s0 * blockAlign + rawBytes > len)
         throw Error("audioread: truncated audio data stream",
-                    0, 0, "audioread", "", "numkit:audioread:truncated");
+                    0, 0, "audioread", "", "nk:audioread:truncated");
 
     // Output matrix: N x C (samples down rows, channels across columns)
     if (!nativeType) {
@@ -417,7 +417,7 @@ std::vector<std::uint8_t> writeWavToBytes(const Value &y, double sampleRate,
 
     if (numFrames == 0 || numChannels == 0)
         throw Error("audiowrite: audio matrix cannot be empty",
-                    0, 0, "audiowrite", "", "numkit:audiowrite:empty");
+                    0, 0, "audiowrite", "", "nk:audiowrite:empty");
 
     if (sampleRate <= 0) sampleRate = 44100.0;
 
@@ -523,4 +523,4 @@ std::vector<std::uint8_t> writeWavToBytes(const Value &y, double sampleRate,
     return out;
 }
 
-} // namespace numkit::audio
+} // namespace nk::audio

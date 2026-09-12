@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/wblinv_test.cpp
 // wblinv.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class WblinvTest : public ::testing::Test
 {

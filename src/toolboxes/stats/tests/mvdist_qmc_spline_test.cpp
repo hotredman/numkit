@@ -2,7 +2,7 @@
 //
 // Coverage for previously gtest-uncovered stats files (parity-spec only):
 // mvdist/mvdist.cpp (mvnpdf, mvncdf), qmc/qmc.cpp (haltonset, net), and
-// spline/spline.cpp (spline). Reference values from numkit's parity-validated
+// spline/spline.cpp (spline). Reference values from nk's parity-validated
 // output, cross-checked against closed form (mvnpdf([0 0]) = 1/(2*pi),
 // mvncdf(0) = 0.5, Halton base-2/base-3 digits, spline-at-nodes = sin).
 

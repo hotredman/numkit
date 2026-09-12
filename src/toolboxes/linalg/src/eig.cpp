@@ -13,20 +13,20 @@
 //   - schur_sym          (== eig for symmetric A)
 //   - sylvester_sym      (simultaneous diagonalisation)
 
-#include <numkit/linalg/eig.hpp>
+#include <nk/linalg/eig.hpp>
 #include "linalg_detail.hpp"
 
-#include <numkit/linalg/decompositions.hpp>           // svd_decompose
-#include <numkit/linalg/properties.hpp>               // inv (polyeig companion)
-#include <numkit/builtin/polyfun.hpp>   // roots
+#include <nk/linalg/decompositions.hpp>           // svd_decompose
+#include <nk/linalg/properties.hpp>               // inv (polyeig companion)
+#include <nk/builtin/polyfun.hpp>   // roots
 
 // Compute-only TU: Value substrate + Error, no engine. The eig / hess /
 // schur / sylvester / polyeig / ordeig builtins (CallContext wrappers)
 // live in eig_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -37,7 +37,7 @@
 #include <tuple>
 #include <vector>
 
-namespace numkit::linalg {
+namespace nk::linalg {
 
 // ────────────────────────────────────────────────────────────────────────
 // Characteristic polynomial + general eig via roots
@@ -47,12 +47,12 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("poly: input must be a 2D matrix",
-                    0, 0, "poly", "", "numkit:poly:notMatrix");
+                    0, 0, "poly", "", "nk:poly:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("poly: matrix must be square (use poly(roots) for vector input)",
-                    0, 0, "poly", "", "numkit:poly:notSquare");
+                    0, 0, "poly", "", "nk:poly:notSquare");
     if (n == 0) {
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = 1.0;
@@ -104,11 +104,11 @@ Value eig_general_values(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("eig: input must be a 2D matrix",
-                    0, 0, "eig", "", "numkit:eig:notMatrix");
+                    0, 0, "eig", "", "nk:eig:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
         throw Error("eig: matrix must be square",
-                    0, 0, "eig", "", "numkit:eig:notSquare");
+                    0, 0, "eig", "", "nk:eig:notSquare");
     if (n == 0) return Value::matrix(0, 1, A.type(), mr);
 
     auto [U, T] = schur_general(A, mr);
@@ -149,11 +149,11 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("eig: input must be a 2D matrix",
-                    0, 0, "eig", "", "numkit:eig:notMatrix");
+                    0, 0, "eig", "", "nk:eig:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
         throw Error("eig: matrix must be square",
-                    0, 0, "eig", "", "numkit:eig:notSquare");
+                    0, 0, "eig", "", "nk:eig:notSquare");
     if (n == 0) {
         return std::make_tuple(
             Value::matrix(0, 0, A.type(), mr),
@@ -161,7 +161,7 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
     }
 
     if (!A.isComplex()) {
-        auto eig_vals = numkit::builtin::roots(poly_of_matrix(A, mr), mr);
+        auto eig_vals = nk::builtin::roots(poly_of_matrix(A, mr), mr);
         bool has_complex = false;
         if (eig_vals.isComplex()) {
             const Complex *ev = eig_vals.complexData();
@@ -406,16 +406,16 @@ eig_symmetric(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("eig: input must be a 2D matrix",
-                    0, 0, "eig", "", "numkit:eig:notMatrix");
+                    0, 0, "eig", "", "nk:eig:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("eig: matrix must be square",
-                    0, 0, "eig", "", "numkit:eig:notSquare");
+                    0, 0, "eig", "", "nk:eig:notSquare");
     if (!isSymmetricApprox(A, 1e-10))
         throw Error("eig: only symmetric matrices supported in this revision "
                     "(general eig via Hessenberg + Francis QR is deferred to Phase 2b)",
-                    0, 0, "eig", "", "numkit:eig:notSymmetric");
+                    0, 0, "eig", "", "nk:eig:notSymmetric");
     if (n == 0) {
         return std::make_tuple(
             Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -576,7 +576,7 @@ void complexSchurQR(Complex *H, Complex *Z, std::size_t n)
         if (l == p) { p -= 1; iter = 0; continue; }
         if (++iter > 60 * (N + 1))  // LAPACK-style budget; unreachable when converged
             throw Error("eig: QR iteration failed to converge",
-                        0, 0, "eig", "", "numkit:eig:qrNoConverge");
+                        0, 0, "eig", "", "nk:eig:qrNoConverge");
 
         // Wilkinson shift from trailing 2x2 block: H[p-1..p, p-1..p]
         Complex a = h(p - 1, p - 1);
@@ -648,12 +648,12 @@ hess(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("hess: input must be a 2D matrix",
-                    0, 0, "hess", "", "numkit:hess:notMatrix");
+                    0, 0, "hess", "", "nk:hess:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("hess: matrix must be square",
-                    0, 0, "hess", "", "numkit:hess:notSquare");
+                    0, 0, "hess", "", "nk:hess:notSquare");
     if (A.isComplex()) {
         auto Hout = Value::complexMatrix(n, n, mr);
         auto Pout = Value::complexMatrix(n, n, mr);
@@ -873,19 +873,19 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C,
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2 || C.dims().ndim() != 2)
         throw Error("sylvester: A, B, C must be 2D matrices",
-                    0, 0, "sylvester", "", "numkit:sylvester:notMatrix");
+                    0, 0, "sylvester", "", "nk:sylvester:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t m = static_cast<std::size_t>(B.dims().dim(0));
     if (A.dims().dim(0) != A.dims().dim(1))
         throw Error("sylvester: A must be square",
-                    0, 0, "sylvester", "", "numkit:sylvester:badA");
+                    0, 0, "sylvester", "", "nk:sylvester:badA");
     if (B.dims().dim(0) != B.dims().dim(1))
         throw Error("sylvester: B must be square",
-                    0, 0, "sylvester", "", "numkit:sylvester:badB");
+                    0, 0, "sylvester", "", "nk:sylvester:badB");
     if (C.dims().dim(0) != static_cast<int>(n) ||
         C.dims().dim(1) != static_cast<int>(m))
         throw Error("sylvester: C must be n × m where A is n×n, B is m×m",
-                    0, 0, "sylvester", "", "numkit:sylvester:badC");
+                    0, 0, "sylvester", "", "nk:sylvester:badC");
 
     auto [Va, Da] = eig_symmetric(A, mr);   // throws if non-sym
     auto [Vb, Db] = eig_symmetric(B, mr);   // throws if non-sym
@@ -924,7 +924,7 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C,
             const double denom = dai + dbj;
             if (std::fabs(denom) < 1e-300)
                 throw Error("sylvester: A and -B share an eigenvalue (no unique solution)",
-                            0, 0, "sylvester", "", "numkit:sylvester:singular");
+                            0, 0, "sylvester", "", "nk:sylvester:singular");
             Y[i + j * n] /= denom;
         }
     }
@@ -1014,17 +1014,17 @@ void validatePolyeigCoeffs(Span<const Value> coeffs)
 {
     if (coeffs.size() < 2)
         throw Error("polyeig: requires at least 2 coefficient matrices (A0, A1, ...)",
-                    0, 0, "polyeig", "", "numkit:polyeig:nargin");
+                    0, 0, "polyeig", "", "nk:polyeig:nargin");
     const std::size_t n = static_cast<std::size_t>(coeffs[0].dims().dim(0));
     if (n != static_cast<std::size_t>(coeffs[0].dims().dim(1)))
         throw Error("polyeig: coefficient matrices must be square",
-                    0, 0, "polyeig", "", "numkit:polyeig:notSquare");
+                    0, 0, "polyeig", "", "nk:polyeig:notSquare");
     for (std::size_t i = 1; i < coeffs.size(); ++i) {
         if (coeffs[i].dims().ndim() != 2
             || static_cast<std::size_t>(coeffs[i].dims().dim(0)) != n
             || static_cast<std::size_t>(coeffs[i].dims().dim(1)) != n)
             throw Error("polyeig: all coefficient matrices must be n × n with matching n",
-                        0, 0, "polyeig", "", "numkit:polyeig:shapeMismatch");
+                        0, 0, "polyeig", "", "nk:polyeig:shapeMismatch");
     }
 }
 
@@ -1077,11 +1077,11 @@ Value ordeig(const Value &T, std::pmr::memory_resource *mr)
 {
     if (T.dims().ndim() != 2)
         throw Error("ordeig: T must be a 2D matrix",
-                    0, 0, "ordeig", "", "numkit:ordeig:notMatrix");
+                    0, 0, "ordeig", "", "nk:ordeig:notMatrix");
     const std::size_t n = static_cast<std::size_t>(T.dims().dim(0));
     if (n != static_cast<std::size_t>(T.dims().dim(1)))
         throw Error("ordeig: T must be square",
-                    0, 0, "ordeig", "", "numkit:ordeig:notSquare");
+                    0, 0, "ordeig", "", "nk:ordeig:notSquare");
     if (n == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
@@ -1136,4 +1136,4 @@ Value ordeig(const Value &T, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::linalg
+} // namespace nk::linalg

@@ -5,10 +5,10 @@
 // per-metric value checks. Time-domain (x, fs) form is exercised
 // in the smoke .m and the parity spec.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class SpectralShapeTest : public ::testing::Test
 {

@@ -3,30 +3,30 @@
 // Apply an SOS biquad cascade to a signal. Conversions
 // zp2sos / tf2sos live in filter_implementation/conversions.cpp.
 
-#include <numkit/signal/digital_filtering/sosfilt.hpp>
+#include <nk/signal/digital_filtering/sosfilt.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/iir_filter.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/iir_filter.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace {
 
 // The raw-buffer biquad DF2T recurrence kernels moved to the kernel layer —
-// numkit::ops::biquadDf2t{,WithState} (numkit/ops/iir_filter.hpp). Re-export
+// nk::ops::biquadDf2t{,WithState} (nk/ops/iir_filter.hpp). Re-export
 // them so the Value-coupled cascade orchestration below calls them unqualified.
 // The steady-state-IC helper (biquadZi) and the cascade logic stay in signal.
-using numkit::ops::biquadDf2t;
-using numkit::ops::biquadDf2tWithState;
+using nk::ops::biquadDf2t;
+using nk::ops::biquadDf2tWithState;
 
 // Steady-state initial conditions (s1, s2) for one biquad: when input
 // is constant 1, applying these as initial state makes the output
@@ -48,10 +48,10 @@ size_t validateSosMatrix(const Value &sos)
 {
     if (sos.dims().ndim() != 2 || sos.dims().cols() != 6 || sos.dims().rows() == 0)
         throw Error("sosfilt: sos matrix must be L×6 with L >= 1",
-                     0, 0, "sosfilt", "", "numkit:sosfilt:sosShape");
+                     0, 0, "sosfilt", "", "nk:sosfilt:sosShape");
     if (sos.type() != ValueType::DOUBLE)
         throw Error("sosfilt: sos matrix must be DOUBLE",
-                     0, 0, "sosfilt", "", "numkit:sosfilt:sosType");
+                     0, 0, "sosfilt", "", "nk:sosfilt:sosType");
     return sos.dims().rows();
 }
 
@@ -64,7 +64,7 @@ void applyCascade(const Value &sos, const double *xs, double *out, size_t n,
         const double a0 = p[3 * L + r];
         if (a0 == 0.0)
             throw Error("sosfilt: section a0 is zero",
-                         0, 0, "sosfilt", "", "numkit:sosfilt:zeroLead");
+                         0, 0, "sosfilt", "", "nk:sosfilt:zeroLead");
         return std::array<double, 5>{
             p[0 * L + r] / a0,  // b0
             p[1 * L + r] / a0,  // b1
@@ -94,7 +94,7 @@ Value sosfilt(const Value &sos, const Value &x, std::pmr::memory_resource *mr)
     const size_t L = validateSosMatrix(sos);
     if (x.type() != ValueType::DOUBLE)
         throw Error("sosfilt: signal x must be DOUBLE",
-                     0, 0, "sosfilt", "", "numkit:sosfilt:xType");
+                     0, 0, "sosfilt", "", "nk:sosfilt:xType");
     if (x.isEmpty())
         return createLike(x, ValueType::DOUBLE, mr);
     (void) L;
@@ -151,7 +151,7 @@ void applyCascadeWithZi(const Value &sos, const double *src, double *dst,
         const double a0 = p[3 * L + r];
         if (a0 == 0.0)
             throw Error("sosfiltfilt: section a0 is zero",
-                         0, 0, "sosfiltfilt", "", "numkit:sosfiltfilt:zeroLead");
+                         0, 0, "sosfiltfilt", "", "nk:sosfiltfilt:zeroLead");
         return std::array<double, 5>{
             p[0 * L + r] / a0, p[1 * L + r] / a0, p[2 * L + r] / a0,
             p[4 * L + r] / a0, p[5 * L + r] / a0,
@@ -282,7 +282,7 @@ Value sosfiltfilt(const Value &sos, const Value &x, std::pmr::memory_resource *m
     validateSosMatrix(sos);
     if (x.type() != ValueType::DOUBLE)
         throw Error("sosfiltfilt: signal x must be DOUBLE",
-                     0, 0, "sosfiltfilt", "", "numkit:sosfiltfilt:xType");
+                     0, 0, "sosfiltfilt", "", "nk:sosfiltfilt:xType");
     if (x.isEmpty())
         return createLike(x, ValueType::DOUBLE, mr);
 
@@ -301,4 +301,4 @@ Value sosfiltfilt(const Value &sos, const Value &x, std::pmr::memory_resource *m
     return out;
 }
 
-} // namespace numkit::signal
+} // namespace nk::signal

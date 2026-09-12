@@ -11,5 +11,5 @@
     "double(ks(1))", "double(ks(2))", "double(kf)",
     "kd(1)", "kd(4)"
   ],
-  "comment": "kron preserves the integer class of integer operands (MATLAB R2025b). Branches: same int class -> that class, saturating (kron(int8(100),int8(2))=127, kron(uint8(200),uint8(2))=255, kron(int8(-100),int8(2))=-128); int + real scalar double -> int class, scalar cast round-half-away (kron(int8([2 3]),2)=[4 6] int8; kron(int8(2),1.5)=3); double*double stays double (kron([1 2],[3 4])=[3 4 6 8]). Mixed int classes / int+nonscalar-double / int+logical ERROR in MATLAB (numkit lenient -> double, not asserted). Values read via double(...). bugs/linalg/kron-integer-class.md."
+  "comment": "kron preserves the integer class of integer operands (MATLAB R2025b). Branches: same int class -> that class, saturating (kron(int8(100),int8(2))=127, kron(uint8(200),uint8(2))=255, kron(int8(-100),int8(2))=-128); int + real scalar double -> int class, scalar cast round-half-away (kron(int8([2 3]),2)=[4 6] int8; kron(int8(2),1.5)=3); double*double stays double (kron([1 2],[3 4])=[3 4 6 8]). Mixed int classes / int+nonscalar-double / int+logical ERROR in MATLAB (nk lenient -> double, not asserted). Values read via double(...). bugs/linalg/kron-integer-class.md."
 }

@@ -3,13 +3,13 @@
 // Unit tests for complex Schur decomposition and general complex eigenvalue/eigenvector (schur, eig).
 
 #include <gtest/gtest.h>
-#include <numkit/linalg/eig.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/linalg/eig.hpp>
+#include <nk/value/value.hpp>
 
 #include <complex>
 
-using namespace numkit;
-using namespace numkit::linalg;
+using namespace nk;
+using namespace nk::linalg;
 
 TEST(ComplexSchurTest, SchurComplex2x2) {
     // B = [1+1i 2; 3 4-1i]

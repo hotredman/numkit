@@ -8,14 +8,14 @@
 // 20x20 rng(0) matrix); the property test at the end verifies the
 // defining invariants of the operations MATLAB-independently.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class BwmorphTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void   SetUp() override {
                 engine.eval("BW = logical([0 0 0 0 0;"
                                  " 0 1 1 0 0;"

@@ -17,12 +17,12 @@
 // and p = 1, 2 (complex). The complex form's normalization is grid-dependent
 // (trapezoidal on [LB, UB]) — gauswavf's is not. Same convention as MATLAB.
 
-#include <numkit/wavelet/shape/shape.hpp>
+#include <nk/wavelet/shape/shape.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The gauswavf /
 // cgauwavf builtins (CallContext wrappers) live in shape/gauss_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <cmath>
 #include <complex>
@@ -32,7 +32,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -96,7 +96,7 @@ gauswavf(double lb, double ub, size_t N, int p, std::pmr::memory_resource *mr)
     if (N == 0) return {std::move(pv), std::move(xv)};
     if (p < 1)
         throw Error("gauswavf: derivative order p must be ≥ 1",
-                    0, 0, "gauswavf", "", "numkit:gauswavf:p");
+                    0, 0, "gauswavf", "", "nk:gauswavf:p");
 
     const double *xd = xv.doubleData();
     double *pd = pv.doubleDataMut();
@@ -120,7 +120,7 @@ cgauwavf(double lb, double ub, size_t N, int p, std::pmr::memory_resource *mr)
     if (N == 0) return {std::move(pv), std::move(xv)};
     if (p < 1)
         throw Error("cgauwavf: derivative order p must be ≥ 1",
-                    0, 0, "cgauwavf", "", "numkit:cgauwavf:p");
+                    0, 0, "cgauwavf", "", "nk:cgauwavf:p");
 
     const double *xd = xv.doubleData();
     Complex *pd = pv.complexDataMut();
@@ -158,4 +158,4 @@ cgauwavf(double lb, double ub, size_t N, int p, std::pmr::memory_resource *mr)
     return {std::move(pv), std::move(xv)};
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

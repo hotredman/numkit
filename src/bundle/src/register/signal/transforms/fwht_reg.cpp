@@ -3,14 +3,14 @@
 // CallContext register half of transforms/fwht.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/transforms/fwht.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/transforms/fwht.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -42,7 +42,7 @@ static void parseFwhtArgs(Span<const Value> args,
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (!(args[2].isChar() || args[2].isString()))
             throw Error("fwht: ordering must be a string",
-                         0, 0, "fwht", "", "numkit:fwht:badOrdering");
+                         0, 0, "fwht", "", "nk:fwht:badOrdering");
         ordering = args[2].toString();
     }
 }
@@ -52,7 +52,7 @@ void fwht_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fwht: requires (x [, n [, ordering]])",
-                     0, 0, "fwht", "", "numkit:fwht:nargin");
+                     0, 0, "fwht", "", "nk:fwht:nargin");
     std::size_t n; std::string ordering;
     parseFwhtArgs(args, n, ordering);
     outs[0] = fwht(args[0], n, ordering, ctx.engine->resource());
@@ -63,7 +63,7 @@ void ifwht_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("ifwht: requires (y [, n [, ordering]])",
-                     0, 0, "ifwht", "", "numkit:ifwht:nargin");
+                     0, 0, "ifwht", "", "nk:ifwht:nargin");
     std::size_t n; std::string ordering;
     parseFwhtArgs(args, n, ordering);
     outs[0] = ifwht(args[0], n, ordering, ctx.engine->resource());
@@ -71,4 +71,4 @@ void ifwht_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -20,13 +20,13 @@
 //   5. If p > 0, return empty T.
 //   6. Else (PSD), keep eigvals d > tol and rebuild T = sqrt(d_keep) .* V_keep'.
 
-#include <numkit/stats/descriptive/descriptive.hpp>
+#include <nk/stats/descriptive/descriptive.hpp>
 
-#include <numkit/builtin/elmat.hpp>
-#include <numkit/linalg/decompositions.hpp>   // chol (migrated)
-#include <numkit/linalg/eig.hpp>              // eig_symmetric (migrated)
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/builtin/elmat.hpp>
+#include <nk/linalg/decompositions.hpp>   // chol (migrated)
+#include <nk/linalg/eig.hpp>              // eig_symmetric (migrated)
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace {
 
@@ -72,7 +72,7 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
     const size_t C = SIGMA.dims().cols();
     if (R != C)
         throw Error("cholcov: SIGMA must be square",
-                    0, 0, "cholcov", "", "numkit:cholcov:NotSquare");
+                    0, 0, "cholcov", "", "nk:cholcov:NotSquare");
     if (R == 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return {std::move(T), Value::scalar(0.0, mr)};
@@ -88,7 +88,7 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
 
     // 2. Fall back to eigendecomposition. Treat SIGMA as symmetric;
     //    eig_symmetric throws if it's not symmetric.
-    auto [V, D] = ::numkit::linalg::eig_symmetric(SIGMA, mr);
+    auto [V, D] = ::nk::linalg::eig_symmetric(SIGMA, mr);
 
     // D is n×n diagonal; extract eigvals into a flat vector.
     std::vector<double> d(R);
@@ -127,4 +127,4 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
     return {std::move(T), Value::scalar(0.0, mr)};
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

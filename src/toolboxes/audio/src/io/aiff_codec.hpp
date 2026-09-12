@@ -9,11 +9,11 @@
 
 #include <cstdint>
 #include <memory_resource>
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 #include <string>
 #include <vector>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 /// Sniff AIFF magic bytes directly from an in-memory buffer.
 bool isAiffBytes(const std::uint8_t *data, std::size_t len);
@@ -35,4 +35,4 @@ std::vector<std::uint8_t> writeAiffToBytes(const Value &y, double sampleRate,
                                            const std::string &artist = "",
                                            const std::string &comment = "");
 
-} // namespace numkit::audio
+} // namespace nk::audio

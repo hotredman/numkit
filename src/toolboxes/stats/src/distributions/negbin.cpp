@@ -1,12 +1,12 @@
 // toolboxes/stats/src/distributions/negbin.cpp
 
-#include <numkit/stats/distributions/negbin.hpp>
+#include <nk/stats/distributions/negbin.hpp>
 
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -17,7 +17,7 @@
 
 #include "negbin_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 Value nbinpdf(const Value &k, double r, double p, std::pmr::memory_resource *mr)
@@ -41,7 +41,7 @@ Value nbininv(const Value &q, double r, double p, std::pmr::memory_resource *mr)
     return elementwise(q, [=](double qi) { return nbin_inv_scalar(qi, r, p); }, mr);
 }
 
-Value nbinrnd(::numkit::ops::RngContext &rng, double r, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value nbinrnd(::nk::ops::RngContext &rng, double r, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -75,4 +75,4 @@ std::tuple<double, double> nbinstat(double r, double p)
     return std::make_tuple(mean, var);
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -3,10 +3,10 @@
 // Regression guard for ctf2zp + scaleFilterSections (Phase 4.11).
 // Bit-equal MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CtfUtilsTest : public ::testing::Test
 {

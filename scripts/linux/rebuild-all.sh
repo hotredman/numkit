@@ -36,12 +36,12 @@ fi
 
 echo
 echo "=== gtest suite ==="
-"$PROJECT_DIR/build/linux/release/tests/gtest/numkit_gtest"
+"$PROJECT_DIR/build/linux/release/tests/gtest/nk_gtest"
 
 if [ "$WASM" = 1 ]; then
     echo
     echo "=== npm dist refresh ==="
-    node "$PROJECT_DIR/packages/numkit/scripts/refresh-dist.js"
+    node "$PROJECT_DIR/packages/nk/scripts/refresh-dist.js"
 else
     echo "=== npm dist refresh: skipped (no --wasm; dist mirrors the wasm build)"
 fi

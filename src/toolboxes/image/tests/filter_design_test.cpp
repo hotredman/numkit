@@ -3,10 +3,10 @@
 // Regression guard for cycle 4 image filter design: fspecial3 + fwind2.
 // fsamp2 / ftrans2 / fwind1 / gabor are stubbed with KNOWN GAP errors.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class FilterDesignTest : public ::testing::Test
 {

@@ -1,11 +1,11 @@
 // toolboxes/signal/tests/hilbert_test.cpp
 // — sign convention fix.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class HilbertTest : public ::testing::Test
 {

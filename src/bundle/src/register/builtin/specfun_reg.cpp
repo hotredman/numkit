@@ -1,11 +1,11 @@
 // src/bundle/src/register/builtin/specfun_reg.cpp
 
-#include <numkit/builtin/specfun.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/builtin/specfun.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 
 void airy_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void besselh_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -40,43 +40,43 @@ void perms_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void primes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void psi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
-namespace numkit::bundle::builtin {
+namespace nk::bundle::builtin {
 
 void register_specfun(Engine &engine) {
-    engine.registerFunction("airy",        &::numkit::builtin::detail::airy_reg);
-    engine.registerFunction("besselh",     &::numkit::builtin::detail::besselh_reg);
-    engine.registerFunction("besseli",     &::numkit::builtin::detail::besseli_reg);
-    engine.registerFunction("besselj",     &::numkit::builtin::detail::besselj_reg);
-    engine.registerFunction("besselk",     &::numkit::builtin::detail::besselk_reg);
-    engine.registerFunction("bessely",     &::numkit::builtin::detail::bessely_reg);
-    engine.registerFunction("beta",        &::numkit::builtin::detail::beta_reg);
-    engine.registerFunction("betainc",     &::numkit::builtin::detail::betainc_reg);
-    engine.registerFunction("betaincinv",  &::numkit::builtin::detail::betaincinv_reg);
-    engine.registerFunction("betaln",      &::numkit::builtin::detail::betaln_reg);
-    engine.registerFunction("ellipj",      &::numkit::builtin::detail::ellipj_reg);
-    engine.registerFunction("ellipke",     &::numkit::builtin::detail::ellipke_reg);
-    engine.registerFunction("erf",         &::numkit::builtin::detail::erf_reg);
-    engine.registerFunction("erfc",        &::numkit::builtin::detail::erfc_reg);
-    engine.registerFunction("erfcinv",     &::numkit::builtin::detail::erfcinv_reg);
-    engine.registerFunction("erfcx",       &::numkit::builtin::detail::erfcx_reg);
-    engine.registerFunction("erfinv",      &::numkit::builtin::detail::erfinv_reg);
-    engine.registerFunction("expint",      &::numkit::builtin::detail::expint_reg);
-    engine.registerFunction("factor",      &::numkit::builtin::detail::factor_reg);
-    engine.registerFunction("factorial",   &::numkit::builtin::detail::factorial_reg);
-    engine.registerFunction("gamma",       &::numkit::builtin::detail::gamma_reg);
-    engine.registerFunction("gammainc",    &::numkit::builtin::detail::gammainc_reg);
-    engine.registerFunction("gammaincinv", &::numkit::builtin::detail::gammaincinv_reg);
-    engine.registerFunction("gammaln",     &::numkit::builtin::detail::gammaln_reg);
-    engine.registerFunction("gcd",         &::numkit::builtin::detail::gcd_reg);
-    engine.registerFunction("isprime",     &::numkit::builtin::detail::isprime_reg);
-    engine.registerFunction("lcm",         &::numkit::builtin::detail::lcm_reg);
-    engine.registerFunction("legendre",    &::numkit::builtin::detail::legendre_reg);
-    engine.registerFunction("nchoosek",    &::numkit::builtin::detail::nchoosek_reg);
-    engine.registerFunction("perms",       &::numkit::builtin::detail::perms_reg);
-    engine.registerFunction("primes",      &::numkit::builtin::detail::primes_reg);
-    engine.registerFunction("psi",         &::numkit::builtin::detail::psi_reg);
+    engine.registerFunction("airy",        &::nk::builtin::detail::airy_reg);
+    engine.registerFunction("besselh",     &::nk::builtin::detail::besselh_reg);
+    engine.registerFunction("besseli",     &::nk::builtin::detail::besseli_reg);
+    engine.registerFunction("besselj",     &::nk::builtin::detail::besselj_reg);
+    engine.registerFunction("besselk",     &::nk::builtin::detail::besselk_reg);
+    engine.registerFunction("bessely",     &::nk::builtin::detail::bessely_reg);
+    engine.registerFunction("beta",        &::nk::builtin::detail::beta_reg);
+    engine.registerFunction("betainc",     &::nk::builtin::detail::betainc_reg);
+    engine.registerFunction("betaincinv",  &::nk::builtin::detail::betaincinv_reg);
+    engine.registerFunction("betaln",      &::nk::builtin::detail::betaln_reg);
+    engine.registerFunction("ellipj",      &::nk::builtin::detail::ellipj_reg);
+    engine.registerFunction("ellipke",     &::nk::builtin::detail::ellipke_reg);
+    engine.registerFunction("erf",         &::nk::builtin::detail::erf_reg);
+    engine.registerFunction("erfc",        &::nk::builtin::detail::erfc_reg);
+    engine.registerFunction("erfcinv",     &::nk::builtin::detail::erfcinv_reg);
+    engine.registerFunction("erfcx",       &::nk::builtin::detail::erfcx_reg);
+    engine.registerFunction("erfinv",      &::nk::builtin::detail::erfinv_reg);
+    engine.registerFunction("expint",      &::nk::builtin::detail::expint_reg);
+    engine.registerFunction("factor",      &::nk::builtin::detail::factor_reg);
+    engine.registerFunction("factorial",   &::nk::builtin::detail::factorial_reg);
+    engine.registerFunction("gamma",       &::nk::builtin::detail::gamma_reg);
+    engine.registerFunction("gammainc",    &::nk::builtin::detail::gammainc_reg);
+    engine.registerFunction("gammaincinv", &::nk::builtin::detail::gammaincinv_reg);
+    engine.registerFunction("gammaln",     &::nk::builtin::detail::gammaln_reg);
+    engine.registerFunction("gcd",         &::nk::builtin::detail::gcd_reg);
+    engine.registerFunction("isprime",     &::nk::builtin::detail::isprime_reg);
+    engine.registerFunction("lcm",         &::nk::builtin::detail::lcm_reg);
+    engine.registerFunction("legendre",    &::nk::builtin::detail::legendre_reg);
+    engine.registerFunction("nchoosek",    &::nk::builtin::detail::nchoosek_reg);
+    engine.registerFunction("perms",       &::nk::builtin::detail::perms_reg);
+    engine.registerFunction("primes",      &::nk::builtin::detail::primes_reg);
+    engine.registerFunction("psi",         &::nk::builtin::detail::psi_reg);
 }
 
-} // namespace numkit::bundle::builtin
+} // namespace nk::bundle::builtin

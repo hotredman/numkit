@@ -29,7 +29,7 @@ fprintf('B(8,8,:) = [%d %d %d] (expect [34 128 255])\n', B(8,8,1), B(8,8,2), B(8
 fprintf('\n=== Method=approxdcp ===\n');
 [B, T, L] = imreducehaze(A, 1, 'Method', 'approxdcp');
 fprintf('L=[%g %g %g] (MATLAB [1 1 0.812])\n', L(1), L(2), L(3));
-fprintf('B(8,8,:) = [%d %d %d] (MATLAB [84 159 255]; numkit may differ ~15-30 from histogram-bucket boundaries)\n', B(8,8,1), B(8,8,2), B(8,8,3));
+fprintf('B(8,8,:) = [%d %d %d] (MATLAB [84 159 255]; nk may differ ~15-30 from histogram-bucket boundaries)\n', B(8,8,1), B(8,8,2), B(8,8,3));
 
 fprintf('\n=== Explicit AtmosphericLight=[0.9 0.9 0.9] ===\n');
 B = imreducehaze(A, 1, 'AtmosphericLight', [0.9 0.9 0.9]);

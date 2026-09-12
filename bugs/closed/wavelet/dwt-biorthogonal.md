@@ -12,7 +12,7 @@ biorthogonal (`rbio*`) wavelet names; only haar/db/sym/coif are known.
 ## Repro
 ```matlab
 [a, d] = dwt([1 2 3 4 5 6 7 8], 'bior2.2')
-% numkit: Error — wfilters: unsupported wavelet name 'bior2.2'
+% nk: Error — wfilters: unsupported wavelet name 'bior2.2'
 %         (try haar, db1..db10, sym2..sym10, coif1..coif5)
 % MATLAB: returns the bior2.2 approximation/detail coefficients
 ```

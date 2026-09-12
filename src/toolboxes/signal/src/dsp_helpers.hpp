@@ -1,8 +1,8 @@
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/ops/fft/fft_radix2.hpp>   // numkit::fftRadix2(buf,N,W) base butterfly (ops-layer)
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/ops/fft/fft_radix2.hpp>   // nk::fftRadix2(buf,N,W) base butterfly (ops-layer)
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
@@ -15,7 +15,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit {
+namespace nk {
 
 // ============================================================
 // Twiddle-factor precomputation
@@ -42,7 +42,7 @@ inline void fillFftTwiddles(Complex *W, size_t N, int dir)
 }
 
 // The base radix-2 butterfly — fftRadix2(Complex*, size_t, const Complex*) — now
-// lives in <numkit/ops/fft/fft_radix2.hpp> (included above): it is an ops-layer
+// lives in <nk/ops/fft/fft_radix2.hpp> (included above): it is an ops-layer
 // numerical kernel shared with ops/src/fft_portable.cpp (previously this signal
 // header was its only home, which made ops reach up into the signal toolbox — a
 // layering inversion that broke SIMD-off builds). The convenience overloads below
@@ -120,8 +120,8 @@ inline Value packComplexResult(const Complex *buf, size_t outLen, std::pmr::memo
     return r;
 }
 
-// Direct convolution O(n*m) moved to the kernel layer: numkit::ops::convDirect
-// (numkit/ops/conv.hpp). convFFT stays here — it is built on the signal-local
+// Direct convolution O(n*m) moved to the kernel layer: nk::ops::convDirect
+// (nk/ops/conv.hpp). convFFT stays here — it is built on the signal-local
 // radix-2 FFT helpers below, not ops::fft.
 
 // ============================================================
@@ -165,4 +165,4 @@ inline ScratchVec<double> convFFT(std::pmr::memory_resource *mr,
 // Threshold for switching conv from direct to FFT
 constexpr size_t CONV_FFT_THRESHOLD = 500;
 
-} // namespace numkit
+} // namespace nk

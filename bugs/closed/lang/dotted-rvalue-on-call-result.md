@@ -28,8 +28,8 @@ try
 catch e
   disp(['caught: ' e.message])
 end
-% numkit VM:  caught: VM: undefined function 'gcf.Number'
-% numkit TW:  1   (figure number — correct)
+% nk VM:  caught: VM: undefined function 'gcf.Number'
+% nk TW:  1   (figure number — correct)
 % MATLAB R2025b: 1
 ```
 

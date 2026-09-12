@@ -3,13 +3,13 @@
 // CallContext register half of lda/lda.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/stats/lda/lda.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/stats/lda/lda.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::stats {
+namespace nk::stats {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ void classify_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("classify: requires (sample, training, group[, type])",
-                    0, 0, "classify", "", "numkit:classify:nargin");
+                    0, 0, "classify", "", "nk:classify:nargin");
     std::string type;
     if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         type = args[3].toString();
@@ -43,4 +43,4 @@ void classify_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::stats
+} // namespace nk::stats

@@ -6,8 +6,8 @@
 // method, plus the 'Tail' option ('both' default / 'right' / 'left'). The DW
 // statistic was already correct. MATLAB R2025b reference values.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -15,9 +15,9 @@
 class DwtestExactTest : public ::testing::Test
 {
 public:
-    numkit::StandardEngine engine;
+    nk::StandardEngine engine;
     void SetUp() override {}
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    nk::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
@@ -61,7 +61,7 @@ TEST_F(DwtestExactTest, TailRelations)
     EXPECT_NEAR(evalScalar("dwtest(r, X)"), 2.0 * std::min(pr, pl), 1e-9);
 }
 
-// The 'approximate' method is accepted (numkit's own beta approximation — not
+// The 'approximate' method is accepted (nk's own beta approximation — not
 // MATLAB-identical; the default exact method is the MATLAB-matching path).
 TEST_F(DwtestExactTest, ApproximateMethodRuns)
 {

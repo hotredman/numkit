@@ -4,11 +4,11 @@
 // arg is the 1-element set {v} (NOT 1:v), and K > N yields an empty 0xK
 // result instead of an error. Expected values from MATLAB R2025b.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CombnkTest : public ::testing::Test
 {

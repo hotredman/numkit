@@ -1,18 +1,18 @@
 // codegen/tests/driver_test.cpp
 //
-// The `numkit build` driver core (DESIGN.md §8 M4): the CLI-independent
+// The `nk build` driver core (DESIGN.md §8 M4): the CLI-independent
 // pieces — the -args type-spec parser and the parse->emit transpile step.
 // (Compilation of the emitted TU is covered by the e2e tests.)
 
-#include <numkit/codegen/driver.hpp>
+#include <nk/codegen/driver.hpp>
 
 #include <gtest/gtest.h>
 
 #include <stdexcept>
 #include <string>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 TEST(Driver, ParseTypeSpecScalarsAndArrays)
 {

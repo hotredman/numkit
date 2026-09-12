@@ -10,12 +10,12 @@
 // Each function is also aliased into `compat.<fn>` so MATLAB-style
 // scripts call them flat via the bare-name resolver.
 
-#include <numkit/io/library.hpp>
+#include <nk/io/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::io::detail {
+namespace nk::io::detail {
 // text/csv.cpp
 void csvread_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void csvwrite_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -48,9 +48,9 @@ void fileparts_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tempdir_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tempname_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void genpath_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-} // namespace numkit::io::detail
+} // namespace nk::io::detail
 
-namespace numkit {
+namespace nk {
 
 void IoLibrary::install(Engine &engine)
 {
@@ -90,4 +90,4 @@ void IoLibrary::install(Engine &engine)
     reg("paths", "genpath",   &io::detail::genpath_reg);
 }
 
-} // namespace numkit
+} // namespace nk

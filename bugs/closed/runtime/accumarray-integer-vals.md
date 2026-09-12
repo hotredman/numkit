@@ -29,13 +29,13 @@ integer or logical array. MATLAB R2025b accepts them and accumulates,
 returning double for sum/prod/mean and the preserved integer class for
 max/min.
 
-## Repro (numkit vs MATLAB R2025b)
+## Repro (nk vs MATLAB R2025b)
 ```matlab
-accumarray([1;2;1], int8([10;20;30]))            % numkit: ERROR "vals must be DOUBLE"
+accumarray([1;2;1], int8([10;20;30]))            % nk: ERROR "vals must be DOUBLE"
 %                                                  MATLAB: double [40 20]
-accumarray([1;2;1], int8([100;100;30]), [], @max) % numkit: ERROR
+accumarray([1;2;1], int8([100;100;30]), [], @max) % nk: ERROR
 %                                                   MATLAB: int8 [100 100]
-accumarray([1;2;1], logical([1;0;1]))            % numkit: ERROR; MATLAB: double [2 0]
+accumarray([1;2;1], logical([1;0;1]))            % nk: ERROR; MATLAB: double [2 0]
 ```
 
 ## Root cause
@@ -45,11 +45,11 @@ inner loops read `vals.doubleData()`, which only exists for DOUBLE storage.
 
 ## Lenient niches (documented, NOT MATLAB parity)
 - **logical + `@max`/`@min`:** MATLAB returns **logical** (`max`/`min` of a
-  logical group is logical); numkit returns double (the int-class preserve is
+  logical group is logical); nk returns double (the int-class preserve is
   gated on `isIntegerType`, not logical). Rare; left lenient.
 - **custom non-built-in handle** (e.g. `@(x)x(1)`): MATLAB passes the
   original-class group to the handle, so the output follows the handle's class
-  (int8 in/int8 out); numkit applies the handle to a promoted double group, so
+  (int8 in/int8 out); nk applies the handle to a promoted double group, so
   it returns double. The recognised reducers (`sum`/`max`/`min`/`prod`/`mean`)
   take the typed built-in path and are unaffected. Rare; left lenient.
 

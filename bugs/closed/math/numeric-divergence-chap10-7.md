@@ -8,8 +8,8 @@
 ## Symptom
 
 The script computes arithmetic-coding intervals (tabulate → cumsum → iterative
-interval narrowing). numkit and MATLAB agree to ~7 significant digits, then
-diverge: `0.248453061949268` (numkit) vs `0.24845312674006` (MATLAB) —
+interval narrowing). nk and MATLAB agree to ~7 significant digits, then
+diverge: `0.248453061949268` (nk) vs `0.24845312674006` (MATLAB) —
 ≈2.6e-7 relative. Silent: no error, the result is just slightly wrong.
 
 ## Repro (distilled 2026-08-31 from the corpus script — self-contained)
@@ -28,15 +28,15 @@ for v = I(:)'
     hi = tmp + range * allHigh(v+1);
 end
 fprintf('lo=%16.15f hi=%16.15f\n', lo, hi);
-% numkit before fix: lo/hi diverged from MATLAB at ~1e-7 rel (tabulate's
+% nk before fix: lo/hi diverged from MATLAB at ~1e-7 rel (tabulate's
 %   hoisted inv_N reciprocal was 1 ulp off; 24 renormalizations amplified it).
-% numkit after fix: lo=0.292968750000000 hi=0.296875000000000 —
+% nk after fix: lo=0.292968750000000 hi=0.296875000000000 —
 %   bit-identical to MATLAB R2025b.
 ```
 
 ## Root cause (hypotheses to check, in order)
 
-1. **Accumulation order in the interval-narrowing loop** — numkit's loop may
+1. **Accumulation order in the interval-narrowing loop** — nk's loop may
    accumulate in a different order than MATLAB (FMA/summation) — if the
    divergence is ~1e-15 growing to 1e-7 through amplification, this is
    print-tolerance territory and the playbook's <1e-12 clause closes it as
@@ -66,7 +66,7 @@ either fix the diverging builtin or close as documented numerical noise
 Root cause was hypothesis 2 from the diagnosis plan, confirmed by
 isolating `tabulate` in 17-digit precision:
 
-- numkit's tabulate precomputed `inv_N = 100.0/N` and produced
+- nk's tabulate precomputed `inv_N = 100.0/N` and produced
   `count * inv_N` = 13 × (100/24) — **1 ulp off** MATLAB's
   `count * 100 / N`
 - the arithmetic-coding loop then amplified that 1-ulp source error
@@ -88,7 +88,7 @@ batch reported for chap13_* was a separate encoding issue (GBK file
 paths); the batch harness transcodes those, so this resolution is
 independent.
 
-The `decode` part of the script diverges (Mat is all zeros in numkit,
+The `decode` part of the script diverges (Mat is all zeros in nk,
 correct in MATLAB) — this is the eval-family bug (`low` leaks from the
 encode loop and is invisible to the compiled decode frame), filed as
 `bugs/opened/core/eval-family-frame-visibility.md`.

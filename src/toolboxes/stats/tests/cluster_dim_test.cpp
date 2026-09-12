@@ -2,7 +2,7 @@
 //
 // Coverage for previously gtest-uncovered stats files (parity-spec only):
 // cluster/knnsearch.cpp (knnsearch, silhouette) and dim/pca.cpp (pca, pcares).
-// Reference values come from numkit's parity-validated output (specs
+// Reference values come from nk's parity-validated output (specs
 // knnsearch/silhouette/pca/pcares.json), cross-checked against closed form
 // (e.g. column means mu = 3.6, recon + res = X).
 

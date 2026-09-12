@@ -4,15 +4,15 @@
 //   ind/sub:       ind2sub · sub2ind
 //   predicates3:   isfloat · isinteger · iskeyword · isletter · isspace
 //   helpers:       disp · celldisp · ans · inf · nan · idivide
-//   deferred:      functions · formattedDisplayText (numkit gaps)
+//   deferred:      functions · formattedDisplayText (nk gaps)
 // All . Bit-identical MATLAB R2025b
 // on probed inputs.
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Misc3BatchTest : public ::testing::Test
 {

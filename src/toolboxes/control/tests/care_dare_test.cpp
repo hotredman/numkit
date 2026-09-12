@@ -5,11 +5,11 @@
 // Output order matches MATLAB: [X, L, G] (solution, closed-loop
 // eigenvalues, gain). One TEST_F per documented branch/output.
 
-#include <numkit/bundle/standard_engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/bundle/standard_engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class CareDareTest : public ::testing::Test
 {

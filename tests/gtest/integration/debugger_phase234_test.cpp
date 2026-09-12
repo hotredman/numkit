@@ -1,9 +1,9 @@
 // tests/test_debugger_phase234.cpp — Debug observer, line hooks, breakpoints, stepping
-#include <numkit/core/debugger.hpp>
+#include <nk/core/debugger.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit;
+using namespace nk;
 
 // ============================================================
 // Test observer that records all events

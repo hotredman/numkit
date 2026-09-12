@@ -1,14 +1,14 @@
 // src/bundle/src/register/builtin/lang_reg.cpp
 
-#include <numkit/builtin/lang.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/types.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/core/vm.hpp>
-#include <numkit/runtime/runtime.hpp>
+#include <nk/builtin/lang.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/callback_builtin.hpp>
+#include <nk/core/types.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/span.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/core/vm.hpp>
+#include <nk/runtime/runtime.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::builtin::detail {
+namespace nk::builtin::detail {
 void coder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void coder_run_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void runNative_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -43,21 +43,21 @@ struct FevalCallbackBuiltin : CallbackBuiltin
         return cont;
     }
 };
-} // namespace numkit::builtin::detail
+} // namespace nk::builtin::detail
 
 
-namespace numkit::bundle::builtin {
+namespace nk::bundle::builtin {
 
 void register_lang(Engine &engine) {
-    using namespace ::numkit::builtin::detail;
+    using namespace ::nk::builtin::detail;
 
 // ── coder.cpp public-API-backed built-ins ──────────────────────
     // coder = transpile (pure C++, works under WASM); coder_run/system/
     // runNative spawn a native process (native-only, throw under WASM).
-    engine.registerFunction("coder",      &::numkit::builtin::detail::coder_reg);
-    engine.registerFunction("coder_run",  &::numkit::builtin::detail::coder_run_reg);
-    engine.registerFunction("system",     &::numkit::builtin::detail::system_reg);
-    engine.registerFunction("runNative",  &::numkit::builtin::detail::runNative_reg);
+    engine.registerFunction("coder",      &::nk::builtin::detail::coder_reg);
+    engine.registerFunction("coder_run",  &::nk::builtin::detail::coder_run_reg);
+    engine.registerFunction("system",     &::nk::builtin::detail::system_reg);
+    engine.registerFunction("runNative",  &::nk::builtin::detail::runNative_reg);
 
     
 // ── Pack 13: function handles ─────────────────────────────────────
@@ -92,7 +92,7 @@ void register_lang(Engine &engine) {
     // feval into a user-code handle runs as a pausable VM frame; a name/string
     // handle or multi-output falls back to the synchronous feval above.
     engine.registerCallbackBuiltin(
-        "feval", std::make_shared<::numkit::builtin::detail::FevalCallbackBuiltin>());
+        "feval", std::make_shared<::nk::builtin::detail::FevalCallbackBuiltin>());
 
     // __nk_fwd_call__(n, fname, args...) — internal helper for anonymous
     // multi-output forwarding: call `fname` with nargout = n and return the
@@ -146,16 +146,16 @@ void register_lang(Engine &engine) {
     // iskeyword() / iskeyword(s) — list MATLAB reserved words / test one.
     engine.registerFunction("iskeyword",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
-            outs[0] = ::numkit::builtin::iskeyword(args, ctx.engine->resource());
+            outs[0] = ::nk::builtin::iskeyword(args, ctx.engine->resource());
         });
 
     // isvarname(s) — true if s is a valid MATLAB variable name.
     engine.registerFunction("isvarname",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
-            outs[0] = ::numkit::builtin::isvarname(args, ctx.engine->resource());
+            outs[0] = ::nk::builtin::isvarname(args, ctx.engine->resource());
         });
 
 }
 
 
-} // namespace numkit::bundle::builtin
+} // namespace nk::bundle::builtin

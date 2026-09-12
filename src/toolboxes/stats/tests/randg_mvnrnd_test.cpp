@@ -4,12 +4,12 @@
 //   randg  — raw gamma(shape, 1) RNG (thin wrapper over gamrnd)
 //   mvnrnd — multivariate normal RNG via Cholesky
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit;
+using namespace nk;
 
 class RandgMvnrndTest : public ::testing::Test
 {

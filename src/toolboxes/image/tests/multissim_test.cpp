@@ -3,15 +3,15 @@
 // Regression guard for multissim — multi-scale structural similarity
 // (Wang/Simoncelli/Bovik 2003). All reference values from MATLAB
 // R2025b on a deterministic test pattern (no rand/randn so
-// numkit's MT19937 vs MATLAB's randn divergence doesn't enter).
+// nk's MT19937 vs MATLAB's randn divergence doesn't enter).
 //
 // Differences from MATLAB are ~1e-7 (single-vs-double precision in
 // the imfilter accumulation; the algorithm itself is bit-equivalent).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MultiSSIMTest : public ::testing::Test
 {

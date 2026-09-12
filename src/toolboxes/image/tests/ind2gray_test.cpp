@@ -12,10 +12,10 @@
 //   * past-end integer index (LUT padded with last value),
 //   * out-of-range double index (clamped to [1, M]).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Ind2GrayTest : public ::testing::Test
 {

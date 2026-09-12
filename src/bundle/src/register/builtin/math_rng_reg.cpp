@@ -3,16 +3,16 @@
 // CallContext register half of math/random/rng.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/datafun.hpp>
-#include <numkit/ops/rng.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/datafun.hpp>
+#include <nk/ops/rng.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -24,9 +24,9 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;
-using namespace numkit::ops;
+namespace nk::builtin {
+using namespace nk::builtin;
+using namespace nk::ops;
 
 namespace detail {
 
@@ -64,10 +64,10 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("rand: type must be 'double' or 'single'",
-                    0, 0, "rand", "", "numkit:rand:badType");
+                    0, 0, "rand", "", "nk:rand:badType");
     // Legacy state syntax (pre-`rng` MATLAB): rand('seed', n) /
     // rand('state', n) / rand('twister', n). Seeds the engine stream with
-    // n. Sequence VALUES differ from MATLAB's legacy generators (numkit
+    // n. Sequence VALUES differ from MATLAB's legacy generators (nk
     // has one MT19937 stream, `rng(n)` semantics) — but the call must
     // control the stream, not error (bugs/closed/stats/randn-legacy-seed-syntax.md).
     // Legacy QUERY: rand('seed') / randn('seed') -> the last seed (double).
@@ -123,7 +123,7 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("randn: type must be 'double' or 'single'",
-                    0, 0, "randn", "", "numkit:randn:badType");
+                    0, 0, "randn", "", "nk:randn:badType");
     // Legacy state syntax — same as rand (see the comment above).
     // Legacy QUERY: rand('seed') / randn('seed') -> the last seed (double).
     if (dimArgs.size() == 1 && (dimArgs[0].isChar() || dimArgs[0].isString())
@@ -203,7 +203,7 @@ namespace { Value castDoubleToType(const Value &src, ValueType t, std::pmr::memo
       case ValueType::UINT32: cast_loop(dst.uint32DataMut(),  uint32_t{}); break;
       case ValueType::UINT64: cast_loop(dst.uint64DataMut(),  uint64_t{}); break;
       default: throw Error("randi: unsupported type for cast",
-                           0, 0, "randi", "", "numkit:randi:badType");
+                           0, 0, "randi", "", "nk:randi:badType");
     }
     return dst;
 }}
@@ -220,7 +220,7 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("randi: requires at least 1 argument",
-                     0, 0, "randi", "", "numkit:randi:nargin");
+                     0, 0, "randi", "", "nk:randi:nargin");
 
     int64_t imin = 1, imax = 0;
     const Value &first = args[0];
@@ -270,7 +270,7 @@ void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("randperm: requires at least 1 argument",
-                     0, 0, "randperm", "", "numkit:randperm:nargin");
+                     0, 0, "randperm", "", "nk:randperm:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
         outs[0] = randperm(ctx.engine->rng(), n, ctx.engine->resource());
@@ -314,17 +314,17 @@ void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         else if (s == "shuffle") ctx.engine->rng().shuffle();
         else
             throw Error("rng: string argument must be 'default' or 'shuffle'",
-                         0, 0, "rng", "", "numkit:rng:badStringArg");
+                         0, 0, "rng", "", "nk:rng:badStringArg");
     } else if (a.isScalar() || a.numel() == 1) {
         const double sd = a.toScalar();
         if (sd < 0.0)
             throw Error("rng: seed must be a non-negative integer",
-                         0, 0, "rng", "", "numkit:rng:badSeed");
+                         0, 0, "rng", "", "nk:rng:badSeed");
         ctx.engine->rng().seed(static_cast<uint64_t>(sd));
     } else {
         throw Error("rng: argument must be a non-negative integer, "
                      "a struct from rng(), 'default', or 'shuffle'",
-                     0, 0, "rng", "", "numkit:rng:badArg");
+                     0, 0, "rng", "", "nk:rng:badArg");
     }
 
     if (nargout > 0) outs[0] = std::move(prev);
@@ -332,4 +332,4 @@ void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

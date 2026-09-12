@@ -58,7 +58,7 @@ def scan_bugs():
                     closed.append(parse_bug_file(os.path.join(root, f)))
 
     print(f"\n" + "=" * 70)
-    print(f"  NumKit Bug Catalog Tally: {len(closed)} Fixed, {len(opened)} Open (Total: {len(closed) + len(opened)})")
+    print(f"  NK Bug Catalog Tally: {len(closed)} Fixed, {len(opened)} Open (Total: {len(closed) + len(opened)})")
     print("=" * 70 + "\n")
 
     if opened:

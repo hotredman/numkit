@@ -6,11 +6,11 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/image/filter/filter.hpp>
+#include <nk/image/filter/filter.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace detail {
 
@@ -31,7 +31,7 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("locallapfilt: requires (I, sigma, alpha [, beta] [, NV...])",
                     0, 0, "locallapfilt", "",
-                    "numkit:locallapfilt:nargin");
+                    "nk:locallapfilt:nargin");
     auto *mr = ctx.engine->resource();
 
     const Value &I = args[0];
@@ -49,7 +49,7 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (args[i].numel() != 1)
             throw Error("locallapfilt: beta must be a scalar",
                         0, 0, "locallapfilt", "",
-                        "numkit:locallapfilt:betaShape");
+                        "nk:locallapfilt:betaShape");
         beta = args[i].toScalar();
         ++i;
     }
@@ -58,7 +58,7 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("locallapfilt: expected NV-pair name string",
                         0, 0, "locallapfilt", "",
-                        "numkit:locallapfilt:badNv");
+                        "nk:locallapfilt:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -76,14 +76,14 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
                     throw Error("locallapfilt: NumIntensityLevels string "
                                 "must be 'auto'",
                                 0, 0, "locallapfilt", "",
-                                "numkit:locallapfilt:nIntStr");
+                                "nk:locallapfilt:nIntStr");
                 nlevels = -1;
             } else {
                 nlevels = static_cast<int>(v.toScalar());
                 if (nlevels < 1)
                     throw Error("locallapfilt: NumIntensityLevels must be >= 1",
                                 0, 0, "locallapfilt", "",
-                                "numkit:locallapfilt:nIntRange");
+                                "nk:locallapfilt:nIntRange");
             }
         } else if (nlo == "colormode") {
             std::string s = args[i + 1].toString();
@@ -96,11 +96,11 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
             else throw Error("locallapfilt: ColorMode must be 'luminance' or "
                              "'separate'",
                              0, 0, "locallapfilt", "",
-                             "numkit:locallapfilt:colorMode");
+                             "nk:locallapfilt:colorMode");
         } else {
             throw Error("locallapfilt: unknown option '" + name + "'",
                         0, 0, "locallapfilt", "",
-                        "numkit:locallapfilt:unknownNv");
+                        "nk:locallapfilt:unknownNv");
         }
         i += 2;
     }
@@ -111,4 +111,4 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::image
+} // namespace nk::image

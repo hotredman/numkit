@@ -6,14 +6,14 @@
 // optimal bound, but matches the rest of the library's "correctness
 // first, optimise after benches" policy.
 
-#include <numkit/stats/moving/moving.hpp>
+#include <nk/stats/moving/moving.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
-#include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
+#include <nk/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
+#include <nk/ops/reductions.hpp>  // nk::ops::firstNonSingletonDim, validateDim
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +23,7 @@
 
 #include "moving_detail.hpp"
 
-namespace numkit::stats {
+namespace nk::stats {
 
 
 // ── internal *_impl with full MovOpts ─────────────────────────────────
@@ -383,7 +383,7 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
     throw Error("smoothdata: method '" + method + "' not supported "
                  "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
                  "'lowess', 'loess')",
-                 0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
+                 0, 0, "smoothdata", "", "nk:smoothdata:unsupportedMethod");
 }
 
 // ── hampel ────────────────────────────────────────────────────────────
@@ -431,13 +431,13 @@ void hampelValidate(const Value &x, int k, double nsigmas)
 {
     if (k < 0)
         throw Error("hampel: k must be >= 0",
-                     0, 0, "hampel", "", "numkit:hampel:badK");
+                     0, 0, "hampel", "", "nk:hampel:badK");
     if (nsigmas <= 0)
         throw Error("hampel: nsigmas must be positive",
-                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
+                     0, 0, "hampel", "", "nk:hampel:badSigmas");
     if (!x.dims().isVector() && !x.isScalar())
         throw Error("hampel: vector input only (matrix form deferred)",
-                     0, 0, "hampel", "", "numkit:hampel:notVector");
+                     0, 0, "hampel", "", "nk:hampel:notVector");
 }
 
 Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
@@ -451,4 +451,4 @@ Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *m
     return out;
 }
 
-} // namespace numkit::stats
+} // namespace nk::stats

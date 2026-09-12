@@ -6,19 +6,19 @@
 // routes user calls exactly like builtins. Recursion breaks to Dynamic
 // (sound). Lattice-level (no emitter / compiler yet).
 
-#include <numkit/codegen/monomorphize.hpp>
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/monomorphize.hpp>
+#include <nk/codegen/transfer.hpp>
 
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <string>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 namespace {
 
@@ -26,7 +26,7 @@ namespace {
 // standard transfers AND the user functions. Held together because the
 // registry's user-function transfers borrow the AST and the registry.
 struct Prog {
-    numkit::ASTNodePtr root;
+    nk::ASTNodePtr root;
     FunctionTable      table;
     TransferRegistry   reg;
 };
@@ -34,8 +34,8 @@ struct Prog {
 std::shared_ptr<Prog> build(const std::string &src)
 {
     auto           p = std::make_shared<Prog>();
-    numkit::Lexer  lex(src);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(src);
+    nk::Parser parser(lex.tokenize());
     p->root = parser.parse();
     collectFunctions(*p->root, p->table);
     registerStandardTransfers(p->reg);

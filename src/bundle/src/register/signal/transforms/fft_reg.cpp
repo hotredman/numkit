@@ -14,13 +14,13 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/transforms/fft.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/transforms/fft.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -40,7 +40,7 @@ void fft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("fft: requires at least 1 argument",
-                     0, 0, "fft", "", "numkit:fft:nargin");
+                     0, 0, "fft", "", "nk:fft:nargin");
 
     int n = -1;
     int dim = 0;   // 0 = auto (first non-singleton) — resolved in public fft()
@@ -56,7 +56,7 @@ void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("ifft: requires at least 1 argument",
-                     0, 0, "ifft", "", "numkit:ifft:nargin");
+                     0, 0, "ifft", "", "nk:ifft:nargin");
 
     // A trailing 'symmetric'/'nonsymmetric' string flag (MATLAB): forces a
     // real result by treating the input as conjugate-symmetric. Strip it
@@ -73,7 +73,7 @@ void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         else
             throw Error("ifft: unknown option '" + args[nargs - 1].toString() +
                             "' (expected 'symmetric' or 'nonsymmetric')",
-                         0, 0, "ifft", "", "numkit:ifft:badOption");
+                         0, 0, "ifft", "", "nk:ifft:badOption");
         --nargs;   // consume the flag
     }
 
@@ -94,7 +94,7 @@ void fft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("fft2: requires at least 1 argument",
-                     0, 0, "fft2", "", "numkit:fft2:nargin");
+                     0, 0, "fft2", "", "nk:fft2:nargin");
     int m = -1, n = -1;
     if (args.size() >= 2 && !args[1].isEmpty())
         m = static_cast<int>(args[1].toScalar());
@@ -108,7 +108,7 @@ void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ifft2: requires at least 1 argument",
-                     0, 0, "ifft2", "", "numkit:ifft2:nargin");
+                     0, 0, "ifft2", "", "nk:ifft2:nargin");
 
     // A trailing 'symmetric'/'nonsymmetric' string flag (MATLAB) forces a
     // real result by treating X as conjugate-symmetric. Strip it first.
@@ -124,7 +124,7 @@ void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         else
             throw Error("ifft2: unknown option '" + args[nargs - 1].toString() +
                             "' (expected 'symmetric' or 'nonsymmetric')",
-                         0, 0, "ifft2", "", "numkit:ifft2:badOption");
+                         0, 0, "ifft2", "", "nk:ifft2:badOption");
         --nargs;
     }
 
@@ -139,7 +139,7 @@ void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (m > 0 || n > 0)
             throw Error("ifft2: the 'symmetric' option with explicit size args "
                         "(m, n) is not supported in this revision",
-                         0, 0, "ifft2", "", "numkit:ifft2:symmetricResize");
+                         0, 0, "ifft2", "", "nk:ifft2:symmetricResize");
         outs[0] = ifft2Symmetric(args[0], mr);
         return;
     }
@@ -151,7 +151,7 @@ void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("interpft: requires 2 arguments (x, n)",
-                     0, 0, "interpft", "", "numkit:interpft:nargin");
+                     0, 0, "interpft", "", "nk:interpft:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     int dim = 0;
     if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
@@ -169,7 +169,7 @@ static void extractSizeArg(const Value &v, std::vector<std::size_t> &dst)
         const double d = v.elemAsDouble(i);
         if (d <= 0 || d != std::floor(d))
             throw Error("fftn: size entries must be positive integers",
-                         0, 0, "fftn", "", "numkit:fftn:badSize");
+                         0, 0, "fftn", "", "nk:fftn:badSize");
         dst[i] = static_cast<std::size_t>(d);
     }
 }
@@ -179,7 +179,7 @@ void fftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("fftn: requires at least 1 argument",
-                     0, 0, "fftn", "", "numkit:fftn:nargin");
+                     0, 0, "fftn", "", "nk:fftn:nargin");
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
@@ -191,7 +191,7 @@ void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ifftn: requires at least 1 argument",
-                     0, 0, "ifftn", "", "numkit:ifftn:nargin");
+                     0, 0, "ifftn", "", "nk:ifftn:nargin");
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
@@ -204,7 +204,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     using Cd = std::complex<double>;
     if (args.empty())
         throw Error("czt: requires at least 1 argument",
-                     0, 0, "czt", "", "numkit:czt:nargin");
+                     0, 0, "czt", "", "nk:czt:nargin");
     const Value &x = args[0];
 
     // MATLAB: czt([]) returns empty without complaining about defaults.
@@ -219,7 +219,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         m = static_cast<int>(args[1].toScalar());
     if (m <= 0)
         throw Error("czt: m must be a positive integer",
-                     0, 0, "czt", "", "numkit:czt:badM");
+                     0, 0, "czt", "", "nk:czt:badM");
 
     Cd w(std::cos(-2.0 * M_PI / m), std::sin(-2.0 * M_PI / m));
     if (args.size() >= 3 && !args[2].isEmpty()) {
@@ -240,4 +240,4 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

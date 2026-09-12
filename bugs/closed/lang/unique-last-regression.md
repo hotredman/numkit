@@ -16,7 +16,7 @@
 clear;
 [b, ia] = unique('cbabc', 'last');
 disp(ia)
-% numkit:  3 2 1   (first-occurrence indices — 'last' ignored)
+% nk:  3 2 1   (first-occurrence indices — 'last' ignored)
 % MATLAB:  5 4 3   (last occurrences; sorted values a b c at their final positions)
 ```
 
@@ -45,7 +45,7 @@ DISABLED_ until fixed — it is the reproducer).
 The basic 'last' option was already working (verified by probe —
 unique('cbabc','last') gives ia=[3 4 5] in both engines). The remaining
 sub-gap was 'stable'+'last': MATLAB orders the unique values by their
-LAST appearance in X, while numkit's stable path always used
+LAST appearance in X, while nk's stable path always used
 first-occurrence order and ignored 'last'.
 
 Fix: two-pass algorithm in the stable+'last' branch of

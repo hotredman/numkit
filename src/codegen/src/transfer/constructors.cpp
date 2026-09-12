@@ -13,9 +13,9 @@
 //   * a "row vector, length unknown" shape (today a runtime length
 //     collapses to Unknown shape — sound, just less precise).
 
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/transfer.hpp>
 
-namespace numkit::codegen {
+namespace nk::codegen {
 
 namespace {
 
@@ -67,7 +67,7 @@ InferredType linspaceTransfer(const std::vector<ArgInfo> &args)
 }
 
 // logspace(a, b [, n]) -> 1 x N double row of decade-spaced points (10^linspace).
-// Same shape rule as linspace EXCEPT the 2-arg default is n=50 (MATLAB / numkit
+// Same shape rule as linspace EXCEPT the 2-arg default is n=50 (MATLAB / nk
 // logspace), not 100. n a known constant -> 1 x n; runtime n -> Unknown shape.
 InferredType logspaceTransfer(const std::vector<ArgInfo> &args)
 {
@@ -201,4 +201,4 @@ void registerConstructorTransfers(TransferRegistry &reg)
     reg.add("eye", eyeTransfer);          // eye(n)/eye(m,n) -> identity matrix
 }
 
-} // namespace numkit::codegen
+} // namespace nk::codegen

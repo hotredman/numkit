@@ -4,7 +4,7 @@
 // Zero external dependencies.
 
 #include "jpeg_codec.hpp"
-#include <numkit/value/error.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -13,7 +13,7 @@
 #include <cstring>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -350,7 +350,7 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
     uint16_t bits = 8, channels = 3;
     if (!peekJpeg(data, len, W, H, bits, channels)) {
         throw Error("imread: failed to decode JPEG — invalid or corrupted stream",
-                    0, 0, "imread", "", "numkit:imread:jpegHeader");
+                    0, 0, "imread", "", "nk:imread:jpegHeader");
     }
 
     struct ComponentInfo {
@@ -502,7 +502,7 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
 
     if (sosOffset == 0 || sosOffset >= len) {
         throw Error("imread: JPEG missing Start of Scan (SOS)",
-                    0, 0, "imread", "", "numkit:imread:jpegNoSos");
+                    0, 0, "imread", "", "nk:imread:jpegNoSos");
     }
 
     if (comps.empty()) {
@@ -750,7 +750,7 @@ std::string writeJpegToBytes(const Value &A, int quality) {
     const std::size_t W = A.dims().cols();
     if (H == 0 || W == 0) {
         throw Error("imwrite: empty image matrix",
-                    0, 0, "imwrite", "", "numkit:imwrite:empty");
+                    0, 0, "imwrite", "", "nk:imwrite:empty");
     }
 
     int channels = 1;
@@ -758,7 +758,7 @@ std::string writeJpegToBytes(const Value &A, int quality) {
     else if (A.numel() == H * W * 3) channels = 3;
     else {
         throw Error("imwrite: JPEG only supports 1 (grayscale) or 3 (RGB) channels",
-                    0, 0, "imwrite", "", "numkit:imwrite:jpegChannels");
+                    0, 0, "imwrite", "", "nk:imwrite:jpegChannels");
     }
 
     // Scale Quantization tables by quality factor (1..100)
@@ -947,4 +947,4 @@ std::string writeJpegToBytes(const Value &A, int quality) {
     return std::string(out.begin(), out.end());
 }
 
-} // namespace numkit::image
+} // namespace nk::image

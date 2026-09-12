@@ -7,25 +7,25 @@
 // matter: constant propagation into shape (n=5 -> zeros(n) is 5x5) and
 // scalar element access (x(i) is an unboxed scalar).
 
-#include <numkit/codegen/inference.hpp>
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/inference.hpp>
+#include <nk/codegen/transfer.hpp>
 
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
 #include <gtest/gtest.h>
 
-using numkit::ValueType;
-using namespace numkit::codegen;
+using nk::ValueType;
+using namespace nk::codegen;
 
 namespace {
 
 // Lex + parse + infer a snippet; return the final environment.
 TypeEnv inferSrc(const std::string &src)
 {
-    numkit::Lexer  lex(src);
+    nk::Lexer  lex(src);
     auto           tokens = lex.tokenize();
-    numkit::Parser parser(tokens);
+    nk::Parser parser(tokens);
     auto           root = parser.parse();
 
     TransferRegistry reg;

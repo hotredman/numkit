@@ -1,11 +1,11 @@
 // toolboxes/stats/tests/rmse_mape_test.cpp
 // (partial — 'all'/vecdim).
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class RmseMapeTest : public ::testing::Test
 {
@@ -42,5 +42,5 @@ TEST_F(RmseMapeTest, MapeAll)
 
 TEST_F(RmseMapeTest, BadFlagThrows)
 {
-    EXPECT_THROW(eval("rmse(F, A, 'unknown');"), numkit::Error);
+    EXPECT_THROW(eval("rmse(F, A, 'unknown');"), nk::Error);
 }

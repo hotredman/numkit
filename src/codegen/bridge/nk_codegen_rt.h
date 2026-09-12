@@ -1,10 +1,10 @@
 /* nk_codegen_rt.h — the Value-ABI bridge (DESIGN.md §6a).
  *
- * A minimal, stable, OPAQUE C ABI that lets AOT-compiled numkit code call
+ * A minimal, stable, OPAQUE C ABI that lets AOT-compiled nk code call
  * uncompiled builtins / library functions and hold Dynamic values, WITHOUT
- * depending on numkit's C++ Value type, headers, binary layout, or its
+ * depending on nk's C++ Value type, headers, binary layout, or its
  * transitive dependency graph. The implementation (nk_codegen_rt.cpp) owns
- * numkit (Value + a private StandardEngine) entirely behind this boundary.
+ * nk (Value + a private StandardEngine) entirely behind this boundary.
  *
  * Ownership: box_* / eval / call return OWNED handles the caller must release
  * with nk_release — and ONLY with nk_release. A handle's storage belongs to
@@ -38,7 +38,7 @@ extern "C" {
 #  define NK_RT_API
 #endif
 
-typedef struct nk_val_s *nk_val;  /* opaque boxed numkit value */
+typedef struct nk_val_s *nk_val;  /* opaque boxed nk value */
 
 /* Error channel. code 0 == success. A C++ exception never crosses the C
  * boundary — it is caught and reported here (DESIGN.md §6b). */
@@ -108,7 +108,7 @@ NK_RT_API nk_val nk_box_array_nd(const double *p, const size_t *dims, int nd);
 NK_RT_API nk_val nk_box_complex_matrix(const double *p, size_t rows, size_t cols);
 NK_RT_API nk_val nk_box_complex_array_nd(const double *p, const size_t *dims, int nd);
 
-/* Evaluate numkit source `code` in the runtime's persistent workspace and
+/* Evaluate nk source `code` in the runtime's persistent workspace and
  * return the last expression's value (owned; an empty handle for pure
  * statements). State persists across calls — nk_eval("x=5;",0) then
  * nk_eval("x+1",0) yields 6. On failure returns NULL and sets *err. This is
@@ -129,7 +129,7 @@ NK_RT_API nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
  * aware): the codegen Dynamic tier emits these where a value's type could not
  * be inferred, so a typed inline op is unavailable. Operands are BORROWED;
  * the result is OWNED (release with nk_release). On failure return NULL and
- * set *err. `op` is the numkit source token. */
+ * set *err. `op` is the nk source token. */
 NK_RT_API nk_val nk_binop(const char *op, nk_val a, nk_val b, nk_error *err);
 /* Unary op: token "-", "+", "~", "'", ".'". Borrowed operand, owned result. */
 NK_RT_API nk_val nk_unop(const char *op, nk_val a, nk_error *err);
@@ -149,7 +149,7 @@ NK_RT_API nk_val nk_index(nk_val a, const nk_val *subs, size_t nsubs, nk_error *
 NK_RT_API double nk_unbox_scalar(nk_val v);
 NK_RT_API void   nk_unbox_array(nk_val v, double *out, size_t len);  /* copies min(len,numel) */
 /* Complex unbox: `out` is interleaved re,im (len complex = 2*len doubles).
- * Handles a REAL result too (imag = 0) — numkit may narrow a zero-imag complex
+ * Handles a REAL result too (imag = 0) — nk may narrow a zero-imag complex
  * result back to a real array. */
 NK_RT_API void   nk_unbox_complex_array(nk_val v, double *out, size_t len);
 /* Char-array unbox: copies the result's char CODE UNITS (one per element) into
@@ -179,13 +179,13 @@ NK_RT_API long long nk_debug_live_handles(void);
  * write results [1..nargout-1] (OWNED) into extra_outs[0..nargout-2]
  * (extra_outs is sized nargout-1, valid only when nargout > 1). To report a
  * failure, set err->code non-zero with a message and return NULL; the runtime
- * raises it as a numkit error at the call site. A plugin function must NEVER
+ * raises it as a nk error at the call site. A plugin function must NEVER
  * throw a C++ exception across this boundary. */
 typedef nk_val (*nk_fn)(const nk_val *args, size_t nargs, size_t nargout,
                         nk_val *extra_outs, nk_error *err);
 
-/* Register `fn` under `name` into the numkit runtime. Thereafter `name` is
- * resolvable from numkit source, the embedding API, and nk_call — exactly
+/* Register `fn` under `name` into the nk runtime. Thereafter `name` is
+ * resolvable from nk source, the embedding API, and nk_call — exactly
  * like a builtin. Returns 0 on success, non-zero on failure — including if
  * `name` is already registered (the runtime rejects duplicates; there is no
  * override without an unregister API). */

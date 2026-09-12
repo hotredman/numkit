@@ -1,7 +1,7 @@
 // tests/interp_test.cpp
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class InterpTest : public ::testing::Test
 {
@@ -296,7 +296,7 @@ TEST_F(InterpTest, MakimaPpFormNonUniformAndThreePoint)
 TEST_F(InterpTest, LinearOutOfRangeIsNaNByDefault)
 {
     // MATLAB: linear (and nearest) return NaN out-of-range when 'extrap'
-    // is not given. Regression: numkit used to extrapolate linearly (40).
+    // is not given. Regression: nk used to extrapolate linearly (40).
     EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4)")));
     EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0)")));
     EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4,'nearest')")));
@@ -325,7 +325,7 @@ TEST_F(InterpTest, ConstantExtrapval)
 }
 
 // DEEP-PROBE 2026-05-31: the method and extrapval args accept STRING
-// ("nearest") as well as char ('nearest') — MATLAB accepts both. numkit
+// ("nearest") as well as char ('nearest') — MATLAB accepts both. nk
 // previously honored only char and SILENTLY IGNORED a double-quoted method,
 // falling back to linear (interp1(...,1.4,"nearest") gave 14, not 10).
 TEST_F(InterpTest, StringMethodAndExtrapArgs)

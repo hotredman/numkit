@@ -5,8 +5,8 @@
 
 #include "mp3_codec.hpp"
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::audio {
+namespace nk::audio {
 
 bool isMp3Bytes(const std::uint8_t *data, std::size_t len)
 {
@@ -262,7 +262,7 @@ AudioInfo peekMp3(const std::uint8_t *data, std::size_t len)
 
     if (!found)
         throw Error("audioinfo: could not find valid MPEG Audio Layer III frame sync",
-                    0, 0, "audioinfo", "", "numkit:audioinfo:badMp3Sync");
+                    0, 0, "audioinfo", "", "nk:audioinfo:badMp3Sync");
 
     AudioInfo info;
     info.format = "mp3";
@@ -306,7 +306,7 @@ AudioData readMp3(const std::uint8_t *data, std::size_t len,
 
     if (!found)
         throw Error("audioread: could not find valid MPEG Audio Layer III frame sync",
-                    0, 0, "audioread", "", "numkit:audioread:badMp3Sync");
+                    0, 0, "audioread", "", "nk:audioread:badMp3Sync");
 
     const size_t numChannels = firstHdr.numChannels;
     const double sampleRate = static_cast<double>(firstHdr.sampleRate);
@@ -453,4 +453,4 @@ AudioData readMp3(const std::uint8_t *data, std::size_t len,
     return res;
 }
 
-} // namespace numkit::audio
+} // namespace nk::audio

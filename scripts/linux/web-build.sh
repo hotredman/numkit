@@ -37,8 +37,8 @@ if command -v emcc &>/dev/null; then
         bash "$SCRIPT_DIR/engine-build.sh" --wasm
     fi
     echo "Copying freshly-built WASM into ide/public/..."
-    cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
-    cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/nk_ide.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/nk_ide.wasm" "${IDE_DIR}/public/"
 else
     echo "ERROR: emcc not on PATH — refusing to silently reuse a possibly-stale WASM." >&2
     echo "       Source the emsdk environment, or pass --skip-wasm to reuse the" >&2

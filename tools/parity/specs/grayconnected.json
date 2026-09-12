@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b. Spec uses magic(8) -- restored to canonical form after magic() was implemented in cycle 46 (commit 71efbf02); originally had to inline the matrix because numkit didn't ship magic()."
+  "comment": "Sig: BW = grayconnected(I, r, c, tol). 8-connected flood-fill from seed within tolerance. Bit-identical with MATLAB R2025b. Spec uses magic(8) -- restored to canonical form after magic() was implemented in cycle 46 (commit 71efbf02); originally had to inline the matrix because nk didn't ship magic()."
 }

@@ -8,21 +8,21 @@
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
-#include <numkit/wavelet/dwt/dwt2.hpp>
+#include <nk/wavelet/dwt/dwt2.hpp>
 
-#include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
-#include <numkit/value/error.hpp>
+#include <nk/core/engine.hpp>   // CallContext, ctx.engine->resource()
+#include <nk/value/error.hpp>
 
 #include <string>
 #include <utility>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 namespace detail {
 
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected string argument",
-                    0, 0, "", "", "numkit:wavelet:type");
+                    0, 0, "", "", "nk:wavelet:type");
     return v.toString();
 }
 
@@ -31,7 +31,7 @@ void dwt2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("dwt2: requires (X, wname)",
-                    0, 0, "dwt2", "", "numkit:dwt2:nargin");
+                    0, 0, "dwt2", "", "nk:dwt2:nargin");
     auto *mr = ctx.engine->resource();
     auto r = dwt2(args[0], argString(args[1]), mr);
     if (outs.size() >= 1) outs[0] = std::move(r.cA);
@@ -45,7 +45,7 @@ void idwt2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 5)
         throw Error("idwt2: requires (cA, cH, cV, cD, wname [, sx])",
-                    0, 0, "idwt2", "", "numkit:idwt2:nargin");
+                    0, 0, "idwt2", "", "nk:idwt2:nargin");
     long long outRows = -1, outCols = -1;
     if (args.size() >= 6 && !args[5].isEmpty()) {
         // sx form: a length-2 vector [rows cols], or a scalar (square).
@@ -62,4 +62,4 @@ void idwt2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 }
 
 } // namespace detail
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

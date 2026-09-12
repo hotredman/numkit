@@ -18,7 +18,7 @@ explicit stub throw.
 ```matlab
 clear;
 [r, p, k] = residuez([1], [1 -2 0.25]);   % 1/(1 - 0.5 z^-1)^2
-% numkit:  error "residuez: repeated-pole case not yet supported"
+% nk:  error "residuez: repeated-pole case not yet supported"
 % MATLAB R2025b:  r/p for the (1 - p z^-1)^1..2 expansion
 ```
 

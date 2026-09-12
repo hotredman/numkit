@@ -2,7 +2,7 @@
 //
 // gtest coverage for three less-common distributions that shipped parity-only:
 // noncentral chi-square (ncx2*), Rice/Rician (rice*) and Nakagami (naka*) --
-// pdf / cdf / inv / stat / rnd. Reference values are numkit's parity-validated
+// pdf / cdf / inv / stat / rnd. Reference values are nk's parity-validated
 // output; inv is checked by the cdf(inv(p)) == p round-trip; ncx2 stat matches
 // the closed form (mean = k + lambda, var = 2(k + 2*lambda)).
 

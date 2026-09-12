@@ -14,12 +14,12 @@
 //
 // rbioNr.Nd is biorNr.Nd with the analysis/synthesis roles swapped.
 
-#include <numkit/wavelet/filter/wfilters.hpp>
+#include <nk/wavelet/filter/wfilters.hpp>
 
 #include <string>
 #include <vector>
 
-namespace numkit::wavelet {
+namespace nk::wavelet {
 
 namespace {
 
@@ -231,4 +231,4 @@ bool bior_filterbank(const std::string &name, FilterBank &out) {
     return false;
 }
 
-} // namespace numkit::wavelet
+} // namespace nk::wavelet

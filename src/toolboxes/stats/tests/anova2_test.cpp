@@ -2,10 +2,10 @@
 //
 // Regression guard for anova2 (two-way ANOVA without replication).
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class Anova2Test : public ::testing::Test
 {

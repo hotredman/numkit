@@ -8,16 +8,16 @@
 // Continuous: H(jω) = num(jω) / den(jω)
 // Discrete  : H(e^{jωTs}) = num(z) / den(z) at z = exp(jωTs)
 
-#include <numkit/control/freq/freq.hpp>
-#include <numkit/control/conversion/conversion.hpp>
-#include <numkit/control/props/props.hpp>
+#include <nk/control/freq/freq.hpp>
+#include <nk/control/conversion/conversion.hpp>
+#include <nk/control/props/props.hpp>
 
-#include <numkit/builtin/polyfun.hpp>
+#include <nk/builtin/polyfun.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The evalfr/freqresp/
 // bode/nyquist/rlocus builtins (CallContext wrappers) live in freq_reg.cpp.
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::control {
+namespace nk::control {
 
 namespace {
 
@@ -66,7 +66,7 @@ NumDen toNumDen(const Value &sys, std::pmr::memory_resource *mr) {
         return {coeffsReal(num), coeffsReal(den)};
     }
     throw Error("control freq: expected an LTI struct (tf/zpk/ss)",
-                0, 0, "freq", "", "numkit:control:kind");
+                0, 0, "freq", "", "nk:control:kind");
 }
 
 // Horner evaluation of a polynomial whose coefficients are stored in
@@ -247,7 +247,7 @@ rlocus(const Value &sys, const Value &kArg, std::pmr::memory_resource *mr)
     auto den = strip(nd.den);
     if (den.empty())
         throw Error("rlocus: denominator must be non-empty",
-                    0, 0, "rlocus", "", "numkit:rlocus:den");
+                    0, 0, "rlocus", "", "nk:rlocus:den");
     const size_t n = den.size() - 1;   // closed-loop order
 
     // Build gain vector.
@@ -284,12 +284,12 @@ rlocus(const Value &sys, const Value &kArg, std::pmr::memory_resource *mr)
             const double k = ks[row];
             for (size_t i = 0; i < den.size(); ++i)
                 charPoly[i] = den[i] + k * numAligned[i];
-            // Pack as a row Value and run numkit::builtin::roots.
+            // Pack as a row Value and run nk::builtin::roots.
             Value cp = Value::matrix(1, charPoly.size(),
                                      ValueType::DOUBLE, mr);
             std::copy(charPoly.begin(), charPoly.end(),
                       cp.doubleDataMut());
-            Value rs = numkit::builtin::roots(cp, mr);
+            Value rs = nk::builtin::roots(cp, mr);
             // rs is a column of length n (for this n-th order polynomial).
             // Pack into row `row` of R (column-major: R[row, j] is at
             // index j*K + row).
@@ -309,4 +309,4 @@ rlocus(const Value &sys, const Value &kArg, std::pmr::memory_resource *mr)
     return {std::move(R), colDouble(ks, mr)};
 }
 
-} // namespace numkit::control
+} // namespace nk::control

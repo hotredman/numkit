@@ -10,7 +10,7 @@
 //
 //   the transpiler does NOT emit a raw-array loop. For `y = <biquad>(x)`
 //   with x, y inferred as double arrays, it emits an unboxed `double`
-//   recurrence whose input/output ARRAYS are numkit Value containers
+//   recurrence whose input/output ARRAYS are nk Value containers
 //   accessed through doubleData()/doubleDataMut() (the array
 //   representation tier — see src/codegen/DESIGN.md §5).
 //
@@ -20,12 +20,12 @@
 // happens once per call (as the emitter would emit it), not per sample.
 //
 // ns/sample = 1e9 / items_per_second. Compare against the core bench's
-// BM_Biquad_NumkitLoop_VM (the boxed interpreter we are escaping) and
+// BM_Biquad_NKLoop_VM (the boxed interpreter we are escaping) and
 // BM_Biquad_NativeCpp (raw-array speed of light).
 //
 // Snapshot 2026-06-18, Arrow Lake, desktop-fast Release, N=131072
 // (ns/sample): ValueIO (this) 1.56 | NativeCpp 1.59 | MATLAB JIT loop
-// 2.70 | numkit filter() 5.85 | MATLAB filter() 7.22 | VM loop 151.4 |
+// 2.70 | nk filter() 5.85 | MATLAB filter() 7.22 | VM loop 151.4 |
 // TreeWalker 336.6. The transpiler-faithful output is ~97x the VM and
 // ~1.7x faster than MATLAB's JIT loop; the Value-container array tier
 // costs nothing vs raw double[].
@@ -37,15 +37,15 @@
 // the `y = zeros(1,n)` zero-fill the MATLAB source mandates (an extra
 // streaming write the hand loop omits). Still ~88x the VM loop.
 
-#include <numkit/codegen/aot.hpp>
-#include <numkit/codegen/emitter.hpp>
-#include <numkit/codegen/transfer.hpp>
+#include <nk/codegen/aot.hpp>
+#include <nk/codegen/emitter.hpp>
+#include <nk/codegen/transfer.hpp>
 
-#include <numkit/core/lexer.hpp>
-#include <numkit/core/parser.hpp>
+#include <nk/core/lexer.hpp>
+#include <nk/core/parser.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/value_type.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/value_type.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -71,8 +71,8 @@ constexpr double kA1 = -1.1430, kA2 = 0.4128;
 // inner recurrence is pure unboxed double over their raw buffers.
 void BM_Biquad_Codegen_ValueIO(benchmark::State &state)
 {
-    numkit::Value x = numkit::Value::matrix(1, kN, numkit::ValueType::DOUBLE, nullptr);
-    numkit::Value y = numkit::Value::matrix(1, kN, numkit::ValueType::DOUBLE, nullptr);
+    nk::Value x = nk::Value::matrix(1, kN, nk::ValueType::DOUBLE, nullptr);
+    nk::Value y = nk::Value::matrix(1, kN, nk::ValueType::DOUBLE, nullptr);
     {
         double *xd = x.doubleDataMut();
         for (std::size_t n = 0; n < kN; ++n) xd[n] = std::sin(0.01 * double(n + 1));
@@ -111,7 +111,7 @@ using BiquadFn = void (*)(const double *, std::size_t, double, double, double, d
 
 BiquadFn loadGeneratedBiquad()
 {
-    using namespace numkit::codegen;
+    using namespace nk::codegen;
     if (!aot::available()) return nullptr;
 
     TransferRegistry reg;
@@ -125,18 +125,18 @@ BiquadFn loadGeneratedBiquad()
         "    yn = b0*xn + b1*x1 + b2*x2 - a1*y1 - a2*y2;\n"
         "    y(k) = yn;\n    x2 = x1; x1 = xn;\n    y2 = y1; y1 = yn;\n  end\n"
         "end\n";
-    numkit::Lexer  lex(srcM);
-    numkit::Parser parser(lex.tokenize());
+    nk::Lexer  lex(srcM);
+    nk::Parser parser(lex.tokenize());
     auto           root = parser.parse();
-    const numkit::ASTNode *fn = nullptr;
+    const nk::ASTNode *fn = nullptr;
     for (const auto &c : root->children)
-        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+        if (c && c->type == nk::NodeType::FUNCTION_DEF) fn = c.get();
     if (!fn) return nullptr;
 
     std::vector<ParamSpec> params = {
-        {"x", InferredType::concrete(numkit::ValueType::DOUBLE, Shape::rowVector())}};
+        {"x", InferredType::concrete(nk::ValueType::DOUBLE, Shape::rowVector())}};
     for (const char *p : {"b0", "b1", "b2", "a1", "a2"})
-        params.push_back({p, InferredType::scalar(numkit::ValueType::DOUBLE)});
+        params.push_back({p, InferredType::scalar(nk::ValueType::DOUBLE)});
 
     std::string program = emitFunction(*fn, params, reg).source;
     program +=
@@ -149,7 +149,7 @@ BiquadFn loadGeneratedBiquad()
         "                     double b2, double a1, double a2, double* y, std::size_t yl) {\n"
         "  biquad(x, xl, b0, b1, b2, a1, a2, y, yl);\n}\n";
 
-    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    auto base = std::filesystem::temp_directory_path() / "nk_codegen_aot";
     std::filesystem::create_directories(base);
 #ifdef _WIN32
     const std::string lib = (base / "nk_biquad_gen.dll").string();
@@ -177,8 +177,8 @@ void BM_Biquad_Codegen_Generated(benchmark::State &state)
         return;
     }
 
-    numkit::Value x = numkit::Value::matrix(1, kN, numkit::ValueType::DOUBLE, nullptr);
-    numkit::Value y = numkit::Value::matrix(1, kN, numkit::ValueType::DOUBLE, nullptr);
+    nk::Value x = nk::Value::matrix(1, kN, nk::ValueType::DOUBLE, nullptr);
+    nk::Value y = nk::Value::matrix(1, kN, nk::ValueType::DOUBLE, nullptr);
     {
         double *xd = x.doubleDataMut();
         for (std::size_t n = 0; n < kN; ++n) xd[n] = std::sin(0.01 * double(n + 1));

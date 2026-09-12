@@ -1,7 +1,7 @@
 // tests/filter_design_test.cpp
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace nk;
 
 class FilterDesignTest : public ::testing::Test
 {
@@ -256,7 +256,7 @@ TEST_F(FilterDesignTest, GrpdelayShape)
 
 // DEEP-PROBE 2026-05-31: phasez/grpdelay(b,a,n,fs) sample-rate form — the
 // frequency vector is in Hz over [0, fs/2) (= w*fs/(2*pi)); the phase /
-// group-delay values are unchanged. numkit ignored fs and returned radians.
+// group-delay values are unchanged. nk ignored fs and returned radians.
 TEST_F(FilterDesignTest, PhasezGrpdelaySampleRate)
 {
     eval("[ph, f] = phasez([1 1], [1 -0.5], 4, 100);");

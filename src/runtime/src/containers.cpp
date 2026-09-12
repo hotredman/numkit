@@ -6,12 +6,12 @@
 // opaque KVPayload; the value/handle difference is entirely the registry
 // isHandle flag + the engine's COW clone rule.
 //
-// The public, ENGINE-FREE C++ API (numkit::containers::map/dictionary/
+// The public, ENGINE-FREE C++ API (nk::containers::map/dictionary/
 // set/get/...) is the single source of truth; the interpreter's registry
 // hooks (construct/subsref/subsasgn/methods) are thin adapters over it.
-#include <numkit/runtime/containers.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/value/object.hpp>
+#include <nk/runtime/containers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/value/object.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 namespace {
 
 // ── Shared opaque payload ────────────────────────────────────
@@ -423,4 +423,4 @@ void registerContainersRuntime(Engine &engine)
     }
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

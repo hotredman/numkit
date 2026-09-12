@@ -1,15 +1,15 @@
 // toolboxes/builtin/src/language/operators/unary_ops_reg.cpp
 //
 // CallContext register half (Phase 2b multi-block split).
-#include <numkit/core/engine.hpp>
-#include <numkit/builtin/ops.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/builtin/ops.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
 #include "ops/unary_ops_detail.hpp"
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -23,8 +23,8 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+namespace nk::builtin {
+using namespace nk::builtin;  // C4c localized (umbrella removed)
 
 namespace detail {
 
@@ -34,7 +34,7 @@ namespace detail {
     {                                                                                 \
         if (args.empty())                                                             \
             throw Error(#MATLAB_NAME ": requires 1 argument",                        \
-                         0, 0, #MATLAB_NAME, "", "numkit:" #MATLAB_NAME ":nargin");        \
+                         0, 0, #MATLAB_NAME, "", "nk:" #MATLAB_NAME ":nargin");        \
         outs[0] = CXX_FN(args[0], ctx.engine->resource());                           \
     }
 
@@ -47,4 +47,4 @@ NK_UNOP_REG(ctranspose, ctranspose)
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

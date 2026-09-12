@@ -1,7 +1,7 @@
-# numkit keeps complex-with-zero-imaginary; MATLAB narrows it to real
+# nk keeps complex-with-zero-imaginary; MATLAB narrows it to real
 
 - **Status:** ✅ FIXED (2026-06-17) — every operation MATLAB narrows now narrows
-  in numkit too, on both backends; the ops MATLAB *preserves* are unchanged.
+  in nk too, on both backends; the ops MATLAB *preserves* are unchanged.
 - **Severity:** P2 (divergent result on a fundamental type predicate; niche but real)
 - **Kind:** bug
 - **Found:** 2026-06-17 via the max/min complex audit (edge probe of `max(real, 2+0i)`)
@@ -13,13 +13,13 @@ MATLAB R2025b **narrows** a complex value whose imaginary part is exactly zero
 (`isreal(complex(2,0))` is `0`), and a NaN imaginary part also keeps it complex.
 
 ```matlab
-isreal(2+0i)            % MATLAB 1 ; numkit NOW 1 (arithmetic narrows)
-isreal((1+1i)+(1-1i))   % MATLAB 1 ; numkit NOW 1
-isreal(complex(2,0))    % MATLAB 0 ; numkit 0 (complex() forced -- agrees)
-zc = complex([1 -3 2]); isreal(zc(2))  % MATLAB 1 ; numkit NOW 1 (indexing)
-isreal(sum(complex([1 2 3])))          % MATLAB 1 ; numkit NOW 1 (reduction)
-isreal(fliplr(complex([1 2 3])))       % MATLAB 1 ; numkit NOW 1 (reorder)
-c = complex([0 0 0]); c(2)=7; isreal(c)% MATLAB 1 ; numkit 0 (indexed-assign: see note)
+isreal(2+0i)            % MATLAB 1 ; nk NOW 1 (arithmetic narrows)
+isreal((1+1i)+(1-1i))   % MATLAB 1 ; nk NOW 1
+isreal(complex(2,0))    % MATLAB 0 ; nk 0 (complex() forced -- agrees)
+zc = complex([1 -3 2]); isreal(zc(2))  % MATLAB 1 ; nk NOW 1 (indexing)
+isreal(sum(complex([1 2 3])))          % MATLAB 1 ; nk NOW 1 (reduction)
+isreal(fliplr(complex([1 2 3])))       % MATLAB 1 ; nk NOW 1 (reorder)
+c = complex([0 0 0]); c(2)=7; isreal(c)% MATLAB 1 ; nk 0 (indexed-assign: see note)
 ```
 
 ## Fix (2026-06-17)
@@ -73,8 +73,8 @@ input. Now supported and narrowing-aware: `trace` sums the complex diagonal
 det/inv) remain in bugs/linalg/complex-matrix-unsupported.md.
 
 ## References
-- `src/value/include/numkit/value/value.hpp` + `value.cpp` (`narrowComplex`)
-- `src/ops/include/numkit/ops/helpers.hpp` (`elementwiseComplex` / `unaryComplex`)
+- `src/value/include/nk/value/value.hpp` + `value.cpp` (`narrowComplex`)
+- `src/ops/include/nk/ops/helpers.hpp` (`elementwiseComplex` / `unaryComplex`)
 - `src/core/src/vm.cpp` (`NarrowSlotGuard`), `src/core/src/tree_walker.cpp`
 - `src/bundle/src/register/{math/reductions_reg,lang/{matrix_reg,manip_reg},
   linalg/vector_ops_reg,stats/descriptive/descriptive_reg,fusion/fused_rules}.cpp`

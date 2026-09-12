@@ -2,7 +2,7 @@
 # check_vfs_invariant.sh
 #
 # Enforces the VFS invariant: any filesystem access from core/ or toolboxes/
-# must go through numkit::VirtualFS, never directly via std::filesystem,
+# must go through nk::VirtualFS, never directly via std::filesystem,
 # stdio FILE*, fstream, or OS-native APIs.
 #
 # The only exception is the VFS implementation itself (FilesystemFS,
@@ -24,7 +24,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # VFS implementation depends on.
 ALLOW_LIST=(
     "core/src/vfs.cpp"
-    "core/include/numkit/core/vfs.hpp"
+    "core/include/nk/core/vfs.hpp"
 )
 
 # Forbidden include patterns (FS-related headers).
@@ -100,7 +100,7 @@ fi
 
 echo ""
 echo "FAIL: $violations violation(s) found."
-echo "All filesystem access from core/ and toolboxes/ must go through numkit::VirtualFS."
+echo "All filesystem access from core/ and toolboxes/ must go through nk::VirtualFS."
 echo "If you have a legitimate reason (e.g., a new VFS backend), add the file"
 echo "to ALLOW_LIST in tools/check_vfs_invariant.sh."
 exit 1

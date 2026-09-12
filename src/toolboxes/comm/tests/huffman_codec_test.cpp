@@ -6,10 +6,10 @@
 // Bit codes are non-unique (Huffman tie-breaking), so we focus on
 // round-trip identity rather than literal bit patterns.
 
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class HuffmanCodecTest : public ::testing::Test
 {

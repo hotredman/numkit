@@ -2,12 +2,12 @@
 //
 // Special functions — gamma / gammaln / erf / erfc / erfinv.
 
-#include <numkit/builtin/specfun.hpp>
+#include <nk/builtin/specfun.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 
-#include <numkit/ops/helpers.hpp>
+#include <nk/ops/helpers.hpp>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -18,7 +18,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 Value gammaFn(const Value &x, std::pmr::memory_resource *mr) { return gamma(x, mr); }
 
@@ -474,7 +474,7 @@ double psiScalar(double x)
     // Pole at 0: MATLAB ψ(0) = -Inf. bugs/builtin/psi-zero-pole.md.
     if (x == 0.0)
         return -std::numeric_limits<double>::infinity();
-    // Negative integers are also poles; numkit returns NaN here. (MATLAB
+    // Negative integers are also poles; nk returns NaN here. (MATLAB
     // rejects ALL negative input — "X must be nonnegative" — so its exact value
     // at these points is moot; we keep the lenient NaN rather than erroring.)
     if (x == std::floor(x) && x < 0.0)
@@ -661,7 +661,7 @@ Value legendre(int n, const Value &x, std::pmr::memory_resource *mr)
 {
     if (n < 0)
         throw Error("legendre: n must be >= 0", 0, 0, "legendre", "",
-                     "numkit:legendre:badN");
+                     "nk:legendre:badN");
     const size_t L = x.numel();
     auto r = Value::matrix(static_cast<size_t>(n + 1), L, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
@@ -733,7 +733,7 @@ Value besselh(const Value &nu, int k, const Value &x, std::pmr::memory_resource 
 {
     if (k != 1 && k != 2)
         throw Error("besselh: k must be 1 or 2",
-                     0, 0, "besselh", "", "numkit:besselh:badK");
+                     0, 0, "besselh", "", "nk:besselh:badK");
     // Build a complex array of J_ν(x) + (k==1 ? +1 : −1) · i · Y_ν(x).
     // elementwiseComplex requires both operands to be complex; we build
     // the result in a real-imag pass instead.
@@ -903,7 +903,7 @@ Value airy(int k, const Value &x, std::pmr::memory_resource *mr)
 {
     if (k < 0 || k > 3)
         throw Error("airy: kind k must be 0..3 (got " + std::to_string(k) + ")",
-                     0, 0, "airy", "", "numkit:airy:badK");
+                     0, 0, "airy", "", "nk:airy:badK");
     return unaryDouble(x, [k](double v) { return airyScalar(k, v); }, mr);
 }
 
@@ -1099,4 +1099,4 @@ EllipJ ellipj(const Value &u, const Value &m, std::pmr::memory_resource *mr)
     return { std::move(sn), std::move(cn), std::move(dn) };
 }
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

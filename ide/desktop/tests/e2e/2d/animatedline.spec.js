@@ -5,7 +5,7 @@
 //   [x, y] = getpoints(h);
 //   drawnow;
 //
-// numkit doesn't model handles; the cluster targets the most-recent
+// nk doesn't model handles; the cluster targets the most-recent
 // animated dataset on the current axes. Coverage:
 
 import { test, expect } from '../../helpers/shared.js';

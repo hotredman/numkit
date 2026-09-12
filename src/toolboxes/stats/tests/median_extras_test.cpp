@@ -1,10 +1,10 @@
 // toolboxes/stats/tests/median_extras_test.cpp
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/engine.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace nk;
 
 class MedianExtrasTest : public ::testing::Test
 {
@@ -66,7 +66,7 @@ TEST_F(MedianExtrasTest, BasicValuesUnchanged)
 // MATLAB preserves the integer class for median: the two-middle-element
 // average is rounded half-away-from-zero and the integer class is kept
 // (median(int32([1 2 3 4]))=3 int32, median(int8([-1 -2]))=-2 int8).
-// numkit previously returned a DOUBLE 2.5. DEEP-PROBE 2026-05-30.
+// nk previously returned a DOUBLE 2.5. DEEP-PROBE 2026-05-30.
 TEST_F(MedianExtrasTest, IntegerClassPreserved)
 {
     eval("mi = median(int32([1 2 3 4]));");        // 2.5 -> 3

@@ -3,13 +3,13 @@
 // CallContext register half of spectral_analysis/ar.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
-#include <numkit/core/engine.hpp>
-#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::signal {
+namespace nk::signal {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ void pyulear_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("pyulear: requires (x, p[, nfft])",
-                    0, 0, "pyulear", "", "numkit:pyulear:nargin");
+                    0, 0, "pyulear", "", "nk:pyulear:nargin");
     const int p     = static_cast<int>(args[1].toScalar());
     const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
                       ? static_cast<size_t>(args[2].toScalar()) : 0;
@@ -44,7 +44,7 @@ void pburg_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("pburg: requires (x, p[, nfft])",
-                    0, 0, "pburg", "", "numkit:pburg:nargin");
+                    0, 0, "pburg", "", "nk:pburg:nargin");
     const int p     = static_cast<int>(args[1].toScalar());
     const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
                       ? static_cast<size_t>(args[2].toScalar()) : 0;
@@ -57,4 +57,4 @@ void pburg_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::signal
+} // namespace nk::signal

@@ -4,12 +4,12 @@
 // Namespace: wavelet.<sub>.<name>; every function is also aliased into
 // `compat.<name>` so MATLAB-style scripts can call them flat.
 
-#include <numkit/wavelet/library.hpp>
+#include <nk/wavelet/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/types.hpp>
 
-namespace numkit::wavelet::detail {
+namespace nk::wavelet::detail {
 // filter/wfilters.cpp
 void wfilters_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // filter/qmf.cpp
@@ -71,9 +71,9 @@ void cmorwavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fbspwavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gauswavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cgauwavf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-} // namespace numkit::wavelet::detail
+} // namespace nk::wavelet::detail
 
-namespace numkit {
+namespace nk {
 
 void WaveletLibrary::install(Engine &engine)
 {
@@ -133,4 +133,4 @@ void WaveletLibrary::install(Engine &engine)
     reg("shape", "cgauwavf", &wavelet::detail::cgauwavf_reg);
 }
 
-} // namespace numkit
+} // namespace nk

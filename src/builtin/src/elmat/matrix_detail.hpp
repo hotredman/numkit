@@ -3,15 +3,15 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
-#include <numkit/ops/helpers.hpp>
-#include <numkit/ops/reductions.hpp>
-#include <numkit/ops/rows_helpers.hpp>
+#include <nk/value/value.hpp>
+#include <nk/ops/helpers.hpp>
+#include <nk/ops/reductions.hpp>
+#include <nk/ops/rows_helpers.hpp>
 
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <nk/value/error.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/value/span.hpp>
+#include <nk/ops/reductions.hpp>  // engine-free nk::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -30,7 +30,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace nk::builtin {
 
 namespace {
 
@@ -191,7 +191,7 @@ Value pageTransposeAny(const Value &x, bool conjugate, std::pmr::memory_resource
     case ValueType::LOGICAL: return pageTransposeT<uint8_t>(x, ValueType::LOGICAL, conjugate, mr);
     default:
         throw Error("pagetranspose: unsupported input type",
-                     0, 0, "pagetranspose", "", "numkit:pagetranspose:badType");
+                     0, 0, "pagetranspose", "", "nk:pagetranspose:badType");
     }
 }
 
@@ -317,7 +317,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const int ynd = yd.ndim();
     if (xnd < 2 || ynd < 2)
         throw Error("pagemtimes: each input must have at least 2 dimensions",
-                     0, 0, "pagemtimes", "", "numkit:pagemtimes:rank");
+                     0, 0, "pagemtimes", "", "nk:pagemtimes:rank");
 
     const size_t xRowDim = xd.dim(0), xColDim = xd.dim(1);
     const size_t yRowDim = yd.dim(0), yColDim = yd.dim(1);
@@ -328,7 +328,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const size_t N  = (ty == TranspOp::None) ? yColDim : yRowDim;
     if (Kx != Ky)
         throw Error("pagemtimes: inner matrix dimensions must agree",
-                     0, 0, "pagemtimes", "", "numkit:pagemtimes:innerdim");
+                     0, 0, "pagemtimes", "", "nk:pagemtimes:innerdim");
     const size_t K = Kx;
 
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -342,7 +342,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
         if (xBatch[i] != yBatch[i] && xBatch[i] != 1 && yBatch[i] != 1)
             throw Error("pagemtimes: batch dimensions must broadcast "
                          "(each axis must match or be 1)",
-                         0, 0, "pagemtimes", "", "numkit:pagemtimes:dimagree");
+                         0, 0, "pagemtimes", "", "nk:pagemtimes:dimagree");
         outBatch[i] = std::max(xBatch[i], yBatch[i]);
     }
 
@@ -432,7 +432,7 @@ Value toDoubleMatrix2D(const Value &x, const char *fn, std::pmr::memory_resource
 {
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": input must be 2D",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":bad2D");
+                     0, 0, fn, "", std::string("nk:") + fn + ":bad2D");
     const size_t R = x.dims().rows();
     const size_t C = x.dims().cols();
     if (x.type() == ValueType::DOUBLE) {
@@ -471,7 +471,7 @@ sortRowsComplex(const Value &x, const int *cols, std::size_t nCols,
 {
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error("sortrows: input must be 2D",
-                     0, 0, "sortrows", "", "numkit:sortrows:bad2D");
+                     0, 0, "sortrows", "", "nk:sortrows:bad2D");
     const size_t R = x.dims().rows();
     const size_t C = x.dims().cols();
     if (R == 0)
@@ -488,7 +488,7 @@ sortRowsComplex(const Value &x, const int *cols, std::size_t nCols,
             const int absC = (rawCol < 0) ? -rawCol : rawCol;
             if (rawCol == 0 || static_cast<size_t>(absC) > C)
                 throw Error("sortrows: column index out of range",
-                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
+                             0, 0, "sortrows", "", "nk:sortrows:badCol");
         }
     }
 
@@ -548,7 +548,7 @@ sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memor
             const int absC = (rawCol < 0) ? -rawCol : rawCol;
             if (rawCol == 0 || static_cast<size_t>(absC) > C)
                 throw Error("sortrows: column index out of range",
-                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
+                             0, 0, "sortrows", "", "nk:sortrows:badCol");
         }
     }
 
@@ -558,11 +558,11 @@ sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memor
     const double *src = m.doubleData();
     std::stable_sort(perm.begin(), perm.end(),
         [&](size_t a, size_t b) {
-            return numkit::ops::rowLexCmpByCols(src, C, R, a, b,
+            return nk::ops::rowLexCmpByCols(src, C, R, a, b,
                                             sortKeys.data(), sortKeys.size()) < 0;
         });
 
-    auto sorted = numkit::ops::collectRowsByIndex(mr, m, perm.data(), perm.size());
+    auto sorted = nk::ops::collectRowsByIndex(mr, m, perm.data(), perm.size());
     auto idx = Value::matrix(R, 1, ValueType::DOUBLE, mr);
     double *idxP = idx.doubleDataMut();
     for (size_t i = 0; i < R; ++i)
@@ -650,7 +650,7 @@ void forEachNonzero(const Value &x, Visit visit)
     }
     default:
         throw Error("nnz/nonzeros: unsupported element type",
-                     0, 0, "nnz", "", "numkit:nnz:badType");
+                     0, 0, "nnz", "", "nk:nnz:badType");
     }
 }
 
@@ -699,7 +699,7 @@ namespace {
 // len = dims[d-1]). Linear iteration is valid for any dim because element i
 // depends only on i-stride (< i). NOTE: int64/uint64 above 2^53 lose
 // precision (accumulated through double) — the same limitation as the rest
-// of numkit's numeric core; int8/16/32 and uint8/16/32 are exact.
+// of nk's numeric core; int8/16/32 and uint8/16/32 are exact.
 template <typename T>
 void cumIntegerScanInto(const Value &x, T *dst, size_t strideD, size_t lenD,
                         bool isProd)
@@ -728,7 +728,7 @@ Value cumIntegerNative(const Value &x, int dim, bool isProd,
     const int nd = dd.ndim();
     int d;
     if (dim > 0) {
-        d = numkit::ops::resolveDim(x, dim, isProd ? "cumprod" : "cumsum");
+        d = nk::ops::resolveDim(x, dim, isProd ? "cumprod" : "cumsum");
     } else {
         d = 1;                          // first non-singleton dim (MATLAB default)
         for (int k = 0; k < nd; ++k)
@@ -769,7 +769,7 @@ Value cumComplexAlongDim(const Value &x, int d, bool isProd,
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("cumsum: rank exceeds 32",
-                     0, 0, "cumsum", "", "numkit:cumsum:tooManyDims");
+                     0, 0, "cumsum", "", "nk:cumsum:tooManyDims");
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = dd.dim(i);
     auto r = Value::matrixND(outDims, nd, ValueType::COMPLEX, mr);
@@ -810,7 +810,7 @@ Value cumComplexMinMaxAlongDim(const Value &x, int d, bool isMax,
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("cummax: rank exceeds 32",
-                     0, 0, "cummax", "", "numkit:cummax:tooManyDims");
+                     0, 0, "cummax", "", "nk:cummax:tooManyDims");
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = dd.dim(i);
     auto r = Value::matrixND(outDims, nd, ValueType::COMPLEX, mr);
@@ -925,7 +925,7 @@ Value cumImpl(const Value &x, int dim, Op op, const char *fn, std::pmr::memory_r
         return r;
     }
 
-    const int d = numkit::ops::resolveDim(x, dim, fn);
+    const int d = nk::ops::resolveDim(x, dim, fn);
     const auto &dd = x.dims();
     auto r = dd.is3D() ? Value::matrix3d(dd.rows(), dd.cols(), dd.pages(),
                                           ValueType::DOUBLE, mr)
@@ -956,7 +956,7 @@ Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const c
         return r;
     }
 
-    const int d = numkit::ops::resolveDim(x, dim, fn);
+    const int d = nk::ops::resolveDim(x, dim, fn);
     const auto &dd = x.dims();
 
     // ND fallback (rank ≥ 4): per-slice scan along axis d-1.
@@ -964,7 +964,7 @@ Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const c
         constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw Error(std::string(fn) + ": rank exceeds 32",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
+                         0, 0, fn, "", std::string("nk:") + fn + ":tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
         auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
@@ -1095,7 +1095,7 @@ Value makeDiffOutput(const Dims &srcDims, int d, size_t step, ValueType vt,
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("diff: rank exceeds 32",
-                     0, 0, "diff", "", "numkit:diff:tooManyDims");
+                     0, 0, "diff", "", "nk:diff:tooManyDims");
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = srcDims.dim(i);
     outDims[d - 1] = (outDims[d - 1] >= step) ? outDims[d - 1] - step : 0;
@@ -1257,4 +1257,4 @@ Value topkrows_full(const Value &A, std::size_t k,
                     std::vector<std::size_t> *out_idx,
                     std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace nk::builtin

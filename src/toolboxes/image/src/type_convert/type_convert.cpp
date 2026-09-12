@@ -1,9 +1,9 @@
 // toolboxes/image/src/type_convert/type_convert.cpp
 
-#include <numkit/image/type_convert/type_convert.hpp>
+#include <nk/image/type_convert/type_convert.hpp>
 
-#include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
+#include <nk/value/value.hpp>
+#include <nk/value/error.hpp>
 #include <tuple>
 #include <cctype>
 
@@ -13,7 +13,7 @@
 #include <limits>
 #include <vector>
 
-namespace numkit::image {
+namespace nk::image {
 
 namespace {
 
@@ -218,7 +218,7 @@ Value to_int_impl(const Value &x, ValueType target, double scale, double bias_af
         }
         default:
             throw Error("im2int: unsupported source class", 0, 0, "im2int", "",
-                        "numkit:im2int:badtype");
+                        "nk:im2int:badtype");
     }
     return out;
 }
@@ -293,7 +293,7 @@ Value rgb2gray(const Value &x, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (!d.is3D() || d.pages() != 3)
         throw Error("rgb2gray: input must be H×W×3", 0, 0, "rgb2gray", "",
-                    "numkit:rgb2gray:size");
+                    "nk:rgb2gray:size");
     const size_t H = d.rows(), W = d.cols();
     const size_t plane = H * W;
     Value out = Value::matrix(H, W, x.type(), mr);
@@ -308,7 +308,7 @@ Value rgb2gray(const Value &x, std::pmr::memory_resource *mr)
             case ValueType::INT16:  out.int16DataMut()[i]  = satCast<int16_t>(v); break;
             default:
                 throw Error("rgb2gray: unsupported class", 0, 0, "rgb2gray", "",
-                            "numkit:rgb2gray:badtype");
+                            "nk:rgb2gray:badtype");
         }
     };
 
@@ -414,7 +414,7 @@ Value iptnum2ordinal(double n, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(n) || n <= 0.0 || n != std::floor(n))
         throw Error("iptnum2ordinal: num must be a real positive integer",
-                    0, 0, "iptnum2ordinal", "", "numkit:iptnum2ordinal:n");
+                    0, 0, "iptnum2ordinal", "", "nk:iptnum2ordinal:n");
 
     static const char *kWords[] = {
         nullptr,    "first",      "second",   "third",
@@ -481,7 +481,7 @@ Value imcast(const Value &I, const std::string &type, std::pmr::memory_resource 
         return out;
     }
     throw Error("imcast: unsupported TYPE", 0, 0, "imcast", "",
-                "numkit:imcast:type");
+                "nk:imcast:type");
 }
 
 namespace {
@@ -512,7 +512,7 @@ gray2ind(const Value &I, int n, std::pmr::memory_resource *mr)
 {
     if (n < 1 || n > 65536)
         throw Error("gray2ind: N must be in [1, 65536]",
-                    0, 0, "gray2ind", "", "numkit:gray2ind:n");
+                    0, 0, "gray2ind", "", "nk:gray2ind:n");
 
     const ValueType cls = I.type();
     const auto &d = I.dims();
@@ -538,14 +538,14 @@ gray2ind(const Value &I, int n, std::pmr::memory_resource *mr)
         case ValueType::LOGICAL: scale = 1.0;                        break;
         default:
             throw Error("gray2ind: unsupported class",
-                        0, 0, "gray2ind", "", "numkit:gray2ind:cls");
+                        0, 0, "gray2ind", "", "nk:gray2ind:cls");
     }
     if (isFloat) {
         for (size_t i = 0; i < N; ++i) {
             const double v = I.elemAsDouble(i);
             if (v < 0.0 || v > 1.0)
                 throw Error("gray2ind: float values must be in [0, 1]",
-                            0, 0, "gray2ind", "", "numkit:gray2ind:range");
+                            0, 0, "gray2ind", "", "nk:gray2ind:range");
         }
     }
     const double k = static_cast<double>(n - 1) / scale;
@@ -587,15 +587,15 @@ Value ind2gray(const Value &idx, const Value &map, std::pmr::memory_resource *mr
     //   Y = 0.298936021293775·R + 0.587043074451121·G + 0.114020904255103·B.
     if (map.numel() == 0)
         throw Error("ind2gray: requires (X, MAP) with non-empty MAP",
-                    0, 0, "ind2gray", "", "numkit:ind2gray:nargin");
+                    0, 0, "ind2gray", "", "nk:ind2gray:nargin");
     if (map.dims().cols() != 3 || map.dims().is3D())
         throw Error("ind2gray: MAP must be N-by-3",
-                    0, 0, "ind2gray", "", "numkit:ind2gray:map");
+                    0, 0, "ind2gray", "", "nk:ind2gray:map");
 
     const int M = static_cast<int>(map.dims().rows());
     if (M < 1)
         throw Error("ind2gray: MAP must have at least one row",
-                    0, 0, "ind2gray", "", "numkit:ind2gray:emptyMap");
+                    0, 0, "ind2gray", "", "nk:ind2gray:emptyMap");
 
     // Build the grey colormap (length M, DOUBLE in [0, 1]).
     constexpr double Cr = 0.298936021293775;
@@ -689,7 +689,7 @@ Value ind2gray(const Value &idx, const Value &map, std::pmr::memory_resource *mr
         default:
             throw Error("ind2gray: X must be double, single, uint8, uint16, "
                         "or logical",
-                        0, 0, "ind2gray", "", "numkit:ind2gray:cls");
+                        0, 0, "ind2gray", "", "nk:ind2gray:cls");
     }
     return out;
 }
@@ -698,7 +698,7 @@ Value ind2rgb(const Value &idx, const Value &map, std::pmr::memory_resource *mr)
 {
     if (map.dims().cols() != 3)
         throw Error("ind2rgb: map must be N-by-3",
-                    0, 0, "ind2rgb", "", "numkit:ind2rgb:map");
+                    0, 0, "ind2rgb", "", "nk:ind2rgb:map");
     const auto &d = idx.dims();
     const size_t H = d.rows();
     const size_t W = d.cols();
@@ -746,7 +746,7 @@ Value getrangefromclass(const Value &I, std::pmr::memory_resource *mr)
         default:
             throw Error("getrangefromclass: unrecognized image class",
                         0, 0, "getrangefromclass", "",
-                        "numkit:getrangefromclass:cls");
+                        "nk:getrangefromclass:cls");
     }
     return r;
 }
@@ -759,7 +759,7 @@ Value isbw(const Value &BW, const std::string &mode, std::pmr::memory_resource *
         return bool_scalar(BW.type() == ValueType::LOGICAL, mr);
     if (mode != "non-logical")
         throw Error("isbw: MODE must be 'logical' or 'non-logical'",
-                    0, 0, "isbw", "", "numkit:isbw:mode");
+                    0, 0, "isbw", "", "nk:isbw:mode");
     if (BW.type() == ValueType::LOGICAL) return bool_scalar(true, mr);
     if (is_int_image_class(BW.type()) ||
         BW.type() == ValueType::DOUBLE || BW.type() == ValueType::SINGLE)
@@ -817,15 +817,15 @@ Value intlut(const Value &A, const Value &LUT, std::pmr::memory_resource *mr)
         case ValueType::INT16:  expectedLen = 65536; break;
         default:
             throw Error("intlut: A must be uint8, uint16, or int16",
-                        0, 0, "intlut", "", "numkit:intlut:atype");
+                        0, 0, "intlut", "", "nk:intlut:atype");
     }
     if (ltype != ValueType::UINT8 && ltype != ValueType::UINT16 &&
         ltype != ValueType::INT16)
         throw Error("intlut: LUT must be uint8, uint16, or int16",
-                    0, 0, "intlut", "", "numkit:intlut:luttype");
+                    0, 0, "intlut", "", "nk:intlut:luttype");
     if (LUT.numel() != expectedLen)
         throw Error("intlut: LUT length does not match input class range",
-                    0, 0, "intlut", "", "numkit:intlut:lutsize");
+                    0, 0, "intlut", "", "nk:intlut:lutsize");
 
     Value out = alloc_like(A, ltype, mr);
     const size_t N = A.numel();
@@ -862,4 +862,4 @@ Value intlut(const Value &A, const Value &LUT, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

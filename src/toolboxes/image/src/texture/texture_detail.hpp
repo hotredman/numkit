@@ -8,11 +8,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
-#include <numkit/value/value.hpp>
+#include <nk/value/value.hpp>
 
 #include <cstddef>
 
-namespace numkit::image {
+namespace nk::image {
 
 // Default GrayLimits per MATLAB:
 //   uint8 -> [0,255], uint16 -> [0,65535], int16 -> [-32768,32767],
@@ -55,4 +55,4 @@ inline void data_gray_limits(const Value &I, double &lo, double &hi)
     lo = mn; hi = mx;
 }
 
-} // namespace numkit::image
+} // namespace nk::image

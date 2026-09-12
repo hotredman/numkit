@@ -7,24 +7,24 @@
 // layer (a dependency previously masked by the builtin/library.hpp umbrella).
 // The pure renderer (dispFormat) and the format engine (formatCyclic) stay in
 // lang and are called here through their public headers. Namespace stays
-// numkit::lang, matching the cell/struct precedent: runtime-located,
+// nk::lang, matching the cell/struct precedent: runtime-located,
 // language-namespaced builtins.
 
-#include <numkit/runtime/io.hpp>
-#include <numkit/builtin/strfun.hpp>  // formatCyclic, dispFormat
-#include <numkit/core/engine.hpp>     // Engine, findFile, OpenFile
+#include <nk/runtime/io.hpp>
+#include <nk/builtin/strfun.hpp>  // formatCyclic, dispFormat
+#include <nk/core/engine.hpp>     // Engine, findFile, OpenFile
 
-#include <numkit/value/error.hpp>
-#include <numkit/value/value.hpp>
+#include <nk/value/error.hpp>
+#include <nk/value/value.hpp>
 
 #include <cstddef>
 #include <cstring>
 #include <string>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
-using numkit::builtin::dispFormat;
-using numkit::builtin::formatCyclic;
+using nk::builtin::dispFormat;
+using nk::builtin::formatCyclic;
 
 void disp(Engine &engine, Span<const Value> args)
 {
@@ -71,4 +71,4 @@ std::size_t fprintf(Engine &engine, Span<const Value> args)
     return result.size();
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime

@@ -100,7 +100,7 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
   const [renaming, setRenaming] = useState(null);  // field name in rename mode
   // Columns shared with the Workspace (same key); view/sort are per the
   // struct context so it can differ from the Workspace's layout.
-  const [cols, setCols] = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
+  const [cols, setCols] = useChooser('nk.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
   const open = (name) => onDrill([{ k: 'f', name, label: `.${name}` }]);
   const rows = payload.fields.map((name, f) => {
     const cell = cells[f] || {};
@@ -122,7 +122,7 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
         nameHeader="Field"
         countNoun="field"
         defaultView="list"
-        viewKey="numkit.ide.struct.view" sortKey="numkit.ide.struct.sort"
+        viewKey="nk.ide.struct.view" sortKey="nk.ide.struct.sort"
         cols={cols} setCols={setCols}
         nameCell={nameCell}
         onOpen={(row) => open(row.name)}

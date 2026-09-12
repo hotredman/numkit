@@ -2,11 +2,11 @@
 //
 // Workspace-persistence ASCII backend (save -ascii / load ASCII matrices).
 
-#include <numkit/runtime/saveload.hpp>
-#include <numkit/core/engine.hpp>
-#include <numkit/core/environment.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <nk/runtime/saveload.hpp>
+#include <nk/core/engine.hpp>
+#include <nk/core/environment.hpp>
+#include <nk/value/scratch.hpp>
+#include <nk/core/types.hpp>
 
 #include <cctype>
 #include <cstdio>
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::runtime {
+namespace nk::runtime {
 
 void saveAscii(Engine &engine, Environment &env,
                const std::string &filename,
@@ -138,4 +138,4 @@ void loadAscii(Engine &engine, Environment &env,
     env.set(stem, std::move(M));
 }
 
-} // namespace numkit::runtime
+} // namespace nk::runtime
