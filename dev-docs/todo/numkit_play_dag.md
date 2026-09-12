@@ -8,7 +8,30 @@
 
 ## Goal
 
-Implement in-engine reactive execution (Directed Acyclic Graph / DAG) and UI manifest extraction (`@play`) in the C++ core (`numkit::core`) and WebAssembly layer (`src/wasm/`). This turns NumKit into a high-performance reactive engine capable of continuous 60–120 FPS re-evaluation on parameter changes, powering the standalone **NumKit Play** (`numkit-play` / `nkplay`) project and interactive gallery.
+Implement in-engine reactive execution (Directed Acyclic Graph / DAG) and UI manifest extraction in the C++ core (`numkit::core`) and WebAssembly layer (`src/wasm/`), powering the standalone **NumKit Play** (`numkit-play` / `nkplay`) project and interactive gallery.
+
+## DECISIONS (2026-09-12, user session)
+
+- **Manifest marker is `%{ @play ... %}`** (user decision 2026-09-12 —
+  CANONICAL). The `%{#ui` form seen in an early gallery prototype is
+  accepted as a legacy ALIAS so existing scripts keep running; drop the
+  alias once the gallery is migrated. Engine extracts the block + the
+  control `var` names + defaults (that is all the reactive side needs);
+  the WEB side parses the full JSON for UI construction.
+- **Figures render via the figure WIRE** (the same JSON the IDE
+  consumes), rendered by the existing IDE plot components — numkit-play
+  imports them rather than building a second renderer. `evalDirty()`
+  emits changed figures only (per-figure modified flags).
+  `getArrayView` stays as the secondary raw-data lane (with a buffer
+  generation counter).
+- **Split core API**: `setParam` + `evalDirty` at the core;
+  `setParamAndEval` is a thin wasm-level convenience wrapper.
+- **Wildcard contract**: statically unresolvable constructs (eval,
+  top-level control flow, clear) get Reads=* and dirty the tail;
+  provable equivalence property `evalDirty() == full re-run` is the
+  acceptance gate for the runtime (portion B).
+- FPS budget ladder: JS rAF-coalescing → changed-figure emission →
+  (only if benchmarks demand) dataset-level delta emission.
 
 ---
 

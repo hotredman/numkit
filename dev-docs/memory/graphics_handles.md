@@ -391,3 +391,31 @@ parity and silently drops every NV pair — the ellipse FaceColor
 quiver: shaft + chevron head (~26°, max(4px, 12% of length)); tips
 extend the auto data range. boxplot already rendered via portion-39
 polygon/line/scatter coverage — verified, no work needed.
+
+## Play portion A — manifest extractor + dependency graph
+
+Format pinned from a REAL gallery script (user sample): the manifest
+block is `%{ ... %}`; CANONICAL marker `@play` (user decision — the
+spec's original guess was right), with `%{#ui` from the early prototype
+kept as a LEGACY ALIAS until the gallery migrates. The engine extracts
+the raw JSON + the control `var` names + defaults — nothing else; the
+web layer parses the full JSON for UI. Marker must be a standalone
+word (`@playx` is not a marker); `%{` only opens a block at line start
+(lexer rule mirrored); the FIRST manifest wins.
+
+Dependency semantics decisions (baked into dirtySetFor):
+- A PURE DEFINITION of a parameter (writes var, never reads it) is
+  SKIPPED by dirtySetFor — setParam REPLACES it; re-running would
+  clobber the slider back to the script default. Readers + merge-
+  writers still re-run.
+- An `if` WITH its whole body is ONE top-level statement (statement
+  indexing by AST children, not source lines — test-anchored).
+- The real gallery sample's shape verified: change theta0 → only
+  AF + polarplot re-run (theta vector cached); change win → the
+  wildcard if + tail re-run.
+- Some CALL forms carry the callee as an IDENTIFIER CHILD with empty
+  strValue — the wildcard check (eval/feval/assignin/clear/load/run)
+  must look at both (the EvalCallIsWildcard test caught it).
+
+Portion B next: ReactiveSession over Engine (setParam + evalDirty via
+runOneChunk) with the equivalence property evalDirty == full re-run.

@@ -13,6 +13,10 @@ set(NUMKIT_CORE_SOURCES
     #  moved to value/ → numkit_value L0 module)
     # (vfs.cpp moved to fs/ → numkit_fs L0 module)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/environment.cpp
+    # NumKit Play (portion A): manifest extraction + statement
+    # dependency analysis — pure, STL-only, engine-independent.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/play_manifest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dependency_graph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine.cpp
     # lexer / parser / AST / compiler
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lexer.cpp
@@ -32,6 +36,8 @@ set(NUMKIT_CORE_SOURCES
 # (thread_pool.cpp + parallel_for.hpp/thread_pool.hpp moved to ops/ → numkit_ops)
 
 set(NUMKIT_CORE_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/play_manifest.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/dependency_graph.hpp
     # (Value substrate headers — value/span/heap_object/data_buffer/dims/
     #  value_type/object/shape_ops/fn_handle/function_ref/scratch — moved to
     #  value/ → numkit_value L0 module)
