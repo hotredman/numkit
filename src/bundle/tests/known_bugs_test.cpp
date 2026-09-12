@@ -570,3 +570,13 @@ TEST_P(CommandGlueTest, DISABLED_DirNargoutInsideCallArgument)
     EXPECT_DOUBLE_EQ(evalScalar("ans"), 1.0);
     ::remove(tmp.c_str());
 }
+
+// bugs/opened/runtime/exist-toolbox-fn-returns-zero.md — the
+// no-filter exist() probe misses registered toolbox externals:
+// exist('butter')==0 while butter(...) executes (MATLAB gives 2).
+TEST_P(CommandGlueTest, DISABLED_ExistToolboxFunctionNoFilter)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("exist('sin');"), 5.0);      // builtin
+    EXPECT_DOUBLE_EQ(evalScalar("exist('butter');"), 2.0);  // toolbox
+    EXPECT_DOUBLE_EQ(evalScalar("exist('hamming');"), 2.0);
+}

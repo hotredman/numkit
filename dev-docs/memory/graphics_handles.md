@@ -495,3 +495,32 @@ write) — ALL GREEN against the freshly built glue. Node harness notes:
 repl_execute RETURNS captured stdout (disp output is rounded — compare
 with 1e-3, not 1e-9); a second Module instance is the clean way to
 capture print output for wire assertions.
+
+## Play portion D1 — play/ app skeleton (PURE SVELTE 5, no React)
+
+User decision (2026-09-12): NO React islands — straight to Svelte. The
+Svelte plot renderer is the SUCCESSOR of the IDE's React one: identical
+engine wire JSON (the parity-verified contract), shared framework-free
+helpers (@ide-plot alias → plotTicks.js / colormaps.js — they import
+clean, zero React deps), chart types added portion by portion. The
+React renderer stays in the IDE frozen until coverage, then flips.
+
+play/ stack: Svelte 5 + @sveltejs/vite-plugin-svelte 4.x (NOTE: the
+plugin's 5.x line peers on vite 6 — pinned 4.x to stay on the repo's
+vite 5), pure vite.config with the @ide-plot alias. App.svelte = the
+3-column layout (sidebar controls from the @play manifest /
+editor / figures); PlotFigure.svelte renders the wire (D1 coverage:
+2-D cartesian line series + POLAR — spokes/rings/steered beam), pulls
+niceTicks from the shared helper. Gallery: build-time scan
+(scripts/build-gallery.mjs) mirrors the C++ extractor's rules
+(@play canonical, #ui alias, first wins) → gallery.generated.js.
+
+The flagship gallery example — the user's REAL beamforming script
+(phased-array-beamforming.m) — runs end-to-end: manifest → theta0
+slider tick → beam peak MOVES to -30.0° exactly, chebwin select keeps
+normalization = 1 (reactive-loop.smoke.mjs, 7/7 green).
+
+En-route bug filed: exist('butter'/'hamming') returns 0 for registered
+toolbox functions while direct calls work (core builtins fine —
+sin→5); same opcode/external family as the portion-33 exist fix.
+Guard DISABLED_ExistToolboxFunctionNoFilter.

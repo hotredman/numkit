@@ -19,11 +19,16 @@ Implement in-engine reactive execution (Directed Acyclic Graph / DAG) and UI man
   control `var` names + defaults (that is all the reactive side needs);
   the WEB side parses the full JSON for UI construction.
 - **Figures render via the figure WIRE** (the same JSON the IDE
-  consumes), rendered by the existing IDE plot components — nk-play
-  imports them rather than building a second renderer. `evalDirty()`
-  emits changed figures only (per-figure modified flags).
-  `getArrayView` stays as the secondary raw-data lane (with a buffer
-  generation counter).
+  consumes) — and the Play renderer is PURE SVELTE 5, NO React island
+  (user decision 2026-09-12, "no React islands — straight to Svelte").
+  The Svelte plot renderer is the SUCCESSOR of the React one: identical
+  engine-owned wire JSON (the parity-verified contract), shared
+  framework-free JS helpers (plotTicks, colormaps, pure adapters), chart
+  types added portion by portion. The React renderer stays in the IDE
+  (frozen legacy) until the Svelte one reaches coverage, then the IDE
+  flips. `evalDirty()` emits changed figures only (per-figure modified
+  flags); `getArrayView` stays as the secondary raw-data lane (with a
+  buffer generation counter).
 - **Split core API**: `setParam` + `evalDirty` at the core;
   `setParamAndEval` is a thin wasm-level convenience wrapper.
 - **Wildcard contract**: statically unresolvable constructs (eval,
