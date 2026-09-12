@@ -1,4 +1,9 @@
 #include <emscripten/bind.h>
+
+// NumKit Play reactive layer (portion C).
+#include <nk/core/play_manifest.hpp>
+#include <nk/core/reactive_session.hpp>
+#include <emscripten/val.h>
 #include <string>
 #include <sstream>
 #include <deque>
@@ -1324,6 +1329,15 @@ public:
         engine_->setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
     }
 
+    // Hand the accumulated output (figure wire etc.) to a non-repl
+    // caller (the Play bindings) without a repl_execute round trip.
+    std::string drainOutput()
+    {
+        std::string out = outputBuf_;
+        outputBuf_.clear();
+        return out;
+    }
+
     /* ---- Display-grid tile fetcher with binary transit ----
      *
      * Returns a Uint8Array VIEW into a thread-local engine-side buffer
@@ -1917,6 +1931,135 @@ std::string getEnv(const std::string &name) {
     return nk::envGet(name.c_str());
 }
 
+
+// ════════════════════════════════════════════════════════════════
+// NumKit Play reactive bindings (portion C)
+// ════════════════════════════════════════════════════════════════
+// One ReplSession engine hosts BOTH the IDE and the reactive Play
+// session: shared workspace; figure updates ride the NORMAL output
+// channel (dirty plot statements call emitModified — the same
+// __FIGURE_DATA__ JSON the IDE consumes); zero-copy array views
+// point straight into the WASM linear memory.
+namespace {
+
+std::unique_ptr<nk::ReactiveSession> g_reactive;
+
+void ensureReactive()
+{
+    if (!g_session) repl_init();
+    if (!g_reactive)
+        g_reactive = std::make_unique<nk::ReactiveSession>(*g_session->engine());
+}
+
+}  // namespace
+
+// Parse + DAG + initial FULL run. Returns the RAW @play manifest JSON
+// for the web layer ("" for plain scripts); load errors come back as
+// {"__error":true,...} so the UI can show them in the editor pane.
+std::string playLoadScript(const std::string &source)
+{
+    ensureReactive();
+    if (!g_reactive->load(source)) {
+        return "{\"__error\":true,\"message\":\""
+             + g_reactive->lastError() + "\"}";
+    }
+    return nk::extractPlayManifest(source).rawJson;
+}
+
+void playSetParamDouble(const std::string &name, double value)
+{
+    ensureReactive();
+    g_reactive->setParam(
+        name, nk::Value::scalar(value, g_session->engine()->resource()));
+}
+
+void playSetParamString(const std::string &name, const std::string &value)
+{
+    ensureReactive();
+    g_reactive->setParam(
+        name, nk::Value::fromString(value, g_session->engine()->resource()));
+}
+
+void playSetParamElement(const std::string &name, int r, int c, double value)
+{
+    ensureReactive();
+    g_reactive->setParamElement(
+        name, (size_t)r, (size_t)c,
+        nk::Value::scalar(value, g_session->engine()->resource()));
+}
+
+// Executes the dirty set and RETURNS the drained output channel —
+// the __FIGURE_DATA__ / __FIGURE_CLOSE__ markers the dirty plot
+// statements emitted (the web layer parses exactly the wire the IDE
+// consumes). Figure updates ride no separate channel by design.
+std::string playEvalDirty()
+{
+    ensureReactive();
+    g_reactive->evalDirty();
+    return g_session->drainOutput();
+}
+
+bool playHasDirty()
+{
+    return g_reactive && g_reactive->hasDirty();
+}
+
+std::string playLastError()
+{
+    return g_reactive ? g_reactive->lastError() : std::string();
+}
+
+double playGeneration()
+{
+    return (double)(g_reactive ? g_reactive->generation() : 0);
+}
+
+// Shape + buffer info for the zero-copy view. Offset is BYTES from
+// the linear-memory base (add to HEAPF64.buffer byte 0 / view the
+// memory via HEAPF64.subarray(offset/8, ...)). complex=true → the
+// view spans [real(rows*cols) | imag(rows*cols)].
+std::string playArrayViewInfo(const std::string &name)
+{
+    if (!g_session) return "{}";
+    auto *v = g_session->engine()->getVariable(name);
+    if (!v || !v->isNumeric() || !v->doubleData())
+        return "{\"present\":false}";
+    const auto &d = v->dims();
+    char buf[192];
+    std::snprintf(buf, sizeof buf,
+                  "{\"present\":true,\"offset\":%llu,\"rows\":%zu,"
+                  "\"cols\":%zu,\"pages\":%zu,\"complex\":%s,"
+                  "\"generation\":%llu}",
+                  (unsigned long long)(uintptr_t)v->doubleData(),
+                  d.rows(), d.cols(), d.pages(),
+                  v->type() == nk::ValueType::COMPLEX ? "true" : "false",
+                  (unsigned long long)(g_reactive
+                                          ? g_reactive->generation()
+                                          : 0));
+    return buf;
+}
+
+// Live zero-copy view into the linear memory (Float64Array-backed).
+// Valid until the variable is reassigned; generation bumps say when
+// to re-fetch the pointer.
+emscripten::val playArrayView(const std::string &name)
+{
+    if (!g_session)
+        return emscripten::val::undefined();
+    auto *v = g_session->engine()->getVariable(name);
+    if (!v || !v->doubleData())
+        return emscripten::val::undefined();
+    size_t n = v->numel()
+               * (v->type() == nk::ValueType::COMPLEX ? 2 : 1);
+    return emscripten::val(
+        emscripten::typed_memory_view(n, v->doubleData()));
+}
+
+void playReset()
+{
+    g_reactive.reset();
+}
+
 EMSCRIPTEN_BINDINGS(nk_ide) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_set_stdin_text", &repl_set_stdin_text);
@@ -1962,4 +2105,16 @@ EMSCRIPTEN_BINDINGS(nk_ide) {
     emscripten::function("getEnv",                     &getEnv);
     // Legacy (kept for backward compat)
     emscripten::function("repl_debug_execute",         &repl_debug_execute);
+    // NumKit Play reactive layer (portion C)
+    emscripten::function("playLoadScript",          &playLoadScript);
+    emscripten::function("playSetParamDouble",      &playSetParamDouble);
+    emscripten::function("playSetParamString",      &playSetParamString);
+    emscripten::function("playSetParamElement",     &playSetParamElement);
+    emscripten::function("playEvalDirty",           &playEvalDirty);
+    emscripten::function("playHasDirty",            &playHasDirty);
+    emscripten::function("playLastError",           &playLastError);
+    emscripten::function("playGeneration",          &playGeneration);
+    emscripten::function("playArrayViewInfo",       &playArrayViewInfo);
+    emscripten::function("playArrayView",           &playArrayView);
+    emscripten::function("playReset",               &playReset);
 }

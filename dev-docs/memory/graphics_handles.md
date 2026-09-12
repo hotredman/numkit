@@ -470,3 +470,28 @@ equivalence test fails, verify the REFERENCE first — compute the
 expected value in closed form / python before hunting engine ghosts.
 Both tests re-enabled with param-def-line REPLACEMENT references; 6/6
 green; the wildcard-prefix rule (double accumulation, real) stays.
+
+## Play portion C — wasm reactive bindings
+
+Ten `play*` functions on the nk_ide.js glue: playLoadScript (manifest
+JSON out, {"__error":...} on load failure), playSetParamDouble /
+String (selects) / Element (table editor), playEvalDirty, playHasDirty
+/ LastError / Generation, playArrayViewInfo + playArrayView (zero-copy
+typed_memory_view into the linear memory; offset in BYTES, complex
+spans [real|imag]), playReset.
+
+CHANNEL DESIGN (the C lesson): figure updates ride NO separate path —
+playEvalDirty RETURNS the drained output buffer, which contains the
+__FIGURE_DATA__ markers the dirty plot statements emitted through the
+engine's normal output func. The web layer parses exactly the wire the
+IDE consumes (outputBuf_ was already the shared sink; a drainOutput()
+accessor was the only seam needed). This keeps one channel, one
+semantics, zero duplication.
+
+Smoke: ide/scripts/play-bindings.smoke.mjs — 11 checks (manifest,
+plain script, dirty lifecycle, closed-form value, generation, view
+shape + data, figure wire on tick, string select branch, element
+write) — ALL GREEN against the freshly built glue. Node harness notes:
+repl_execute RETURNS captured stdout (disp output is rounded — compare
+with 1e-3, not 1e-9); a second Module instance is the clean way to
+capture print output for wire assertions.
