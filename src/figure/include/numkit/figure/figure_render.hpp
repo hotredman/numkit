@@ -95,6 +95,12 @@ struct StyleParts {
     bool hasColor = false;   // explicit colour (char or kv)
     std::string lineStyle;   // "-", "--", ":", "-.", "" (unset), "none"
     std::string marker;      // "", "o", "+", "*", ".", "x", "s", "d", …
+    // histogram extras (portion 39; engine histogram() packs them):
+    Rgb faceColor{0x00, 0x72, 0xbd};   // MATLAB FaceColor 'auto'
+    bool hasFaceColor = false;
+    Rgb edgeColor{0xd9, 0xd9, 0xd9};   // MATLAB default light-gray edge
+    bool hasEdgeColor = false;
+    double binWidth = 0;      // 0 = derive from consecutive spacing
 };
 
 // text() annotation extras, unpacked from the engine's ds.style
@@ -225,6 +231,17 @@ inline StyleParts parseStyle(const std::string &s)
                 p.lineStyle = val;
             } else if (key == "marker") {
                 p.marker = val;
+            } else if (key == "faceColor") {
+                p.faceColor = Rgb::fromHex(val);
+                p.hasFaceColor = true;
+            } else if (key == "edgeColor") {
+                p.edgeColor = Rgb::fromHex(val);
+                p.hasEdgeColor = true;
+            } else if (key == "binWidth") {
+                try {
+                    p.binWidth = std::stod(val);
+                } catch (...) {
+                }
             }
             i = semi == std::string::npos ? s.size() : semi + 1;
         }
@@ -908,14 +925,25 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
         const std::string &t = ds.type;
 
         if (t == "line" || t == "comet" || t == "animatedline") {
+            // Non-finite points (null separators — contour level
+            // segments) SPLIT the polyline: dropping them would join
+            // unrelated segments with spurious chords.
             std::vector<double> px, py;
-            for (size_t k = 0; k < n; ++k)
+            auto flushRun = [&]() {
+                if (st.lineStyle != "none" && px.size() >= 2)
+                    addLine(out, px, py, col, lw, dashed);
+                px.clear();
+                py.clear();
+            };
+            for (size_t k = 0; k < n; ++k) {
                 if (std::isfinite(xs[i][k]) && std::isfinite(ys[i][k])) {
                     px.push_back(X(xs[i][k]));
                     py.push_back(Y(ys[i][k]));
+                } else {
+                    flushRun();
                 }
-            if (st.lineStyle != "none" && px.size() >= 2)
-                addLine(out, px, py, col, lw, dashed);
+            }
+            flushRun();
             if (!st.marker.empty())
                 for (size_t k = 0; k < px.size(); ++k)
                     addMarker(out, px[k], py[k], ms, col, st.marker);
@@ -951,7 +979,26 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
                 addMarker(out, X(xs[i][k]), Y(ys[i][k]),
                           sz.empty() ? ms : std::max(3.0, std::sqrt(sz[k] / 3.14) * 1.6),
                           col, "o");
-        } else if (t == "bar" || t == "histogram") {
+        } else if (t == "histogram") {
+            // MATLAB histogram: bars TOUCH (full bin width), FaceColor
+            // 'auto' = (0,0.447,0.741), light-gray edge, LW 0.5
+            // (probe-verified R2025b). binWidth kv when the engine
+            // packed it; otherwise derive from consecutive spacing.
+            Rgb face = st.hasFaceColor ? st.faceColor : Rgb(0x00, 0x72, 0xbd);
+            Rgb edge = st.edgeColor;
+            double bw = st.binWidth;
+            if (!(bw > 0) && n > 1)
+                bw = std::abs(xs[i][1] - xs[i][0]);
+            for (size_t k = 0; k < n; ++k) {
+                double x0p = X(xs[i][k] - bw / 2);
+                double x1p = X(xs[i][k] + bw / 2);
+                double yBase = Y(std::min(std::max(0.0, YR.lo), YR.hi));
+                double yTop = Y(ys[i][k]);
+                addPoly(out, {x0p, x1p, x1p, x0p},
+                        {yBase, yBase, yTop, yTop}, face, true);
+                addLine(out, {x0p, x1p}, {yTop, yTop}, edge, 0.75, false);
+            }
+        } else if (t == "bar") {
             // Grouped vertical bars, width 0.8 of slot.
             const int groups = (int)n;
             const int series = 1;   // per-dataset grouping (adjacent bar
@@ -965,6 +1012,25 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
                 addPoly(out, {x0p, x0p + w, x0p + w, x0p},
                         {yBase, yBase, yTop, yTop}, col, true);
             }
+        } else if (t == "polygon") {
+            // Filled rings (contourf bands, patch) — null-separated in
+            // one dataset; each ring fills with the dataset colour.
+            std::vector<double> px, py;
+            auto flushRing = [&]() {
+                if (px.size() >= 3)
+                    addPoly(out, px, py, col, true);
+                px.clear();
+                py.clear();
+            };
+            for (size_t k = 0; k < n; ++k) {
+                if (std::isfinite(xs[i][k]) && std::isfinite(ys[i][k])) {
+                    px.push_back(X(xs[i][k]));
+                    py.push_back(Y(ys[i][k]));
+                } else {
+                    flushRing();
+                }
+            }
+            flushRing();
         } else if (t == "area") {
             std::vector<double> px, py;
             double yBase = Y(std::min(std::max(0.0, YR.lo), YR.hi));

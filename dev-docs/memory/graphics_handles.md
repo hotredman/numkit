@@ -304,3 +304,28 @@ lifted by 3.5*scale, halign shifts by 6*scale/char. Known backend
 mismatch (pre-existing): SVG <text> y is a baseline while the raster
 treats it as the glyph-box top — tick/annotation labels sit lower in
 SVG than PNG; filed with the export gaps.
+
+## Portion 39 — contour/contourf/histogram export + the dark-theme trap
+
+Export now renders contour (null-separated level segments SPLIT into
+separate polylines — the old line path dropped the nulls and drew
+spurious chords between unrelated segments), contourf (polygon rings,
+null-separated, filled) and histogram (bars TOUCH: full bin width,
+FaceColor 'auto'=(0,114,189), EdgeColor (217)x3, LW 0.5). histogram()
+was MISSING as a function entirely (only in the handle-types table);
+implemented with MATLAB-probe-verified auto binning: all-integer data
+→ width-1 bins at x±0.5; else Scott 3.5·std·n^(−1/3) FLOORED to one
+significant digit, edges floor(min/w)·w..ceil(max/w)·w (probes:
+rand(1,100)→w 0.2/5 bins; randn(1,1000)→w 0.3/23 bins/−3.3..3.6;
+integer samples → exact MATLAB Values vectors).
+
+THEME TRAP (2026-09-12, mid-day): the local MATLAB switched to the
+OS-dark theme — groot defaults stay LIGHT and figure objects report
+light colours, but the saveas/print EXPORT pipeline tints series
+colours (pinned FaceColor [0 0.447 0.741] saves as (7,75,120); figure
+bg renders (18,18,18); -painters does not escape it). Consequence:
+pixel-parity specs must either pin colors AND run when the theme is
+light, or assert THEME-INVARIANT predicates (channel dominance,
+neutrality) — the portion-39 spec does the latter; exact-colour
+anchors for numkit live in gtests. If MATLAB pixel references suddenly
+"MISMATCH" in the future, CHECK THE THEME FIRST.

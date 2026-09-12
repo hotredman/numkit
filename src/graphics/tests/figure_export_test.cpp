@@ -408,3 +408,79 @@ TEST_P(FigureExportTest, TextAnnotationsRender)
     EXPECT_GT(n, 15.0);
     removeFile(p);
 }
+
+// ── contour / contourf / histogram export (portion 39) ──────────────
+
+// MATLAB probe: histogram([1 1 2 2 2 3 5 5 9]) → integer-rule bins,
+// Values [2 3 1 0 2 0 0 0 1]. The counts vector is checked on the
+// engine dataset directly (data-level anchor, layout-independent).
+TEST_P(FigureExportTest, HistogramAutoBinsIntegerRule)
+{
+    eval("histogram([1 1 2 2 2 3 5 5 9]);");
+    const auto &ds = engine.figureManager().currentAxes().datasets;
+    ASSERT_FALSE(ds.empty());
+    auto counts = figdetail::parseFlatDoubles(ds.back().yJson);
+    const double exp[] = {2, 3, 1, 0, 2, 0, 0, 0, 1};
+    ASSERT_EQ(counts.size(), 9u);
+    for (int k = 0; k < 9; ++k)
+        EXPECT_NEAR(counts[k], exp[k], 1e-12);
+}
+
+// MATLAB default FaceColor 'auto' = (0,0.447,0.741) = (0,114,189) and
+// EdgeColor (0.851)x3 = (217,217,217); bars TOUCH (full bin width).
+TEST_P(FigureExportTest, HistogramDefaultColorsAndBars)
+{
+    std::string p = tmpPath("_nk_hist.png");
+    eval("histogram([1 1 2 2 2 3 5 5 9]);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_GT(colorCount(this, "A", 0, 114, 189, 6), 5000.0);
+    EXPECT_GT(colorCount(this, "A", 217, 217, 217, 6), 10.0);
+    removeFile(p);
+}
+
+// Scott auto-binning for continuous data (probe: rand(1,100)-class
+// widths floor to one significant digit; here width-0.5 classes).
+TEST_P(FigureExportTest, HistogramExplicitBins)
+{
+    eval("histogram([0.2 0.3 0.4 0.4 0.6 0.9 1.1 1.1], [0 0.5 1.0 1.5]);");
+    const auto &ds = engine.figureManager().currentAxes().datasets;
+    ASSERT_FALSE(ds.empty());
+    auto counts = figdetail::parseFlatDoubles(ds.back().yJson);
+    ASSERT_EQ(counts.size(), 3u);
+    // [0,0.5): 0.2 0.3 0.4 0.4 · [0.5,1.0): 0.6 0.9 · [1.0,1.5]: 1.1 1.1
+    // (right edge inclusive only on the LAST bin).
+    EXPECT_NEAR(counts[0], 4.0, 1e-12);
+    EXPECT_NEAR(counts[1], 2.0, 1e-12);
+    EXPECT_NEAR(counts[2], 2.0, 1e-12);
+}
+
+// contour(): null separators must SPLIT polylines (the old path joined
+// unrelated segments); lines carry per-level colormap colours.
+TEST_P(FigureExportTest, ContourLinesRender)
+{
+    std::string p = tmpPath("_nk_ct.png");
+    eval("contour(peaks(10));");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    // Blue-dominant pixels (parula low levels present in peaks).
+    double blue = evalScalar(
+        "sum(sum(double(A(:,:,3)) > double(A(:,:,1)) + 30))");
+    EXPECT_GT(blue, 300.0);
+    removeFile(p);
+}
+
+// contourf(): filled bands (polygon datasets with null-separated
+// rings) — large coloured coverage, classic peaks signature.
+TEST_P(FigureExportTest, ContourfBandsRender)
+{
+    std::string p = tmpPath("_nk_ctf.png");
+    eval("contourf(peaks(10));");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    double colored = evalScalar(
+        "sum(sum(abs(double(A(:,:,1)) - double(A(:,:,2))) > 25"
+        " | abs(double(A(:,:,2)) - double(A(:,:,3))) > 25))");
+    EXPECT_GT(colored, 5000.0);
+    removeFile(p);
+}

@@ -621,6 +621,168 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             fm.emitModified();
             outs[0] = Value();
         });
+    // histogram(X [, nbins | edges] [, Name-Value]) — MATLAB R2025b
+    // semantics (probe-verified 2026-09-12):
+    //   • auto binning: all-integer data → width-1 bins at x±0.5;
+    //     otherwise Scott width 3.5·std(X)·n^(-1/3), floored to one
+    //     significant digit, edges at floor(min/w)·w .. ceil(max/w)·w
+    //     (probes: rand(1,100) → w 0.2, 5 bins; randn(1,1000) → w 0.3,
+    //     23 bins, edges −3.3..3.6; 1:50 → 50 integer bins).
+    //   • defaults: FaceColor 'auto' = (0,0.447,0.741), EdgeColor
+    //     (0.851)×3 light gray, LineWidth 0.5, Normalization 'count',
+    //     bars TOUCH (full bin width).
+    // Name-Value handled: BinWidth, BinLimits, FaceColor (hex kv only),
+    // EdgeColor. Deferred (filed): BinMethod strings, other
+    // Normalization modes, histogram(C)/cat bins, histogram of
+    // datetime — see handle-surface-gaps.
+    reg("bar", "histogram",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+            if (args.empty()) { outs[0] = Value(); return; }
+            auto &fm = gc.fm;
+            fm.prepareForPlot();
+
+            const Value &X = args[0];
+            const size_t n = X.numel();
+            if (!n) { outs[0] = Value(); return; }
+            std::vector<double> v(n);
+            double mn = X.elemAsDouble(0), mx = mn, sum = 0, sum2 = 0;
+            bool allInt = true;
+            for (size_t i = 0; i < n; ++i) {
+                double x = X.elemAsDouble(i);
+                v[i] = x;
+                mn = std::min(mn, x);
+                mx = std::max(mx, x);
+                sum += x;
+                sum2 += x * x;
+                if (std::abs(x - std::round(x)) > 1e-9)
+                    allInt = false;
+            }
+            double mean = sum / n;
+            double var = n > 1 ? (sum2 - n * mean * mean) / (n - 1) : 0;
+            double sd = std::sqrt(std::max(0.0, var));
+
+            // Edges: explicit vector > nbins scalar > BinWidth NV > auto.
+            std::vector<double> edges;
+            double binWidthNV = 0;
+            double limLo = 0, limHi = 0;
+            bool hasLimits = false;
+            std::string faceKV, edgeKV;
+            for (size_t i = 1; i + 1 < args.size(); i += 2) {
+                if (!args[i].isChar()) continue;
+                std::string key = args[i].toString();
+                for (auto &c : key) c = (char)std::tolower((unsigned char)c);
+                if (key == "binwidth" && args[i + 1].isNumeric())
+                    binWidthNV = args[i + 1].elemAsDouble(0);
+                else if (key == "binlimits" && args[i + 1].numel() >= 2) {
+                    limLo = args[i + 1].elemAsDouble(0);
+                    limHi = args[i + 1].elemAsDouble(1);
+                    hasLimits = true;
+                }
+                else if (key == "facecolor" || key == "edgecolor") {
+                    const Value &cv = args[i + 1];
+                    char hex[8];
+                    std::string *kv = key == "facecolor" ? &faceKV : &edgeKV;
+                    if (cv.isChar()) {
+                        std::string c = cv.toString();
+                        for (auto &ch : c) ch = (char)std::tolower((unsigned char)ch);
+                        static const std::pair<const char *, const char *> shorts[] = {
+                            {"r", "#ff0000"}, {"g", "#008000"}, {"b", "#0000ff"},
+                            {"k", "#000000"}, {"y", "#ffff00"}, {"m", "#ff00ff"},
+                            {"c", "#00ffff"}, {"w", "#ffffff"},
+                        };
+                        for (const auto &sc : shorts)
+                            if (c == sc.first)
+                                *kv = sc.second;
+                    } else if (cv.isNumeric() && cv.numel() >= 3) {
+                        // Explicit triplet — the deterministic path the
+                        // parity spec pins (MATLAB's 'auto' colour is
+                        // THEME-dependent: dark theme renders
+                        // (0.49,0.73,0.92) on a forced-white figure).
+                        std::snprintf(hex, sizeof hex, "#%02x%02x%02x",
+                                      (unsigned)(cv.elemAsDouble(0) * 255 + 0.5),
+                                      (unsigned)(cv.elemAsDouble(1) * 255 + 0.5),
+                                      (unsigned)(cv.elemAsDouble(2) * 255 + 0.5));
+                        *kv = hex;
+                    }
+                }
+            }
+            if (args.size() >= 2 && args[1].isNumeric() && binWidthNV == 0
+                && !hasLimits) {
+                if (args[1].numel() >= 2) {
+                    // explicit edges vector
+                    edges.clear();
+                    for (size_t k = 0; k < args[1].numel(); ++k)
+                        edges.push_back(args[1].elemAsDouble(k));
+                } else {
+                    int nb = (int)args[1].toScalar();
+                    if (nb < 1) nb = 1;
+                    double w = (mx - mn) / nb;
+                    if (!(w > 0)) w = 1;
+                    for (int k = 0; k <= nb; ++k)
+                        edges.push_back(mn + k * w);
+                }
+            } else {
+                double w;
+                if (binWidthNV > 0) {
+                    w = binWidthNV;
+                } else if (allInt) {
+                    w = 1;
+                } else {
+                    double scott = 3.5 * sd * std::pow((double)n, -1.0 / 3.0);
+                    // floor to one significant digit (probe: 0.35→0.3)
+                    double p = std::pow(10.0, std::floor(std::log10(scott > 0 ? scott : 1)));
+                    w = std::floor((scott > 0 ? scott : 1) / p) * p;
+                    if (!(w > 0)) w = 1;
+                }
+                double lo, hi;
+                if (hasLimits) {
+                    lo = limLo;
+                    hi = limHi;
+                } else if (allInt) {
+                    // integer rule: bins centred on the integers
+                    lo = mn - 0.5;
+                    hi = mx + 0.5;
+                } else {
+                    lo = std::floor(mn / w) * w;
+                    hi = std::ceil(mx / w) * w;
+                }
+                if (!(hi > lo)) hi = lo + w;
+                for (double e = lo; e <= hi + w * 1e-9; e += w)
+                    edges.push_back(e);
+            }
+            const size_t nb = edges.size() > 1 ? edges.size() - 1 : 1;
+
+            std::vector<double> centers(nb), counts(nb, 0.0);
+            for (size_t b = 0; b < nb; ++b)
+                centers[b] = 0.5 * (edges[b] + edges[b + 1]);
+            for (size_t i = 0; i < n; ++i) {
+                double x = v[i];
+                if (x < edges.front() || x > edges.back())
+                    continue;
+                size_t b = nb - 1;
+                for (size_t k = 0; k + 1 < edges.size(); ++k)
+                    if (x < edges[k + 1] || k + 1 == edges.size() - 1) {
+                        b = k;
+                        break;
+                    }
+                counts[b] += 1;
+            }
+
+            std::ostringstream style;
+            style << "binWidth=" << (edges.size() > 1 ? edges[1] - edges[0] : 1);
+            if (!faceKV.empty())
+                style << ";faceColor=" << faceKV;
+            if (!edgeKV.empty())
+                style << ";edgeColor=" << edgeKV;
+            DatasetInfo ds;
+            ds.type = "histogram";
+            ds.xJson = vecToJson(centers);
+            ds.yJson = vecToJson(counts);
+            ds.style = style.str();
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value();
+        });
     // histogram2(X, Y) — 2-D histogram. Bins (X, Y) into an nx×ny grid
     // and renders the count matrix as an imagesc-style heatmap. Param
     // forms supported (positional, like MATLAB's classic call):

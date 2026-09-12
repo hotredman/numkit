@@ -1,0 +1,15 @@
+{
+  "name": "graphics_contour_hist_export",
+  "namespace": "graphics",
+  "setup": "x = [1 1 2 2 2 3 5 5 9];",
+  "expr": "figure; histogram(x, 'FaceColor', [0 0.447 0.741], 'EdgeColor', [0.851 0.851 0.851]); p = [tempdir 'parity_h.png']; saveas(gcf, p); A = double(imread(p)); h1 = sign(sum(sum(A(:,:,3) > A(:,:,1) + 40))); h2 = sign(sum(sum(abs(A(:,:,1) - A(:,:,2)) < 8 & abs(A(:,:,2) - A(:,:,3)) < 8 & A(:,:,1) > 80 & A(:,:,1) < 250))); close all; figure; contour(peaks(10)); p2 = [tempdir 'parity_c.png']; saveas(gcf, p2); A2 = double(imread(p2)); c1 = sign(sum(sum(A2(:,:,3) > A2(:,:,1) + 30))); close all; figure; contourf(peaks(10)); p3 = [tempdir 'parity_cf.png']; saveas(gcf, p3); A3 = double(imread(p3)); c2 = sign(sum(sum(abs(A3(:,:,1) - A3(:,:,2)) > 25 | abs(A3(:,:,2) - A3(:,:,3)) > 25)) - 5000); close all;",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": [
+    "h1",
+    "h2",
+    "c1",
+    "c2"
+  ],
+  "comment": "contour/contourf/histogram export vs MATLAB R2025b (portion 39), layout- AND theme-independent fingerprints. THEME GOTCHA (2026-09-12): this MATLAB install switched to the OS-dark theme mid-day — the EXPORT pipeline tints series colours even when they are PINNED (FaceColor [0 0.447 0.741] saves as (7,75,120); -painters does not escape it; groot defaults are light, only saveas/print darkens). Predicates therefore assert invariants, not exact colours: h1 = blue-dominant bar pixels (numkit (0,114,189), dark-tinted (7,75,120) — both b>r+40); h2 = neutral-gray edge pixels; c1 = blue-dominant contour-line pixels (parula low levels; colormap colours are theme-independent); c2 = contourf band coverage > 5000. Exact-colour anchors for the numkit side live in the dual-engine gtests (0,114,189) FaceColor / (217,217,217) EdgeColor. Histogram auto-binning MATLAB-probe-verified: integer rule (bins x±0.5; Values [2 3 1 0 2 0 0 0 1]), else Scott 3.5·std·n^(-1/3) floored to 1 significant digit with floor/ceil edges (rand(1,100)→w 0.2; randn(1,1000)→w 0.3/23 bins/−3.3..3.6). Deferred: BinMethod strings, non-count Normalization, histogram(C) — handle-surface-gaps.md."
+}
