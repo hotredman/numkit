@@ -1,10 +1,11 @@
-<script>
+<script lang="ts">
   // FigureCard (R3): the white canvas card one figure renders into.
   import { T } from '../tokens.js';
-  let { children } = $props();
+  import type { Snippet } from 'svelte';
+  let { children }: { children?: Snippet } = $props();
 </script>
 
-<div class="card"><slot /></div>
+<div class="card">{#if children}{@render children()}{/if}</div>
 
 <style>
   .card {

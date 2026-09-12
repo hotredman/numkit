@@ -1,12 +1,16 @@
-<script>
+<script lang="ts">
   // CodeEditor (R3): the plain monospace editor surface (highlighting
   // lands later as a wrapper, not an edit here).
   import { T } from '../tokens.js';
-  let { value = '', oninput } = $props();
+  interface Props {
+  value: any;
+  oninput: any;
+}
+let { value = '', oninput }: Props = $props();
 </script>
 
 <textarea class="code" spellcheck="false" {value}
-          oninput={(e) => oninput?.(e.target.value)}></textarea>
+          oninput={(e) => oninput?.((e.target as HTMLTextAreaElement).value)}></textarea>
 
 <style>
   .code {

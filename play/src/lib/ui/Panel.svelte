@@ -1,16 +1,19 @@
-<script>
+<script lang="ts">
   // Panel: titled column body with an actions row (rule R3 — the
   // chrome every pane shares, one file).
+  import type { Snippet } from 'svelte';
   import { T } from '../tokens.js';
-  let { title = '' } = $props();
+  let {
+    title = '', children, actions,
+  }: { title?: string; children?: Snippet; actions?: Snippet } = $props();
 </script>
 
 <section class="panel">
   <header class="head">
     <span class="title">{title}</span>
-    <span class="actions"><slot name="actions" /></span>
+    {#if actions}<span class="actions">{@render actions()}</span>{/if}
   </header>
-  <div class="body"><slot /></div>
+  <div class="body">{#if children}{@render children()}{/if}</div>
 </section>
 
 <style>

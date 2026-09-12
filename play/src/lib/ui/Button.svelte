@@ -1,7 +1,10 @@
-<script>
+<script lang="ts">
   // Button (R3/R4): one variant prop, tokens inside.
   import { T } from '../tokens.js';
-  let { children, onclick, variant = 'default' } = $props();
+  import type { Snippet } from 'svelte';
+  let {
+    children, onclick, variant = 'default',
+  }: { children?: Snippet; onclick?: () => void; variant?: string } = $props();
 </script>
 
 <button class={variant} {onclick}>{@render children?.()}</button>

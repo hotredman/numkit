@@ -1,6 +1,9 @@
-<script>
+<script lang="ts">
   // ControlGroup (R3): one @play manifest group — heading + controls.
-  let { name = '', children } = $props();
+  import type { Snippet } from 'svelte';
+  let {
+    name = '', children,
+  }: { name?: string; children?: Snippet } = $props();
 </script>
 
 <section class="group">
@@ -12,6 +15,7 @@
   .group { margin-top: 6px; }
   .name {
     margin: 4px 0 8px; font-size: 12px;
-    color: #8b93a3; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--nk-text-dim); text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 </style>

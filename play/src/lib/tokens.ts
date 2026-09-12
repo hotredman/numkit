@@ -1,6 +1,15 @@
 // Design tokens (rule R4) — the ONLY place raw colors/sizes live.
 // Components import named tokens; pages never see a color.
-export const T = {
+export interface Tokens {
+  bg: string; bgPanel: string; bgHover: string; bgActive: string;
+  border: string; text: string; textDim: string; textFaint: string;
+  accent: string; accentSoft: string; danger: string; dangerBg: string;
+  dangerBorder: string; plotBg: string; plotFrame: string;
+  plotGrid: string; plotText: string; series: string[];
+  lineColor: Record<string, string>; font: string; fontMono: string;
+}
+
+export const T: Tokens = {
   // NOTE: <style> blocks in Svelte are STATIC (no JS interpolation) —
   // components reference tokens there as var(--nk-<name>). injectCssVars()
   // (called once in main.js) publishes every token as a CSS variable;

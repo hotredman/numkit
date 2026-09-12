@@ -1,13 +1,17 @@
-<script>
+<script lang="ts">
   // Three-column app frame (rule R1: pages get layout as a component,
   // never a grid of divs).
+  import type { Snippet } from 'svelte';
   import { T } from '../tokens.js';
+  let {
+    sidebar, editor, figures,
+  }: { sidebar: Snippet; editor: Snippet; figures: Snippet } = $props();
 </script>
 
 <div class="shell">
-  <div class="col side"><slot name="sidebar" /></div>
-  <div class="col mid"><slot name="editor" /></div>
-  <div class="col figs"><slot name="figures" /></div>
+  <div class="col side">{@render sidebar()}</div>
+  <div class="col mid">{@render editor()}</div>
+  <div class="col figs">{@render figures()}</div>
 </div>
 
 <style>

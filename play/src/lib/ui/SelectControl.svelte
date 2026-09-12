@@ -1,12 +1,18 @@
-<script>
+<script lang="ts">
   // SelectControl (R3): dropdown for manifest select-controls.
   import { T } from '../tokens.js';
-  let { label, options = [], value = '', onchange } = $props();
+  interface Props {
+  label: any;
+  options: any;
+  value: any;
+  onchange: any;
+}
+let { label, options = [], value = '', onchange }: Props = $props();
 </script>
 
 <label class="ctl">
   <span class="lab">{label}</span>
-  <select {value} onchange={(e) => onchange?.(e.target.value)}>
+  <select {value} onchange={(e) => onchange?.((e.target as HTMLSelectElement).value)}>
     {#each options as opt}
       <option value={opt}>{opt}</option>
     {/each}

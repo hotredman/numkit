@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   // PAGE (rules R1/R2 apply HERE): composition only — every visual is
   // a lib/ component; zero raw div/style in this file. The reactive
   // loop: control → playSetParam* → playEvalDirty → wire → figures.
@@ -12,28 +12,31 @@
   import CodeEditor from './lib/ui/CodeEditor.svelte';
   import StatusBar from './lib/ui/StatusBar.svelte';
   import FigureCard from './lib/ui/FigureCard.svelte';
-  import Figure from './lib/plot/Figure.svelte';
-  import { parseFigureWire, flattenControls } from './lib/plot/wire.js';
+  import Figure from './lib/charts/Figure.svelte';
+  import { parseFigureWire, flattenControls } from './lib/charts/wire.js';
   import { getEngine } from './engine.js';
+  import type { PlayEngine } from './engine.js';
+  import type { WireFigure, PlayControl, PlayControlGroup } from './lib/charts/wire.js';
 
-  let { gallery = [] } = $props();
+  interface GalleryEntry { id: string; title: string; description: string; source: string; }
+  let { gallery = [] }: { gallery?: GalleryEntry[] } = $props();
 
-  let engine = null;
-  let groups = $state([]);        // [{name, controls:[…]}]
+  let engine: PlayEngine | null = null;
+  let groups = $state<PlayControlGroup[]>([]);
   let editorText = $state('');
-  let figures = $state([]);
-  let status = $state('');
-  let activeId = $state(null);
+  let wireFigures = $state<WireFigure[]>([]);
+  let status = $state<string>('');
+  let activeId = $state<string | null>(null);
 
-  export async function loadScript(source, id = null) {
+  export async function loadScript(source: string, id: string | null = null) {
     engine ??= await getEngine();
-    engine.repl_init?.();
-    const raw = engine.playLoadScript(source);
+    engine.repl_init();
+    const raw: string = engine.playLoadScript(source);
     activeId = id;
     editorText = source;
     if (raw.startsWith('{"__error"')) {
       status = 'ошибка загрузки: ' + JSON.parse(raw).message;
-      groups = []; figures = [];
+      groups = []; wireFigures = [];
       return;
     }
     status = '';
@@ -41,33 +44,34 @@
     applyWire(engine.playEvalDirty());
   }
 
-  function applyWire(text) {
+  function applyWire(text: string) {
     const { figures: figs } = parseFigureWire(text);
-    if (figs.length) figures = figs;
+    if (figs.length) wireFigures = figs;
   }
 
-  function onControl(c) {
-    if (c.kind === 'slider') engine.playSetParamDouble(c.var, Number(c.value));
-    else engine.playSetParamString(c.var, String(c.value));
+  function onControl(c: PlayControl) {
+    if (!engine) return;
+    if (c.kind === 'slider') engine.playSetParamDouble(c.var, c.value);
+    else engine.playSetParamString(c.var, c.value);
     applyWire(engine.playEvalDirty());
-    status = engine.playLastError?.() ?? '';
+    status = engine.playLastError();
   }
 </script>
 
 <AppShell>
   {#snippet sidebar()}
     <GalleryList items={gallery} {activeId}
-                 onselect={(item) => loadScript(item.source, item.id)} />
+                 onselect={(item: GalleryEntry) => loadScript(item.source, item.id)} />
     {#each groups as g (g.name)}
       <ControlGroup name={g.name}>
         {#each g.controls as c (c.var)}
           {#if c.kind === 'slider'}
             <SliderControl label={c.label} min={c.min} max={c.max}
                            step={c.step} unit={c.unit} value={c.value}
-                           oninput={(v) => { c.value = v; onControl(c); }} />
+                           oninput={(v: number) => { (c as { value: number }).value = v; onControl(c); }} />
           {:else}
             <SelectControl label={c.label} options={c.options} value={c.value}
-                           onchange={(v) => { c.value = v; onControl(c); }} />
+                           onchange={(v: string) => { (c as { value: string }).value = v; onControl(c); }} />
           {/if}
         {/each}
       </ControlGroup>
@@ -82,15 +86,15 @@
         </Button>
       {/snippet}
       <CodeEditor value={editorText}
-                  oninput={(v) => (editorText = v)} />
+                  oninput={(v: string) => (editorText = v)} />
       <StatusBar text={status} />
     </Panel>
   {/snippet}
 
   {#snippet figures()}
     <Panel title="фигуры">
-      {#if figures.length}
-        {#each figures as fig (fig.id)}
+      {#if wireFigures.length}
+        {#each wireFigures as fig (fig.id)}
           <FigureCard><Figure {fig} /></FigureCard>
         {/each}
       {/if}

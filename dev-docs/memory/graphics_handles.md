@@ -524,3 +524,26 @@ En-route bug filed: exist('butter'/'hamming') returns 0 for registered
 toolbox functions while direct calls work (core builtins fine —
 sin→5); same opcode/external family as the portion-33 exist fix.
 Guard DISABLED_ExistToolboxFunctionNoFilter.
+
+## Play D1 follow-ups — lib/charts + the TypeScript migration
+
+lib/plot renamed lib/charts with a sharper decomposition (user call):
+STAGES (CartesianStage/PolarStage — the coordinate systems) vs CHARTS
+(LineChart — stage-agnostic, takes any projection fn; the D1 series
+duplication died). Pure model split stage.ts (viewport/projection/
+polar) + series.ts (filter/style/paths).
+
+TYPESCRIPT (user decision, same session): play/ is TS end-to-end,
+svelte-check ZERO errors, rule R8 in the handbook. The crown:
+wire.ts types the engine wire JSON (LineDataset/ImageDataset/
+WireAxesConfig per portion-29–41 fields) and the @play manifest.
+TS CAUGHT A REAL LATENT BUG immediately: D1 called the IDE's
+niceTicks — which returns {major, minor} — as an array; polar
+r-rings would have crashed at first render (the loop smoke never
+renders, so it was green). Boundary rule: IDE JS imports get ONE
+typed shim (ticks()) instead of call-site casts. Gotchas hit:
+svelte-plugin 5.x peers vite 6 (pinned 4.x); svelte-check wants
+TS 5.x not 7 (pinned ~5.7); @types/node for node: imports;
+Snippet-typed children instead of slots in Svelte 5; a named
+snippet {#snippet figures()} SHADOWS same-named state inside its
+block (renamed state to wireFigures).

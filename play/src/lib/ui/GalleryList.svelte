@@ -1,7 +1,12 @@
-<script>
+<script lang="ts">
   // Gallery index (R3): the example list, one entry per @play script.
   import { T } from '../tokens.js';
-  let { items = [], activeId = null, onselect } = $props();
+  interface Props {
+  items: any;
+  activeId: any;
+  onselect: any;
+}
+let { items = [], activeId = null, onselect }: Props = $props();
 </script>
 
 <nav class="gallery">

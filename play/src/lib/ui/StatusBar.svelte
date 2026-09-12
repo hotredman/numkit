@@ -1,7 +1,10 @@
-<script>
+<script lang="ts">
   // StatusBar (R3): engine/error line under the editor.
   import { T } from '../tokens.js';
-  let { text = '' } = $props();
+  interface Props {
+  text: any;
+}
+let { text = '' }: Props = $props();
 </script>
 
 {#if text}

@@ -52,21 +52,36 @@ file at a time; each new type gets a pure-model module + component, and
 anchors against the same MATLAB semantics the React renderer was
 verified with.
 
+### R8 — TypeScript in play/ (user rule, 2026-09-12)
+`play/` is TS end-to-end (`<script lang="ts">`, `.ts` modules,
+svelte-check at ZERO errors — `npx svelte-check --threshold error`).
+The crown is `lib/charts/wire.ts`: the engine wire JSON + the @play
+manifest TYPED — the contract portions 29–41 built, made compiler-
+checked at the consumer. When the wire grows, wire.ts grows IN THE
+SAME COMMIT. The IDE stays plain JS (its choice predates Play); the
+boundary between them is the typed wire. IDE helpers imported from
+`@ide-plot` are untyped JS — wrap them ONCE with a typed shim in
+play (see `ticks()` in series.ts) instead of `as`-casting at call
+sites.
+
 ## Layout
 
 ```
 play/src/
-  App.svelte            ← page: composition ONLY (R1–R2)
+  App.svelte            ← page: composition ONLY (R1–R2), lang="ts"
   lib/
-    tokens.js           ← design tokens (R4)
+    tokens.ts           ← design tokens + Tokens interface (R4)
     ui/                 ← layout & controls (Panel, Button, Slider…)
-    plot/               ← figure renderer: one chart type per file (R3)
-      wire.js           ← pure: __FIGURE_DATA__ parsing (R5)
-      plotModel.js      ← pure: lims/scales/series math (R5)
-      Figure.svelte     ← root: dispatches cartesian/polar/…
-      PlotCartesian.svelte
-      PlotPolar.svelte
-      PlotLegend.svelte
+    charts/             ← the renderer: stages + charts (R3)
+      wire.ts           ← THE TYPED WIRE CONTRACT + manifest (R5, R8)
+      stage.ts          ← pure: viewport/projection/polar models (R5)
+      series.ts         ← pure: line-series filter/style/paths (R5)
+      Figure.svelte     ← root: dispatches per stage + legend
+      CartesianStage.svelte   ← the coordinate system (frame/ticks)
+      PolarStage.svelte
+      LineChart.svelte  ← ONE chart type, stage-agnostic (any
+                          projection) — cartesian and polar share it
+      Legend.svelte
 ```
 
 ## Enforcement
@@ -79,9 +94,14 @@ second page appears.
 ## D1 enforcement state (2026-09-12)
 
 The refactor landed: `App.svelte` is pure composition (grep for
-`<div|style=|<style` → 0), the library lives in `lib/ui` (10 components)
-+ `lib/plot` (Figure root + PlotCartesian + PlotPolar + PlotLegend,
-pure `wire.js` / `plotModel.js`). TECHNICALITY discovered: Svelte
+`<div|style=|<style` → 0), the library lives in `lib/ui` (10
+components) + `lib/charts` (Figure root + CartesianStage + PolarStage
++ the STAGE-AGNOSTIC LineChart + Legend, pure `wire.ts` / `stage.ts`
+/ `series.ts`, all TypeScript). TS migration caught a REAL latent
+bug the wire smokes never hit: D1 called the IDE's niceTicks (which
+returns {major, minor}) as if it were an array — polar r-rings would
+have crashed at first render; the typed `ticks()` shim now guards
+that boundary. TECHNICALITY discovered: Svelte
 `<style>` blocks are STATIC — no JS interpolation — so tokens reach
 them as CSS VARIABLES (`var(--nk-<name>)`), published once at boot by
 `injectCssVars()` in `main.js` (tokens.js stays the single source of
