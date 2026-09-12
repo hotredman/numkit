@@ -116,3 +116,7 @@ examples/IO/*.log
 /*.wav
 /*.mat
 packages/nk/corpus_*.log
+
+play/dist/
+play/node_modules/
+play/src/gallery.generated.js
