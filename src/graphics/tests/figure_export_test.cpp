@@ -426,16 +426,30 @@ TEST_P(FigureExportTest, HistogramAutoBinsIntegerRule)
         EXPECT_NEAR(counts[k], exp[k], 1e-12);
 }
 
-// MATLAB default FaceColor 'auto' = (0,0.447,0.741) = (0,114,189) and
-// EdgeColor (0.851)x3 = (217,217,217); bars TOUCH (full bin width).
+// MATLAB default FaceColor 'auto' = (0,0.447,0.741) with FaceAlpha
+// 0.6 (ALWAYS — probe R2025b; not a theme effect): over the white
+// canvas the bars composite to 0.6·(0,114,189)+0.4·white =
+// (102,170,215). EdgeColor (0.851)x3 = (217,217,217); bars TOUCH.
 TEST_P(FigureExportTest, HistogramDefaultColorsAndBars)
 {
     std::string p = tmpPath("_nk_hist.png");
     eval("histogram([1 1 2 2 2 3 5 5 9]);");
     eval("saveas(gcf, '" + p + "');");
     eval("A = imread('" + p + "');");
-    EXPECT_GT(colorCount(this, "A", 0, 114, 189, 6), 5000.0);
+    EXPECT_GT(colorCount(this, "A", 102, 170, 215, 6), 5000.0);
     EXPECT_GT(colorCount(this, "A", 217, 217, 217, 6), 10.0);
+    removeFile(p);
+}
+
+// FaceAlpha=1 + pinned FaceColor = the deterministic exact-colour
+// recipe (what parity specs pin): solid (0,114,189) bars.
+TEST_P(FigureExportTest, HistogramOpaquePinnedColor)
+{
+    std::string p = tmpPath("_nk_hist2.png");
+    eval("histogram([1 1 2 2 2 3 5 5 9], 'FaceColor', [0 0.447 0.741], 'FaceAlpha', 1);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_GT(colorCount(this, "A", 0, 114, 189, 6), 5000.0);
     removeFile(p);
 }
 

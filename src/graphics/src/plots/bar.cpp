@@ -667,6 +667,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             double limLo = 0, limHi = 0;
             bool hasLimits = false;
             std::string faceKV, edgeKV;
+            double faceAlpha = 0.6;   // MATLAB default (probe R2025b)
             for (size_t i = 1; i + 1 < args.size(); i += 2) {
                 if (!args[i].isChar()) continue;
                 std::string key = args[i].toString();
@@ -677,6 +678,9 @@ void buildBarPlots(std::vector<PlotEntry> &table)
                     limLo = args[i + 1].elemAsDouble(0);
                     limHi = args[i + 1].elemAsDouble(1);
                     hasLimits = true;
+                }
+                else if (key == "facealpha" && args[i + 1].isNumeric()) {
+                    faceAlpha = std::min(1.0, std::max(0.0, args[i + 1].elemAsDouble(0)));
                 }
                 else if (key == "facecolor" || key == "edgecolor") {
                     const Value &cv = args[i + 1];
@@ -770,6 +774,13 @@ void buildBarPlots(std::vector<PlotEntry> &table)
 
             std::ostringstream style;
             style << "binWidth=" << (edges.size() > 1 ? edges[1] - edges[0] : 1);
+            // MATLAB default FaceAlpha 0.6: bars composite with the
+            // background — the export pre-blends toward white.
+            {
+                char ab[24];
+                std::snprintf(ab, sizeof ab, ";faceAlpha=%.4g", faceAlpha);
+                style << ab;
+            }
             if (!faceKV.empty())
                 style << ";faceColor=" << faceKV;
             if (!edgeKV.empty())

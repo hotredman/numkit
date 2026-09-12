@@ -319,13 +319,19 @@ significant digit, edges floor(min/w)·w..ceil(max/w)·w (probes:
 rand(1,100)→w 0.2/5 bins; randn(1,1000)→w 0.3/23 bins/−3.3..3.6;
 integer samples → exact MATLAB Values vectors).
 
-THEME TRAP (2026-09-12, mid-day): the local MATLAB switched to the
-OS-dark theme — groot defaults stay LIGHT and figure objects report
-light colours, but the saveas/print EXPORT pipeline tints series
-colours (pinned FaceColor [0 0.447 0.741] saves as (7,75,120); figure
-bg renders (18,18,18); -painters does not escape it). Consequence:
-pixel-parity specs must either pin colors AND run when the theme is
-light, or assert THEME-INVARIANT predicates (channel dominance,
-neutrality) — the portion-39 spec does the latter; exact-colour
-anchors for numkit live in gtests. If MATLAB pixel references suddenly
-"MISMATCH" in the future, CHECK THE THEME FIRST.
+THEME/ALPHA TRAP (2026-09-12) — REFINED DIAGNOSIS: histogram default
+FaceAlpha is 0.6 ALWAYS (probe: h.FaceAlpha==0.6; NOT a theme effect).
+The "dark-tinted pinned colours" were 0.6-alpha bars compositing with
+the figure background, which flipped white→(18,18,18) when the OS
+theme turned dark (groot defaults stay light; only the export canvas
+is dark). The DETERMINISTIC RECIPE for exact-colour parity: pin
+FaceColor/EdgeColor AND FaceAlpha=1 — renders identical under any
+theme (77525 pure (0,114,189) pixels verified on dark). numkit now
+implements MATLAB-parity alpha semantics itself: default bars
+pre-blend 0.6·face+0.4·white over the (white) canvas, FaceAlpha NV
+honoured. Standing policy: numkit ALWAYS renders the documented light
+defaults (the books contract) — user themes are not chased. If MATLAB
+pixel references suddenly "MISMATCH" in the future, CHECK THEME +
+ALPHA FIRST: alpha-composited defaults shift with the background,
+colormap/line/text colours do not (all other graphics parity specs
+passed unchanged against the dark MATLAB).

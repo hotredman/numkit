@@ -101,6 +101,8 @@ struct StyleParts {
     Rgb edgeColor{0xd9, 0xd9, 0xd9};   // MATLAB default light-gray edge
     bool hasEdgeColor = false;
     double binWidth = 0;      // 0 = derive from consecutive spacing
+    double faceAlpha = 1;     // histogram FaceAlpha (default 0.6 comes
+                              // in the kv from the engine)
 };
 
 // text() annotation extras, unpacked from the engine's ds.style
@@ -240,6 +242,11 @@ inline StyleParts parseStyle(const std::string &s)
             } else if (key == "binWidth") {
                 try {
                     p.binWidth = std::stod(val);
+                } catch (...) {
+                }
+            } else if (key == "faceAlpha") {
+                try {
+                    p.faceAlpha = std::stod(val);
                 } catch (...) {
                 }
             }
@@ -986,6 +993,16 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
             // packed it; otherwise derive from consecutive spacing.
             Rgb face = st.hasFaceColor ? st.faceColor : Rgb(0x00, 0x72, 0xbd);
             Rgb edge = st.edgeColor;
+            if (st.faceAlpha < 1) {
+                // MATLAB default FaceAlpha 0.6 composites with the
+                // (white) canvas: 0.6·face + 0.4·white — probe-verified
+                // mechanism (dark-theme renders were the SAME alpha over
+                // a dark background, not a colour tint).
+                double a = std::min(1.0, std::max(0.0, st.faceAlpha));
+                face = Rgb((std::uint8_t)std::lround(a * face.r + (1 - a) * 255),
+                           (std::uint8_t)std::lround(a * face.g + (1 - a) * 255),
+                           (std::uint8_t)std::lround(a * face.b + (1 - a) * 255));
+            }
             double bw = st.binWidth;
             if (!(bw > 0) && n > 1)
                 bw = std::abs(xs[i][1] - xs[i][0]);
