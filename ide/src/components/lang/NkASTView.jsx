@@ -1,7 +1,7 @@
 /**
- * NKASTView — literal parse-tree inspector.
+ * NkASTView — literal parse-tree inspector.
  *
- * Complements NKGraphView (data-flow IR) by showing the RAW AST
+ * Complements NkGraphView (data-flow IR) by showing the RAW AST
  * the parser produced. Every token construct visible: BINARY_OP,
  * NUMBER_LITERAL, IDENTIFIER, BLOCK, etc. Useful for debugging the
  * parser/lowering and as an educational view ("how does MATLAB
@@ -64,7 +64,7 @@ const elk = new ELK();
 
 // helpers (CATEGORIES, hasAnyChildren, valueText, findActiveAstId,
 // collectCollapsibleIds, eachAstChild) live in `./astShared` so the
-// tree view (NKASTTreeView) consumes the exact same taxonomy.
+// tree view (NkASTTreeView) consumes the exact same taxonomy.
 
 function flattenAST(astRoot, collapsedSet, filters, activeId) {
   if (!astRoot) return { nodes: [], edges: [] };
@@ -228,7 +228,7 @@ function applyElkPositions(elkResult, rfNodes) {
 
 // ── Inner component ───────────────────────────────────────────────
 
-function NKASTViewInner({ source, engine, onNavigate, cursorLine }) {
+function NkASTViewInner({ source, engine, onNavigate, cursorLine }) {
   const [ast, setAst]         = useState(null);
   const [error, setError]     = useState(null);
   const [collapsed, setCollapsed] = useState(() => new Set());
@@ -436,10 +436,10 @@ function NKASTViewInner({ source, engine, onNavigate, cursorLine }) {
   );
 }
 
-export default function NKASTView(props) {
+export default function NkASTView(props) {
   return (
     <ReactFlowProvider>
-      <NKASTViewInner {...props} />
+      <NkASTViewInner {...props} />
     </ReactFlowProvider>
   );
 }

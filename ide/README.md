@@ -82,7 +82,7 @@ cd repl-vite
 npm run dev
 ```
 
-The app auto-detects `window.createNKIdeModule` and switches from
+The app auto-detects `window.createNkIdeModule` and switches from
 fallback mode to the real WASM engine.
 
 ## Production Build

@@ -11,9 +11,9 @@ import PreferencesModal from './PreferencesModal';
 import { WorkspacePanel, VariableEditor } from '../workspace/Workspace';
 import FiguresPane from '../plot/FiguresPane';
 import FigureWindow from '../plot/FigureWindow';
-import NKGraphView from '../lang/NKGraphView';
-import NKASTView from '../lang/NKASTView';
-import NKASTTreeView from '../lang/NKASTTreeView';
+import NkGraphView from '../lang/NkGraphView';
+import NkASTView from '../lang/NkASTView';
+import NkASTTreeView from '../lang/NkASTTreeView';
 import { adaptVariables, adaptFigures } from '../plot/adapters';
 
 import CurrentFolderBar from './CurrentFolderBar';
@@ -498,7 +498,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // Engine version banner
   const [engineVersion, setEngineVersion] = useState(null);
   // Editor view mode: 'text' = standard code editor, 'graph' = data-flow
-  // node graph (NKGraphView). Single-shared state across tabs for
+  // node graph (NkGraphView). Single-shared state across tabs for
   // MVP — switching tabs keeps whatever view the user picked last.
   // Editor area is a multi-pane split: any subset of {text, graph,
   // ast, tree} renders side-by-side as horizontal-flex panes. The
@@ -1493,14 +1493,14 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                         );
                       case 'graph':
                         return (
-                          <NKGraphView
+                          <NkGraphView
                             source={activeTabData?.code || ''}
                             engine={engine}
                           />
                         );
                       case 'ast':
                         return (
-                          <NKASTView
+                          <NkASTView
                             source={activeTabData?.code || ''}
                             engine={engine}
                             cursorLine={editorCursor.line}
@@ -1514,7 +1514,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                         );
                       case 'tree':
                         return (
-                          <NKASTTreeView
+                          <NkASTTreeView
                             source={activeTabData?.code || ''}
                             engine={engine}
                             cursorLine={editorCursor.line}

@@ -1,7 +1,7 @@
 /**
- * NKASTTreeView — indented parse-tree inspector (astexplorer-style).
+ * NkASTTreeView — indented parse-tree inspector (astexplorer-style).
  *
- * Complementary to NKASTView (graph layout):
+ * Complementary to NkASTView (graph layout):
  *   • Graph view = spatial overview of how nodes connect.
  *   • Tree view  = drill-down, depth-first, chevron-collapsible
  *                  inline list. Easier to read deeply nested
@@ -146,7 +146,7 @@ function ASTTreeFilterBar({ filters, onChange, onCollapseAll, onExpandAll }) {
 
 // ── Component ──────────────────────────────────────────────────────
 
-export default function NKASTTreeView({ source, engine, cursorLine, onNavigate }) {
+export default function NkASTTreeView({ source, engine, cursorLine, onNavigate }) {
   const [ast, setAst]         = useState(null);
   const [error, setError]     = useState(null);
   const [collapsed, setCollapsed] = useState(() => new Set());

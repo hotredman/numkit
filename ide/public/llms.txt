@@ -51,7 +51,7 @@ Exit code 1 on script error, with the error message on stderr.
 
 - C++17 library (embed MATLAB-style scripting in an application):
   `nk::StandardEngine engine; engine.eval("A = [1 2; 3 4];");`
-- JS/WASM module (browser or Node): `createNKIdeModule()` → `repl_execute(code)`.
+- JS/WASM module (browser or Node): `createNkIdeModule()` → `repl_execute(code)`.
 - AOT C++ code generator: transpiles nk scripts to native C++.
 
 ## Facts

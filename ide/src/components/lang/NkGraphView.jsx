@@ -1,5 +1,5 @@
 /**
- * NKGraphView — script-graph visualizer (Phase 2a, read-only).
+ * NkGraphView — script-graph visualizer (Phase 2a, read-only).
  *
  * Takes a .m source string, runs it through the WASM lowering pass
  * (`engine.buildScriptGraph`), then renders the resulting NodeGraph
@@ -476,7 +476,7 @@ function collectElkLayout(elkResult) {
 
 // ── Component ───────────────────────────────────────────────────────
 
-function NKGraphViewInner({ source, engine }) {
+function NkGraphViewInner({ source, engine }) {
   const [graph, setGraph]     = useState(null);
   const [error, setError]     = useState(null);
   const [nodes, setNodes]     = useState([]);
@@ -650,10 +650,10 @@ function NKGraphViewInner({ source, engine }) {
   );
 }
 
-export default function NKGraphView(props) {
+export default function NkGraphView(props) {
   return (
     <ReactFlowProvider>
-      <NKGraphViewInner {...props} />
+      <NkGraphViewInner {...props} />
     </ReactFlowProvider>
   );
 }

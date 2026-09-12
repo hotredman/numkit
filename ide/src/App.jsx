@@ -86,11 +86,11 @@ export default function App() {
         // 2. Init Engine
         try {
           const hasWasm = window.__WASM_GLUE_LOADED__ === true
-                       && typeof window.createNKIdeModule === 'function';
+                       && typeof window.createNkIdeModule === 'function';
           if (!hasWasm) throw new Error('WASM glue not loaded');
 
           setInitMessage('Loading WebAssembly...');
-          const eng = await createWasmEngine(window.createNKIdeModule);
+          const eng = await createWasmEngine(window.createNkIdeModule);
           if (cancelled) return;
 
           // IMPORTANT: call init() BEFORE registering VFS adapters.

@@ -7,9 +7,9 @@
 // execution path:
 //
 //   BM_Biquad_NativeCpp          - hand-written C++ loop (the speed-of-light)
-//   BM_Biquad_NKFilter       - nk filter() builtin (C++ kernel, via eval)
-//   BM_Biquad_NKLoop_VM      - the same loop in M-code on the bytecode VM
-//   BM_Biquad_NKLoop_TreeWalker - ... on the TreeWalker
+//   BM_Biquad_NkFilter       - nk filter() builtin (C++ kernel, via eval)
+//   BM_Biquad_NkLoop_VM      - the same loop in M-code on the bytecode VM
+//   BM_Biquad_NkLoop_TreeWalker - ... on the TreeWalker
 //
 // All four produce identical output. ns/sample = 1e9 / items_per_second
 // (read the items_per_second column). Snapshot 2026-06-17, bench preset,
@@ -85,19 +85,19 @@ void runLoop(benchmark::State &state, nk::Engine::Backend backend)
     state.SetItemsProcessed(std::int64_t(state.iterations()) * kN);
 }
 
-void BM_Biquad_NKLoop_VM(benchmark::State &state)
+void BM_Biquad_NkLoop_VM(benchmark::State &state)
 {
     runLoop(state, nk::Engine::Backend::VM);
 }
-BENCHMARK(BM_Biquad_NKLoop_VM);
+BENCHMARK(BM_Biquad_NkLoop_VM);
 
-void BM_Biquad_NKLoop_TreeWalker(benchmark::State &state)
+void BM_Biquad_NkLoop_TreeWalker(benchmark::State &state)
 {
     runLoop(state, nk::Engine::Backend::TreeWalker);
 }
-BENCHMARK(BM_Biquad_NKLoop_TreeWalker);
+BENCHMARK(BM_Biquad_NkLoop_TreeWalker);
 
-void BM_Biquad_NKFilter(benchmark::State &state)
+void BM_Biquad_NkFilter(benchmark::State &state)
 {
     nk::StandardEngine e;
     // filter() available via bare-name resolver
@@ -107,6 +107,6 @@ void BM_Biquad_NKFilter(benchmark::State &state)
         e.eval("yf = filter(b,a,x);");
     state.SetItemsProcessed(std::int64_t(state.iterations()) * kN);
 }
-BENCHMARK(BM_Biquad_NKFilter);
+BENCHMARK(BM_Biquad_NkFilter);
 
 } // namespace

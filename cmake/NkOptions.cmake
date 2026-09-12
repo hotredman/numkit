@@ -1,4 +1,4 @@
-# cmake/NKOptions.cmake
+# cmake/NkOptions.cmake
 #
 # Central declaration of NK_WITH_* feature flags.
 # Toggling a flag here (via CMake preset, -D arg, or GUI cache) controls

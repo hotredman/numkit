@@ -27,7 +27,7 @@ option(NK_INSTALL          "Generate install target"               ON)
 
 # Feature flags (NK_WITH_SIMD)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-include(NKOptions)
+include(NkOptions)
 
 # ──────────────────────────────────────────────
 # Google Highway (SIMD-intrinsics abstraction)

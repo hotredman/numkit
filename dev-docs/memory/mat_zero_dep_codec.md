@@ -39,7 +39,7 @@ We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, 
      - Directly reads `resolved.fs->readFile(resolved.path)` and writes `resolved.fs->writeFile(resolved.path, bytes)`.
      - Zero temporary file creation; 100% compatible with NativeFS, MemoryFS, and CallbackFS.
 
-3. **Build System Streamlining (`CMakeLists.txt`, `cmake/NKOptions.cmake`, `src/runtime/CMakeLists.txt`):**
+3. **Build System Streamlining (`CMakeLists.txt`, `cmake/NkOptions.cmake`, `src/runtime/CMakeLists.txt`):**
    - Completely removed `matio` and `zlib_pkg` `FetchContent` blocks.
    - Removed `NK_WITH_MATIO` and `NK_WITH_ZLIB` conditional defines.
    - The entire NK runtime and all toolboxes (Image, Audio, Workspace I/O) now have **zero external C/C++ third-party library dependencies** (only Google Highway for optional SIMD and Google Test for unit test binaries).

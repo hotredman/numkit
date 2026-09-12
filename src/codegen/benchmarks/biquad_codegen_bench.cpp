@@ -20,7 +20,7 @@
 // happens once per call (as the emitter would emit it), not per sample.
 //
 // ns/sample = 1e9 / items_per_second. Compare against the core bench's
-// BM_Biquad_NKLoop_VM (the boxed interpreter we are escaping) and
+// BM_Biquad_NkLoop_VM (the boxed interpreter we are escaping) and
 // BM_Biquad_NativeCpp (raw-array speed of light).
 //
 // Snapshot 2026-06-18, Arrow Lake, desktop-fast Release, N=131072

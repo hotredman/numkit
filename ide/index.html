@@ -11,8 +11,8 @@
 
   <!--
     Emscripten WASM glue. Must load BEFORE React.
-    With MODULARIZE=1 + EXPORT_NAME=createNKIdeModule,
-    Emscripten creates a `createNKIdeModule` function.
+    With MODULARIZE=1 + EXPORT_NAME=createNkIdeModule,
+    Emscripten creates a `createNkIdeModule` function.
     We ensure it lands on `window` so React can find it.
   -->
   <script>window.__WASM_GLUE_LOADED__ = false;</script>
@@ -22,12 +22,12 @@
   <script>
     // Emscripten MODULARIZE assigns to `var`, not `window`.
     // Patch it onto window so App.jsx can detect it.
-    if (typeof createNKIdeModule !== 'undefined') {
-      window.createNKIdeModule = createNKIdeModule;
+    if (typeof createNkIdeModule !== 'undefined') {
+      window.createNkIdeModule = createNkIdeModule;
       window.__WASM_GLUE_LOADED__ = true;
       console.log('[REPL] WASM glue loaded OK');
     } else {
-      console.log('[REPL] createNKIdeModule not defined after script load');
+      console.log('[REPL] createNkIdeModule not defined after script load');
     }
   </script>
 </head>

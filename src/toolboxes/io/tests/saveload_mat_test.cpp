@@ -561,7 +561,7 @@ TEST_F(SaveLoadMatTest, RoundTripObjectScalar)
 {
     auto st = std::make_shared<ObjectState>(engine.resource());
     st->props["x"] = Value::scalar(42.0);
-    st->props["name"] = Value::fromString("NKObject", engine.resource());
+    st->props["name"] = Value::fromString("NkObject", engine.resource());
     auto obj = Value::object("MyCustomClass", st, false);
     engine.setVariable("obj", obj);
 
@@ -577,7 +577,7 @@ TEST_F(SaveLoadMatTest, RoundTripObjectScalar)
     EXPECT_NE(lst, nullptr);
     if (lst) {
         EXPECT_DOUBLE_EQ(lst->props.at("x").toScalar(), 42.0);
-        EXPECT_EQ(lst->props.at("name").toString(), "NKObject");
+        EXPECT_EQ(lst->props.at("name").toString(), "NkObject");
     }
 }
 

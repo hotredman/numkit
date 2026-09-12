@@ -419,7 +419,7 @@ input, select { font-family: inherit; color: inherit; }
   overflow: hidden;
 }
 
-/* ── NKGraphView (data-flow graph) ─────────────────────────── */
+/* ── NkGraphView (data-flow graph) ─────────────────────────── */
 .nk-graph-view {
   flex: 1;
   height: 100%;
@@ -442,7 +442,7 @@ input, select { font-family: inherit; color: inherit; }
   line-height: 1.4;
 }
 
-/* ── NKASTView (literal parse-tree inspector) ───────────────── */
+/* ── NkASTView (literal parse-tree inspector) ───────────────── */
 .nk-ast-view {
   flex: 1;
   height: 100%;
@@ -587,7 +587,7 @@ input, select { font-family: inherit; color: inherit; }
   stroke-width: 1.2;
 }
 
-/* ── NKASTTreeView (indented parse-tree, astexplorer-style) ─── */
+/* ── NkASTTreeView (indented parse-tree, astexplorer-style) ─── */
 .nk-ast-tree-view {
   flex: 1;
   height: 100%;

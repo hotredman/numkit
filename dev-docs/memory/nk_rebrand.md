@@ -10,7 +10,7 @@ todo nk_rebrand.md: numkit → nk everywhere.
   (`npx nk`), wasm artifact `nk_ide.js/.wasm`.
 - Mechanics: 318 git-mv renames (24 include dirs, apps/nk,
   apps/nk_codegen, packages/nk + nk-mcp, brand assets, cmake helpers
-  incl. NumkitOptions.cmake → NKOptions.cmake, dev-docs/todo file)
+  incl. NumkitOptions.cmake → NkOptions.cmake, dev-docs/todo file)
   + byte-level content sweep over 2 622 tracked files (~21.4k
   replacements, ordered rules NUMKIT→NK, NumKit/Numkit→NK,
   numkit::→nk::, numkit_→nk_, numkit→nk). Fresh CMake configure

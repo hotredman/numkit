@@ -8,7 +8,7 @@ globalThis.ResizeObserver = globalThis.ResizeObserver
 
 // Shared spy for the store's updateNodeDimensions — the component drives it
 // directly to work around React Flow never auto-measuring the AST nodes
-// (see the re-measure effect in NKASTView). Hoisted so the vi.mock
+// (see the re-measure effect in NkASTView). Hoisted so the vi.mock
 // factory (also hoisted) can close over it.
 const { updateNodeDimensionsSpy } = vi.hoisted(() => ({ updateNodeDimensionsSpy: vi.fn() }));
 
@@ -73,7 +73,7 @@ vi.mock('elkjs/lib/elk.bundled.js', () => ({
   },
 }));
 
-import NKASTView from './NKASTView';
+import NkASTView from './NkASTView';
 
 afterEach(() => { cleanup(); updateNodeDimensionsSpy.mockClear(); });
 
@@ -94,10 +94,10 @@ const MOCK_AST = {
 };
 const engine = { buildAST: () => MOCK_AST };
 
-describe('NKASTView — layout pipeline', () => {
+describe('NkASTView — layout pipeline', () => {
   it('renders nodes then reveals the tree (opacity 1) once measured + laid out', async () => {
     const { container } = render(
-      <NKASTView source={'a=1;\nb=a+2;'} engine={engine} cursorLine={1} onNavigate={() => {}} />,
+      <NkASTView source={'a=1;\nb=a+2;'} engine={engine} cursorLine={1} onNavigate={() => {}} />,
     );
     // Phase 1 — unmeasured nodes are in the DOM.
     await waitFor(() =>
@@ -117,7 +117,7 @@ describe('NKASTView — layout pipeline', () => {
   // this fails.
   it('forces React Flow to (re)measure the rendered nodes', async () => {
     render(
-      <NKASTView source={'a=1;\nb=a+2;'} engine={engine} cursorLine={1} onNavigate={() => {}} />,
+      <NkASTView source={'a=1;\nb=a+2;'} engine={engine} cursorLine={1} onNavigate={() => {}} />,
     );
     await waitFor(() => expect(updateNodeDimensionsSpy).toHaveBeenCalled(), { timeout: 2000 });
     const lastCall = updateNodeDimensionsSpy.mock.calls.at(-1)[0];
