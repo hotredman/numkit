@@ -580,3 +580,11 @@ TEST_P(CommandGlueTest, DISABLED_ExistToolboxFunctionNoFilter)
     EXPECT_DOUBLE_EQ(evalScalar("exist('butter');"), 2.0);  // toolbox
     EXPECT_DOUBLE_EQ(evalScalar("exist('hamming');"), 2.0);
 }
+
+// bugs/opened/runtime/hilbert-non-pow2-length.md — hilbert() must
+// accept any length (MATLAB does); numkit requires pow2 today.
+TEST_P(CommandGlueTest, DISABLED_HilbertNonPow2Length)
+{
+    EXPECT_NO_THROW(eval("z = hilbert([1 2 3 4 5 6 7 8 9 10 11]);"));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(z);"), 11.0);
+}

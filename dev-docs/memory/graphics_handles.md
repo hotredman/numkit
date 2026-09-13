@@ -596,3 +596,24 @@ repl_execute('colormap(hot);') — same engine path.
 Wire emit detail: colormap:"custom" + customColormap for numeric/named
 dumps both; the export renderer's bake and the IDE tables are the same
 MATLAB dump (portion 35).
+
+## Play gallery-67 batch (sections A–G, 7 section files, 67 numbered scripts)
+
+Engine capability map (probed, not guessed): windows hamming/hann/
+chebwin/taylorwin(NEGATIVE sll)/kaiser/blackmanharris work;
+taylorwin sll must be NEGATIVE dB; butter/cheby1/cheby2/fir1/freqz/
+filtfilt/filter/chirp/spectrogram/pwelch/hilbert(pow2 only — bug
+filed)/fftshift/ode45/ode23/roots/polyval/besselj/interp1 all work;
+tf objects: step/bode work but tf MULTIPLICATION and minreal are
+broken (struct — PID/root-locus examples use explicit polynomial
+math instead); MATLAB has no ternary (removed from section C);
+colormap(name) works quoted, parula NOT callable as function (but
+the renderer resolves named palettes from the IDE dump). exist() is
+unreliable for toolbox functions (bug filed) — inventory by CALLING.
+
+Gallery layout: section files section-a.m … section-g.m, each holding
+its numbered scripts (1–67) — the @play-split per-script comes later;
+for now each section is one gallery entry verified error-free through
+the engine. Python heredoc mangles \n in template literals and
+regex-with-escapes — use file-based patches or sed-safe constructs.
+MATLAB scripts must not use ternaries or JS-style syntax.
