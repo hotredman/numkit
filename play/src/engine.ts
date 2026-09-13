@@ -1,9 +1,11 @@
-// Engine loader for Play — the wasm glue built by engine-build --wasm
-// (MODULARIZE factory). Same artifact the IDE loads; Play consumes
-// the play* reactive bindings (portion C). Node-only imports are lazy
-// so the browser bundle never references node: modules.
+// Engine loader for Play — the wasm glue built by engine-build --wasm.
+// CRITICAL: the glue is UMD (MODULARIZE + EXPORT_NAME), NOT an ES
+// module — a dynamic `import()` of it resolves to an empty namespace
+// and every play* call silently does nothing. The IDE works because
+// index.html loads it via a plain <script src> tag that defines
+// window.createNkIdeModule. Play uses the same technique: inject the
+// script tag once, then wrap the global factory.
 
-/** The reactive surface Play uses (portion C bindings on nk_ide.js). */
 export interface PlayEngine {
   repl_init(): string;
   playLoadScript(source: string): string;
@@ -17,12 +19,45 @@ export interface PlayEngine {
   playGeneration(): number;
 }
 
-type GlueFactory = (opts: {
-  print?: (t: string) => void;
-  printErr?: (t: string) => void;
-}) => Promise<PlayEngine>;
+interface GlueFactory {
+  (opts?: {
+    print?: (t: string) => void;
+    printErr?: (t: string) => void;
+  }): Promise<PlayEngine>;
+}
+
+declare global {
+  interface Window {
+    createNkIdeModule?: GlueFactory;
+  }
+}
 
 let modPromise: Promise<PlayEngine> | null = null;
+
+function injectGlueScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.createNkIdeModule) {
+      resolve();
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = '/nk_ide.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('failed to load /nk_ide.js'));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadInBrowser(): Promise<PlayEngine> {
+  await injectGlueScript();
+  const factory = window.createNkIdeModule;
+  if (!factory)
+    throw new Error('createNkIdeModule missing after glue load');
+  return factory({
+    print: () => {},
+    printErr: () => {},
+  });
+}
 
 async function loadInNode(): Promise<PlayEngine> {
   const { createRequire } = await import('node:module');
@@ -31,15 +66,6 @@ async function loadInNode(): Promise<PlayEngine> {
   const glue = path.resolve(
     '..', 'build', 'wasm', 'release', 'wasm', 'dist', 'nk_ide.js');
   const factory = require(glue) as GlueFactory;
-  return factory({ print: () => {}, printErr: () => {} });
-}
-
-async function loadInBrowser(): Promise<PlayEngine> {
-  const url = new URL('/nk_ide.js', window.location.origin).href;
-  const m = (await import(/* @vite-ignore */ url)) as {
-    default?: GlueFactory;
-  } & GlueFactory;
-  const factory: GlueFactory = m.default ?? m;
   return factory({ print: () => {}, printErr: () => {} });
 }
 

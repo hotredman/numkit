@@ -1,7 +1,7 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { injectCssVars } from './lib/tokens.js';
-import { gallery } from './gallery.generated.js';
+import { gallery } from './gallery.generated.ts';
 
 injectCssVars();
 const target = document.getElementById('app');

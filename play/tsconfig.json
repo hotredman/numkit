@@ -10,6 +10,7 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "allowJs": true,
+    "allowImportingTsExtensions": true,
     // The IDE's framework-free helpers (plotTicks, colormaps) are plain
     // JS — imported untyped until the IDE itself ever migrates.
     "paths": {
