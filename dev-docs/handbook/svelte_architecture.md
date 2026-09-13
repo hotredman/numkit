@@ -4,6 +4,37 @@
 to every future Svelte surface (the IDE migration rides the same
 library).
 
+## Strategy: Play is where the new IDE grows (user decision, 2026-09-12)
+
+**Converge, never rewrite.** `play/` is the growth line of the next nk
+front-end: today a reactive gallery, growing into the IDE. The React
+IDE (`ide/`) stays the stable product — it receives fixes and
+wire-side features, but NO new front-end architecture; new UI work
+lands on the Svelte side.
+
+Why a Svelte line at all (and not more React): the product is web-first
+around the wasm engine (Svelte ships ~no runtime vs the
+React+reactflow payload), and the flagship UX — slider → `evalDirty` →
+redraw — is fine-grained reactive by nature; Svelte 5 runes give that
+structurally where React needs per-component hand memoization. The
+expensive parts were deliberately moved out of any framework: engine +
+wire (C++), plot geometry (pure TS modules, R5), editor/3D libraries
+(framework-agnostic). The React-locked surface is small (reactflow
+graph + component glue; Svelte Flow exists as the port path).
+
+**Retirement criteria** — the React IDE may be archived only when the
+Svelte side has ALL of:
+
+1. renderer parity by chart category (every portions-29–41 category,
+   incl. 3D),
+2. an editor with syntax highlighting + the file tree / workspace,
+3. an e2e grid covering the IDE's Playwright suites.
+
+Until then both live in parallel — an explicit, accepted cost. Logic
+stays framework-neutral (R5/R7/R8) precisely so this decision remains
+reversible at every step. Full rationale:
+[memory/play_new_ide_decision.md](../memory/play_new_ide_decision.md).
+
 ## The contract
 
 **Pages compose; the library draws.** A page/screen file (App.svelte,

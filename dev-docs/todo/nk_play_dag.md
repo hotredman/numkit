@@ -37,6 +37,15 @@ Implement in-engine reactive execution (Directed Acyclic Graph / DAG) and UI man
   acceptance gate for the runtime (portion B).
 - FPS budget ladder: JS rAF-coalescing → changed-figure emission →
   (only if benchmarks demand) dataset-level delta emission.
+- **Play is the growth line of the NEW IDE** (user decision
+  2026-09-12): converge, never rewrite — the React IDE stays the
+  stable product (fixes + wire-side features only), new front-end
+  work lands in `play/`. Retirement criteria + rationale: the
+  Strategy section of
+  `dev-docs/handbook/svelte_architecture.md` and
+  `dev-docs/memory/play_new_ide_decision.md`. This also supersedes
+  the "nk-play independent repository" idea above: Play lives in
+  `play/` in THIS repo.
 
 ---
 
