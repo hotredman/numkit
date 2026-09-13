@@ -26,7 +26,6 @@ for i = 1:n
     end
 end
 imagesc(xs, xs, Z);
-colormap(parula);
 colorbar;
 title('2D Gaussian');
 xlabel('x');

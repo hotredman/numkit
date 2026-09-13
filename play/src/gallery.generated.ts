@@ -3,16 +3,358 @@ import type { GalleryEntry } from './lib/galleryTypes.js';
 
 export const gallery: GalleryEntry[] = [
   {
+    "id": "arrays/array_geom_conformal_cylinder.m",
+    "title": "Конформный цилиндр",
+    "description": "",
+    "source": "% Конформный цилиндр\n% Секторная коммутация на обтекателе\n\nNc = 32; Rc = 1.0; sector = 120;\nth = -90:1:90;\nAFc = zeros(1, numel(th));\nfor n = 1:Nc\n    an = -180 + 360*(n-1)/Nc;\n    if abs(an) <= sector/2\n        AFc = AFc + exp(1i*2*pi*Rc*(cosd(an).*cosd(th) + sind(an).*sind(th)));\n    end\nend\nfigure;\npolarplot(th*pi/180, abs(AFc)/max(1, sum(AFc ~= 0)));\ntitle('Cylinder conformal, sector');\n\n%{\n@play\n{\n \"title\": \"Конформный цилиндр\",\n \"groups\": [\n  {\n   \"name\": \"Геометрия\",\n   \"controls\": [\n    {\n     \"var\": \"Nc\",\n     \"label\": \"Элементов\",\n     \"min\": 8,\n     \"max\": 64,\n     \"step\": 4,\n     \"default\": 32\n    },\n    {\n     \"var\": \"sector\",\n     \"label\": \"Сектор °\",\n     \"min\": 30,\n     \"max\": 360,\n     \"step\": 30,\n     \"default\": 120\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_geom_hexagonal.m",
+    "title": "Гексагональная решётка",
+    "description": "",
+    "source": "% Гексагональная решётка\n% Плотная упаковка элементов\n\nrings = 2;\npos = [0 0];\nfor ring = 1:rings\n    for s = 0:5\n        an = pi/3*s;\n        for m = 1:ring\n            rr = m/ring;\n            pos(end+1,:) = ring*[cos(an) sin(an)] + rr*[cos(an+pi/2) sin(an+pi/2)];\n        end\n    end\nend\nph2 = 0:1:180;\nAFh = zeros(1, numel(ph2));\nfor ip = 1:numel(ph2)\n    th0 = ph2(ip)*pi/180;\n    s = 0;\n    for n = 1:size(pos,1)\n        s = s + exp(1i*2*pi*(pos(n,1)*cos(th0) + pos(n,2)*sin(th0)));\n    end\n    AFh(ip) = abs(s)/size(pos,1);\nend\nfigure;\nplot(ph2, 20*log10(AFh + 1e-12));\ntitle('Hexagonal array, dB'); ylabel('|AF| dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Гексагональная решётка\",\n \"groups\": [\n  {\n   \"name\": \"Геометрия\",\n   \"controls\": [\n    {\n     \"var\": \"rings\",\n     \"label\": \"Число колец\",\n     \"min\": 1,\n     \"max\": 4,\n     \"step\": 1,\n     \"default\": 2\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_geom_sparse_mra.m",
+    "title": "Разреженная MRA",
+    "description": "",
+    "source": "% Разреженная MRA\n% Эквивалентная апертура при минимуме приёмников\n\nspacing = 1;\nmra = [0 1 3 6 8 11 13 16] * spacing;\ntheta = -90:0.5:90;\nAFm = zeros(1, numel(theta));\nfor n = 1:numel(mra)\n    AFm = AFm + exp(1i*pi*mra(n)*sind(theta));\nend\nfigure;\nplot(theta, 20*log10(abs(AFm)/numel(mra) + 1e-12));\ntitle('MRA sparse array'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Разреженная MRA\",\n \"groups\": [\n  {\n   \"name\": \"Масштаб\",\n   \"controls\": [\n    {\n     \"var\": \"spacing\",\n     \"label\": \"Масштаб позиций\",\n     \"min\": 1,\n     \"max\": 3,\n     \"step\": 1,\n     \"default\": 1\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_geom_spherical.m",
+    "title": "Сферическая решётка",
+    "description": "",
+    "source": "% Сферическая решётка\n% Изотропный обзор полусферы\n\nNrings = 5;\nth = 0:2:180;\nAFs = zeros(1, numel(th));\nfor ring = 0:Nrings-1\n    elr = ring * 30;\n    cnt = max(4, round(12*cosd(elr)));\n    for m = 1:cnt\n        az = 360*(m-1)/cnt;\n        for it = 1:numel(th)\n            u = cosd(th(it))*cosd(az) + sind(th(it))*sind(az);\n            AFs(it) = AFs(it) + exp(1i*pi*u*sind(elr));\n        end\n    end\nend\nfigure;\nplot(th, abs(AFs)/max(abs(AFs)));\ntitle('Spherical cap coverage');\n\n%{\n@play\n{\n \"title\": \"Сферическая решётка\",\n \"groups\": [\n  {\n   \"name\": \"Геометрия\",\n   \"controls\": [\n    {\n     \"var\": \"Nrings\",\n     \"label\": \"Число колец\",\n     \"min\": 2,\n     \"max\": 8,\n     \"step\": 1,\n     \"default\": 5\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_geom_uca.m",
+    "title": "Кольцевая решётка (UCA)",
+    "description": "",
+    "source": "% Кольцевая решётка (UCA)\n% Всенаправленное сканирование без деформации луча\n\nNe = 24;\nR10 = 10;\nR = R10 / 10;\nth = linspace(0, 2*pi, 361);\nAF = zeros(1, numel(th));\nfor n = 1:Ne\n    an = 2*pi*(n-1)/Ne;\n    AF = AF + exp(1i*2*pi*R*(cos(an).*cos(th) + sin(an).*sin(th)));\nend\nfigure;\npolarplot(th, abs(AF)/Ne);\ntitle('UCA ring pattern');\n\n%{\n@play\n{\n \"title\": \"Кольцевая решётка (UCA)\",\n \"groups\": [\n  {\n   \"name\": \"Геометрия\",\n   \"controls\": [\n    {\n     \"var\": \"Ne\",\n     \"label\": \"Элементов\",\n     \"min\": 8,\n     \"max\": 48,\n     \"step\": 4,\n     \"default\": 24\n    },\n    {\n     \"var\": \"R10\",\n     \"label\": \"R/λ ×10\",\n     \"min\": 2,\n     \"max\": 20,\n     \"step\": 1,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_geom_ula.m",
+    "title": "ULA: шаг решётки и гриф-лобы",
+    "description": "",
+    "source": "% ULA: grating-lobe onset vs d/lambda\n% Linear equidistant array: beam distortion at d/lambda > 1\nN = 16;\nd10 = 5;                        % d/lambda * 10\ntheta0 = 20;                    % steer angle, deg\nd = d10 / 10;\ntheta = -90:0.2:90;\nph = 2*pi*d*(sind(theta) - sind(theta0));\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + exp(1i*(k-1)*ph);\nend\nfigure;\nplot(theta, abs(AF)/N);\ntitle('ULA beam pattern');\nxlabel('\\theta deg'); ylabel('|AF|/N');\ngrid on;\n\n%{\n@play\n{\n \"title\": \"ULA: шаг решётки и гриф-лобы\",\n \"groups\": [\n  { \"name\": \"Геометрия\", \"controls\": [\n    { \"var\": \"N\", \"label\": \"Число элементов\", \"min\": 8, \"max\": 64, \"step\": 2, \"default\": 16 },\n    { \"var\": \"d10\", \"label\": \"d/λ ×10\", \"min\": 2, \"max\": 15, \"step\": 1, \"default\": 5 },\n    { \"var\": \"theta0\", \"label\": \"Сканирование θ₀\", \"min\": -60, \"max\": 60, \"step\": 1, \"default\": 20 }\n  ] }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_geom_ura.m",
+    "title": "Плоская решётка (URA)",
+    "description": "",
+    "source": "% Плоская решётка (URA)\n% Двумерная диаграмма сетки Nx×Ny\n\nNx = 8; Ny = 8; thetaScan = 20;\nthv = -90:5:90; phv = 0:5:90;\nAFp = zeros(numel(phv), numel(thv));\nfor ip = 1:numel(phv)\n    for it = 1:numel(thv)\n        s = 0;\n        for ix = 1:Nx\n            for iy = 1:Ny\n                s = s + exp(1i*pi*((ix-1)*sind(thv(it))*cosd(phv(ip)) + (iy-1)*sind(thv(it))*sind(phv(ip)) - (ix-1)*sind(thetaScan)*cosd(phv(ip))));\n            end\n        end\n        AFp(ip,it) = abs(s)/(Nx*Ny);\n    end\nend\nfigure;\nimagesc(thv, phv, AFp);\ncolormap('jet');\ntitle('URA |AF(\\theta,\\phi)|');\nxlabel('\\theta deg'); ylabel('\\phi deg');\n\n%{\n@play\n{\n \"title\": \"Плоская решётка (URA)\",\n \"groups\": [\n  {\n   \"name\": \"Сетка\",\n   \"controls\": [\n    {\n     \"var\": \"Nx\",\n     \"label\": \"Nx\",\n     \"min\": 4,\n     \"max\": 16,\n     \"step\": 2,\n     \"default\": 8\n    },\n    {\n     \"var\": \"Ny\",\n     \"label\": \"Ny\",\n     \"min\": 4,\n     \"max\": 16,\n     \"step\": 2,\n     \"default\": 8\n    },\n    {\n     \"var\": \"thetaScan\",\n     \"label\": \"θ скан\",\n     \"min\": -60,\n     \"max\": 60,\n     \"step\": 5,\n     \"default\": 20\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_weight_chebyshev.m",
+    "title": "Дольф-Чебышёв",
+    "description": "",
+    "source": "% Дольф-Чебышёв\n% Равноуровневые боковые лепестки\n\nN = 16;\nsll = -30;\n% Chebyshev window via coefficients of T_{N-1}\nw = chebwin(N, -sll);\ntheta = -90:0.2:90;\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + w(k)*exp(1i*pi*(k-1)*sind(theta));\nend\nfigure;\nplot(theta, 20*log10(abs(AF)/sum(w) + 1e-12));\ntitle('Dolph-Chebyshev taper'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Дольф-Чебышёв\",\n \"groups\": [\n  {\n   \"name\": \"Синтез\",\n   \"controls\": [\n    {\n     \"var\": \"N\",\n     \"label\": \"N\",\n     \"min\": 8,\n     \"max\": 32,\n     \"step\": 2,\n     \"default\": 16\n    },\n    {\n     \"var\": \"sll\",\n     \"label\": \"SLL дБ\",\n     \"min\": -40,\n     \"max\": -15,\n     \"step\": 5,\n     \"default\": -30\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_weight_hamming.m",
+    "title": "Окно Хэмминга",
+    "description": "",
+    "source": "% Окно Хэмминга\n% Снижение боковых ценой ширины луча\n\nN = 16;\ntheta = -90:0.2:90;\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    w = 0.54 - 0.46*cos(2*pi*(k-1)/(N-1));\n    AF = AF + w*exp(1i*pi*(k-1)*sind(theta));\nend\nfigure;\nplot(theta, 20*log10(abs(AF)/sum(0.54 - 0.46*cos(2*pi*(0:N-1)/(N-1))) + 1e-12));\ntitle('Hamming taper, dB'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Окно Хэмминга\",\n \"groups\": [\n  {\n   \"name\": \"Решётка\",\n   \"controls\": [\n    {\n     \"var\": \"N\",\n     \"label\": \"Число элементов\",\n     \"min\": 8,\n     \"max\": 64,\n     \"step\": 2,\n     \"default\": 16\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_weight_null_steering.m",
+    "title": "Пространственные нули",
+    "description": "",
+    "source": "% Пространственные нули\n% Глубокий провал в сторону помехи\n\nthetaJ = -40;\nN = 16;\ntheta0 = 20;\ntheta = -90:0.2:90;\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + exp(1i*pi*(k-1)*(sind(theta) - sind(theta0))) ...\n            - exp(1i*pi*(k-1)*(sind(theta) - sind(thetaJ)));\nend\nfigure;\nplot(theta, 20*log10(abs(AF)/N + 1e-12));\ntitle('Null steering at \\theta_J'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Пространственные нули\",\n \"groups\": [\n  {\n   \"name\": \"Помеха\",\n   \"controls\": [\n    {\n     \"var\": \"thetaJ\",\n     \"label\": \"Угол помехи\",\n     \"min\": -80,\n     \"max\": 80,\n     \"step\": 5,\n     \"default\": -40\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_weight_taylor.m",
+    "title": "Распределение Тейлора",
+    "description": "",
+    "source": "% Распределение Тейлора\n% Спадающие боковые — стандарт радаров\n\nN = 16;\nsll = -30;\nw = taylorwin(N, 4, sll);\ntheta = -90:0.2:90;\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + w(k)*exp(1i*pi*(k-1)*sind(theta));\nend\nfigure;\nplot(theta, 20*log10(abs(AF)/sum(w) + 1e-12));\ntitle('Taylor taper'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Распределение Тейлора\",\n \"groups\": [\n  {\n   \"name\": \"Синтез\",\n   \"controls\": [\n    {\n     \"var\": \"N\",\n     \"label\": \"N\",\n     \"min\": 8,\n     \"max\": 32,\n     \"step\": 2,\n     \"default\": 16\n    },\n    {\n     \"var\": \"sll\",\n     \"label\": \"SLL дБ\",\n     \"min\": -40,\n     \"max\": -15,\n     \"step\": 5,\n     \"default\": -30\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/array_weight_uniform.m",
+    "title": "Равномерное окно",
+    "description": "",
+    "source": "% Равномерное окно\n% Максимальный КНД; первые боковые −13.3 дБ\n\nN = 16;\ntheta = -90:0.2:90;\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + exp(1i*pi*(k-1)*sind(theta));\nend\nfigure;\nplot(theta, 20*log10(abs(AF)/N + 1e-12));\ntitle('Uniform weight, dB'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Равномерное окно\",\n \"groups\": [\n  {\n   \"name\": \"Решётка\",\n   \"controls\": [\n    {\n     \"var\": \"N\",\n     \"label\": \"Число элементов\",\n     \"min\": 8,\n     \"max\": 64,\n     \"step\": 2,\n     \"default\": 16\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/beamform_capon_mvdr.m",
+    "title": "Капон / MVDR",
+    "description": "",
+    "source": "% Капон / MVDR\n% Адаптивное подавление помехи\n\nthetaJ = -40; Jpow = 50;\ntheta = -90:1:90;\nN = 16;\n% Simplified: spectral weight = 1 / (1 + Jpow*sinc^2 separation)\nsep = abs(sind(theta) - sind(thetaJ));\nresp = 1 ./ (1 + Jpow * exp(-((sep/0.3).^2)));\nfigure;\nplot(theta, 20*log10(resp));\ntitle('MVDR notch at jammer'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Капон / MVDR\",\n \"groups\": [\n  {\n   \"name\": \"Помеха\",\n   \"controls\": [\n    {\n     \"var\": \"thetaJ\",\n     \"label\": \"Угол помехи\",\n     \"min\": -80,\n     \"max\": 80,\n     \"step\": 5,\n     \"default\": -40\n    },\n    {\n     \"var\": \"Jpow\",\n     \"label\": \"Мощность помехи\",\n     \"min\": 1,\n     \"max\": 100,\n     \"step\": 5,\n     \"default\": 50\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/beamform_delay_sum.m",
+    "title": "Delay-and-Sum",
+    "description": "",
+    "source": "% Delay-and-Sum\n% Классический фазовый сумматор\n\nN = 16; theta0 = 0;\ntheta = -90:0.2:90;\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + exp(1i*pi*(k-1)*(sind(theta) - sind(theta0)));\nend\nfigure;\npolarplot(theta*pi/180, abs(AF)/N);\ntitle('Delay-and-Sum');\n\n%{\n@play\n{\n \"title\": \"Delay-and-Sum\",\n \"groups\": [\n  {\n   \"name\": \"Луч\",\n   \"controls\": [\n    {\n     \"var\": \"N\",\n     \"label\": \"N\",\n     \"min\": 8,\n     \"max\": 32,\n     \"step\": 2,\n     \"default\": 16\n    },\n    {\n     \"var\": \"theta0\",\n     \"label\": \"θ₀\",\n     \"min\": -60,\n     \"max\": 60,\n     \"step\": 5,\n     \"default\": 0\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/df_monopulse.m",
+    "title": "Моноимпульсный пеленгатор",
+    "description": "",
+    "source": "% Моноимпульсный пеленгатор\n% Σ/Δ диаграммы и пеленгационная характеристика\n\nthetaT = 3;\ntheta = -10:0.1:10;\nsig = cos(pi*2*sind(theta));\ndif = sin(pi*2*sind(theta));\nmono = dif ./ max(1e-9, sig);\nfigure;\nplot(theta, sig, theta, dif, theta, mono);\nlegend('Σ (sum)', 'Δ (diff)', 'Δ/Σ');\ntitle('Monopulse characteristics'); grid on;\n\n%{\n@play\n{\n \"title\": \"Моноимпульсный пеленгатор\",\n \"groups\": [\n  {\n   \"name\": \"Цель\",\n   \"controls\": [\n    {\n     \"var\": \"thetaT\",\n     \"label\": \"Цель θ\",\n     \"min\": -10,\n     \"max\": 10,\n     \"step\": 1,\n     \"default\": 3\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/df_music.m",
+    "title": "MUSIC: сверхразрешение",
+    "description": "",
+    "source": "% MUSIC: сверхразрешение\n% Две цели в главном луче\n\nsep = 8;\ntheta = -30:0.2:30;\nt1 = -sep/2; t2 = sep/2;\n% Simplified MUSIC pseudo-spectrum (two sources)\nPm = zeros(1, numel(theta));\nN = 8;\nfor k = 1:numel(theta)\n    a1 = exp(-1i*pi*sind(theta(k))*[0:N-1]);\n    a2v = exp(-1i*pi*sind(t1)*[0:N-1]);\n    a3v = exp(-1i*pi*sind(t2)*[0:N-1]);\n    denom = abs(sum(conj(a1).*a2v))^2 + abs(sum(conj(a1).*a3v))^2;\n    Pm(k) = 1/(1 + denom);\nend\nfigure;\nplot(theta, 10*log10(Pm/max(Pm)));\ntitle('MUSIC pseudo-spectrum'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"MUSIC: сверхразрешение\",\n \"groups\": [\n  {\n   \"name\": \"Цели\",\n   \"controls\": [\n    {\n     \"var\": \"sep\",\n     \"label\": \"Разнос °\",\n     \"min\": 1,\n     \"max\": 20,\n     \"step\": 1,\n     \"default\": 8\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/element_cardioid.m",
+    "title": "Кардиоидный элемент",
+    "description": "",
+    "source": "% Кардиоидный элемент\n% F = |1 + β·cos θ| — подавление заднего лепестка\n\nbeta = 10;\nth = linspace(0, 2*pi, 361);\nfigure;\npolarplot(th, abs(1 + beta/10*cos(th)));\ntitle('Cardioid element');\n\n%{\n@play\n{\n \"title\": \"Кардиоидный элемент\",\n \"groups\": [\n  {\n   \"name\": \"Форма\",\n   \"controls\": [\n    {\n     \"var\": \"beta\",\n     \"label\": \"β ×10\",\n     \"min\": 0,\n     \"max\": 10,\n     \"step\": 1,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/element_halfwave_dipole.m",
+    "title": "Полуволновой диполь",
+    "description": "",
+    "source": "% Полуволновой диполь\n% F(θ) = cos(π/2·cosθ)/sinθ\n\nth = linspace(0, 2*pi, 361);\nfigure;\npolarplot(th, abs(cos(pi/2*cos(th)) ./ max(1e-9, sin(th))));\ntitle('Half-wave dipole');\n\n%{\n@play\n{\n \"title\": \"Полуволновой диполь\",\n \"groups\": []\n}\n%}\n"
+  },
+  {
+    "id": "arrays/element_isotropic.m",
+    "title": "Изотропный элемент",
+    "description": "",
+    "source": "% Изотропный элемент\n% Точечный монополь F(θ)=1\n\nth = linspace(0, 2*pi, 361);\nfigure;\npolarplot(th, ones(1, numel(th)));\ntitle('Isotropic F(\\theta)=1');\n\n%{\n@play\n{\n \"title\": \"Изотропный элемент\",\n \"groups\": []\n}\n%}\n"
+  },
+  {
+    "id": "arrays/element_piston.m",
+    "title": "Поршень в экране",
+    "description": "",
+    "source": "% Поршень в экране\n% F = 2J₁(u)/u — эталон пьезокерамики\n\nuMax = 40;\nu = linspace(1e-6, uMax, 721);\npat = 2*besselj(1, u) ./ u;\nfigure;\nplot(u, pat);\ntitle('Baffled piston 2J_1(u)/u'); grid on;\n\n%{\n@play\n{\n \"title\": \"Поршень в экране\",\n \"groups\": [\n  {\n   \"name\": \"Апертура\",\n   \"controls\": [\n    {\n     \"var\": \"uMax\",\n     \"label\": \"u макс\",\n     \"min\": 10,\n     \"max\": 60,\n     \"step\": 5,\n     \"default\": 40\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "arrays/element_short_dipole.m",
+    "title": "Короткий диполь",
+    "description": "",
+    "source": "% Короткий диполь\n% F(θ) = cos θ\n\nth = linspace(0, 2*pi, 361);\nfigure;\npolarplot(th, abs(cos(th)));\ntitle('Short dipole F=cos\\theta');\n\n%{\n@play\n{\n \"title\": \"Короткий диполь\",\n \"groups\": []\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_16qam_phasenoise.m",
+    "title": "16-QAM + фазовый шум",
+    "description": "",
+    "source": "% 16-QAM + фазовый шум\n% Круговое размытие созвездия\n\nphn = 0.15;\npoints = sqrt(2)*((0:3)-1.5);\n[Ix, Iy] = meshgrid(points, points);\nIq = Ix(:) + 1i*Iy(:);\nrx = Iq .* exp(1i*randn(1, numel(Iq))*phn) + randn(1, numel(Iq))*0.05;\nfigure;\nplot(real(rx), imag(rx), '.');\ntitle('16-QAM, phase noise'); axis equal; grid on;\n\n%{\n@play\n{\n \"title\": \"16-QAM + фазовый шум\",\n \"groups\": [\n  {\n   \"name\": \"Гетеродин\",\n   \"controls\": [\n    {\n     \"var\": \"phn\",\n     \"label\": \"σ фаз. шума\",\n     \"min\": 0.02,\n     \"max\": 0.4,\n     \"step\": 0.02,\n     \"default\": 0.15\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_64qam_amam.m",
+    "title": "64-QAM + AM/AM",
+    "description": "",
+    "source": "% 64-QAM + AM/AM\n% Компрессия внешних точек\n\nalpha = 1.3;\nstep6 = 2*(0:7)/7 - 1;\n[Ix6, Iy6] = meshgrid(step6, step6);\nIq6 = Ix6(:) + 1i*Iy6(:);\ncomp = sign(real(Iq6)).*abs(real(Iq6)).^alpha + 1i*sign(imag(Iq6)).*abs(imag(Iq6)).^alpha;\nfigure;\nplot(real(Iq6), imag(Iq6), '.', real(comp), imag(comp), 'r.');\nlegend('ideal','compressed'); title('64-QAM AM/AM'); grid on;\n\n%{\n@play\n{\n \"title\": \"64-QAM + AM/AM\",\n \"groups\": [\n  {\n   \"name\": \"Усилитель\",\n   \"controls\": [\n    {\n     \"var\": \"alpha\",\n     \"label\": \"Степень\",\n     \"min\": 0.8,\n     \"max\": 1.5,\n     \"step\": 0.05,\n     \"default\": 1.3\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_am_envelope.m",
+    "title": "AM: огибающая",
+    "description": "",
+    "source": "% AM: огибающая\n% m ≤ 1 норма; m > 1 — перемодуляция\n\nm = 0.8;\nfs2 = 4000;\nta = 0:1/fs2:0.0625;\nmsg = cos(2*pi*300*ta);\nam = (1 + m*msg).*sin(2*pi*2000*ta);\nnp2 = 2^nextpow2(numel(am));\nenv = abs(hilbert([am(:); zeros(np2 - numel(am), 1)]));\nenv = env(1:numel(am));\nfigure;\nplot(ta, am, ta, env, 'r');\ntitle('AM envelope'); grid on;\n\n%{\n@play\n{\n \"title\": \"AM: огибающая\",\n \"groups\": [\n  {\n   \"name\": \"Модуляция\",\n   \"controls\": [\n    {\n     \"var\": \"m\",\n     \"label\": \"Индекс m\",\n     \"min\": 0.1,\n     \"max\": 1.5,\n     \"step\": 0.1,\n     \"default\": 0.8\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_ask_ook.m",
+    "title": "ASK / OOK",
+    "description": "",
+    "source": "% ASK / OOK\n% Амплитудная манипуляция, порог компаратора\n\nmDepth = 0.8; fC = 2000; fs = 10e3; symR = 100;\nbits = [1 0 1 1 0 1 0 0];\nseq = repelem(bits, fs/symR);\nt = (0:numel(seq)-1)/fs;\nmodSig = (1 + mDepth*(seq - 0.5)) .* sin(2*pi*fC*t);\nthr = 0.5*max(abs(modSig))*ones(1, numel(modSig));\nfigure;\nplot(t, modSig, t, thr, 'r--');\ntitle('ASK/OOK waveform'); grid on;\n\n%{\n@play\n{\n \"title\": \"ASK / OOK\",\n \"groups\": [\n  {\n   \"name\": \"Сигнал\",\n   \"controls\": [\n    {\n     \"var\": \"mDepth\",\n     \"label\": \"Индекс m\",\n     \"min\": 0.2,\n     \"max\": 1.0,\n     \"step\": 0.1,\n     \"default\": 0.8\n    },\n    {\n     \"var\": \"fC\",\n     \"label\": \"Несущая Гц\",\n     \"min\": 500,\n     \"max\": 4000,\n     \"step\": 500,\n     \"default\": 2000\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_bfsk.m",
+    "title": "BFSK",
+    "description": "",
+    "source": "% BFSK\n% Ортогональности Δf=1/2T и Δf=1/T\n\nf2 = 1500;\ntb = 1e-3; f1 = 2000;\ntg = 0:tb/100:tb;\ns1 = sin(2*pi*f1*tg);\ns2c = sin(2*pi*f2*tg);\ns2o = sin(2*pi*(f1-500)*tg);\nfigure;\nplot(tg, s1, tg, s2c, tg, s2o);\nlegend('f1','\\Deltaf=1/2T','\\Deltaf=1/T');\ntitle('BFSK orthogonality'); grid on;\n\n%{\n@play\n{\n \"title\": \"BFSK\",\n \"groups\": [\n  {\n   \"name\": \"Частоты\",\n   \"controls\": [\n    {\n     \"var\": \"f2\",\n     \"label\": \"f₂ Гц\",\n     \"min\": 1200,\n     \"max\": 1800,\n     \"step\": 50,\n     \"default\": 1500\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_bpsk.m",
+    "title": "BPSK",
+    "description": "",
+    "source": "% BPSK\n% Созвездие + BER(Eb/N0)\n\nnoise = 0.3; Ns = 200;\nbits = randi([0 1], 1, Ns);\nsym = 1 - 2*bits;\nrx = sym + noise*randn(1, Ns);\nfigure;\nplot(real(rx), imag(rx), '.');\ntitle('BPSK constellation'); axis([-2 2 -1 1]); grid on;\nebn0 = 0:1:10;\nfigure;\nsemilogy(ebn0, 0.5*erfc(sqrt(10.^(ebn0/10))));\ntitle('BPSK BER'); xlabel('Eb/N0 дБ'); grid on;\n\n%{\n@play\n{\n \"title\": \"BPSK\",\n \"groups\": [\n  {\n   \"name\": \"Канал\",\n   \"controls\": [\n    {\n     \"var\": \"noise\",\n     \"label\": \"Шум σ\",\n     \"min\": 0.05,\n     \"max\": 1.0,\n     \"step\": 0.05,\n     \"default\": 0.3\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_css_chirp.m",
+    "title": "ЛЧМ-чирп (LoRa)",
+    "description": "",
+    "source": "% ЛЧМ-чирп (LoRa)\n% Спектрограмма пилообразных импульсов\n\nchirpMs = 8;\nbw = 125e3;\nts = 0:1/bw:chirpMs*1e-3;\nchirpU = exp(1i*pi*(-bw/2)*ts + 1i*pi*(bw/(chirpMs*1e-3))*ts.^2);\nfigure;\nspectrogram(real(chirpU), hann(256), 200, 512, bw);\ntitle('LoRa up-chirp spectrogram');\n\n%{\n@play\n{\n \"title\": \"ЛЧМ-чирп (LoRa)\",\n \"groups\": [\n  {\n   \"name\": \"Чирп\",\n   \"controls\": [\n    {\n     \"var\": \"chirpMs\",\n     \"label\": \"Длительность мс\",\n     \"min\": 2,\n     \"max\": 16,\n     \"step\": 2,\n     \"default\": 8\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_fm_bessel.m",
+    "title": "FM: спектр Бесселя",
+    "description": "",
+    "source": "% FM: спектр Бесселя\n% Нуль несущей при β = 2.405\n\ndf = 240;\nfs2 = 4000;\nttF = 0:1/fs2:0.1;\nmsgF = sin(2*pi*100*ttF);\ninstF = 2000 + df*msgF;\nphF = 2*pi*cumsum(instF)/fs2;\nsigF2 = sin(phF);\n[SpF, fF] = pwelch(sigF2, hann(512), 256, 1024, fs2);\nfigure;\nplot(fF, 20*log10(SpF));\ntitle('FM spectrum'); xlabel('f Гц'); grid on;\n\n%{\n@play\n{\n \"title\": \"FM: спектр Бесселя\",\n \"groups\": [\n  {\n   \"name\": \"Модуляция\",\n   \"controls\": [\n    {\n     \"var\": \"df\",\n     \"label\": \"Девиация Гц\",\n     \"min\": 50,\n     \"max\": 500,\n     \"step\": 10,\n     \"default\": 240\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_gmsk.m",
+    "title": "GMSK",
+    "description": "",
+    "source": "% GMSK\n% Гаусс-префильтр BT=0.2..0.5\n\nbt = 0.3;\nfs2 = 4000;\ntp = -0.005:1/fs2:0.005;\nimp = exp(-(tp/bt).^2/(2*log(2)));\nfigure;\nplot(tp, imp./max(imp));\ntitle('Gaussian prefilter (BT)'); xlabel('t'); grid on;\n\n%{\n@play\n{\n \"title\": \"GMSK\",\n \"groups\": [\n  {\n   \"name\": \"Фильтр\",\n   \"controls\": [\n    {\n     \"var\": \"bt\",\n     \"label\": \"BT\",\n     \"min\": 0.2,\n     \"max\": 0.5,\n     \"step\": 0.05,\n     \"default\": 0.3\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_mfsk.m",
+    "title": "4-FSK спектрограмма",
+    "description": "",
+    "source": "% 4-FSK спектрограмма\n% Частотный водопад гидромодема\n\nfBase = 400;\nfs2 = 4000;\nbitsF = randi([1 4], 1, 20);\nseg = 0:1/fs2:0.024;\nsigF = [];\nfor k = 1:numel(bitsF)\n    sigF = [sigF sin(2*pi*(fBase + 200*bitsF(k))*seg)];\nend\n[Sg, fg, tg2] = spectrogram(sigF, hann(128), 96, 256, fs2);\nfigure;\nimagesc(tg2, fg, 20*log10(abs(Sg)));\ncolormap('jet');\ntitle('4-FSK spectrogram'); xlabel('t s'); ylabel('f Hz');\n\n%{\n@play\n{\n \"title\": \"4-FSK спектрограмма\",\n \"groups\": [\n  {\n   \"name\": \"Сигнал\",\n   \"controls\": [\n    {\n     \"var\": \"fBase\",\n     \"label\": \"База Гц\",\n     \"min\": 200,\n     \"max\": 800,\n     \"step\": 100,\n     \"default\": 400\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_msk.m",
+    "title": "MSK",
+    "description": "",
+    "source": "% MSK\n% Непрерывная фаза, постоянная огибающая\n\nbitRate = 10;\nfs2 = 4000;\ntt = 0:1/fs2:0.02;\ndata = repelem(randi([0 1], 1, 10), max(1, ceil(numel(tt)/10)));\ndata = data(1:numel(tt));\nphM = 2*pi*cumsum(data - 0.5)/(2*fs2)*1000;\nfigure;\nplot(tt(1:numel(phM)), cos(phM));\ntitle('MSK constant envelope'); grid on;\n\n%{\n@play\n{\n \"title\": \"MSK\",\n \"groups\": [\n  {\n   \"name\": \"Сигнал\",\n   \"controls\": [\n    {\n     \"var\": \"bitRate\",\n     \"label\": \"Бит/с ×10³\",\n     \"min\": 1,\n     \"max\": 20,\n     \"step\": 1,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_ofdm.m",
+    "title": "OFDM: ортогональность и ICI",
+    "description": "",
+    "source": "% OFDM: ортогональность и ICI\n% sinc-поднесущие, доплеровский сдвиг\n\ndop = 20; Nc = 8;\nfs2 = 4000;\nto = 0:1/fs2:2e-3;\nbase = 1e3;\nSub = zeros(Nc, numel(to));\nfor k = 1:Nc\n    Sub(k,:) = sin(2*pi*(base + (k-1)*100)*to);\nend\nSici = sin(2*pi*(base + (0:Nc-1)*100 + dop)'*to);\nfigure;\nplot(to, Sub(1,:) + Sub(2,:));\ntitle('OFDM: orthogonal sum'); grid on;\nfigure;\nplot(to, Sici(1,:) + Sici(2,:));\ntitle('OFDM: Doppler ICI'); grid on;\n\n%{\n@play\n{\n \"title\": \"OFDM: ортогональность и ICI\",\n \"groups\": [\n  {\n   \"name\": \"Канал\",\n   \"controls\": [\n    {\n     \"var\": \"dop\",\n     \"label\": \"Доплер Гц\",\n     \"min\": 0,\n     \"max\": 50,\n     \"step\": 5,\n     \"default\": 20\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_pi4_dqpsk.m",
+    "title": "π/4-DQPSK",
+    "description": "",
+    "source": "% π/4-DQPSK\n% Без переходов через ноль\n\nNs = 100;\ndph = pi/4*(2*randi([0 3], 1, Ns) + 1);\nphPi4 = cumsum(dph);\nfigure;\nplot(cos(phPi4), sin(phPi4), '.-');\ntitle('\\pi/4-DQPSK trajectory'); axis([-2 2 -2 2]); grid on;\n\n%{\n@play\n{\n \"title\": \"π/4-DQPSK\",\n \"groups\": [\n  {\n   \"name\": \"Символы\",\n   \"controls\": [\n    {\n     \"var\": \"Ns\",\n     \"label\": \"Символов\",\n     \"min\": 20,\n     \"max\": 200,\n     \"step\": 20,\n     \"default\": 100\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "comms/mod_qpsk.m",
+    "title": "QPSK",
+    "description": "",
+    "source": "% QPSK\n% 4 точки, I/Q-квадратуры\n\nnoise = 0.2; Ns = 200;\nph = pi/4 + (0:3)*pi/2;\nsym = exp(1i*ph(randi(4, 1, Ns)));\nrx = sym + (randn(1,Ns) + 1i*randn(1,Ns))*noise;\nfigure;\nplot(real(rx), imag(rx), '.');\ntitle('QPSK with noise'); grid on;\n\n%{\n@play\n{\n \"title\": \"QPSK\",\n \"groups\": [\n  {\n   \"name\": \"Канал\",\n   \"controls\": [\n    {\n     \"var\": \"noise\",\n     \"label\": \"Шум σ\",\n     \"min\": 0.05,\n     \"max\": 0.6,\n     \"step\": 0.05,\n     \"default\": 0.2\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "control/control_nyquist.m",
+    "title": "Критерий Найквиста",
+    "description": "",
+    "source": "% Критерий Найквиста\n% Огибание (-1, j0)\n\nwNy = logspace(-2, 2, 400);\n[magNy, phNy] = bode(tf(1, [1 1 1]), wNy);\nzNy = magNy(:).*exp(1i*phNy(:)*pi/180);\nfigure;\nplot(real(zNy), imag(zNy));\nhold on;\nplot(-1, 0, 'rx', 'MarkerSize', 12, 'LineWidth', 2);\nhold off;\ntitle('Nyquist vs (-1, j0)'); xlabel('Re'); ylabel('Im'); grid on;\n\n%{\n@play\n{\n \"title\": \"Критерий Найквиста\",\n \"groups\": []\n}\n%}\n"
+  },
+  {
+    "id": "control/control_pid.m",
+    "title": "ПИД-регулятор",
+    "description": "",
+    "source": "% ПИД-регулятор\n% Kp/Ki/Kd и переходная характеристика\n\nKp = 2; Ki = 1; Kd = 0.1;\nnumC = [Kd Kp Ki];\ndenOL = [1 1 1 0];\ndenCL = denOL + [zeros(1, numel(denOL)-numel(numC)) numC];\nsys = tf(numC, denCL);\n[yy, tt] = step(sys);\nfigure;\nplot(tt, yy);\ntitle('PID step response'); grid on;\n\n%{\n@play\n{\n \"title\": \"ПИД-регулятор\",\n \"groups\": [\n  {\n   \"name\": \"Регулятор\",\n   \"controls\": [\n    {\n     \"var\": \"Kp\",\n     \"label\": \"Kp\",\n     \"min\": 0.5,\n     \"max\": 8,\n     \"step\": 0.5,\n     \"default\": 2\n    },\n    {\n     \"var\": \"Ki\",\n     \"label\": \"Ki\",\n     \"min\": 0,\n     \"max\": 4,\n     \"step\": 0.5,\n     \"default\": 1\n    },\n    {\n     \"var\": \"Kd\",\n     \"label\": \"Kd\",\n     \"min\": 0,\n     \"max\": 1,\n     \"step\": 0.05,\n     \"default\": 0.1\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "control/control_root_locus.m",
+    "title": "Годограф корней",
+    "description": "",
+    "source": "% Годограф корней\n% Полюса замкнутой системы vs K\n\nK = 1;\ndenCL = [1 2 2 + K];\npr = roots(denCL);\nfigure;\nplot(real(pr), imag(pr), 'x');\ntitle('Closed-loop poles at K');\nxlabel('Re'); ylabel('Im'); grid on;\n\n%{\n@play\n{\n \"title\": \"Годограф корней\",\n \"groups\": [\n  {\n   \"name\": \"Усиление\",\n   \"controls\": [\n    {\n     \"var\": \"K\",\n     \"label\": \"K\",\n     \"min\": 0.1,\n     \"max\": 5,\n     \"step\": 0.1,\n     \"default\": 1\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "control/robotics_2link_fk.m",
+    "title": "Кинематика 2-звенника",
+    "description": "",
+    "source": "% Кинематика 2-звенника\n% Рабочая зона схвата\n\nL1 = 1.0; L2 = 0.7;\nth1 = linspace(0, pi/2, 30);\nth2 = linspace(0, pi, 30);\nfigure;\nhold on;\nfor k = 1:numel(th1)\n    xj = L1*cos(th1(k)); yj = L1*sin(th1(k));\n    xe = xj + L2*cos(th1(k) + th2(k));\n    ye = yj + L2*sin(th1(k) + th2(k));\n    plot([0 xj xe], [0 yj ye], 'b-');\n    plot(xe, ye, 'r.');\nend\nplot(0, 0, 'ko', 'MarkerFaceColor', 'k');\ntitle('2-link FK workspace'); axis equal; grid on;\n\n%{\n@play\n{\n \"title\": \"Кинематика 2-звенника\",\n \"groups\": [\n  {\n   \"name\": \"Манипулятор\",\n   \"controls\": [\n    {\n     \"var\": \"L1\",\n     \"label\": \"L₁ м\",\n     \"min\": 0.5,\n     \"max\": 1.5,\n     \"step\": 0.1,\n     \"default\": 1.0\n    },\n    {\n     \"var\": \"L2\",\n     \"label\": \"L₂ м\",\n     \"min\": 0.3,\n     \"max\": 1.2,\n     \"step\": 0.1,\n     \"default\": 0.7\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
     "id": "damped-oscillation.m",
     "title": "Затухающие колебания",
     "description": "Влияние коэффициента демпфирования на переходный процесс",
     "source": "%{\n@play\n{\n  \"title\": \"Затухающие колебания\",\n  \"description\": \"Влияние коэффициента демпфирования на переходный процесс\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры системы\",\n      \"controls\": [\n        { \"var\": \"zeta\", \"label\": \"Демпфирование ζ\", \"min\": 0.05, \"max\": 1.0, \"step\": 0.05, \"default\": 0.2 },\n        { \"var\": \"f0\", \"label\": \"Частота, Гц\", \"min\": 0.5, \"max\": 5.0, \"step\": 0.5, \"default\": 2.0 }\n      ]\n    }\n  ]\n}\n%}\n% Затухающие колебания: x(t) = exp(-zeta*w*t) * cos(wd*t)\nzeta = 0.2;\nf0 = 2;\nw = 2 * pi * f0;\nwd = w * sqrt(1 - zeta * zeta);\nt = 0:0.005:3;\nx = exp(-zeta * w * t) .* cos(wd * t);\nenv = exp(-zeta * w * t);\nplot(t, x, 'b');\nhold on;\nplot(t, env, 'r--');\nplot(t, -env, 'r--');\ntitle('Damped oscillation');\nxlabel('t, s');\nylabel('x(t)');\nlegend('x(t)', 'envelope');\ngrid on;\n"
   },
   {
+    "id": "dsp/dsp_biquad_eq.m",
+    "title": "Биквад-эквалайзер",
+    "description": "",
+    "source": "% Биквад-эквалайзер\n% f₀, Q, gain — нули/полюса на z-плоскости\n\nf0 = 1000; Q = 4; gainDB = 12; fs3 = 48000;\nA = 10^(gainDB/40);\nw0 = 2*pi*f0/fs3; al = sin(w0)/(2*Q);\nb = [1+al*A, -2*cos(w0), 1-al*A]/(1+al/A);\na = [1, -2*cos(w0)/(1+al/A), (1-al/A)/(1+al/A)];\n[H, wf] = freqz(b, a, 512);\nfigure;\nplot(wf/(2*pi), 20*log10(abs(H)));\ntitle('Peaking EQ'); xlabel('norm f'); grid on;\nzr = roots(b); pr = roots(a);\nfigure;\nplot(real(zr), imag(zr), 'o', real(pr), imag(pr), 'x');\ntitle('z-plane zeros/poles'); axis([-1.5 1.5 -1.5 1.5]); grid on;\n\n%{\n@play\n{\n \"title\": \"Биквад-эквалайзер\",\n \"groups\": [\n  {\n   \"name\": \"EQ\",\n   \"controls\": [\n    {\n     \"var\": \"f0\",\n     \"label\": \"f₀ Гц\",\n     \"min\": 200,\n     \"max\": 8000,\n     \"step\": 200,\n     \"default\": 1000\n    },\n    {\n     \"var\": \"Q\",\n     \"label\": \"Q\",\n     \"min\": 0.5,\n     \"max\": 10,\n     \"step\": 0.5,\n     \"default\": 4\n    },\n    {\n     \"var\": \"gainDB\",\n     \"label\": \"Gain дБ\",\n     \"min\": -12,\n     \"max\": 18,\n     \"step\": 3,\n     \"default\": 12\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "dsp/dsp_cheby_compare.m",
+    "title": "Чебышёв I vs II",
+    "description": "",
+    "source": "% Чебышёв I vs II\n% Пульсации в ПП vs ПЗ\n\norder = 4; fc = 0.2;\n[b1c, a1c] = cheby1(order, 1, fc);\n[b2c, a2c] = cheby2(order, 40, fc);\n[H1, wf2] = freqz(b1c, a1c, 512);\n[H2, ~] = freqz(b2c, a2c, 512);\nfigure;\nplot(wf2/(2*pi), 20*log10(abs(H1)), wf2/(2*pi), 20*log10(abs(H2)));\nlegend('Cheby I','Cheby II');\ntitle('Chebyshev compare'); grid on;\n\n%{\n@play\n{\n \"title\": \"Чебышёв I vs II\",\n \"groups\": [\n  {\n   \"name\": \"Фильтр\",\n   \"controls\": [\n    {\n     \"var\": \"order\",\n     \"label\": \"Порядок\",\n     \"min\": 2,\n     \"max\": 8,\n     \"step\": 2,\n     \"default\": 4\n    },\n    {\n     \"var\": \"fc\",\n     \"label\": \"Срез ×fs\",\n     \"min\": 0.1,\n     \"max\": 0.4,\n     \"step\": 0.05,\n     \"default\": 0.2\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "dsp/dsp_fft_leakage.m",
+    "title": "Утечка спектра БПФ",
+    "description": "",
+    "source": "% Утечка спектра БПФ\n% Окна при некратной частоте\n\nfL = 50.5; fs4 = 1000; N4 = 256;\nt4 = (0:N4-1)/fs4;\nxL = sin(2*pi*fL*t4);\nwhan = hann(N4)';\nwbh = blackmanharris(N4)';\nYL = abs(fft(xL));\nYL2 = abs(fft(xL .* whan));\nYL3 = abs(fft(xL .* wbh));\nfigure;\nplot(20*log10(YL(1:N4/2)), 20*log10(YL2(1:N4/2)), 20*log10(YL3(1:N4/2)));\nlegend('rect','hann','blackman-harris');\ntitle('Spectral leakage'); grid on;\n\n%{\n@play\n{\n \"title\": \"Утечка спектра БПФ\",\n \"groups\": [\n  {\n   \"name\": \"Окно\",\n   \"controls\": [\n    {\n     \"var\": \"fL\",\n     \"label\": \"f сигнала Гц\",\n     \"min\": 40,\n     \"max\": 90,\n     \"step\": 0.5,\n     \"default\": 50.5\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "dsp/dsp_fir_kaiser.m",
+    "title": "КИХ + Кайзер",
+    "description": "",
+    "source": "% КИХ + Кайзер\n% β: переходная полоса vs подавление\n\nbeta = 5; fc = 0.25;\nNt = 64;\nbK = fir1(Nt, fc, kaiser(Nt+1, beta));\n[HK, wfK] = freqz(bK, 1, 512);\nfigure;\nplot(wfK/(2*pi), 20*log10(abs(HK)));\ntitle('FIR Kaiser'); xlabel('norm f'); grid on;\n\n%{\n@play\n{\n \"title\": \"КИХ + Кайзер\",\n \"groups\": [\n  {\n   \"name\": \"Синтез\",\n   \"controls\": [\n    {\n     \"var\": \"beta\",\n     \"label\": \"β\",\n     \"min\": 1,\n     \"max\": 10,\n     \"step\": 1,\n     \"default\": 5\n    },\n    {\n     \"var\": \"fc\",\n     \"label\": \"Срез ×fs\",\n     \"min\": 0.1,\n     \"max\": 0.45,\n     \"step\": 0.05,\n     \"default\": 0.25\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "dsp/dsp_hilbert_envelope.m",
+    "title": "Гильберт: огибающая",
+    "description": "",
+    "source": "% Гильберт: огибающая\n% Аналитический сигнал (степень 2 — workaround, см. hilbert bug)\n\ndecay = 3;\nts5 = 0:1/1000:0.063;\nx5 = cos(2*pi*50*ts5).*exp(-decay*ts5);\nz5 = hilbert(x5);\nfigure;\nplot(ts5, x5, ts5, abs(z5));\nlegend('x(t)','|x(t)|');\ntitle('Analytic signal envelope'); grid on;\n\n%{\n@play\n{\n \"title\": \"Гильберт: огибающая\",\n \"groups\": [\n  {\n   \"name\": \"Сигнал\",\n   \"controls\": [\n    {\n     \"var\": \"decay\",\n     \"label\": \"Затухание\",\n     \"min\": 1,\n     \"max\": 8,\n     \"step\": 1,\n     \"default\": 3\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
     "id": "gaussian-heatmap.m",
     "title": "2D-гауссиана (imagesc)",
     "description": "Тепловая карта двумерного гауссова распределения",
-    "source": "%{\n@play\n{\n  \"title\": \"2D-гауссиана (imagesc)\",\n  \"description\": \"Тепловая карта двумерного гауссова распределения\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры распределения\",\n      \"controls\": [\n        { \"var\": \"sigma\", \"label\": \"σ\", \"min\": 0.3, \"max\": 2.0, \"step\": 0.1, \"default\": 0.8 },\n        { \"var\": \"n\", \"label\": \"Сетка N×N\", \"min\": 16, \"max\": 96, \"step\": 16, \"default\": 48 },\n        { \"var\": \"cm\", \"label\": \"Палитра\", \"type\": \"select\", \"options\": [\"hot\", \"parula\", \"jet\", \"gray\"], \"default\": \"parula\" }\n      ]\n    }\n  ]\n}\n%}\n% 2D-гауссиана на сетке N×N\nsigma = 0.8;\nn = 48;\nxs = linspace(-3, 3, n);\nZ = zeros(n, n);\nfor i = 1:n\n    for j = 1:n\n        Z(i, j) = exp(-(xs(i)^2 + xs(j)^2) / (2 * sigma^2));\n    end\nend\nimagesc(xs, xs, Z);\ncolormap(parula);\ncolorbar;\ntitle('2D Gaussian');\nxlabel('x');\nylabel('y');\n"
+    "source": "%{\n@play\n{\n  \"title\": \"2D-гауссиана (imagesc)\",\n  \"description\": \"Тепловая карта двумерного гауссова распределения\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры распределения\",\n      \"controls\": [\n        { \"var\": \"sigma\", \"label\": \"σ\", \"min\": 0.3, \"max\": 2.0, \"step\": 0.1, \"default\": 0.8 },\n        { \"var\": \"n\", \"label\": \"Сетка N×N\", \"min\": 16, \"max\": 96, \"step\": 16, \"default\": 48 },\n        { \"var\": \"cm\", \"label\": \"Палитра\", \"type\": \"select\", \"options\": [\"hot\", \"parula\", \"jet\", \"gray\"], \"default\": \"parula\" }\n      ]\n    }\n  ]\n}\n%}\n% 2D-гауссиана на сетке N×N\nsigma = 0.8;\nn = 48;\nxs = linspace(-3, 3, n);\nZ = zeros(n, n);\nfor i = 1:n\n    for j = 1:n\n        Z(i, j) = exp(-(xs(i)^2 + xs(j)^2) / (2 * sigma^2));\n    end\nend\nimagesc(xs, xs, Z);\ncolorbar;\ntitle('2D Gaussian');\nxlabel('x');\nylabel('y');\n"
+  },
+  {
+    "id": "hydroacoustics/sonar_ambient_noise_wenz.m",
+    "title": "Шум океана (Венц)",
+    "description": "",
+    "source": "% Шум океана (Венц)\n% Судоходство / ветер / термический\n\nfMax = 20000;\nfw = logspace(1, log10(fMax), 200);\nNLship = 44 - 17*log10(fw/100);\nNLwind = 33 - 25*log10(fw/500);\nNLth = -15 + 20*log10(fw);\nfigure;\nloglog(fw, NLship, fw, NLwind, fw, NLth);\nlegend('shipping','wind','thermal');\ntitle('Wenz ambient noise'); grid on;\n\n%{\n@play\n{\n \"title\": \"Шум океана (Венц)\",\n \"groups\": [\n  {\n   \"name\": \"Диапазон\",\n   \"controls\": [\n    {\n     \"var\": \"fMax\",\n     \"label\": \"f макс Гц\",\n     \"min\": 1000,\n     \"max\": 50000,\n     \"step\": 5000,\n     \"default\": 20000\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sonar_equation_active.m",
+    "title": "Активный сонар",
+    "description": "",
+    "source": "% Активный сонар\n% SL − 2TL + TS − (NL − DI) ≥ DT\n\nSL = 220; TS = 10; NL = 60; DI = 20;\nDT = 5;\nTLok = (SL + TS - NL - DI + DT)/2;\nr = logspace(1, 5, 200);\nTLs = 20*log10(r) + 0.35*r/1000;\nfigure;\nsemilogx(r, TLs);\nhold on;\nyline(TLok, 'r--');\nhold off;\ntitle('Active sonar budget'); xlabel('r м'); ylabel('TL дБ'); grid on;\n\n%{\n@play\n{\n \"title\": \"Активный сонар\",\n \"groups\": [\n  {\n   \"name\": \"Бюджет\",\n   \"controls\": [\n    {\n     \"var\": \"SL\",\n     \"label\": \"SL дБ\",\n     \"min\": 180,\n     \"max\": 240,\n     \"step\": 5,\n     \"default\": 220\n    },\n    {\n     \"var\": \"TS\",\n     \"label\": \"TS дБ\",\n     \"min\": -10,\n     \"max\": 30,\n     \"step\": 5,\n     \"default\": 10\n    },\n    {\n     \"var\": \"NL\",\n     \"label\": \"NL дБ\",\n     \"min\": 40,\n     \"max\": 80,\n     \"step\": 5,\n     \"default\": 60\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sonar_equation_passive.m",
+    "title": "Пассивный сонар",
+    "description": "",
+    "source": "% Пассивный сонар\n% SL − TL − (NL − DI) ≥ DT\n\nSLp = 180; DI = 20;\nDT = 5;\nTLmax = SLp - (60 - DI + DT);\nr = logspace(1, 5, 200);\nTLc = 10*log10(r) + 0.07*r/1000;\nfigure;\nsemilogx(r, TLc);\nhold on;\nyline(TLmax, 'r--');\nhold off;\ntitle('Passive sonar budget'); xlabel('r м'); ylabel('TL дБ'); grid on;\n\n%{\n@play\n{\n \"title\": \"Пассивный сонар\",\n \"groups\": [\n  {\n   \"name\": \"Бюджет\",\n   \"controls\": [\n    {\n     \"var\": \"SLp\",\n     \"label\": \"SL цели дБ\",\n     \"min\": 150,\n     \"max\": 200,\n     \"step\": 5,\n     \"default\": 180\n    },\n    {\n     \"var\": \"DI\",\n     \"label\": \"DI дБ\",\n     \"min\": 5,\n     \"max\": 30,\n     \"step\": 5,\n     \"default\": 20\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sonar_optimal_frequency.m",
+    "title": "Оптимальная частота",
+    "description": "",
+    "source": "% Оптимальная частота\n% Максимум SNR на дистанции\n\nRk = 5;\nf = logspace(1, 4.5, 200);\na = 0.11*f.^2./(1+f.^2) + 44*f.^2./(4100+f.^2) + 2.75e-4*f.^2;\ntwoWay = 2*a*Rk;\nfigure;\nsemilogx(f, twoWay);\ntitle('Two-way absorption @ 5 km'); xlabel('f Hz'); ylabel('дБ'); grid on;\n\n%{\n@play\n{\n \"title\": \"Оптимальная частота\",\n \"groups\": [\n  {\n   \"name\": \"Задача\",\n   \"controls\": [\n    {\n     \"var\": \"Rk\",\n     \"label\": \"Дистанция км\",\n     \"min\": 1,\n     \"max\": 20,\n     \"step\": 1,\n     \"default\": 5\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sonar_transmission_loss.m",
+    "title": "Transmission Loss",
+    "description": "",
+    "source": "% Transmission Loss\n% Сферическое/цилиндрическое расхождение\n\nRmax = 10000; fK = 5;\nr = linspace(10, Rmax, 200);\nka = 0.07*fK;\nfigure;\nsemilogx(r, 20*log10(r)+ka*r/1000, r, 10*log10(r)+ka*r/1000);\nlegend('spherical','cylindrical');\ntitle('Transmission loss'); xlabel('r m'); ylabel('dB'); grid on;\n\n%{\n@play\n{\n \"title\": \"Transmission Loss\",\n \"groups\": [\n  {\n   \"name\": \"Параметры\",\n   \"controls\": [\n    {\n     \"var\": \"Rmax\",\n     \"label\": \"R макс м\",\n     \"min\": 1000,\n     \"max\": 20000,\n     \"step\": 1000,\n     \"default\": 10000\n    },\n    {\n     \"var\": \"fK\",\n     \"label\": \"f кГц\",\n     \"min\": 1,\n     \"max\": 20,\n     \"step\": 1,\n     \"default\": 5\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_absorption_ainslie_mccolm.m",
+    "title": "Эйнсли-Макколм",
+    "description": "",
+    "source": "% Эйнсли-Макколм\n% Современная модель затухания\n\nTkg = 10;\nf = logspace(2, 4.7, 200);\nf1 = 2.8*10^((Tkg-2)/43);\nf2 = 62*10^((Tkg+30)/100);\na = 0.106*f.^2*f1./(f1^2+f.^2)*1e-3 + 0.6*f2*f.^2./(f2^2+f.^2)*1e-3 + 2.75e-4*f.^2;\nfigure;\nloglog(f, a);\ntitle('Ainslie-McColm \\alpha(f)'); grid on;\n\n%{\n@play\n{\n \"title\": \"Эйнсли-Макколм\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"Tkg\",\n     \"label\": \"T °C\",\n     \"min\": 0,\n     \"max\": 30,\n     \"step\": 1,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_absorption_francois_garrison.m",
+    "title": "Франсуа-Гаррисон",
+    "description": "",
+    "source": "% Франсуа-Гаррисон\n% Бор + MgSO₄ + вязкость воды\n\nTkg = 10; pH = 8.0;\nf = logspace(2, 4.7, 200);\nf1 = 2.8*10^((Tkg-2)/43);\naB = 0.11*f.^2*f1./(f1^2+f.^2)*1e-3;\nf2 = 62*10^((Tkg+30)/100);\naMg = 0.7*f2*f.^2./(f2^2+f.^2)*1e-3;\naW = 2.9e-2*f.^2/1e3;\nfigure;\nloglog(f, aB+aMg+aW);\ntitle('Francois-Garrison \\alpha(f)'); grid on;\n\n%{\n@play\n{\n \"title\": \"Франсуа-Гаррисон\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"Tkg\",\n     \"label\": \"T °C\",\n     \"min\": 0,\n     \"max\": 30,\n     \"step\": 1,\n     \"default\": 10\n    },\n    {\n     \"var\": \"pH\",\n     \"label\": \"pH\",\n     \"min\": 7.5,\n     \"max\": 8.5,\n     \"step\": 0.1,\n     \"default\": 8.0\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_absorption_thorp.m",
+    "title": "Формула Торпа",
+    "description": "",
+    "source": "% Формула Торпа\n% Классическое затухание 0.1–10 кГц\n\nfMax = 50;\nf = logspace(1, log10(fMax*1000), 200);\na = 0.11*f.^2./(1+f.^2) + 44*f.^2./(4100+f.^2) + 2.75e-4*f.^2 + 0.003;\nfigure;\nloglog(f, a);\ntitle('Thorp \\alpha(f) dB/km'); xlabel('f Hz'); grid on;\n\n%{\n@play\n{\n \"title\": \"Формула Торпа\",\n \"groups\": [\n  {\n   \"name\": \"Диапазон\",\n   \"controls\": [\n    {\n     \"var\": \"fMax\",\n     \"label\": \"f макс кГц\",\n     \"min\": 10,\n     \"max\": 100,\n     \"step\": 10,\n     \"default\": 50\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_speed_comparison.m",
+    "title": "Сравнение моделей c(z)",
+    "description": "",
+    "source": "% Сравнение моделей c(z)\n% Δc между четырьмя уравнениями\n\nS = 35; D = 10;\nT = 2:1:30;\ncM = 1448.96 + 4.591*T - 5.304e-2*T.^2 + 2.374e-4*T.^3 + 1.34*(S-35) + 1.63e-2*D - 1.025e-2*T*(S-35);\ncDG = 1402.392 + 4.63573*T - 3.5885e-2*T.^2 + 1.59964e-4*T.^3 + 1.33428*(S-35) - 1.13083e-2*T*(S-35);\ncUN = 1449.2 + 4.6*T - 5.48e-2*T.^2 + 2.91e-4*T.^3 + 1.34*(S-35) - 1.02e-2*T*(S-35);\ncCp = 1449.05 + 4.57*T - 5.21e-2*T.^2 + 2.31e-4*T.^3 + 1.33*(S-35) - 1.10e-2*T*(S-35);\nfigure;\nplot(T, cM-cDG, T, cM-cUN, T, cM-cCp);\nlegend('M-DG','M-UN','M-Cp');\ntitle('\\Delta c between models'); grid on;\n\n%{\n@play\n{\n \"title\": \"Сравнение моделей c(z)\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"S\",\n     \"label\": \"Солёность\",\n     \"min\": 30,\n     \"max\": 40,\n     \"step\": 1,\n     \"default\": 35\n    },\n    {\n     \"var\": \"D\",\n     \"label\": \"Глубина м\",\n     \"min\": 0,\n     \"max\": 4000,\n     \"step\": 100,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_speed_coppens.m",
+    "title": "Коппенс 1981",
+    "description": "",
+    "source": "% Коппенс 1981\n% Компактная модель до 4000 м\n\nTmax = 30; S = 35; D = 10;\nT = 2:1:Tmax;\nc = 1449.05 + 4.57*T - 5.21e-2*T.^2 + 2.31e-4*T.^3 + 1.33*(S-35) - 1.10e-2*T*(S-35) + 1.655e-2*D;\nfigure;\nplot(T, c);\ntitle('Coppens 1981'); xlabel('T °C'); ylabel('c m/s'); grid on;\n\n%{\n@play\n{\n \"title\": \"Коппенс 1981\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"Tmax\",\n     \"label\": \"T макс °C\",\n     \"min\": 5,\n     \"max\": 30,\n     \"step\": 1,\n     \"default\": 30\n    },\n    {\n     \"var\": \"S\",\n     \"label\": \"Солёность\",\n     \"min\": 30,\n     \"max\": 40,\n     \"step\": 1,\n     \"default\": 35\n    },\n    {\n     \"var\": \"D\",\n     \"label\": \"Глубина м\",\n     \"min\": 0,\n     \"max\": 4000,\n     \"step\": 100,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_speed_delgrosso.m",
+    "title": "Дель Гроссо 1974",
+    "description": "",
+    "source": "% Дель Гроссо 1974\n% Высокоточный стандарт ВМФ\n\nTmax = 30; S = 35; D = 10;\nT = 2:1:Tmax;\nc = 1402.392 + 4.63573*T - 3.5885e-2*T.^2 + 1.59964e-4*T.^3 - 1.3904e-6*T.^4 + 1.33428*(S-35) + 1.60272e-2*D + 8.34076e-7*D^3 - 1.13083e-2*T*(S-35);\nfigure;\nplot(T, c);\ntitle('Del Grosso 1974'); xlabel('T °C'); ylabel('c m/s'); grid on;\n\n%{\n@play\n{\n \"title\": \"Дель Гроссо 1974\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"Tmax\",\n     \"label\": \"T макс °C\",\n     \"min\": 5,\n     \"max\": 30,\n     \"step\": 1,\n     \"default\": 30\n    },\n    {\n     \"var\": \"S\",\n     \"label\": \"Солёность\",\n     \"min\": 30,\n     \"max\": 40,\n     \"step\": 1,\n     \"default\": 35\n    },\n    {\n     \"var\": \"D\",\n     \"label\": \"Глубина м\",\n     \"min\": 0,\n     \"max\": 4000,\n     \"step\": 100,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_speed_mackenzie.m",
+    "title": "Маккензи 1981",
+    "description": "",
+    "source": "% Маккензи 1981\n% 9-членный полином T/S/D\n\nTmax = 30; S = 35; D = 10;\nT = 2:1:Tmax;\nc = 1448.96 + 4.591*T - 5.304e-2*T.^2 + 2.374e-4*T.^3 + 1.340*(S-35) + 1.630e-2*D + 1.675e-7*D^2 - 1.025e-2*T*(S-35) - 7.139e-13*T*D^3;\nfigure;\nplot(T, c);\ntitle('Mackenzie 1981'); xlabel('T °C'); ylabel('c m/s'); grid on;\n\n%{\n@play\n{\n \"title\": \"Маккензи 1981\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"Tmax\",\n     \"label\": \"T макс °C\",\n     \"min\": 5,\n     \"max\": 30,\n     \"step\": 1,\n     \"default\": 30\n    },\n    {\n     \"var\": \"S\",\n     \"label\": \"Солёность\",\n     \"min\": 30,\n     \"max\": 40,\n     \"step\": 1,\n     \"default\": 35\n    },\n    {\n     \"var\": \"D\",\n     \"label\": \"Глубина м\",\n     \"min\": 0,\n     \"max\": 4000,\n     \"step\": 100,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "hydroacoustics/sound_speed_unesco.m",
+    "title": "ЮНЕСКО 1983",
+    "description": "",
+    "source": "% ЮНЕСКО 1983\n% Чен-Миллеро, международный стандарт\n\nTmax = 30; S = 35; D = 10;\nT = 2:1:Tmax;\nc = 1449.2 + 4.6*T - 5.48e-2*T.^2 + 2.91e-4*T.^3 + 1.34*(S-35) + 1.60e-2*D + 1.6e-7*D^2 - 1.02e-2*T*(S-35);\nfigure;\nplot(T, c);\ntitle('UNESCO 1983'); xlabel('T °C'); ylabel('c m/s'); grid on;\n\n%{\n@play\n{\n \"title\": \"ЮНЕСКО 1983\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"Tmax\",\n     \"label\": \"T макс °C\",\n     \"min\": 5,\n     \"max\": 30,\n     \"step\": 1,\n     \"default\": 30\n    },\n    {\n     \"var\": \"S\",\n     \"label\": \"Солёность\",\n     \"min\": 30,\n     \"max\": 40,\n     \"step\": 1,\n     \"default\": 35\n    },\n    {\n     \"var\": \"D\",\n     \"label\": \"Глубина м\",\n     \"min\": 0,\n     \"max\": 4000,\n     \"step\": 100,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
     "id": "phased-array-beamforming.m",
@@ -21,45 +363,63 @@ export const gallery: GalleryEntry[] = [
     "source": "%{\n@play\n{\n  \"title\": \"Фазированная антенная решётка (Beamforming)\",\n  \"description\": \"Интерактивный расчёт диаграммы направленности и подавления боковых лепестков\",\n  \"groups\": [\n    {\n      \"name\": \"Геометрия антенны\",\n      \"controls\": [\n        { \"var\": \"N\", \"label\": \"Число элементов\", \"min\": 8, \"max\": 64, \"step\": 2, \"default\": 16 },\n        { \"var\": \"d\", \"label\": \"Шаг решётки (d/λ)\", \"min\": 0.1, \"max\": 1.5, \"step\": 0.05, \"default\": 0.5 }\n      ]\n    },\n    {\n      \"name\": \"Управление лучом\",\n      \"controls\": [\n        { \"var\": \"theta0\", \"label\": \"Угол поворота\", \"min\": -60, \"max\": 60, \"step\": 1, \"unit\": \"°\", \"default\": 25 },\n        { \"var\": \"win\", \"label\": \"Оконная функция\", \"type\": \"select\", \"options\": [\"rect\", \"hamming\", \"chebwin\"], \"default\": \"hamming\" }\n      ]\n    }\n  ]\n}\n%}\n% =========================================================================\n% Фазированная решётка: array factor в polar-координатах\n% =========================================================================\nN = 16;\ntheta0 = 25;\nd = 0.5;\nwin = 'hamming';\n% Весовые коэффициенты\nif strcmp(win, 'chebwin')\n    w = chebwin(N, 30);\nelseif strcmp(win, 'hamming')\n    w = hamming(N);\nelse\n    w = ones(N, 1);\nend\n% Угловая развёртка и множитель решётки\ntheta = -90:0.5:90;\nph = 2 * pi * d * (sin(theta * pi / 180) - sin(theta0 * pi / 180));\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + w(k) * exp(1i * (k - 1) * ph);\nend\nmag = abs(AF) / sum(w);\npolarplot(theta * pi / 180, mag);\n"
   },
   {
-    "id": "section-a.m",
-    "title": "section-a",
+    "id": "physics/optics_airy_disk.m",
+    "title": "Диск Эйри",
     "description": "",
-    "source": "%========================================================================\n% SECTION A — ANTENNA & ACOUSTIC ARRAYS (21 scripts, batched in one\n% generator file; each numbered script below becomes a gallery entry\n% via its own @play manifest when split — during authoring they run\n% top-to-bottom in one engine session each).\n%========================================================================\n\n% ── A.1 GEOMETRIES ──────────────────────────────────────────────────\n\n% --- 1. ULA: grating-lobe onset vs d/lambda -------------------------\nd = 0.5; N = 16; theta0 = 20;\ntheta = -90:0.2:90;\nph = 2*pi*d*(sind(theta) - sind(theta0));\nAF = zeros(1,numel(theta));\nfor k = 1:N, AF = AF + exp(1i*(k-1)*ph); end\nfigure; plot(theta, abs(AF)/N); title('ULA beam, d=0.5'); grid on;\n\nd = 1.2;\nph = 2*pi*d*(sind(theta) - sind(theta0));\nAF2 = zeros(1,numel(theta));\nfor k = 1:N, AF2 = AF2 + exp(1i*(k-1)*ph); end\nfigure; plot(theta, abs(AF2)/N); title('ULA d=1.2: grating lobes'); grid on;\n\n% --- 2. UCA: ring array ---------------------------------------------\nR = 1.0; Ne = 24; f = 1;\nth = linspace(0, 2*pi, 361);\nAFu = zeros(1,numel(th));\nfor n = 1:Ne\n  an = 2*pi*(n-1)/Ne;\n  AFu = AFu + exp(1i*2*pi*R*(cos(an).*cos(th) + sin(an).*sin(th)));\nend\nfigure; polarplot(th, abs(AFu)/Ne); title('UCA ring pattern');\n\n% --- 3. URA planar: 2-D grid cut --------------------------------------\nNx = 8; Ny = 8;\nthv = -90:5:90; phv = 0:5:90;\nAFp = zeros(numel(phv), numel(thv));\nfor ip = 1:numel(phv)\n  for it = 1:numel(thv)\n    s = 0;\n    for ix = 1:Nx\n      for iy = 1:Ny\n        s = s + exp(1i*pi*( (ix-1)*sind(thv(it))*cosd(phv(ip)) + ...\n                            (iy-1)*sind(thv(it))*sind(phv(ip)) ));\n      end\n    end\n    AFp(ip,it) = abs(s)/(Nx*Ny);\n  end\nend\nfigure; imagesc(thv, phv, AFp); colormap('jet'); colorbar;\ntitle('URA planar |AF(\\theta,\\phi)|'); xlabel('\\theta'); ylabel('\\phi');\n\n% --- 4. Hexagonal pack: denser aperture, lower sidelobes -------------\nph2 = 0:1:180;\nAFh = zeros(1,numel(ph2));\npos = [0 0];\nfor ring = 1:2\n  for s = 0:5\n    an = pi/3*s;\n    for m = 1:ring\n      rr = m/ring;\n      pos(end+1,:) = ring*[cos(an) sin(an)] + rr*[cos(an+pi/2) sin(an+pi/2)];\n    end\n  end\nend\nfor ip = 1:numel(ph2)\n  th0 = ph2(ip)*pi/180;\n  s = 0;\n  for n = 1:size(pos,1)\n    s = s + exp(1i*2*pi*( pos(n,1)*cos(th0) + pos(n,2)*sin(th0) ));\n  end\n  AFh(ip) = abs(s)/size(pos,1);\nend\nfigure; plot(ph2, 20*log10(AFh + 1e-12)); title('Hexagonal array, dB');\nylabel('|AF| dB'); grid on;\n\n% --- 5. Conformal cylinder: sector switching -------------------------\nNc = 32; Rc = 1.0; sector = 120;\nth = -90:1:90;\nAFc = zeros(1,numel(th));\nfor n = 1:Nc\n  an = -180 + 360*(n-1)/Nc;\n  if abs(an) <= sector/2\n    AFc = AFc + exp(1i*2*pi*Rc*(cosd(an).*cosd(th) + sind(an).*sind(th)));\n  end\nend\nfigure; polarplot(th*pi/180, abs(AFc)/sum(abs(AFc)>0)); title('Cylinder conformal, 120\\circ sector');\n\n% --- 6. Sparse MRA: minimum-redundancy aperture ----------------------\nmra = [0 1 3 6 8 11 13 16];  % Golomb-ruler-like positions (elements)\ntheta = -90:0.5:90;\nAFm = zeros(1,numel(theta));\nfor n = 1:numel(mra)\n  AFm = AFm + exp(1i*pi*mra(n)*sind(theta));\nend\nfigure; plot(theta, 20*log10(abs(AFm)/numel(mra) + 1e-12));\ntitle('MRA sparse array'); ylabel('dB'); grid on;\n\n% --- 7. Spherical cap: hemispheric coverage --------------------------\nNs = 5; % rings\nth = 0:2:180;\nAFs = zeros(1,numel(th));\nfor ring = 0:Ns-1\n  elr = ring * 30;            % ring elevation deg\n  cnt = max(4, round(12*cosd(elr)));\n  for m = 1:cnt\n    az = 360*(m-1)/cnt;\n    for it = 1:numel(th)\n      u = cosd(th(it))*cosd(az) + sind(th(it))*sind(az);\n      AFs(it) = AFs(it) + exp(1i*pi*u*sind(elr));\n    end\n  end\nend\nfigure; plot(th, abs(AFs)/max(abs(AFs))); title('Spherical cap coverage');\n\n% ── A.2 ELEMENT PATTERNS ────────────────────────────────────────────\n\n% --- 8. Isotropic -----------------------------------------------------\nfigure; polarplot(linspace(0,2*pi,361), ones(1,361)); title('Isotropic F(\\theta)=1');\n\n% --- 9. Short dipole F=cos(theta) -------------------------------------\nth = linspace(0, 2*pi, 361);\nfigure; polarplot(th, abs(cos(th))); title('Short dipole F=\\cos\\theta');\n\n% --- 10. Half-wave dipole ---------------------------------------------\nfigure; polarplot(th, abs(cos(pi/2*cos(th))./max(1e-9,sin(th))));\ntitle('Half-wave dipole');\n\n% --- 11. Cardioid ------------------------------------------------------\nfigure; polarplot(th, abs(1 + cos(th))); title('Cardioid 1+\\cos\\theta');\n\n% --- 12. Baffled piston 2*J1(x)/x --------------------------------------\nu = linspace(1e-6, 40, 721);\npat = 2*besselj(1, u)./u;\nfigure; plot(u, pat); title('Baffled piston 2J_1(x)/x'); grid on;\n"
+    "source": "% Диск Эйри\n% Критерий Рэлея\n\nu = linspace(1e-6, 15, 400);\nairy = (2*besselj(1, u)./u).^2;\nfigure;\nplot(u, airy);\ntitle('Airy pattern [2J_1(u)/u]^2');\nxlabel('u'); ylabel('intensity'); grid on;\n\n%{\n@play\n{\n \"title\": \"Диск Эйри\",\n \"groups\": []\n}\n%}\n"
   },
   {
-    "id": "section-b.m",
-    "title": "section-b",
+    "id": "physics/optics_thin_film.m",
+    "title": "Просветляющее покрытие",
     "description": "",
-    "source": "%========================================================================\n% SECTION B — UNDERWATER ACOUSTICS (formulas implemented inline; the\n% literature equations are simple polynomials/sums — no toolbox needed)\n%========================================================================\n\n% --- 22. Mackenzie (1981) sound speed --------------------------------\nT = 2:1:30; S = 35; D = 10;\nc = 1448.96 + 4.591*T - 5.304e-2*T.^2 + 2.374e-4*T.^3 + 1.340*(S-35) ...\n    + 1.630e-2*D + 1.675e-7*D.^2 - 1.025e-2*T*(S-35) - 7.139e-13*T.*D.^3;\nfigure; plot(T, c); title('Mackenzie 1981 sound speed'); xlabel('T \\circC'); ylabel('c m/s'); grid on;\n\n% --- 23. Del Grosso (1974) -------------------------------------------\ncDG = 1402.392 + 4.63573*T - 3.5885e-2*T.^2 + 1.59964e-4*T.^3 ...\n      - 1.3904e-6*T.^4 + 1.33428*(S-35) + 1.60272e-2*D ...\n      + 8.34076e-7*D.^3 - 1.13083e-2*T.*(S-35);\nfigure; plot(T, cDG); title('Del Grosso 1974'); xlabel('T \\circC'); ylabel('c m/s'); grid on;\n\n% --- 24. UNESCO / Chen-Millero (1983) --------------------------------\ncUN = 1449.2 + 4.6*T - 5.48e-2*T.^2 + 2.91e-4*T.^3 + 1.34*(S-35) ...\n      + 1.60e-2*D + 1.6e-7*D.^2 - 1.02e-2*T.*(S-35);\nfigure; plot(T, cUN); title('UNESCO 1983'); xlabel('T \\circC'); ylabel('c m/s'); grid on;\n\n% --- 25. Coppens (1981) ----------------------------------------------\ncCp = 1449.05 + 4.57*T - 5.21e-2*T.^2 + 2.31e-4*T.^3 + 1.33*(S-35) ...\n      - 1.10e-2*T.*(S-35) + 1.655e-2*D;\nfigure; plot(T, cCp); title('Coppens 1981'); xlabel('T \\circC'); ylabel('c m/s'); grid on;\n\n% --- 26. Comparison ----------------------------------------------------\nfigure; plot(T, c - cDG, T, c - cUN, T, c - cCp);\nlegend('Mackenzie-DG','Mackenzie-UNESCO','Mackenzie-Coppens');\ntitle('\\Delta c between models'); grid on;\n\n% --- 27. Thorp absorption ---------------------------------------------\nf = logspace(1, 4.7, 200);               % 10 Hz .. 50 kHz\naThorp = 0.11 * f.^2 ./ (1 + f.^2) + 44 * f.^2 ./ (4100 + f.^2) ...\n       + 2.75e-4 * f.^2 + 0.003;\nfigure; loglog(f, aThorp); title('Thorp absorption \\alpha(f) dB/km');\nxlabel('f Hz'); grid on;\n\n% --- 28. Francois-Garrison (simplified boron + MgSO4 + water) ---------\npH = 8; Tkg = 10; Sg = 35; Dk = 1;\nf1 = 2.8*sqrt(Sg/35)*10^((Tkg - 2)/43);        % boron relaxation\naB = 0.11 * f.^2 * f1 ./ (f1^2 + f.^2) * 1e-3; % dB/km scale\nf2 = 62 * 10^((Tkg + 30)/100);                 % MgSO4 relaxation\naMg = 0.7 * f2 * f.^2 / (f2^2 + f.^2) * 1e-3;\naW  = 2.9e-2 * f.^2 / 1e3;\nfigure; loglog(f, aB + aMg + aW); title('Francois-Garrison \\alpha(f)'); grid on;\n\n% --- 29. Ainslie-McColm (simplified) ----------------------------------\naAM = 0.106 * f.^2 * f1 ./ (f1^2 + f.^2) * 1e-3 ...\n    + 0.6 * f2 * f.^2 / (f2^2 + f.^2) * 1e-3 + 2.75e-4 * f.^2;\nfigure; loglog(f, aAM); title('Ainslie-McColm \\alpha(f)'); grid on;\n\n% --- 30. Transmission loss --------------------------------------------\nr = linspace(10, 10000, 200); kalpha = 0.07;  % dB/km @ 3.5 kHz\nTLsph = 20*log10(r) + kalpha * r / 1000;\nTLcyl = 10*log10(r) + kalpha * r / 1000;\nfigure; semilogx(r, TLsph, r, TLcyl); legend('spherical 20\\log r','cylindrical 10\\log r');\ntitle('Transmission loss'); xlabel('r m'); ylabel('dB'); grid on;\n\n% --- 31. Wenz ambient noise -------------------------------------------\nfw = logspace(1, 5, 200);\nNLship  = 44 - 17*log10(fw/100);          % shipping (50 Hz corner)\nNLwind  = 33 - 25*log10(fw/500);          % wind-driven\nNLtherm = -15 + 20*log10(fw);             % thermal\nfigure; loglog(fw, NLship, fw, NLwind, fw, NLtherm);\nlegend('shipping','wind/sea state','thermal');\ntitle('Wenz ambient noise spectra'); xlabel('f Hz'); ylabel('dB re 1\\muPa'); grid on;\n\n% --- 32. Optimal sonar frequency ---------------------------------------\nRk = 5;                                   % km\nfigure; semilogx(f, -aThorp * 2 * Rk);   % two-way loss vs f at 5 km\ntitle('Two-way absorption loss @ 5 km'); xlabel('f Hz'); ylabel('-2\\alphaR dB'); grid on;\n\n% --- 33. Active sonar equation -----------------------------------------\nSL = 220; TS = 10; NL = 60; DI = 20; DT = 5;\nTLok = (SL + TS - NL - DI + DT) / 2;      % max one-way TL allowed\nrOK = 10.^((TLok - kalpha * 0) / 20);      % no-absorption range scale\nfigure; semilogx(r, TLsph); hold on; plot([rOK rOK], [40 120], 'r--');\ntitle('Active sonar: TL budget vs range'); xlabel('r m'); ylabel('TL dB'); grid on;\n\n% --- 34. Passive sonar equation -----------------------------------------\nSLp = 180; TLmax = SLp - (NL - DI + DT);\nfigure; semilogx(r, TLcyl); hold on; plot([r r(end)], [TLmax TLmax], 'r--');\ntitle('Passive sonar: TL budget'); xlabel('r m'); ylabel('TL dB'); grid on;\n"
+    "source": "% Просветляющее покрытие\n% TMM: интерференция в тонкой плёнке\n\ndf = 100; nf = 1.38;\nn0 = 1.0; ns = 1.5;\nlam = linspace(380, 780, 400);\ndelta = 2*pi*nf*(df*1e-9)./lam;\nr01 = (n0-nf)/(n0+nf); r12 = (nf-ns)/(nf+ns);\nR = abs((r01 + r12*exp(-2i*delta))./(1 + r01*r12*exp(-2i*delta))).^2;\nfigure;\nplot(lam, R*100);\ntitle('AR coating R(\\lambda)'); xlabel('\\lambda нм'); ylabel('R %'); grid on;\n\n%{\n@play\n{\n \"title\": \"Просветляющее покрытие\",\n \"groups\": [\n  {\n   \"name\": \"Плёнка\",\n   \"controls\": [\n    {\n     \"var\": \"df\",\n     \"label\": \"Толщина нм\",\n     \"min\": 50,\n     \"max\": 300,\n     \"step\": 10,\n     \"default\": 100\n    },\n    {\n     \"var\": \"nf\",\n     \"label\": \"n плёнки\",\n     \"min\": 1.2,\n     \"max\": 1.8,\n     \"step\": 0.02,\n     \"default\": 1.38\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
-    "id": "section-c.m",
-    "title": "section-c",
+    "id": "physics/physics_damped_resonance.m",
+    "title": "Резонанс осциллятора",
     "description": "",
-    "source": "%========================================================================\n% SECTION C — RAY THEORY & WAVE PROPAGATION\n%========================================================================\n\n% --- 35. Lloyd's mirror: interference pattern --------------------------\nf = 500; c = 1500; lambda = c / f;\nz = linspace(1, 100, 300);          % receiver depth (m)\nr = 1000;                            % range (m)\ndpath = 2 * z * r / sqrt(r^2 + z.^2); % path difference approx\nphase = 2 * pi * dpath / lambda;\nI = 4 * cos(phase / 2).^2;           % interference intensity factor\nfigure; plot(z, 20*log10(I)); title('Lloyd mirror: level vs depth (500 Hz)');\nxlabel('z m'); ylabel('rel dB'); grid on;\n\n% --- 36. Lloyd's mirror frequency comb ----------------------------------\nfz = linspace(10, 2000, 400);\nzfix = 20; rfix = 500;\ndp = 2 * zfix * rfix / sqrt(rfix^2 + zfix^2);\ncomb = abs(cos(pi * fz * dp / c));\nfigure; plot(fz, comb); title('Frequency comb at z=20m');\nxlabel('f Hz'); grid on;\n\n% --- 37. Snell refraction in linear gradient ---------------------------\nc0 = 1500; g = 0.1;                  % m/s per m\nzr = linspace(0, 400, 200);\ncr = c0 + g * zr;\nth0 = 5;                             % launch angle deg\np = cosd(th0) / c0;                  % Snell parameter\nzr2 = linspace(0, 400, 500);\nrr = zeros(size(zr2));\nfor k = 1:numel(zr2)\n    cz = c0 + g * zr2(k);\n    s2 = 1 - (p * cz)^2;\n    if s2 > 0\n        rr(k) = s2^0.5 / (p * g);\n    else\n        rr(k) = NaN;                 % ray turned\n    end\nend\nfigure; plot(rr, zr2); title('Rounded ray in +g gradient');\nxlabel('range m'); ylabel('depth m'); grid on;\n\n% --- 38. Shadow zone (negative gradient) --------------------------------\ngn = -0.2;\nrr2 = zeros(size(zr2));\nfor k = 1:numel(zr2)\n    cz = c0 + gn * zr2(k);\n    s2 = 1 - (p * cz)^2;\n    if s2 > 0\n        rr2(k) = s2^0.5 / (-p * gn);\n    else\n        rr2(k) = NaN;\n    end\nend\nfigure; plot(rr2, zr2); title('Shadow zone: rays bending down (-g)');\nxlabel('range m'); ylabel('depth m'); grid on;\n\n% --- 39. SOFAR channel: rays oscillating around c minimum ---------------\ncsm = 1490 - 20*exp(-((zr2 - 200)/80).^2);   % channel profile\nfigure; plot(csm, zr2); title('SOFAR profile c(z)'); xlabel('c m/s'); ylabel('z m'); grid on;\n% ray trace via small-angle stepping\nnr = 7; ranges = zeros(nr, numel(zr2));\nfor m = 1:nr\n    th = -6 + 2*m;\n    x = 0; zz = 100; ang = th;\n    for k = 1:numel(zr2)\n        ranges(m,k) = x;\n        idx = max(1, min(numel(zr2), round(zz) + 1));\n        cc = csm(idx);\n        dth = -(9.8e-3) * tand(ang) * 10;   % crude gradient bend\n        ang = ang + dth;\n        x = x + 10 * cosd(ang);\n        zz = zz + 10 * sind(ang);\n        if zz < 0 || zz > 400, break; end\n    end\nend\nfigure; plot(ranges', zr2); title('SOFAR ray family'); xlabel('range m'); ylabel('z m');\n\n% --- 40. Pekeris waveguide: method of images ---------------------------\nzs = 5; zr = 20; Hw = 50; rr2 = linspace(1, 2000, 400); f = 200;\nlamb = c / f;\nk = 2 * pi / lamb;\npTot = zeros(1, numel(rr2));\nfor m = -20:20\n    if m == 0\n        dzs = zs;\n    elseif m > 0\n        dzs = 2*m*Hw - zs;\n    else\n        dzs = -2*m*Hw - zs;\n    end\n    dzr2 = (zr - dzs);\n    rr3 = sqrt(rr2.^2 + dzr2.^2) + 1e-6;\n    if m >= 0, coef = 1; else, coef = -1; end   % surface V=-1\n    pTot = pTot + coef * exp(-1i * k * rr3) ./ rr3;\nend\nfigure; plot(rr2, 20*log10(abs(pTot))); title('Pekeris waveguide, 200 Hz');\nxlabel('range m'); ylabel('|p| dB'); grid on;\n"
+    "source": "% Резонанс осциллятора\n% АЧХ, фаза, добротность\n\nzeta = 0.1;\nwn = 2*pi*2;\nwr = linspace(0.1, 2.3*wn, 400);\nHr = 1./sqrt((1-(wr./wn).^2).^2 + (2*zeta*wr/wn).^2);\nfigure;\nplot(wr/wn, Hr);\ntitle('Resonance, \\zeta'); xlabel('\\omega/\\omega_n'); grid on;\n\n%{\n@play\n{\n \"title\": \"Резонанс осциллятора\",\n \"groups\": [\n  {\n   \"name\": \"Демпфирование\",\n   \"controls\": [\n    {\n     \"var\": \"zeta\",\n     \"label\": \"ζ\",\n     \"min\": 0.02,\n     \"max\": 0.8,\n     \"step\": 0.02,\n     \"default\": 0.1\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
-    "id": "section-d.m",
-    "title": "section-d",
+    "id": "physics/physics_lorenz.m",
+    "title": "Аттрактор Лоренца",
     "description": "",
-    "source": "%========================================================================\n% SECTION D — COMMUNICATIONS & MODULATION\n%========================================================================\n\n% --- 41. ASK / OOK -----------------------------------------------------\nfs = 10e3; symR = 100; ns = fs/symR;\nbits = [1 0 1 1 0 1 0 0];\nseq = repelem(bits, ns);\nt = (0:numel(seq)-1) / fs;\ncarrier = sin(2*pi*2000*t);\nmodSig = seq .* carrier;\nthr = 0.5 * max(modSig) * ones(1, numel(modSig));\nfigure; plot(t, modSig, t, thr, 'r--'); title('ASK/OOK waveform');\nxlabel('t s'); grid on;\n\n% --- 42. BPSK constellation + BER --------------------------------------\nNs = 200; bitsB = randi([0 1], 1, Ns);\nsym = 1 - 2*bitsB;                      % 0 -> +1, 1 -> -1\nnoise = randn(1, Ns) * 0.3;\nrx = sym + noise;\nfigure; plot(real(rx), imag(rx), '.'); title('BPSK constellation (SNR ~10dB)');\naxis([-2 2 -1 1]); grid on;\nebn0 = 0:1:10;\nber = 0.5 * erfc(sqrt(10.^(ebn0/10)));\nfigure; semilogy(ebn0, ber); title('BPSK BER');\nxlabel('Eb/N0 dB'); ylabel('BER'); grid on;\n\n% --- 43. QPSK ------------------------------------------------------------\nph = pi/4 + (0:3)*pi/2;\nfigure; plot(cos(ph), sin(ph), 'o'); axis([-1.5 1.5 -1.5 1.5]); grid on;\ntitle('QPSK constellation');\nrxq = exp(1i*ph(randi(4, 1, Ns))) + (randn(1,Ns)+1i*randn(1,Ns))*0.2;\nfigure; plot(real(rxq), imag(rxq), '.'); title('QPSK with noise'); grid on;\n\n% --- 44. pi/4-DQPSK: zero-crossing avoidance -----------------------------\ndph = pi/4 * (2*randi([0 3],1,Ns-1) + 1);\nphPi4 = cumsum(dph);\nfigure; plot(cos(phPi4), sin(phPi4), '.-'); title('\\pi/4-DQPSK trajectory');\naxis([-1.5 1.5 -1.5 1.5]); grid on;\n\n% --- 45. 16-QAM with phase noise ------------------------------------------\npoints = sqrt(2) * ((0:3)-1.5);\n[Ix, Iy] = meshgrid(points, points);\nIq = Ix(:) + 1i*Iy(:);\npn = exp(1i * randn(1, numel(Iq)) * 0.15);\nrx16 = Iq .* pn + randn(1, numel(Iq)) * 0.05;\nfigure; plot(real(rx16), imag(rx16), '.'); title('16-QAM, phase noise');\naxis equal; grid on;\n\n% --- 46. 64-QAM with AM/AM compression -------------------------------------\nstep = 2*(0:7)/7 - 1;\n[Ix6, Iy6] = meshgrid(step, step);\nIq6 = (Ix6(:) + 1i*Iy6(:));\ncompressed = sign(real(Iq6)) .* abs(real(Iq6)).^1.3 ...\n           + 1i*sign(imag(Iq6)) .* abs(imag(Iq6)).^1.3;\nfigure; plot(real(Iq6), imag(Iq6), '.', real(compressed), imag(compressed), 'r.');\ntitle('64-QAM ideal vs AM/AM compressed'); legend('ideal','compressed'); grid on;\n\n% --- 47. BFSK orthogonalities ----------------------------------------------\ntb = 1e-3; f1 = 2000; f2 = 2500;          % Delta f = 1/(2T) coherent\ntg = 0:tb/100:tb;\ns1 = sin(2*pi*f1*tg); s2 = sin(2*pi*f2*tg);\ncorrC = sum(s1.*s2)*100/tb;\nf2b = 1500;                               % Delta f = 1/T\ns2b = sin(2*pi*f2b*tg);\ncorrO = sum(s1.*s2b)*100/tb;\nfigure; plot(tg, s1, tg, s2, tg, s2b); legend('f1','f2 coherent','f2 orthogonal');\ntitle('BFSK: \\Deltaf=1/2T vs \\Deltaf=1/T'); grid on;\n\n% --- 48. M-FSK spectrogram (hydroacoustic modem) ----------------------------\nfs2 = 4000; t3 = 0:1/fs2:0.5;\nbitsF = randi([1 4], 1, 20);\nsigF = [];\nseg = 0:1/fs2:0.024;\nfor k = 1:numel(bitsF)\n    fK = 400 + 200*bitsF(k);\n    sigF = [sigF sin(2*pi*fK*seg)]; %#ok<*AGROW>\nend\n[Sg, fg, tg2] = spectrogram(sigF, hann(128), 96, 256, fs2);\nfigure; imagesc(tg2, fg, 20*log10(abs(Sg))); colormap('jet');\ntitle('4-FSK spectrogram'); xlabel('t s'); ylabel('f Hz');\n\n% --- 49. MSK continuous phase ------------------------------------------------\ntt = 0:1/fs2:0.02;\ndata = repelem(randi([0 1],1,10), round(numel(tt)/10));\nphM = 2*pi*cumsum(data - 0.5)/(2*fs2)*1000;\nfigure; plot(tt(1:numel(phM)), cos(phM)); title('MSK constant envelope');\ngrid on;\n\n% --- 50. GMSK Gaussian prefilter ----------------------------------------------\nbt = 0.3; span = 2;\ntp = -span:1/fs2:span;\ngp = exp(-2*log(2)*tp.^2/(bt*1/fs2*1000)^2); %#ok<NASGU>\nimp = exp(-(tp/bt).^2 / (2*log(2)));\nfigure; plot(tp, imp./max(imp)); title('Gaussian prefilter (BT=0.3)');\nxlabel('t'); grid on;\n\n% --- 51. OFDM subcarrier orthogonality / ICI ----------------------------------\nNc = 8; to = 0:1/fs2:2e-3;\nbase = 1e3; dop = 20;\nSub = zeros(Nc, numel(to));\nfor k = 1:Nc\n    fk = base + (k-1)*100;\n    Sub(k,:) = sin(2*pi*fk*to);\nend\nSici = sin(2*pi*((base + (0:Nc-1)*100 + dop))' * to);\nfigure; plot(to, Sub(1,:) + Sub(2,:)); title('OFDM: sum of orthogonal subcarriers');\ngrid on;\nfigure; plot(to, Sici(1,:) + Sici(2,:)); title('OFDM: with Doppler ICI');\ngrid on;\n\n% --- 52. LoRa chirp -------------------------------------------------------------\nbw = 125e3; ts = 0:1/bw:8e-3;\nchirpU = exp(1i*pi*(-bw/2)*ts + 1i*pi*(bw/8e-3)*ts.^2);\nfigure; spectrogram(real(chirpU), hann(256), 200, 512, bw);\ntitle('LoRa up-chirp spectrogram');\n\n% --- 53. AM envelope detector -----------------------------------------------------\nta = 0:1/fs2:0.01;\nmsg = cos(2*pi*300*ta);\nm = 0.8;\nam = (1 + m*msg) .* sin(2*pi*2000*ta);\nnp2 = 2^nextpow2(numel(am));\nenv = abs(hilbert([am(:); zeros(np2 - numel(am), 1)]));\nenv = env(1:numel(am));\nfigure; plot(ta, am, ta, env, ta, -env, 'r'); title('AM + envelope (m=0.8)');\ngrid on;\nam2 = (1 + 1.5*msg) .* sin(2*pi*2000*ta);\nenv2 = abs(hilbert([am2(:); zeros(np2 - numel(am2), 1)]));\nenv2 = env2(1:numel(am2));\nfigure; plot(ta, am2, ta, env2, 'r'); title('Overmodulation m=1.5 (phase reversals)');\ngrid on;\n\n% --- 54. FM Bessel spectrum ---------------------------------------------------------\nfm2 = 100; df = 240;              % beta = 2.4 (carrier vanishes)\nbeta = df / fm2;\nttF = 0:1/fs2:0.1;\nmsgF = sin(2*pi*fm2*ttF);\ninstF = 2000 + df * msgF;\nphF = 2*pi*cumsum(instF)/fs2;\nsigF2 = sin(phF);\n[SpF, fF] = pwelch(sigF2, hann(512), 256, 1024, fs2);\nfigure; plot(fF, 20*log10(SpF)); title('FM spectrum, \\beta=2.4 (carrier null)');\nxlabel('f Hz'); grid on;\n"
+    "source": "% Аттрактор Лоренца\n% Хаос при росте ρ (ode45)\n\nrho = 28; sigma = 10; beta = 8/3;\nfL = @(t, s) [sigma*(s(2)-s(1)); s(1)*(rho-s(3))-s(2); s(1)*s(2)-beta*s(3)];\n[tL, yL] = ode45(fL, [0 20], [1 1 1]);\nfigure;\nplot3(yL(:,1), yL(:,2), yL(:,3));\ntitle('Lorenz attractor'); xlabel('x'); ylabel('y'); zlabel('z'); grid on;\n\n%{\n@play\n{\n \"title\": \"Аттрактор Лоренца\",\n \"groups\": [\n  {\n   \"name\": \"Система\",\n   \"controls\": [\n    {\n     \"var\": \"rho\",\n     \"label\": \"ρ\",\n     \"min\": 5,\n     \"max\": 45,\n     \"step\": 1,\n     \"default\": 28\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
-    "id": "section-e.m",
-    "title": "section-e",
+    "id": "rays/lloyds_mirror_comb.m",
+    "title": "Гребёнка Ллойда",
     "description": "",
-    "source": "%========================================================================\n% SECTION E — DSP & FILTERS\n%========================================================================\n\n% --- 55. Biquad peaking EQ: zeros/poles on the z-plane -----------------\nf0 = 1000; Q = 4; gainDB = 12; fs3 = 48000;\nA = 10^(gainDB/40);\nw0 = 2*pi*f0/fs3; al = sin(w0)/(2*Q);\nb0 = 1 + al*A; b1 = -2*cos(w0); b2 = 1 - al*A;\na0 = 1 + al/A; a1 = -2*cos(w0); a2 = 1 - al/A;\nb = [b0 b1 b2]/a0; a = [1 a1/a0 a2/a0];\n[H, wf] = freqz(b, a, 512);\nfigure; plot(wf/(2*pi), 20*log10(abs(H))); title('Peaking EQ response');\nxlabel('normalized f'); ylabel('dB'); grid on;\nzr = roots(b); pr = roots(a);\nfigure; plot(real(zr), imag(zr), 'o', real(pr), imag(pr), 'x');\ntitle('z-plane: zeros (o) / poles (x)'); axis([-1.5 1.5 -1.5 1.5]); grid on;\n\n% --- 56. Cheby 1 vs 2 ----------------------------------------------------\n[b1c, a1c] = cheby1(4, 1, 0.2);\n[b2c, a2c] = cheby2(4, 40, 0.2);\n[H1, wf2] = freqz(b1c, a1c, 512);\n[H2, ~]    = freqz(b2c, a2c, 512);\nfigure; plot(wf2/(2*pi), 20*log10(abs(H1)), wf2/(2*pi), 20*log10(abs(H2)));\nlegend('Chebyshev I (passband ripple)','Chebyshev II (stopband ripple)');\ntitle('Chebyshev I vs II'); xlabel('normalized f'); grid on;\n\n% --- 57. FIR Kaiser window ------------------------------------------------\nNt = 64; fc = 0.25;\nfor beta = [2 5 8]\n    bK = fir1(Nt, fc, kaiser(Nt+1, beta));\n    [HK, wfK] = freqz(bK, 1, 512);\n    plot(wfK/(2*pi), 20*log10(abs(HK))); hold on;\nend\nhold off; title('FIR Kaiser: \\beta = 2 / 5 / 8');\nxlabel('normalized f'); ylabel('dB'); legend('\\beta=2','\\beta=5','\\beta=8'); grid on;\n\n% --- 58. FFT spectral leakage ----------------------------------------------\nfs4 = 1000; N4 = 256;\nt4 = (0:N4-1)/fs4;\nfL = 50.5;                                % non-bin frequency\nxL = sin(2*pi*fL*t4);\nwrect = ones(1,N4); whan = hann(N4)'; wham = hamming(N4)'; wbh = blackmanharris(N4)';\nfigure; hold on;\nYL = abs(fft(xL .* wrect)); plot(20*log10(YL(1:N4/2)));\nYL2 = abs(fft(xL .* whan)); plot(20*log10(YL2(1:N4/2)));\nYL3 = abs(fft(xL .* wbh)); plot(20*log10(YL3(1:N4/2)));\nhold off; title('Spectral leakage: rect vs hann vs blackman-harris');\nlegend('rectangular','hann','blackman-harris'); grid on;\n\n% --- 59. Hilbert analytic signal --------------------------------------------\nts5 = 0:1/1000:0.1;\nx5 = cos(2*pi*50*ts5) .* exp(-3*ts5);\nnp5 = 2^nextpow2(numel(x5));\nz5 = hilbert([x5 zeros(1, np5 - numel(x5))]);\nz5 = z5(1:numel(x5));\nfigure; plot(ts5, x5, ts5, abs(z5)); title('Analytic signal: |x| envelope');\nxlabel('t s'); legend('x(t)','|x(t)|'); grid on;\nfigure; plot(ts5, unwrap(angle(z5))); title('Instantaneous phase (unwrapped)');\ngrid on;\n"
+    "source": "% Гребёнка Ллойда\n% Частотная фильтрация у поверхности\n\nz = 20; r = 500; c = 1500;\nfz = linspace(10, 2000, 400);\ndp = 2*z*r/sqrt(r^2+z^2);\nfigure;\nplot(fz, abs(cos(pi*fz*dp/c)));\ntitle('Frequency comb at z=20м'); xlabel('f Гц'); grid on;\n\n%{\n@play\n{\n \"title\": \"Гребёнка Ллойда\",\n \"groups\": [\n  {\n   \"name\": \"Геометрия\",\n   \"controls\": [\n    {\n     \"var\": \"z\",\n     \"label\": \"Глубина м\",\n     \"min\": 5,\n     \"max\": 100,\n     \"step\": 5,\n     \"default\": 20\n    },\n    {\n     \"var\": \"r\",\n     \"label\": \"Дистанция м\",\n     \"min\": 100,\n     \"max\": 2000,\n     \"step\": 50,\n     \"default\": 500\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
-    "id": "section-f.m",
-    "title": "section-f",
+    "id": "rays/lloyds_mirror_effect.m",
+    "title": "Зеркало Ллойда",
     "description": "",
-    "source": "%========================================================================\n% SECTION F — CONTROL THEORY & ROBOTICS\n%========================================================================\n\ngainList = [2 0 0; 2 1 0; 2 1 0.1];\n% plant = 1/(s^2+s+1); closed-loop num/den computed by hand:\n%   den_cl = den*(den + numC), num_cl = numC\nlabels = {'P','PI','PID'};\nfigure; hold on;\nfor gg = 1:3\n    g = gainList(gg,:);\n    numC = [g(3) g(1) g(2)];      % Kd s^2 + Kp s + Ki\n    % denC = s\n    % open loop: numC / (s*(s^2+s+1))\n    denOL = [1 1 1 0];\n    numCL = numC;\n    denCL = denOL + [zeros(1, numel(denOL)-numel(numC)) numC];\n    sys = tf(numCL, denCL);\n    [yy, tt] = step(sys);\n    plot(tt, yy);\nend\nhold off; title('PID step response');\nlegend('P','PI','PID'); grid on;\n\n% --- 61. Root locus --------------------------------------------------------\n% plant: 1/(s^2+2s+2). Closed-loop den = den + K, num = K.\nfigure; hold on;\nfor K = [0.2 0.5 1 2 4]\n    denCL = [1 2 2 + K];\n    pr = roots(denCL);\n    plot(real(pr), imag(pr), 'x');\nend\nhold off; title('Root locus: closed-loop poles vs K');\nxlabel('Re'); ylabel('Im'); grid on;\n\n% --- 62. Nyquist criterion --------------------------------------------------\nwNy = logspace(-2, 2, 400);\n[ magNy, phNy ] = bode(tf(1, [1 1 1]), wNy);\nzNy = magNy(:) .* exp(1i * phNy(:) * pi/180);\nfigure; plot(real(zNy), imag(zNy)); hold on;\nplot(-1, 0, 'rx', 'MarkerSize', 12, 'LineWidth', 2);\nhold off; title('Nyquist plot vs critical point (-1, j0)');\nxlabel('Re'); ylabel('Im'); grid on;\n\n% --- 63. Planar 2-link forward kinematics ------------------------------------\nL1 = 1; L2 = 0.7;\nth1 = linspace(0, pi/2, 30);\nth2 = linspace(0, pi, 30);\nfigure; hold on;\nfor k = 1:numel(th1)\n    xj = L1*cos(th1(k)); yj = L1*sin(th1(k));\n    xe = xj + L2*cos(th1(k) + th2(k));\n    ye = yj + L2*sin(th1(k) + th2(k));\n    plot([0 xj xe], [0 yj ye], 'b-');\n    plot(xe, ye, 'r.');\nend\nplot(0, 0, 'ko', 'MarkerFaceColor', 'k');\ntitle('2-link manipulator: workspace sweep'); axis equal; grid on;\n"
+    "source": "% Зеркало Ллойда\n% Интерференция прямого и отражённого\n\nf = 500; r = 1000; c = 1500;\nz = linspace(1, 100, 300);\ndp = 2*z*r./sqrt(r^2+z.^2);\nI = 4*cos(pi*dp*f/c).^2;\nfigure;\nplot(z, 20*log10(I));\ntitle('Lloyd mirror: level vs depth');\nxlabel('z м'); ylabel('отн. дБ'); grid on;\n\n%{\n@play\n{\n \"title\": \"Зеркало Ллойда\",\n \"groups\": [\n  {\n   \"name\": \"Параметры\",\n   \"controls\": [\n    {\n     \"var\": \"f\",\n     \"label\": \"f Гц\",\n     \"min\": 100,\n     \"max\": 2000,\n     \"step\": 100,\n     \"default\": 500\n    },\n    {\n     \"var\": \"r\",\n     \"label\": \"Дистанция м\",\n     \"min\": 100,\n     \"max\": 5000,\n     \"step\": 100,\n     \"default\": 1000\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
-    "id": "section-g.m",
-    "title": "section-g",
+    "id": "rays/pekeris_waveguide.m",
+    "title": "Волновод Пекериса",
     "description": "",
-    "source": "%========================================================================\n% SECTION G — WAVE PHYSICS & OPTICS\n%========================================================================\n\n% --- 64. Thin-film AR coating (TMM) ---------------------------------------\nn0 = 1.0; nf = 1.38; ns = 1.5;     % air / MgF2 / glass\ndf = 100e-9;                        % 100 nm film (lambda/4 @ 550)\nlam = linspace(380, 780, 400);\ndelta = 2*pi*nf*df ./ lam;\nr01 = (n0 - nf)/(n0 + nf); r12 = (nf - ns)/(nf + ns);\nR = abs( (r01 + r12*exp(-2i*delta)) ./ (1 + r01*r12*exp(-2i*delta)) ).^2;\nfigure; plot(lam, R*100); title('AR coating R(\\lambda), MgF_2 on glass');\nxlabel('\\lambda nm'); ylabel('R %'); grid on;\n\n% --- 65. Airy disk ----------------------------------------------------------\nu = linspace(1e-6, 15, 400);\nairy = (2*besselj(1, u)./u).^2;\nfigure; plot(u, airy); title('Airy pattern [2J_1(u)/u]^2');\nxlabel('u = \\pi D \\theta / \\lambda'); ylabel('intensity'); grid on;\n% Rayleigh criterion: first zero at u = 3.8317\nfigure; polarplot(linspace(0, 2*pi, 360), (2*besselj(1, 3.8317*sin(linspace(0,2*pi,360)/2)+1e-9)/max(1e-9,3.8317*sin(linspace(0,2*pi,360)/2)+1e-9)).^2);\ntitle('Airy disk cross-section (polar)');\n\n% --- 66. Damped harmonic resonance ------------------------------------------\nwn = 2*pi*2;                       % 2 Hz natural\nzv = [0.05 0.1 0.3 0.6];\nwr = linspace(0.1, 2.3*wn, 400);\nfigure; hold on;\nfor k = 1:numel(zv)\n    Hr = 1 ./ sqrt( (1 - (wr/wn).^2).^2 + (2*zv(k)*wr/wn).^2 );\n    plot(wr/wn, Hr);\nend\nhold off; title('Resonance amplitude vs \\zeta');\nxlabel('\\omega/\\omega_n'); legend('\\zeta=0.05','\\zeta=0.1','\\zeta=0.3','\\zeta=0.6'); grid on;\n\n% --- 67. Lorenz attractor -----------------------------------------------------\nsigma = 10; rho = 28; beta = 8/3;\nfL = @(t, s) [sigma*(s(2)-s(1)); s(1)*(rho-s(3))-s(2); s(1)*s(2)-beta*s(3)];\n[tL, yL] = ode45(fL, [0 20], [1 1 1]);\nfigure; plot3(yL(:,1), yL(:,2), yL(:,3));\ntitle('Lorenz attractor (\\rho=28)'); xlabel('x'); ylabel('y'); zlabel('z');\ngrid on;\n% bifurcation sweep: rho from 10 to 40, plot z-max of steady state\nrhoS = 10:2:40;\nzMax = zeros(size(rhoS));\nfor k = 1:numel(rhoS)\n    rr = rhoS(k);\n    fK = @(t, s) [sigma*(s(2)-s(1)); s(1)*(rr-s(3))-s(2); s(1)*s(2)-beta*s(3)];\n    [~, yK] = ode45(fK, [0 30], [1 1 1]);\n    tail = yK(round(end/2):end, 3);\n    zMax(k) = max(tail);\nend\nfigure; plot(rhoS, zMax, 'o-'); title('Bifurcation: max z vs \\rho');\nxlabel('\\rho'); grid on;\n"
+    "source": "% Волновод Пекериса\n% Метод изображений: дно + поверхность\n\nf = 200; Hw = 50; zs = 5; zr = 20; c = 1500;\nk = 2*pi*f/c;\nrr2 = linspace(1, 2000, 400);\npTot = zeros(1, numel(rr2));\nfor m = -20:20\n    if m == 0\n        dzs = zs;\n    elseif m > 0\n        dzs = 2*m*Hw - zs;\n    else\n        dzs = -2*m*Hw - zs;\n    end\n    dz = zr - dzs;\n    rr3 = sqrt(rr2.^2 + dz.^2) + 1e-6;\n    if m >= 0, coef = 1; else, coef = -1; end\n    pTot = pTot + coef*exp(-1i*k*rr3)./rr3;\nend\nfigure;\nplot(rr2, 20*log10(abs(pTot)));\ntitle('Pekeris waveguide 200 Hz'); xlabel('range м'); ylabel('|p| дБ'); grid on;\n\n%{\n@play\n{\n \"title\": \"Волновод Пекериса\",\n \"groups\": [\n  {\n   \"name\": \"Волновод\",\n   \"controls\": [\n    {\n     \"var\": \"f\",\n     \"label\": \"f Гц\",\n     \"min\": 50,\n     \"max\": 500,\n     \"step\": 50,\n     \"default\": 200\n    },\n    {\n     \"var\": \"Hw\",\n     \"label\": \"Глубина моря м\",\n     \"min\": 20,\n     \"max\": 100,\n     \"step\": 10,\n     \"default\": 50\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "rays/ray_refraction_snell.m",
+    "title": "Рефракция Снеллиуса",
+    "description": "",
+    "source": "% Рефракция Снеллиуса\n% Кривизна луча в градиенте c\n\ng10 = 1; th0 = 5;\ng = g10/10; c0 = 1500;\np = cosd(th0)/c0;\nzr2 = linspace(0, 400, 500);\nrr = zeros(size(zr2));\nfor k = 1:numel(zr2)\n    cz = c0 + g*zr2(k);\n    s2 = 1 - (p*cz)^2;\n    if s2 > 0\n        rr(k) = sqrt(s2)/(p*g);\n    else\n        rr(k) = NaN;\n    end\nend\nfigure;\nplot(rr, zr2);\ntitle('Ray in +gradient'); xlabel('range м'); ylabel('z м'); grid on;\n\n%{\n@play\n{\n \"title\": \"Рефракция Снеллиуса\",\n \"groups\": [\n  {\n   \"name\": \"Градиент\",\n   \"controls\": [\n    {\n     \"var\": \"g10\",\n     \"label\": \"dc/dz ×10⁻¹\",\n     \"min\": -5,\n     \"max\": 5,\n     \"step\": 1,\n     \"default\": 1\n    },\n    {\n     \"var\": \"th0\",\n     \"label\": \"Угол выхода\",\n     \"min\": -10,\n     \"max\": 10,\n     \"step\": 1,\n     \"default\": 5\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "rays/ray_shadow_zone.m",
+    "title": "Зона тени",
+    "description": "",
+    "source": "% Зона тени\n% Отрицательный градиент клонит лучи ко дну\n\ng10 = -2;\ng = g10/10; c0 = 1500;\np = cosd(5)/c0;\nzr2 = linspace(0, 400, 500);\nrr2 = zeros(size(zr2));\nfor k = 1:numel(zr2)\n    cz = c0 + g*zr2(k);\n    s2 = 1 - (p*cz)^2;\n    if s2 > 0\n        rr2(k) = sqrt(s2)/(-p*g);\n    else\n        rr2(k) = NaN;\n    end\nend\nfigure;\nplot(rr2, zr2);\ntitle('Shadow zone: rays bending down');\nxlabel('range м'); ylabel('z м'); grid on;\n\n%{\n@play\n{\n \"title\": \"Зона тени\",\n \"groups\": [\n  {\n   \"name\": \"Градиент\",\n   \"controls\": [\n    {\n     \"var\": \"g10\",\n     \"label\": \"dc/dz ×10⁻¹\",\n     \"min\": -5,\n     \"max\": -1,\n     \"step\": 1,\n     \"default\": -2\n    }\n   ]\n  }\n ]\n}\n%}\n"
+  },
+  {
+    "id": "rays/sofar_channel.m",
+    "title": "SOFAR канал",
+    "description": "",
+    "source": "% SOFAR канал\n% Волновод вокруг минимума c(z)\n\ndepth = 200; nrays = 7;\nzr2 = linspace(0, 400, 200);\ncsm = 1490 - 20*exp(-((zr2-depth)/80).^2);\nfigure;\nplot(csm, zr2);\ntitle('SOFAR profile'); xlabel('c м/с'); ylabel('z м'); grid on;\n\n%{\n@play\n{\n \"title\": \"SOFAR канал\",\n \"groups\": [\n  {\n   \"name\": \"Профиль\",\n   \"controls\": [\n    {\n     \"var\": \"depth\",\n     \"label\": \"Ось канала м\",\n     \"min\": 100,\n     \"max\": 400,\n     \"step\": 50,\n     \"default\": 200\n    },\n    {\n     \"var\": \"nrays\",\n     \"label\": \"Число лучей\",\n     \"min\": 3,\n     \"max\": 11,\n     \"step\": 2,\n     \"default\": 7\n    }\n   ]\n  }\n ]\n}\n%}\n"
   }
 ];
