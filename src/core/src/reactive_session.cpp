@@ -42,11 +42,27 @@ bool ReactiveSession::load(const std::string &source)
         lastError_ = std::string("parse: ") + e.what();
         return false;
     }
-    // Initial FULL pass — plain whole-source eval keeps script-level
-    // semantics (beginScript function handling, local functions,
-    // promotion) identical to a normal run.
+    // Initial FULL pass — per-statement through the SAME seam the
+    // dirty ticks use (one semantics), with function/class definitions
+    // hoisted FIRST so local functions are callable from any line
+    // (promotion parity with whole-source eval). A checkpoint of the
+    // figure state is captured after every statement — evalDirty's
+    // rollback depends on them.
+    checkpoints_.assign(statements_.size(), {});
     try {
-        engine_.eval(source, /*suppressTopLevelDisplay=*/true);
+        for (size_t i = 0; i < statements_.size(); ++i) {
+            const ASTNode *s = statements_[i].get();
+            if (s && (s->type == NodeType::FUNCTION_DEF
+                      || s->type == NodeType::CLASSDEF_DEF))
+                runStatement(i);
+        }
+        for (size_t i = 0; i < statements_.size(); ++i) {
+            const ASTNode *s = statements_[i].get();
+            if (!s || s->type == NodeType::FUNCTION_DEF
+                   || s->type == NodeType::CLASSDEF_DEF)
+                continue;
+            runStatement(i);
+        }
     } catch (const std::exception &e) {
         lastError_ = std::string("initial run: ") + e.what();
         return false;
@@ -92,6 +108,12 @@ size_t ReactiveSession::evalDirty()
     size_t ran = 0;
     std::vector<size_t> order(dirty_.begin(), dirty_.end());
     std::sort(order.begin(), order.end());
+    // Roll the figure state back to the last CLEAN statement before
+    // the dirty set: re-run plots under a persisted `hold on` would
+    // otherwise APPEND lines on every tick (figure-state equivalence).
+    if (!order.empty() && order.front() > 0
+        && order.front() - 1 < checkpoints_.size())
+        engine_.figureManager().restoreFigures(checkpoints_[order.front() - 1]);
     for (size_t idx : order) {
         if (idx >= statements_.size() || !statements_[idx])
             continue;
@@ -128,7 +150,10 @@ Value ReactiveSession::runStatement(size_t index)
         bool was;
         ~Restore() { n->suppressOutput = was; }
     } restore{stmt, had};
-    return engine_.evalStatement(stmt, src_);
+    Value out = engine_.evalStatement(stmt, src_);
+    if (index < checkpoints_.size())
+        checkpoints_[index] = engine_.figureManager().checkpointFigures();
+    return out;
 }
 
 void ReactiveSession::markDirty(const std::vector<size_t> &indices)

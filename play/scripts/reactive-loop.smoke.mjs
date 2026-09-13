@@ -24,12 +24,19 @@ const ok = (cond, label, extra = '') => {
 const source = await readFile(
   path.resolve(here, '../gallery/arrays/phased-array-beamforming.m'), 'utf-8');
 
-// The same wire parser the Svelte app uses.
-const parseWire = (text) => ({
-  figures: text.split('\n')
-    .filter((l) => l.startsWith('__FIGURE_DATA__:'))
-    .map((l) => JSON.parse(l.slice('__FIGURE_DATA__:'.length))),
-});
+// The same wire parser contract the Svelte app uses: one
+// __FIGURE_DATA__ line per figure CHANGE — LAST emission wins.
+const parseWire = (text) => {
+  const byId = new Map();
+  for (const l of text.split('\n')) {
+    if (!l.startsWith('__FIGURE_DATA__:')) continue;
+    try {
+      const f = JSON.parse(l.slice('__FIGURE_DATA__:'.length));
+      byId.set(f.id, f);
+    } catch { /* skip malformed line */ }
+  }
+  return { figures: [...byId.values()] };
+};
 
 // 1. Load: manifest with all 4 controls.
 const manifest = M.playLoadScript(source);
@@ -173,6 +180,31 @@ colormap(parula);
      'grid survives the param tick', `grid=${ax?.config?.grid}`);
   ok(Array.isArray(ax?.config?.legend) && ax.config.legend.length === 2,
      'legend survives the param tick');
+}
+
+// 7. hold-on does NOT accumulate lines across ticks (user report
+// 2026-09-13): the gallery damped-oscillation script plots x then
+// holds and adds two envelope lines. Every tick must keep exactly 3
+// line datasets — the figure-state checkpoint rollback restores the
+// pre-tick datasets + hold before the dirty statements re-run.
+{
+  const src = await readFile(
+    path.resolve(here, '../gallery/physics/damped-oscillation.m'), 'utf-8');
+  M.playLoadScript(src);
+  const linesAfter = () => {
+    const figs = parseWire(M.playEvalDirty()).figures;
+    return (figs[figs.length - 1]?.axes?.[0]?.datasets ?? [])
+      .filter((d) => d.type === 'line').length;
+  };
+  const n0 = linesAfter();
+  ok(n0 === 3, 'damped: 3 lines after load', `${n0}`);
+  M.playSetParamDouble('zeta', 0.4);
+  const n1 = linesAfter();
+  ok(n1 === 3, 'damped: 3 lines after tick 1', `${n1}`);
+  M.playSetParamDouble('zeta', 0.8);
+  M.playSetParamDouble('f0', 3.0);
+  const n2 = linesAfter();
+  ok(n2 === 3, 'damped: 3 lines after tick 2', `${n2}`);
 }
 
 console.log(failed === 0 ? '\nALL PLAY-LOOP SMOKES GREEN' : `\n${failed} FAILURES`);

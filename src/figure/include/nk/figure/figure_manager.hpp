@@ -1129,6 +1129,26 @@ public:
 
     const std::map<int, FigureState> &figures() const { return figures_; }
 
+    // ── Reactive-session checkpoints ─────────────────────────────
+    // Rollback point for incremental re-runs (ReactiveSession). A
+    // re-run `plot` under a persisted `hold on` would APPEND lines
+    // (each tick accumulating curves) — restoring the checkpoint
+    // taken before the dirty set truncates datasets back to the
+    // pre-tick count and re-applies the hold flag, so the replayed
+    // graphics statements reproduce the full-re-run figure state.
+    struct AxesCheckpoint {
+        bool holdOn = false;
+        size_t datasetCount = 0;
+    };
+    struct FigureCheckpoint {
+        // figure id → per-axes snapshot (sized to the axes vector at
+        // capture time; figures absent here are treated as "created
+        // after the checkpoint" on restore).
+        std::vector<std::pair<int, std::vector<AxesCheckpoint>>> figures;
+    };
+    FigureCheckpoint checkpointFigures() const;
+    void restoreFigures(const FigureCheckpoint &cp);
+
     /**
      * Display-grid tile resampler. Fills a displayH × displayW row-major
      * uint8 buffer with mean-pooled samples from the dataset's zQuantized,

@@ -25,5 +25,11 @@
     letter-spacing: 0.06em;
   }
   .actions { display: flex; gap: 8px; }
-  .body { flex: 1; min-height: 0; overflow-y: auto; }
+  .body {
+    flex: 1; min-height: 0; overflow-y: auto;
+    /* Flex column so an auto-height child (the CM editor wrapper)
+       can flex-fill the remaining height — a block .body leaves a
+       short editor on scripts with few lines. */
+    display: flex; flex-direction: column;
+  }
 </style>

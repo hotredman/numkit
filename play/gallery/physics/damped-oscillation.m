@@ -1,20 +1,4 @@
-%{
-@play
-{
-  "title": "Damped oscillation",
-  "description": "Effect of the damping ratio on the transient response",
-  "groups": [
-    {
-      "name": "System parameters",
-      "controls": [
-        { "var": "zeta", "label": "Damping ζ", "min": 0.05, "max": 1.0, "step": 0.05, "default": 0.2 },
-        { "var": "f0", "label": "Frequency, Hz", "min": 0.5, "max": 5.0, "step": 0.5, "default": 2.0 }
-      ]
-    }
-  ]
-}
-%}
-% Затухающие колебания: x(t) = exp(-zeta*w*t) * cos(wd*t)
+% Damped oscillation: x(t) = exp(-zeta*w*t) * cos(wd*t)
 zeta = 0.2;
 f0 = 2;
 w = 2 * pi * f0;
@@ -31,3 +15,20 @@ xlabel('t, s');
 ylabel('x(t)');
 legend('x(t)', 'envelope');
 grid on;
+
+%{
+@play
+{
+  "title": "Damped oscillation",
+  "description": "Effect of the damping ratio on the transient response",
+  "groups": [
+    {
+      "name": "System parameters",
+      "controls": [
+        { "var": "zeta", "label": "Damping ζ", "min": 0.05, "max": 1.0, "step": 0.05, "default": 0.2 },
+        { "var": "f0", "label": "Frequency, Hz", "min": 0.5, "max": 5.0, "step": 0.5, "default": 2.0 }
+      ]
+    }
+  ]
+}
+%}

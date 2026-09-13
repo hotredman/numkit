@@ -35,6 +35,7 @@
 #include <nk/core/ast.hpp>
 #include <nk/core/dependency_graph.hpp>
 #include <nk/core/types.hpp>
+#include <nk/figure/figure_manager.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -98,6 +99,12 @@ private:
     std::shared_ptr<const std::string> src_;
     std::vector<ASTNodePtr> statements_;   // program children (owned)
     std::unique_ptr<DependencyGraph> graph_;
+    // Figure-state rollback points, one per statement (captured after
+    // that statement ran). evalDirty restores the checkpoint of the
+    // last CLEAN statement before the dirty set, so re-run graphics
+    // statements reproduce the full-re-run figure (no `hold on`
+    // line accumulation across ticks).
+    std::vector<FigureManager::FigureCheckpoint> checkpoints_;
     std::set<size_t> dirty_;
     std::set<std::string> params_;   // externally-set variables
     std::string lastError_;

@@ -1308,4 +1308,68 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
     reg("layout", "get", noop_ret1);
 }
 
+// ── Reactive-session checkpoints ─────────────────────────────────────
+// See figure_manager.hpp for the contract. Truncation only ever
+// removes the TAIL of datasets, so surviving chart-handle records
+// keep valid indices — records pointing into the removed tail are
+// tombstoned without reindexing.
+
+FigureManager::FigureCheckpoint FigureManager::checkpointFigures() const
+{
+    FigureCheckpoint cp;
+    for (const auto &[id, fig] : figures_) {
+        std::vector<AxesCheckpoint> ax;
+        ax.reserve(fig.axes.size());
+        for (const auto &a : fig.axes)
+            ax.push_back(AxesCheckpoint{a.holdOn, a.datasets.size()});
+        cp.figures.emplace_back(id, std::move(ax));
+    }
+    return cp;
+}
+
+void FigureManager::restoreFigures(const FigureCheckpoint &cp)
+{
+    auto find = [&cp](int id) -> const std::vector<AxesCheckpoint> * {
+        for (const auto &p : cp.figures)
+            if (p.first == id)
+                return &p.second;
+        return nullptr;
+    };
+    for (auto &[id, fig] : figures_) {
+        const auto *snaps = find(id);
+        for (size_t i = 0; i < fig.axes.size(); ++i) {
+            auto &ax = fig.axes[i];
+            if (snaps && i < snaps->size()) {
+                const auto &s = (*snaps)[i];
+                if (ax.holdOn != s.holdOn) {
+                    ax.holdOn = s.holdOn;
+                    fig.modified = true;
+                }
+                if (ax.datasets.size() > s.datasetCount) {
+                    for (auto &[hid, rec] : handleRegistry_)
+                        if (!rec.deleted && rec.figureId == id
+                            && rec.axesIndex == static_cast<int>(i)
+                            && rec.datasetIndex
+                                   >= static_cast<int>(s.datasetCount))
+                            rec.deleted = true;
+                    ax.datasets.resize(s.datasetCount);
+                    fig.modified = true;
+                }
+            } else {
+                // Axes (or the whole figure) created AFTER the
+                // checkpoint: their producing statements sit in the
+                // dirty set and will re-run — start from a clean slate.
+                if (!ax.datasets.empty()) {
+                    ax.datasets.clear();
+                    fig.modified = true;
+                }
+                if (ax.holdOn) {
+                    ax.holdOn = false;
+                    fig.modified = true;
+                }
+            }
+        }
+    }
+}
+
 }  // namespace nk
