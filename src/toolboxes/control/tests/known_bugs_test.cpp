@@ -110,3 +110,21 @@ TEST_F(ControlKnownBug, Covar)
 {
     EXPECT_NEAR(evalScalar("covar(ss(-1, 1, 1, 0), 1)"), 0.5, 1e-9);
 }
+
+// bugs/opened/control/tf-arithmetic.md — tf arithmetic operators
+// (*, +, scalar*) error instead of composing (series()/parallel()
+// work). OPEN — the force-run fails until operator kind-dispatch lands.
+TEST_F(ControlKnownBug, DISABLED_TfArithmeticOperators)
+{
+    eval("G1 = tf([1], [1 1]); G2 = tf([1], [1 2]);");
+    eval("G = G1 * G2;");                            // 1/(s^2+3s+2)
+    EXPECT_NEAR(evalScalar("G.num"),    1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G.den(2)"), 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G.den(3)"), 2.0, 1e-12);
+    eval("P = G1 + G2;");                            // (2s+3)/(s^2+3s+2)
+    EXPECT_NEAR(evalScalar("P.num(1)"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("P.num(2)"), 3.0, 1e-12);
+    eval("S = 2 * G1;");                             // 2/(s+1)
+    EXPECT_NEAR(evalScalar("S.num"),    2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("S.den(2)"), 1.0, 1e-12);
+}

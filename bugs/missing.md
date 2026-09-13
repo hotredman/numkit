@@ -11,12 +11,12 @@
 >
 > **Individually tracked.** Notable gaps also have their own dedicated entries in `bugs/opened/<ns>/<fn>.md`:
 > friedman, distribution-dispatchers, autocorr (stats); pmusic-peig, fillgaps,
-> stmcb (signal); watershed, imfindcircles, corner (image); wpdec,
+> pspectrum, stmcb (signal); watershed, imfindcircles, corner (image); wpdec,
 > wentropy/ddencmp, wenergy/upcoef, cwt, wavedec2-family, centfrq/scal2frq
 > (wavelet); lqr/hinfnorm, care/dare, minreal, initial, allmargin, covar
 > (control); analog-demodulators, syndtable (comm); numerical-integration-nd,
 > ode-stiff (ode); funm, qz/gsvd (linalg); fsolve, nonlinear-lsq,
-> constrained-solvers (optim). The rest are catalogued here.
+> constrained-solvers (optim); table, datetime (lang). The rest are catalogued here.
 
 ## ⚠️ Partial — implemented with a deferred branch (25)
 
@@ -89,6 +89,8 @@ symbolic stack is out of scope — tracked here as a gap, not planned)
 **Random Number Generation:** `randstream`
 
 **Interpolation:** `griddedinterpolant`, `scatteredinterpolant`
+
+**Dates and Time:** `caldays`, `calmonths`, `datetime`, `dateshift`, `hours`
 
 **Sparse Matrices:** `amd`, `bicg`, `bicgstab`, `bicgstabl`, `cgs`, `colamd`, `dissect`, `dmperm`, `eigs`, `equilibrate`, `etree`, `etreeplot`, `full`, `gmres`, `gplot`, `ichol`, `ilu`, `lsqr`, `minres`, `nzmax`, `pcg`, `qmr`, `spalloc`, `sparse`, `spaugment`, `spconvert`, `spdiags`, `speye`, `spfun`, `spones`, `spparms`, `sprand`, `sprandn`, `sprandsym`, `sprank`, `spy`, `svds`, `symamd`, `symbfact`, `symmlq`, `tfqmr`, `treelayout`, `treeplot`, `unmesh`
 
