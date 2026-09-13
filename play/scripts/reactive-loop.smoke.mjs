@@ -22,7 +22,7 @@ const ok = (cond, label, extra = '') => {
 };
 
 const source = await readFile(
-  path.resolve(here, '../gallery/phased-array-beamforming.m'), 'utf-8');
+  path.resolve(here, '../gallery/arrays/phased-array-beamforming.m'), 'utf-8');
 
 // The same wire parser the Svelte app uses.
 const parseWire = (text) => ({
@@ -143,6 +143,36 @@ colormap(parula);
   ok(wireCm.includes('colormap'),
      'colormap switch emits palette state',
      'len=' + wireCm.length);
+}
+
+// 6. Figure decorations survive a param tick (user report 2026-09-13):
+// a re-run plot resets the axes (NextPlot=replace), so the decoration
+// tail (legend/title/grid) must re-run too — the wire after the tick
+// still carries title + grid. Exercises the kFigureStateVar chain.
+{
+  const src = [
+    'decay = 3;',
+    'ts = 0:1/1000:0.063;',
+    'x = cos(2*pi*50*ts) .* exp(-decay*ts);',
+    'z = hilbert(x);',
+    'figure;',
+    'plot(ts, x, ts, abs(z));',
+    "legend('x(t)','|x(t)|');",
+    "title('Analytic signal envelope'); grid on;",
+  ].join('\n');
+  M.playLoadScript(src);
+  M.playEvalDirty();
+  M.playSetParamDouble('decay', 5);
+  const tickWire = M.playEvalDirty();
+  const figs = parseWire(tickWire).figures;
+  const ax = figs[figs.length - 1]?.axes?.[0];
+  ok(figs.length >= 1, 'tick re-emitted the figure');
+  ok(ax?.config?.title === 'Analytic signal envelope',
+     'title survives the param tick', `title=${ax?.config?.title}`);
+  ok(ax?.config?.grid === 'on',
+     'grid survives the param tick', `grid=${ax?.config?.grid}`);
+  ok(Array.isArray(ax?.config?.legend) && ax.config.legend.length === 2,
+     'legend survives the param tick');
 }
 
 console.log(failed === 0 ? '\nALL PLAY-LOOP SMOKES GREEN' : `\n${failed} FAILURES`);

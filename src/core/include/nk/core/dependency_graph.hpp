@@ -43,6 +43,17 @@
 
 namespace nk {
 
+/// Pseudo-variable chaining every bare-call statement (plot, title,
+/// grid on, legend, colormap, …). Graphics calls mutate SHARED figure
+/// state that variable facts cannot see: a re-run `plot` resets the
+/// axes (MATLAB NextPlot=replace), so every later decoration statement
+/// must re-run too or the figure loses its title/grid/legend — the
+/// equivalence property (evalDirty == full re-run) would break on
+/// figure state. Each bare call READS and WRITES this name, forming a
+/// sequential chain: re-running one re-runs the tail of the chain.
+/// Reserved prefix — cannot collide with user variables.
+inline constexpr char kFigureStateVar[] = "__nk_figstate__";
+
 struct StatementFacts
 {
     bool wildcardReads = false;      // Reads = * (opaque statement)

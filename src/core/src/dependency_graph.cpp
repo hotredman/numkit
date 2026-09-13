@@ -247,6 +247,19 @@ StatementFacts factsFor(const ASTNode *s)
         f.reads = rc.reads;
         f.elemReads = std::move(rc.elemReads);
         f.wildcardReads = rc.wildcard;
+        // A bare CALL statement (plot/title/grid on/legend/colormap…)
+        // mutates shared FIGURE state invisible to variable facts.
+        // Chain them through kFigureStateVar so a re-run plot re-runs
+        // the decoration tail (equivalence on figure state; see hpp).
+        // IDENT covers MATLAB's no-parens call form (`figure;`, `clf;`)
+        // and the harmless bare-variable echo.
+        const ASTNode *e = s->children.empty() ? nullptr : s->children[0].get();
+        if (e && (e->type == NodeType::CALL
+                  || e->type == NodeType::COMMAND_CALL
+                  || e->type == NodeType::IDENTIFIER)) {
+            f.reads.insert(kFigureStateVar);
+            f.writes.insert(kFigureStateVar);
+        }
         return f;
     }
     case NodeType::RETURN_STMT:
@@ -255,12 +268,20 @@ StatementFacts factsFor(const ASTNode *s)
         return f;
     default: {
         // Bare expression at top level (rare — parser wraps in
-        // EXPR_STMT) — treat as reads-only.
+        // EXPR_STMT) — treat as reads-only. Exception: a bare CALL /
+        // COMMAND_CALL here is a graphics-shaped statement (figure;,
+        // grid on, …) — chain it through the figure state like the
+        // EXPR_STMT case above.
         ReadCollector rc;
         rc.expr(s);
         f.reads = rc.reads;
         f.elemReads = std::move(rc.elemReads);
         f.wildcardReads = rc.wildcard;
+        if (s->type == NodeType::CALL
+            || s->type == NodeType::COMMAND_CALL) {
+            f.reads.insert(kFigureStateVar);
+            f.writes.insert(kFigureStateVar);
+        }
         return f;
     }
     }

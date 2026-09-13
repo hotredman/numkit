@@ -264,3 +264,36 @@ TEST(ElemRegions, EndIndexIsAll)
     ASSERT_EQ(f.size(), 1u);
     EXPECT_TRUE(f[0].elemReads.at("C").all);
 }
+
+TEST(DepGraph, BareCallChainsThroughFigureState)
+{
+    // Bare CALL statements (figure/plot/legend/title/grid on) mutate
+    // SHARED figure state invisible to variable facts — they chain
+    // through kFigureStateVar so a re-run plot re-runs the decoration
+    // tail (user report: slider tick lost title/grid; equivalence on
+    // figure state).
+    auto f = factsOf(
+        "x = cos(2*pi*50*t) .* exp(-decay*t);\n"   // 0
+        "figure;\n"                                 // 1
+        "plot(t, x);\n"                             // 2
+        "legend('x(t)');\n"                         // 3
+        "title('envelope');\n"                      // 4
+        "grid on;\n");                              // 5
+    ASSERT_EQ(f.size(), 6u);
+    EXPECT_EQ(f[0].reads.count(kFigureStateVar), 0u);
+    for (size_t i = 1; i < 6; ++i) {
+        EXPECT_EQ(f[i].reads.count(kFigureStateVar), 1u) << "stmt " << i;
+        EXPECT_EQ(f[i].writes.count(kFigureStateVar), 1u) << "stmt " << i;
+    }
+
+    DependencyGraph g(std::move(f));
+    auto dirty = g.dirtySetFor("decay");
+    // x (0) → plot (2) → legend (3) → title (4) → grid (5); the bare
+    // `figure;` (1) reads nothing that changed — it stays clean.
+    ASSERT_EQ(dirty.size(), 5u);
+    EXPECT_EQ(dirty[0], 0u);
+    EXPECT_EQ(dirty[1], 2u);
+    EXPECT_EQ(dirty[2], 3u);
+    EXPECT_EQ(dirty[3], 4u);
+    EXPECT_EQ(dirty[4], 5u);
+}
