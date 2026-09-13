@@ -1,4 +1,4 @@
-// ops/src/fft/fft_r2_soa_simd.cpp
+// ops/src/fft/fft_r2_soa_highway.cpp
 //
 // Radix-2 FFT with Structure-of-Arrays (split real/imag) layout
 // internally. The public API still takes interleaved-complex (AoS)
@@ -32,7 +32,7 @@
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft/fft_r2_soa_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_r2_soa_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

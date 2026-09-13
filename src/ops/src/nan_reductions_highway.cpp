@@ -1,4 +1,4 @@
-// ops/src/nan_reductions_simd.cpp
+// ops/src/nan_reductions_highway.cpp
 //
 // Highway dynamic-dispatch single-pass nansum / nanmean kernels (P2).
 // Reads the input ONCE; the NaN positions are masked to zero by
@@ -18,7 +18,7 @@
 #include <limits>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "nan_reductions_simd.cpp"
+#define HWY_TARGET_INCLUDE "nan_reductions_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

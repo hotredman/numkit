@@ -1,7 +1,7 @@
-// ops/src/fft/fft_r4_simd.cpp
+// ops/src/fft/fft_r4_highway.cpp
 //
 // Radix-4 FFT kernel for sizes that are clean powers of 4. Same
-// per-TU isolation rationale as fft_r2_simd.cpp — keeping the
+// per-TU isolation rationale as fft_r2_highway.cpp — keeping the
 // r4 butterfly and its base-4 digit-reversal away from the r2 / r8
 // kernels lets MSVC inline within each file's budget.
 
@@ -12,7 +12,7 @@
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft/fft_r4_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_r4_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
@@ -46,7 +46,7 @@ HWY_INLINE void digitReverse4(Complex *buf, std::size_t N)
 }
 
 // Radix-4 stage. See full butterfly derivation in the original
-// fft_simd.cpp before the TU split — semantics unchanged.
+// fft_highway.cpp before the TU split — semantics unchanged.
 HWY_NOINLINE void radix4Stage(Complex *buf, std::size_t N, std::size_t len,
                               const Complex *W, std::size_t N_half,
                               double *sW1r, double *sW1i,

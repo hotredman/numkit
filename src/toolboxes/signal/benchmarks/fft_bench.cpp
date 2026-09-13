@@ -352,7 +352,7 @@ static void BM_Fft_BitReverseOnly(benchmark::State &state)
         work[i] = Complex(double(i), 0.0);
 
     for (auto _ : state) {
-        // Same in-place bit-reverse loop as fft_r2_simd.cpp:bitReverse2
+        // Same in-place bit-reverse loop as fft_r2_highway.cpp:bitReverse2
         // (the SIMD r2 kernel calls it once per FFT call).
         for (std::size_t i = 1, j = 0; i < n; ++i) {
             std::size_t bit = n >> 1;

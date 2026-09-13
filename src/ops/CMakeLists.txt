@@ -64,15 +64,15 @@ if(NK_WITH_SIMD)
         # Backend-split FFT kernel — the SIMD path splits across several TUs
         # (one per radix family) so MSVC's per-TU inliner budget isn't shared
         # across butterflies; see feedback_fft_msvc_limits memory.
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_stockham_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_soa_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_stockham_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_soa_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_highway.cpp
         # NaN-skipping single-pass reductions (nansum/nanmean/nanmax/nanmin/
         # nanvar) — Highway; backs stats nan_aware. Portable fallback below.
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_highway.cpp)
 else()
     list(APPEND NK_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp

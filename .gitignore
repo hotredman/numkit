@@ -78,6 +78,10 @@ __pycache__/
 # live under examples/ and tools/parity/specs/.
 /probe_*.m
 /scratch*.m
+# Session probe sandbox: temp/ — disposable by design, anything in it
+# may be deleted at any time. Verified repros live in bugs/, real
+# fixtures in examples/ and tools/parity/specs/.
+/temp/
 # Per-cycle scratch probe directory (main worker dumps .m files
 # here while iterating on parity refs).
 tools/probe_tmp/

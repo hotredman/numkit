@@ -2782,7 +2782,7 @@ TEST_P(CumLogicalTest, AnyTreatsNaNAsTrue)
 
 // ── Phase P1 SIMD any/all coverage ──────────────────────────
 // These exercise the 4× unrolled SIMD scan in
-// logical_reductions_simd.cpp. Cover: large-N early-exit (any), full-
+// builtin/src/datafun/logical_reductions_highway.cpp. Cover: large-N early-exit (any), full-
 // scan (all), LOGICAL-byte path (mask = x > 0 returns LOGICAL), DOUBLE
 // path, and odd N around SIMD lane boundaries.
 

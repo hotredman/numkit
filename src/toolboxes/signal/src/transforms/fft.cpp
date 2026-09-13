@@ -348,7 +348,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     // * WASM (SIMD128): pack into AoS buf (memcpy when srcStride==1),
     //   call AoS FFT, twist from AoS. SoA paths regress on this ISA
     //   because LoadInterleaved2 is cheap on 128-bit lanes — see
-    //   fft_simd.cpp threshold comments.
+    //   fft_highway.cpp threshold comments.
 #if !defined(__EMSCRIPTEN__) && defined(NK_WITH_SIMD)
     const std::size_t halfLen = fftLen / 2;
     if (rfftEligible) {

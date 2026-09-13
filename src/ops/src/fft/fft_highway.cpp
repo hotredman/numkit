@@ -1,8 +1,8 @@
-// ops/src/fft/fft_simd.cpp
+// ops/src/fft/fft_highway.cpp
 //
 // Thin FFT dispatcher. The actual radix kernels live in their own
-// translation units (fft_r2_simd.cpp / fft_r4_simd.cpp /
-// MDspFft_r8_simd.cpp) so MSVC's per-TU inliner budget isn't shared
+// translation units (fft_r2_highway.cpp / fft_r4_highway.cpp /
+// MDspFft_r8_highway.cpp) so MSVC's per-TU inliner budget isn't shared
 // across butterflies — see feedback_fft_msvc_limits memory for why
 // putting them all in one TU regressed every kernel by 30-75% on
 // sizes it didn't even touch.

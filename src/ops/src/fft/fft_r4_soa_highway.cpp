@@ -1,7 +1,7 @@
-// ops/src/fft/fft_r4_soa_simd.cpp
+// ops/src/fft/fft_r4_soa_highway.cpp
 //
 // Radix-4 FFT for power-of-4 sizes with SoA (split real/imag) layout.
-// Same algorithm as fft_r4_simd.cpp; the difference is internal
+// Same algorithm as fft_r4_highway.cpp; the difference is internal
 // data layout — re[] and im[] kept as separate aligned arrays so
 // every load is a clean vmovupd, no LoadInterleaved2 permute.
 //
@@ -20,7 +20,7 @@
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft/fft_r4_soa_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_r4_soa_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

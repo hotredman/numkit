@@ -1,4 +1,4 @@
-// ops/src/fft/fft_stockham_simd.cpp
+// ops/src/fft/fft_stockham_highway.cpp
 //
 // Stockham auto-sort radix-2 FFT. Out-of-place (ping-pong between two
 // buffers) — eliminates the bit-reversal pass that radix-2 in-place
@@ -25,7 +25,7 @@
 //     N. At N where 2N still fits L2/L3 the bit-reversal saving wins;
 //     at N large enough that 2N spills past L3 to DRAM, the extra
 //     bandwidth might cost. Empirical crossover is at the dispatcher
-//     in fft_simd.cpp.
+//     in fft_highway.cpp.
 
 #include <nk/ops/fft/fft_kernels.hpp>
 
@@ -35,7 +35,7 @@
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft/fft_stockham_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_stockham_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

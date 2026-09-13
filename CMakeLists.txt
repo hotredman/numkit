@@ -35,8 +35,9 @@ include(NkOptions)
 #
 # Pulled only when NK_WITH_SIMD=ON. Dispatch strategy is dynamic —
 # the library ships with backends for every ISA Highway supports and
-# picks one at first call (see HWY_DYNAMIC_DISPATCH in the _simd.cpp
-# files under toolboxes/*/src/backends/).
+# picks one at first call (see HWY_DYNAMIC_DISPATCH in the
+# *_highway.cpp TUs under src/ops/src/ and the co-located module
+# backends; naming rule: dev-docs/handbook/simd_naming.md).
 
 if(NK_WITH_SIMD)
     include(FetchContent)
@@ -220,7 +221,7 @@ target_include_directories(nk
     PRIVATE
         # Shared library-internal helpers (helpers.hpp under toolboxes/*/src/)
         # AND the resolution root for every Highway HWY_TARGET_INCLUDE string
-        # (e.g. "transforms/backends/fft_r2_simd.cpp", relative to toolboxes/<lib>/src/).
+        # (e.g. "fft/fft_r2_highway.cpp", relative to src/ops/src/).
         # TODO: formalize the helpers.hpp leak as public "detail/" headers
         #       or a common utility lib.
         # math/ relocated from builtin (Phase 3-A step C) — same role: shared
@@ -256,7 +257,7 @@ endif()
 
 if(NK_WITH_SIMD)
     # PRIVATE — our public headers never mention Highway types; it's a pure
-    # implementation detail confined to toolboxes/*/src/backends/*_simd.cpp.
+    # implementation detail confined to the *_highway.cpp kernel TUs.
     # BUILD_INTERFACE genex keeps the link dep out of the exported target
     # set (install(EXPORT) would otherwise complain that hwy / hwy_contrib
     # aren't themselves exported).

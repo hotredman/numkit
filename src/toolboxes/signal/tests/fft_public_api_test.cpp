@@ -520,7 +520,7 @@ TEST(DspFftPublicApi, NonPow2RoundTrip)
 
 // ── Radix-4 path correctness at large pow-of-4 sizes ──────────────────
 //
-// kRadix4Threshold inside fft_simd.cpp is currently 1<<15 (32768);
+// kRadix4Threshold inside fft_highway.cpp is currently 1<<15 (32768);
 // pow-of-4 sizes ≥ that route to fftRadix4Pow4Dispatch. Other tests use
 // small N (≤ 16) and never trigger r4. This test guards r4 against
 // bitrot — if its threshold is later raised to disable r4, the test
