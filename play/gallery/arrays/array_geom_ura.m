@@ -1,5 +1,5 @@
-% Плоская решётка (URA)
-% Двумерная диаграмма сетки Nx×Ny
+% Planar array (URA)
+% 2-D beam pattern of an Nx×Ny grid
 
 Nx = 8; Ny = 8; thetaScan = 20;
 thv = -90:5:90; phv = 0:5:90;
@@ -12,7 +12,7 @@ for ip = 1:numel(phv)
                 s = s + exp(1i*pi*((ix-1)*sind(thv(it))*cosd(phv(ip)) + (iy-1)*sind(thv(it))*sind(phv(ip)) - (ix-1)*sind(thetaScan)*cosd(phv(ip))));
             end
         end
-        AFp(ip,it) = abs(s)/(Nx*Ny);
+        AFp(ip,it) = abs(s)/(Nx*Ny);   % normalized (peak 1)
     end
 end
 figure;

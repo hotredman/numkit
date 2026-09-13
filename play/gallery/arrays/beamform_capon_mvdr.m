@@ -1,15 +1,17 @@
-% Капон / MVDR
-% Адаптивное подавление помехи
+% Capon / MVDR beamformer
+% Adaptive interference suppression
 
 thetaJ = -40; Jpow = 50;
 theta = -90:1:90;
 N = 16;
-% Simplified: spectral weight = 1 / (1 + Jpow*sinc^2 separation)
+% Simplified model: response = 1 / (1 + Jpow * exp(-(sep/0.3)^2)),
+% a Gaussian-notch stand-in for the MVDR quiescent pattern.
 sep = abs(sind(theta) - sind(thetaJ));
-resp = 1 ./ (1 + Jpow * exp(-((sep/0.3).^2)));
+resp = 1 ./ (1 + Jpow * exp(-((sep/0.3).^2)));   % normalized (0 dB off-notch)
+patDb = 20*log10(resp);
 figure;
-plot(theta, 20*log10(resp));
-title('MVDR notch at jammer'); ylabel('dB'); grid on;
+plot(theta, patDb);
+title('MVDR notch at jammer'); xlabel('\theta deg'); ylabel('dB'); grid on;
 
 %{
 @play

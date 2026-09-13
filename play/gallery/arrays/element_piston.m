@@ -1,12 +1,12 @@
-% Поршень в экране
-% F = 2J₁(u)/u — эталон пьезокерамики
+% Baffled piston
+% F = 2*J1(u)/u — the piezo-ceramics reference
 
 uMax = 40;
 u = linspace(1e-6, uMax, 721);
-pat = 2*besselj(1, u) ./ u;
+pat = 2*besselj(1, u) ./ u;        % normalized (peak 1 at u->0)
 figure;
 plot(u, pat);
-title('Baffled piston 2J_1(u)/u'); grid on;
+title('Baffled piston 2J_1(u)/u'); xlabel('u'); grid on;
 
 %{
 @play

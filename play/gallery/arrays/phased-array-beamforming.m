@@ -1,3 +1,30 @@
+% =========================================================================
+% Phased array: array factor in polar coordinates
+% =========================================================================
+N = 16;
+theta0 = 25;
+d = 0.5;
+win = 'hamming';
+% Weighting coefficients
+if strcmp(win, 'chebwin')
+    w = chebwin(N, 30);
+elseif strcmp(win, 'hamming')
+    w = hamming(N);
+else
+    w = ones(N, 1);
+end
+% Angular sweep and the array factor
+theta = -90:0.5:90;
+ph = 2 * pi * d * (sin(theta * pi / 180) - sin(theta0 * pi / 180));
+AF = zeros(1, numel(theta));
+for k = 1:N
+    AF = AF + w(k) * exp(1i * (k - 1) * ph);
+end
+mag = abs(AF) / sum(w);            % normalized beam pattern (peak 1)
+figure;
+polarplot(theta * pi / 180, mag);
+title('Phased array beam pattern');
+
 %{
 @play
 {
@@ -21,27 +48,3 @@
   ]
 }
 %}
-% =========================================================================
-% Фазированная решётка: array factor в polar-координатах
-% =========================================================================
-N = 16;
-theta0 = 25;
-d = 0.5;
-win = 'hamming';
-% Весовые коэффициенты
-if strcmp(win, 'chebwin')
-    w = chebwin(N, 30);
-elseif strcmp(win, 'hamming')
-    w = hamming(N);
-else
-    w = ones(N, 1);
-end
-% Угловая развёртка и множитель решётки
-theta = -90:0.5:90;
-ph = 2 * pi * d * (sin(theta * pi / 180) - sin(theta0 * pi / 180));
-AF = zeros(1, numel(theta));
-for k = 1:N
-    AF = AF + w(k) * exp(1i * (k - 1) * ph);
-end
-mag = abs(AF) / sum(w);
-polarplot(theta * pi / 180, mag);

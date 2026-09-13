@@ -10,8 +10,9 @@ AF = zeros(1, numel(theta));
 for k = 1:N
     AF = AF + exp(1i*(k-1)*ph);
 end
+pat = abs(AF) / N;              % normalized beam pattern (peak 1)
 figure;
-plot(theta, abs(AF)/N);
+plot(theta, pat);
 title('ULA beam pattern');
 xlabel('\theta deg'); ylabel('|AF|/N');
 grid on;

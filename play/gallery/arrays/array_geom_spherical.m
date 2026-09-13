@@ -1,5 +1,5 @@
-% Сферическая решётка
-% Изотропный обзор полусферы
+% Spherical array
+% Isotropic hemispherical coverage
 
 Nrings = 5;
 th = 0:2:180;
@@ -15,9 +15,10 @@ for ring = 0:Nrings-1
         end
     end
 end
+pat = abs(AFs) / max(abs(AFs));     % normalized (peak 1)
 figure;
-plot(th, abs(AFs)/max(abs(AFs)));
-title('Spherical cap coverage');
+plot(th, pat);
+title('Spherical cap coverage'); xlabel('\theta deg'); grid on;
 
 %{
 @play

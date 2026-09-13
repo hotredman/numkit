@@ -1,5 +1,5 @@
-% Равномерное окно
-% Максимальный КНД; первые боковые −13.3 дБ
+% Uniform weighting
+% Maximum directivity; first sidelobe at -13.3 dB
 
 N = 16;
 theta = -90:0.2:90;
@@ -7,9 +7,11 @@ AF = zeros(1, numel(theta));
 for k = 1:N
     AF = AF + exp(1i*pi*(k-1)*sind(theta));
 end
+pat = abs(AF) / N;                       % normalized beam pattern (peak 1)
+patDb = 20*log10(pat + 1e-12);           % dB pattern, 0 dB at peak
 figure;
-plot(theta, 20*log10(abs(AF)/N + 1e-12));
-title('Uniform weight, dB'); ylabel('dB'); grid on;
+plot(theta, patDb);
+title('Uniform weight, dB'); xlabel('\theta deg'); ylabel('dB'); grid on;
 
 %{
 @play

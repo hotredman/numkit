@@ -1,16 +1,18 @@
-% Окно Хэмминга
-% Снижение боковых ценой ширины луча
+% Hamming window weighting
+% Sidelobe reduction at the cost of beamwidth
 
 N = 16;
+w = 0.54 - 0.46*cos(2*pi*(0:N-1)/(N-1));   % Hamming weights
+wsum = sum(w);                             % normalizer: unity main-beam gain
 theta = -90:0.2:90;
 AF = zeros(1, numel(theta));
 for k = 1:N
-    w = 0.54 - 0.46*cos(2*pi*(k-1)/(N-1));
-    AF = AF + w*exp(1i*pi*(k-1)*sind(theta));
+    AF = AF + w(k)*exp(1i*pi*(k-1)*sind(theta));
 end
+patDb = 20*log10(abs(AF)/wsum + 1e-12);    % dB pattern, 0 dB at peak
 figure;
-plot(theta, 20*log10(abs(AF)/sum(0.54 - 0.46*cos(2*pi*(0:N-1)/(N-1))) + 1e-12));
-title('Hamming taper, dB'); ylabel('dB'); grid on;
+plot(theta, patDb);
+title('Hamming taper, dB'); xlabel('\theta deg'); ylabel('dB'); grid on;
 
 %{
 @play

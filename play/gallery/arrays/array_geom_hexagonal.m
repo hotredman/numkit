@@ -1,5 +1,5 @@
-% Гексагональная решётка
-% Плотная упаковка элементов
+% Hexagonal array
+% Dense element packing
 
 rings = 2;
 pos = [0 0];
@@ -20,11 +20,12 @@ for ip = 1:numel(ph2)
     for n = 1:size(pos,1)
         s = s + exp(1i*2*pi*(pos(n,1)*cos(th0) + pos(n,2)*sin(th0)));
     end
-    AFh(ip) = abs(s)/size(pos,1);
+    AFh(ip) = abs(s)/size(pos,1);   % normalized (peak 1)
 end
+patDb = 20*log10(AFh + 1e-12);      % dB pattern, 0 dB at the peak
 figure;
-plot(ph2, 20*log10(AFh + 1e-12));
-title('Hexagonal array, dB'); ylabel('|AF| dB'); grid on;
+plot(ph2, patDb);
+title('Hexagonal array, dB'); xlabel('\phi deg'); ylabel('|AF| dB'); grid on;
 
 %{
 @play

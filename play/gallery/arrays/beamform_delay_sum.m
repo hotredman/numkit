@@ -1,5 +1,5 @@
-% Delay-and-Sum
-% Классический фазовый сумматор
+% Delay-and-Sum beamformer
+% The classic phase-shifter sum
 
 N = 16; theta0 = 0;
 theta = -90:0.2:90;
@@ -7,8 +7,9 @@ AF = zeros(1, numel(theta));
 for k = 1:N
     AF = AF + exp(1i*pi*(k-1)*(sind(theta) - sind(theta0)));
 end
+pat = abs(AF) / N;                 % normalized beam pattern (peak 1)
 figure;
-polarplot(theta*pi/180, abs(AF)/N);
+polarplot(theta*pi/180, pat);
 title('Delay-and-Sum');
 
 %{

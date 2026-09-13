@@ -1,3 +1,19 @@
+% 2-D Gaussian on an NxN grid
+sigma = 0.8;
+n = 48;
+xs = linspace(-3, 3, n);
+Z = zeros(n, n);
+for i = 1:n
+    for j = 1:n
+        Z(i, j) = exp(-(xs(i)^2 + xs(j)^2) / (2 * sigma^2));
+    end
+end
+imagesc(xs, xs, Z);
+colorbar;
+title('2D Gaussian');
+xlabel('x');
+ylabel('y');
+
 %{
 @play
 {
@@ -15,18 +31,3 @@
   ]
 }
 %}
-% 2D-гауссиана на сетке N×N
-sigma = 0.8;
-n = 48;
-xs = linspace(-3, 3, n);
-Z = zeros(n, n);
-for i = 1:n
-    for j = 1:n
-        Z(i, j) = exp(-(xs(i)^2 + xs(j)^2) / (2 * sigma^2));
-    end
-end
-imagesc(xs, xs, Z);
-colorbar;
-title('2D Gaussian');
-xlabel('x');
-ylabel('y');
