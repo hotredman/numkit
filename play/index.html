@@ -6,7 +6,12 @@
     <title>nk play — reactive gallery</title>
     <style>
       :root { color-scheme: dark; }
-      html, body, #app { height: 100%; margin: 0; }
+      /* App frame: the DOCUMENT never scrolls — PageShell's content
+         region is the only scroller. Prevents a stray page scrollbar
+         when a transient layout state (HMR, viewport resize) inflates
+         an inner pane: it clips visibly instead of pushing the page. */
+      html, body { height: 100%; margin: 0; overflow: hidden; }
+      #app { height: 100%; margin: 0; }
       body {
         background: #14161a; color: #e8eaf0;
         font: 13px/1.45 'Segoe UI', system-ui, sans-serif;
