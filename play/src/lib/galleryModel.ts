@@ -16,13 +16,13 @@ export interface CategoryInfo {
 }
 
 const CATEGORY_NAMES: Record<string, string> = {
-  arrays: 'Массивы',
-  hydroacoustics: 'Гидроакустика',
-  rays: 'Лучи и распространение',
-  comms: 'Связь',
-  dsp: 'Цифровая обработка',
-  control: 'Управление',
-  physics: 'Физика',
+  arrays: 'Arrays',
+  hydroacoustics: 'Hydroacoustics',
+  rays: 'Rays & Propagation',
+  comms: 'Communications',
+  dsp: 'Digital Signal Processing',
+  control: 'Control',
+  physics: 'Physics',
 };
 
 export function categoryName(id: string): string {

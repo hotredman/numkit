@@ -18,11 +18,11 @@ title('BFSK orthogonality'); grid on;
  "title": "BFSK",
  "groups": [
   {
-   "name": "Частоты",
+   "name": "Frequencies",
    "controls": [
     {
      "var": "f2",
-     "label": "f₂ Гц",
+     "label": "f₂ Hz",
      "min": 1200,
      "max": 1800,
      "step": 50,

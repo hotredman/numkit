@@ -11,10 +11,10 @@ title('Lorenz attractor'); xlabel('x'); ylabel('y'); zlabel('z'); grid on;
 %{
 @play
 {
- "title": "Аттрактор Лоренца",
+ "title": "Lorenz attractor",
  "groups": [
   {
-   "name": "Система",
+   "name": "System",
    "controls": [
     {
      "var": "rho",

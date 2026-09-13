@@ -23,10 +23,10 @@ xlabel('range м'); ylabel('z м'); grid on;
 %{
 @play
 {
- "title": "Зона тени",
+ "title": "Shadow zone",
  "groups": [
   {
-   "name": "Градиент",
+   "name": "Gradient",
    "controls": [
     {
      "var": "g10",

@@ -24,10 +24,10 @@ xlabel('\theta deg'); ylabel('\phi deg');
 %{
 @play
 {
- "title": "Плоская решётка (URA)",
+ "title": "Planar array (URA)",
  "groups": [
   {
-   "name": "Сетка",
+   "name": "Grid",
    "controls": [
     {
      "var": "Nx",
@@ -47,7 +47,7 @@ xlabel('\theta deg'); ylabel('\phi deg');
     },
     {
      "var": "thetaScan",
-     "label": "θ скан",
+     "label": "θ scan",
      "min": -60,
      "max": 60,
      "step": 5,

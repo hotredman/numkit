@@ -21,14 +21,14 @@ title('MUSIC pseudo-spectrum'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "MUSIC: сверхразрешение",
+ "title": "MUSIC: superresolution",
  "groups": [
   {
-   "name": "Цели",
+   "name": "Targets",
    "controls": [
     {
      "var": "sep",
-     "label": "Разнос °",
+     "label": "Spacing °",
      "min": 1,
      "max": 20,
      "step": 1,

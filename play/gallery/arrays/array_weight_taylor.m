@@ -16,10 +16,10 @@ title('Taylor taper'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "Распределение Тейлора",
+ "title": "Taylor taper",
  "groups": [
   {
-   "name": "Синтез",
+   "name": "Synthesis",
    "controls": [
     {
      "var": "N",
@@ -31,7 +31,7 @@ title('Taylor taper'); ylabel('dB'); grid on;
     },
     {
      "var": "sll",
-     "label": "SLL дБ",
+     "label": "SLL dB",
      "min": -40,
      "max": -15,
      "step": 5,

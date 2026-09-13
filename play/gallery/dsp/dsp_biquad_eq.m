@@ -18,14 +18,14 @@ title('z-plane zeros/poles'); axis([-1.5 1.5 -1.5 1.5]); grid on;
 %{
 @play
 {
- "title": "Биквад-эквалайзер",
+ "title": "Biquad equalizer",
  "groups": [
   {
    "name": "EQ",
    "controls": [
     {
      "var": "f0",
-     "label": "f₀ Гц",
+     "label": "f₀ Hz",
      "min": 200,
      "max": 8000,
      "step": 200,
@@ -41,7 +41,7 @@ title('z-plane zeros/poles'); axis([-1.5 1.5 -1.5 1.5]); grid on;
     },
     {
      "var": "gainDB",
-     "label": "Gain дБ",
+     "label": "Gain dB",
      "min": -12,
      "max": 18,
      "step": 3,

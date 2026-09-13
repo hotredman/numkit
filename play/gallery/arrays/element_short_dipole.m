@@ -9,7 +9,7 @@ title('Short dipole F=cos\theta');
 %{
 @play
 {
- "title": "Короткий диполь",
+ "title": "Short dipole",
  "groups": []
 }
 %}

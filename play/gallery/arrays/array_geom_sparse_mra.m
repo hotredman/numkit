@@ -15,14 +15,14 @@ title('MRA sparse array'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "Разреженная MRA",
+ "title": "Sparse MRA",
  "groups": [
   {
-   "name": "Масштаб",
+   "name": "Scale",
    "controls": [
     {
      "var": "spacing",
-     "label": "Масштаб позиций",
+     "label": "Position scale",
      "min": 1,
      "max": 3,
      "step": 1,

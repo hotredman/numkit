@@ -19,12 +19,12 @@ grid on;
 %{
 @play
 {
- "title": "ULA: шаг решётки и гриф-лобы",
+ "title": "ULA: element spacing and grating lobes",
  "groups": [
-  { "name": "Геометрия", "controls": [
-    { "var": "N", "label": "Число элементов", "min": 8, "max": 64, "step": 2, "default": 16 },
+  { "name": "Geometry", "controls": [
+    { "var": "N", "label": "Element count", "min": 8, "max": 64, "step": 2, "default": 16 },
     { "var": "d10", "label": "d/λ ×10", "min": 2, "max": 15, "step": 1, "default": 5 },
-    { "var": "theta0", "label": "Сканирование θ₀", "min": -60, "max": 60, "step": 1, "default": 20 }
+    { "var": "theta0", "label": "Scan θ₀", "min": -60, "max": 60, "step": 1, "default": 20 }
   ] }
  ]
 }

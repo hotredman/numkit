@@ -35,7 +35,7 @@
   let status = $state('');
 
   const crumbs = $derived([
-    { label: 'Галерея', href: '#/' },
+    { label: 'Gallery', href: '#/' },
     { label: categoryName(categoryOfEntry(entry.id)),
       href: hrefFor({ page: 'category', id: categoryOfEntry(entry.id) }) },
     { label: entry.title },
@@ -47,7 +47,7 @@
     const raw: string = engine.playLoadScript(source);
     editorText = source;
     if (raw.startsWith('{"__error"')) {
-      status = 'ошибка загрузки: ' + JSON.parse(raw).message;
+      status = 'load error: ' + JSON.parse(raw).message;
       groups = []; wireFigures = [];
       return;
     }
@@ -96,10 +96,10 @@
     {/snippet}
 
     {#snippet editor()}
-      <Panel title="редактор">
+      <Panel title="editor">
         {#snippet actions()}
-          <Button variant="accent" onclick={() => run(editorText)}>▶ запустить</Button>
-          <Button onclick={() => run(entry.source)}>↺ сброс</Button>
+          <Button variant="accent" onclick={() => run(editorText)}>▶ Run</Button>
+          <Button onclick={() => run(entry.source)}>↺ Reset</Button>
         {/snippet}
         <MatlabEditor value={editorText}
                       oninput={(v: string) => (editorText = v)} />
@@ -108,7 +108,7 @@
     {/snippet}
 
     {#snippet figures()}
-      <Panel title="фигуры">
+      <Panel title="figures">
         {#if wireFigures.length}
           {#each wireFigures as fig (fig.id)}
             <FigureCard><Figure {fig} /></FigureCard>

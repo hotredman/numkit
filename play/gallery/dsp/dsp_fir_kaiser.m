@@ -12,10 +12,10 @@ title('FIR Kaiser'); xlabel('norm f'); grid on;
 %{
 @play
 {
- "title": "КИХ + Кайзер",
+ "title": "FIR + Kaiser",
  "groups": [
   {
-   "name": "Синтез",
+   "name": "Synthesis",
    "controls": [
     {
      "var": "beta",
@@ -27,7 +27,7 @@ title('FIR Kaiser'); xlabel('norm f'); grid on;
     },
     {
      "var": "fc",
-     "label": "Срез ×fs",
+     "label": "Slice ×fs",
      "min": 0.1,
      "max": 0.45,
      "step": 0.05,

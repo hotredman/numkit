@@ -11,14 +11,14 @@ title('SOFAR profile'); xlabel('c м/с'); ylabel('z м'); grid on;
 %{
 @play
 {
- "title": "SOFAR канал",
+ "title": "SOFAR channel",
  "groups": [
   {
-   "name": "Профиль",
+   "name": "Profile",
    "controls": [
     {
      "var": "depth",
-     "label": "Ось канала м",
+     "label": "Channel axis m",
      "min": 100,
      "max": 400,
      "step": 50,
@@ -26,7 +26,7 @@ title('SOFAR profile'); xlabel('c м/с'); ylabel('z м'); grid on;
     },
     {
      "var": "nrays",
-     "label": "Число лучей",
+     "label": "Ray count",
      "min": 3,
      "max": 11,
      "step": 2,

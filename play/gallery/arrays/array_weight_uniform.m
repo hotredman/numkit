@@ -14,14 +14,14 @@ title('Uniform weight, dB'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "Равномерное окно",
+ "title": "Uniform window",
  "groups": [
   {
-   "name": "Решётка",
+   "name": "Array",
    "controls": [
     {
      "var": "N",
-     "label": "Число элементов",
+     "label": "Element count",
      "min": 8,
      "max": 64,
      "step": 2,

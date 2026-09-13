@@ -17,14 +17,14 @@ title('Null steering at \theta_J'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "Пространственные нули",
+ "title": "Spatial nulls",
  "groups": [
   {
-   "name": "Помеха",
+   "name": "Interference",
    "controls": [
     {
      "var": "thetaJ",
-     "label": "Угол помехи",
+     "label": "Interference angle",
      "min": -80,
      "max": 80,
      "step": 5,

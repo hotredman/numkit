@@ -29,14 +29,14 @@ title('Hexagonal array, dB'); ylabel('|AF| dB'); grid on;
 %{
 @play
 {
- "title": "Гексагональная решётка",
+ "title": "Hexagonal array",
  "groups": [
   {
-   "name": "Геометрия",
+   "name": "Geometry",
    "controls": [
     {
      "var": "rings",
-     "label": "Число колец",
+     "label": "Ring count",
      "min": 1,
      "max": 4,
      "step": 1,

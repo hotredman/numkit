@@ -14,14 +14,14 @@ title('Wenz ambient noise'); grid on;
 %{
 @play
 {
- "title": "Шум океана (Венц)",
+ "title": "Ocean noise (Wenz)",
  "groups": [
   {
-   "name": "Диапазон",
+   "name": "Range",
    "controls": [
     {
      "var": "fMax",
-     "label": "f макс Гц",
+     "label": "f max Hz",
      "min": 1000,
      "max": 50000,
      "step": 5000,

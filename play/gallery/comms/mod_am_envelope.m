@@ -16,14 +16,14 @@ title('AM envelope'); grid on;
 %{
 @play
 {
- "title": "AM: огибающая",
+ "title": "AM: envelope",
  "groups": [
   {
-   "name": "Модуляция",
+   "name": "Modulation",
    "controls": [
     {
      "var": "m",
-     "label": "Индекс m",
+     "label": "Index m",
      "min": 0.1,
      "max": 1.5,
      "step": 0.1,

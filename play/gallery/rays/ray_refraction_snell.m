@@ -22,10 +22,10 @@ title('Ray in +gradient'); xlabel('range м'); ylabel('z м'); grid on;
 %{
 @play
 {
- "title": "Рефракция Снеллиуса",
+ "title": "Snell refraction",
  "groups": [
   {
-   "name": "Градиент",
+   "name": "Gradient",
    "controls": [
     {
      "var": "g10",
@@ -37,7 +37,7 @@ title('Ray in +gradient'); xlabel('range м'); ylabel('z м'); grid on;
     },
     {
      "var": "th0",
-     "label": "Угол выхода",
+     "label": "Exit angle",
      "min": -10,
      "max": 10,
      "step": 1,

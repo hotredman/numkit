@@ -22,14 +22,14 @@ title('Spherical cap coverage');
 %{
 @play
 {
- "title": "Сферическая решётка",
+ "title": "Spherical array",
  "groups": [
   {
-   "name": "Геометрия",
+   "name": "Geometry",
    "controls": [
     {
      "var": "Nrings",
-     "label": "Число колец",
+     "label": "Ring count",
      "min": 2,
      "max": 8,
      "step": 1,

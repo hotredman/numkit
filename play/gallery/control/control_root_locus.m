@@ -12,10 +12,10 @@ xlabel('Re'); ylabel('Im'); grid on;
 %{
 @play
 {
- "title": "Годограф корней",
+ "title": "Root locus",
  "groups": [
   {
-   "name": "Усиление",
+   "name": "Gain",
    "controls": [
     {
      "var": "K",

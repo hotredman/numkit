@@ -16,14 +16,14 @@ title('Active sonar budget'); xlabel('r м'); ylabel('TL дБ'); grid on;
 %{
 @play
 {
- "title": "Активный сонар",
+ "title": "Active sonar",
  "groups": [
   {
-   "name": "Бюджет",
+   "name": "Budget",
    "controls": [
     {
      "var": "SL",
-     "label": "SL дБ",
+     "label": "SL dB",
      "min": 180,
      "max": 240,
      "step": 5,
@@ -31,7 +31,7 @@ title('Active sonar budget'); xlabel('r м'); ylabel('TL дБ'); grid on;
     },
     {
      "var": "TS",
-     "label": "TS дБ",
+     "label": "TS dB",
      "min": -10,
      "max": 30,
      "step": 5,
@@ -39,7 +39,7 @@ title('Active sonar budget'); xlabel('r м'); ylabel('TL дБ'); grid on;
     },
     {
      "var": "NL",
-     "label": "NL дБ",
+     "label": "NL dB",
      "min": 40,
      "max": 80,
      "step": 5,

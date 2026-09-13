@@ -1,14 +1,14 @@
 %{
 @play
 {
-  "title": "Затухающие колебания",
-  "description": "Влияние коэффициента демпфирования на переходный процесс",
+  "title": "Damped oscillation",
+  "description": "Effect of the damping ratio on the transient response",
   "groups": [
     {
-      "name": "Параметры системы",
+      "name": "System parameters",
       "controls": [
-        { "var": "zeta", "label": "Демпфирование ζ", "min": 0.05, "max": 1.0, "step": 0.05, "default": 0.2 },
-        { "var": "f0", "label": "Частота, Гц", "min": 0.5, "max": 5.0, "step": 0.5, "default": 2.0 }
+        { "var": "zeta", "label": "Damping ζ", "min": 0.05, "max": 1.0, "step": 0.05, "default": 0.2 },
+        { "var": "f0", "label": "Frequency, Hz", "min": 0.5, "max": 5.0, "step": 0.5, "default": 2.0 }
       ]
     }
   ]

@@ -17,11 +17,11 @@ title('ASK/OOK waveform'); grid on;
  "title": "ASK / OOK",
  "groups": [
   {
-   "name": "Сигнал",
+   "name": "Signal",
    "controls": [
     {
      "var": "mDepth",
-     "label": "Индекс m",
+     "label": "Index m",
      "min": 0.2,
      "max": 1.0,
      "step": 0.1,
@@ -29,7 +29,7 @@ title('ASK/OOK waveform'); grid on;
     },
     {
      "var": "fC",
-     "label": "Несущая Гц",
+     "label": "Carrier Hz",
      "min": 500,
      "max": 4000,
      "step": 500,

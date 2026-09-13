@@ -16,14 +16,14 @@ title('Passive sonar budget'); xlabel('r м'); ylabel('TL дБ'); grid on;
 %{
 @play
 {
- "title": "Пассивный сонар",
+ "title": "Passive sonar",
  "groups": [
   {
-   "name": "Бюджет",
+   "name": "Budget",
    "controls": [
     {
      "var": "SLp",
-     "label": "SL цели дБ",
+     "label": "Target SL dB",
      "min": 150,
      "max": 200,
      "step": 5,
@@ -31,7 +31,7 @@ title('Passive sonar budget'); xlabel('r м'); ylabel('TL дБ'); grid on;
     },
     {
      "var": "DI",
-     "label": "DI дБ",
+     "label": "DI dB",
      "min": 5,
      "max": 30,
      "step": 5,

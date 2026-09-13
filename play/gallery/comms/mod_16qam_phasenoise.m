@@ -13,14 +13,14 @@ title('16-QAM, phase noise'); axis equal; grid on;
 %{
 @play
 {
- "title": "16-QAM + фазовый шум",
+ "title": "16-QAM + phase noise",
  "groups": [
   {
-   "name": "Гетеродин",
+   "name": "Heterodyne",
    "controls": [
     {
      "var": "phn",
-     "label": "σ фаз. шума",
+     "label": "phase noise σ",
      "min": 0.02,
      "max": 0.4,
      "step": 0.02,

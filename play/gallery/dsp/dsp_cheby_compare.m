@@ -14,14 +14,14 @@ title('Chebyshev compare'); grid on;
 %{
 @play
 {
- "title": "Чебышёв I vs II",
+ "title": "Chebyshev I vs II",
  "groups": [
   {
-   "name": "Фильтр",
+   "name": "Filter",
    "controls": [
     {
      "var": "order",
-     "label": "Порядок",
+     "label": "Order",
      "min": 2,
      "max": 8,
      "step": 2,
@@ -29,7 +29,7 @@ title('Chebyshev compare'); grid on;
     },
     {
      "var": "fc",
-     "label": "Срез ×fs",
+     "label": "Slice ×fs",
      "min": 0.1,
      "max": 0.4,
      "step": 0.05,

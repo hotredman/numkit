@@ -11,14 +11,14 @@ title('Thorp \alpha(f) dB/km'); xlabel('f Hz'); grid on;
 %{
 @play
 {
- "title": "Формула Торпа",
+ "title": "Thorp formula",
  "groups": [
   {
-   "name": "Диапазон",
+   "name": "Range",
    "controls": [
     {
      "var": "fMax",
-     "label": "f макс кГц",
+     "label": "f max kHz",
      "min": 10,
      "max": 100,
      "step": 10,

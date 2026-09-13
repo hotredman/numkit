@@ -17,10 +17,10 @@ title('Dolph-Chebyshev taper'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "Дольф-Чебышёв",
+ "title": "Dolph-Chebyshev",
  "groups": [
   {
-   "name": "Синтез",
+   "name": "Synthesis",
    "controls": [
     {
      "var": "N",
@@ -32,7 +32,7 @@ title('Dolph-Chebyshev taper'); ylabel('dB'); grid on;
     },
     {
      "var": "sll",
-     "label": "SLL дБ",
+     "label": "SLL dB",
      "min": -40,
      "max": -15,
      "step": 5,

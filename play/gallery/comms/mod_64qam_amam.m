@@ -16,11 +16,11 @@ legend('ideal','compressed'); title('64-QAM AM/AM'); grid on;
  "title": "64-QAM + AM/AM",
  "groups": [
   {
-   "name": "Усилитель",
+   "name": "Amplifier",
    "controls": [
     {
      "var": "alpha",
-     "label": "Степень",
+     "label": "Order",
      "min": 0.8,
      "max": 1.5,
      "step": 0.05,

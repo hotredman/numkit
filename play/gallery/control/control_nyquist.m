@@ -14,7 +14,7 @@ title('Nyquist vs (-1, j0)'); xlabel('Re'); ylabel('Im'); grid on;
 %{
 @play
 {
- "title": "Критерий Найквиста",
+ "title": "Nyquist criterion",
  "groups": []
 }
 %}

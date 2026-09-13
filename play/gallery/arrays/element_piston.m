@@ -11,14 +11,14 @@ title('Baffled piston 2J_1(u)/u'); grid on;
 %{
 @play
 {
- "title": "Поршень в экране",
+ "title": "Piston in baffle",
  "groups": [
   {
-   "name": "Апертура",
+   "name": "Aperture",
    "controls": [
     {
      "var": "uMax",
-     "label": "u макс",
+     "label": "u max",
      "min": 10,
      "max": 60,
      "step": 5,

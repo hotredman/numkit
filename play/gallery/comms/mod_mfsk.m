@@ -18,14 +18,14 @@ title('4-FSK spectrogram'); xlabel('t s'); ylabel('f Hz');
 %{
 @play
 {
- "title": "4-FSK спектрограмма",
+ "title": "4-FSK spectrogram",
  "groups": [
   {
-   "name": "Сигнал",
+   "name": "Signal",
    "controls": [
     {
      "var": "fBase",
-     "label": "База Гц",
+     "label": "Baseband Hz",
      "min": 200,
      "max": 800,
      "step": 100,

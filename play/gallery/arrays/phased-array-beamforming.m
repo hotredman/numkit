@@ -1,21 +1,21 @@
 %{
 @play
 {
-  "title": "Фазированная антенная решётка (Beamforming)",
-  "description": "Интерактивный расчёт диаграммы направленности и подавления боковых лепестков",
+  "title": "Phased array (beamforming)",
+  "description": "Interactive beam pattern and sidelobe suppression",
   "groups": [
     {
-      "name": "Геометрия антенны",
+      "name": "Antenna geometry",
       "controls": [
-        { "var": "N", "label": "Число элементов", "min": 8, "max": 64, "step": 2, "default": 16 },
-        { "var": "d", "label": "Шаг решётки (d/λ)", "min": 0.1, "max": 1.5, "step": 0.05, "default": 0.5 }
+        { "var": "N", "label": "Element count", "min": 8, "max": 64, "step": 2, "default": 16 },
+        { "var": "d", "label": "Element spacing (d/λ)", "min": 0.1, "max": 1.5, "step": 0.05, "default": 0.5 }
       ]
     },
     {
-      "name": "Управление лучом",
+      "name": "Beam steering",
       "controls": [
-        { "var": "theta0", "label": "Угол поворота", "min": -60, "max": 60, "step": 1, "unit": "°", "default": 25 },
-        { "var": "win", "label": "Оконная функция", "type": "select", "options": ["rect", "hamming", "chebwin"], "default": "hamming" }
+        { "var": "theta0", "label": "Rotation angle", "min": -60, "max": 60, "step": 1, "unit": "°", "default": 25 },
+        { "var": "win", "label": "Window function", "type": "select", "options": ["rect", "hamming", "chebwin"], "default": "hamming" }
       ]
     }
   ]

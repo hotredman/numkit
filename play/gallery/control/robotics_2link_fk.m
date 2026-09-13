@@ -19,14 +19,14 @@ title('2-link FK workspace'); axis equal; grid on;
 %{
 @play
 {
- "title": "Кинематика 2-звенника",
+ "title": "2-link kinematics",
  "groups": [
   {
-   "name": "Манипулятор",
+   "name": "Manipulator",
    "controls": [
     {
      "var": "L1",
-     "label": "L₁ м",
+     "label": "L₁ m",
      "min": 0.5,
      "max": 1.5,
      "step": 0.1,
@@ -34,7 +34,7 @@ title('2-link FK workspace'); axis equal; grid on;
     },
     {
      "var": "L2",
-     "label": "L₂ м",
+     "label": "L₂ m",
      "min": 0.3,
      "max": 1.2,
      "step": 0.1,

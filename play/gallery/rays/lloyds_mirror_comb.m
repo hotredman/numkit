@@ -11,14 +11,14 @@ title('Frequency comb at z=20м'); xlabel('f Гц'); grid on;
 %{
 @play
 {
- "title": "Гребёнка Ллойда",
+ "title": "Lloyd's mirror comb",
  "groups": [
   {
-   "name": "Геометрия",
+   "name": "Geometry",
    "controls": [
     {
      "var": "z",
-     "label": "Глубина м",
+     "label": "Depth m",
      "min": 5,
      "max": 100,
      "step": 5,
@@ -26,7 +26,7 @@ title('Frequency comb at z=20м'); xlabel('f Гц'); grid on;
     },
     {
      "var": "r",
-     "label": "Дистанция м",
+     "label": "Range m",
      "min": 100,
      "max": 2000,
      "step": 50,

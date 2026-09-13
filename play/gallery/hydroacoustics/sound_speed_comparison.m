@@ -15,14 +15,14 @@ title('\Delta c between models'); grid on;
 %{
 @play
 {
- "title": "Сравнение моделей c(z)",
+ "title": "c(z) model comparison",
  "groups": [
   {
-   "name": "Среда",
+   "name": "Environment",
    "controls": [
     {
      "var": "S",
-     "label": "Солёность",
+     "label": "Salinity",
      "min": 30,
      "max": 40,
      "step": 1,
@@ -30,7 +30,7 @@ title('\Delta c between models'); grid on;
     },
     {
      "var": "D",
-     "label": "Глубина м",
+     "label": "Depth m",
      "min": 0,
      "max": 4000,
      "step": 100,

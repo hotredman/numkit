@@ -15,14 +15,14 @@ title('Hamming taper, dB'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "Окно Хэмминга",
+ "title": "Hamming window",
  "groups": [
   {
-   "name": "Решётка",
+   "name": "Array",
    "controls": [
     {
      "var": "N",
-     "label": "Число элементов",
+     "label": "Element count",
      "min": 8,
      "max": 64,
      "step": 2,

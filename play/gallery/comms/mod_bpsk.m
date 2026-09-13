@@ -19,11 +19,11 @@ title('BPSK BER'); xlabel('Eb/N0 дБ'); grid on;
  "title": "BPSK",
  "groups": [
   {
-   "name": "Канал",
+   "name": "Channel",
    "controls": [
     {
      "var": "noise",
-     "label": "Шум σ",
+     "label": "Noise σ",
      "min": 0.05,
      "max": 1.0,
      "step": 0.05,

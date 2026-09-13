@@ -13,10 +13,10 @@ title('Ainslie-McColm \alpha(f)'); grid on;
 %{
 @play
 {
- "title": "Эйнсли-Макколм",
+ "title": "Ainslie-McColm",
  "groups": [
   {
-   "name": "Среда",
+   "name": "Environment",
    "controls": [
     {
      "var": "Tkg",

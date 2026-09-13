@@ -22,12 +22,12 @@
 
 <PageShell>
   {#snippet topbar()}
-    <TopBar crumbs={[{ label: 'Галерея' }]} />
+    <TopBar crumbs={[{ label: 'Gallery' }]} />
   {/snippet}
 
   <CardGrid>
     {#snippet header()}
-      <SearchInput value={query} placeholder="поиск по названию, описанию, имени файла…"
+      <SearchInput value={query} placeholder="search by title, description, file name…"
                    oninput={(v: string) => (query = v)} />
     {/snippet}
 

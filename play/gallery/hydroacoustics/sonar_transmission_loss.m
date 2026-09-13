@@ -15,11 +15,11 @@ title('Transmission loss'); xlabel('r m'); ylabel('dB'); grid on;
  "title": "Transmission Loss",
  "groups": [
   {
-   "name": "Параметры",
+   "name": "Parameters",
    "controls": [
     {
      "var": "Rmax",
-     "label": "R макс м",
+     "label": "R max m",
      "min": 1000,
      "max": 20000,
      "step": 1000,
@@ -27,7 +27,7 @@ title('Transmission loss'); xlabel('r m'); ylabel('dB'); grid on;
     },
     {
      "var": "fK",
-     "label": "f кГц",
+     "label": "f kHz",
      "min": 1,
      "max": 20,
      "step": 1,

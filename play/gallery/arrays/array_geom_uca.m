@@ -17,14 +17,14 @@ title('UCA ring pattern');
 %{
 @play
 {
- "title": "Кольцевая решётка (UCA)",
+ "title": "Circular array (UCA)",
  "groups": [
   {
-   "name": "Геометрия",
+   "name": "Geometry",
    "controls": [
     {
      "var": "Ne",
-     "label": "Элементов",
+     "label": "Elements",
      "min": 8,
      "max": 48,
      "step": 4,

@@ -15,7 +15,7 @@ title('Gaussian prefilter (BT)'); xlabel('t'); grid on;
  "title": "GMSK",
  "groups": [
   {
-   "name": "Фильтр",
+   "name": "Filter",
    "controls": [
     {
      "var": "bt",

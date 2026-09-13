@@ -15,10 +15,10 @@ title('Francois-Garrison \alpha(f)'); grid on;
 %{
 @play
 {
- "title": "Франсуа-Гаррисон",
+ "title": "Francois-Garrison",
  "groups": [
   {
-   "name": "Среда",
+   "name": "Environment",
    "controls": [
     {
      "var": "Tkg",

@@ -14,14 +14,14 @@ title('AR coating R(\lambda)'); xlabel('\lambda нм'); ylabel('R %'); grid on;
 %{
 @play
 {
- "title": "Просветляющее покрытие",
+ "title": "Anti-reflection coating",
  "groups": [
   {
-   "name": "Плёнка",
+   "name": "Film",
    "controls": [
     {
      "var": "df",
-     "label": "Толщина нм",
+     "label": "Thickness nm",
      "min": 50,
      "max": 300,
      "step": 10,
@@ -29,7 +29,7 @@ title('AR coating R(\lambda)'); xlabel('\lambda нм'); ylabel('R %'); grid on;
     },
     {
      "var": "nf",
-     "label": "n плёнки",
+     "label": "film n",
      "min": 1.2,
      "max": 1.8,
      "step": 0.02,

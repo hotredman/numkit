@@ -10,10 +10,10 @@ title('Cardioid element');
 %{
 @play
 {
- "title": "Кардиоидный элемент",
+ "title": "Cardioid element",
  "groups": [
   {
-   "name": "Форма",
+   "name": "Shape",
    "controls": [
     {
      "var": "beta",

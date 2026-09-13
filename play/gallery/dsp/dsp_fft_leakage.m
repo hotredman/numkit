@@ -17,14 +17,14 @@ title('Spectral leakage'); grid on;
 %{
 @play
 {
- "title": "Утечка спектра БПФ",
+ "title": "FFT spectral leakage",
  "groups": [
   {
-   "name": "Окно",
+   "name": "Window",
    "controls": [
     {
      "var": "fL",
-     "label": "f сигнала Гц",
+     "label": "signal f Hz",
      "min": 40,
      "max": 90,
      "step": 0.5,

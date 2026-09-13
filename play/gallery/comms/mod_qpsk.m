@@ -15,11 +15,11 @@ title('QPSK with noise'); grid on;
  "title": "QPSK",
  "groups": [
   {
-   "name": "Канал",
+   "name": "Channel",
    "controls": [
     {
      "var": "noise",
-     "label": "Шум σ",
+     "label": "Noise σ",
      "min": 0.05,
      "max": 0.6,
      "step": 0.05,

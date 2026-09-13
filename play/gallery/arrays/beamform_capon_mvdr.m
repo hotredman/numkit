@@ -14,14 +14,14 @@ title('MVDR notch at jammer'); ylabel('dB'); grid on;
 %{
 @play
 {
- "title": "Капон / MVDR",
+ "title": "Capon / MVDR",
  "groups": [
   {
-   "name": "Помеха",
+   "name": "Interference",
    "controls": [
     {
      "var": "thetaJ",
-     "label": "Угол помехи",
+     "label": "Interference angle",
      "min": -80,
      "max": 80,
      "step": 5,
@@ -29,7 +29,7 @@ title('MVDR notch at jammer'); ylabel('dB'); grid on;
     },
     {
      "var": "Jpow",
-     "label": "Мощность помехи",
+     "label": "Interference power",
      "min": 1,
      "max": 100,
      "step": 5,

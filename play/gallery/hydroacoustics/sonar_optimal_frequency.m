@@ -12,14 +12,14 @@ title('Two-way absorption @ 5 km'); xlabel('f Hz'); ylabel('дБ'); grid on;
 %{
 @play
 {
- "title": "Оптимальная частота",
+ "title": "Optimal frequency",
  "groups": [
   {
-   "name": "Задача",
+   "name": "Task",
    "controls": [
     {
      "var": "Rk",
-     "label": "Дистанция км",
+     "label": "Range km",
      "min": 1,
      "max": 20,
      "step": 1,

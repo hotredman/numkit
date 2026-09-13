@@ -17,7 +17,7 @@ title('Delay-and-Sum');
  "title": "Delay-and-Sum",
  "groups": [
   {
-   "name": "Луч",
+   "name": "Ray",
    "controls": [
     {
      "var": "N",

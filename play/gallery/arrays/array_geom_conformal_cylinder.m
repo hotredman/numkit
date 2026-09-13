@@ -17,14 +17,14 @@ title('Cylinder conformal, sector');
 %{
 @play
 {
- "title": "Конформный цилиндр",
+ "title": "Conformal cylinder",
  "groups": [
   {
-   "name": "Геометрия",
+   "name": "Geometry",
    "controls": [
     {
      "var": "Nc",
-     "label": "Элементов",
+     "label": "Elements",
      "min": 8,
      "max": 64,
      "step": 4,
@@ -32,7 +32,7 @@ title('Cylinder conformal, sector');
     },
     {
      "var": "sector",
-     "label": "Сектор °",
+     "label": "Sector °",
      "min": 30,
      "max": 360,
      "step": 30,

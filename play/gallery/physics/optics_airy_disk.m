@@ -11,7 +11,7 @@ xlabel('u'); ylabel('intensity'); grid on;
 %{
 @play
 {
- "title": "Диск Эйри",
+ "title": "Airy disk",
  "groups": []
 }
 %}

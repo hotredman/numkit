@@ -13,14 +13,14 @@ xlabel('z м'); ylabel('отн. дБ'); grid on;
 %{
 @play
 {
- "title": "Зеркало Ллойда",
+ "title": "Lloyd's mirror",
  "groups": [
   {
-   "name": "Параметры",
+   "name": "Parameters",
    "controls": [
     {
      "var": "f",
-     "label": "f Гц",
+     "label": "f Hz",
      "min": 100,
      "max": 2000,
      "step": 100,
@@ -28,7 +28,7 @@ xlabel('z м'); ylabel('отн. дБ'); grid on;
     },
     {
      "var": "r",
-     "label": "Дистанция м",
+     "label": "Range m",
      "min": 100,
      "max": 5000,
      "step": 100,

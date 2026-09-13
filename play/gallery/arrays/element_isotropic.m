@@ -9,7 +9,7 @@ title('Isotropic F(\theta)=1');
 %{
 @play
 {
- "title": "Изотропный элемент",
+ "title": "Isotropic element",
  "groups": []
 }
 %}

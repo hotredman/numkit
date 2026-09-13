@@ -14,11 +14,11 @@ title('\pi/4-DQPSK trajectory'); axis([-2 2 -2 2]); grid on;
  "title": "π/4-DQPSK",
  "groups": [
   {
-   "name": "Символы",
+   "name": "Symbols",
    "controls": [
     {
      "var": "Ns",
-     "label": "Символов",
+     "label": "Symbols",
      "min": 20,
      "max": 200,
      "step": 20,

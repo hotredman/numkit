@@ -14,10 +14,10 @@ title('PID step response'); grid on;
 %{
 @play
 {
- "title": "ПИД-регулятор",
+ "title": "PID controller",
  "groups": [
   {
-   "name": "Регулятор",
+   "name": "Controller",
    "controls": [
     {
      "var": "Kp",

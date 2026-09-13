@@ -20,14 +20,14 @@ title('OFDM: Doppler ICI'); grid on;
 %{
 @play
 {
- "title": "OFDM: ортогональность и ICI",
+ "title": "OFDM: orthogonality and ICI",
  "groups": [
   {
-   "name": "Канал",
+   "name": "Channel",
    "controls": [
     {
      "var": "dop",
-     "label": "Доплер Гц",
+     "label": "Doppler Hz",
      "min": 0,
      "max": 50,
      "step": 5,

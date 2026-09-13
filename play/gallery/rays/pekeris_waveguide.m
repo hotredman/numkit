@@ -25,14 +25,14 @@ title('Pekeris waveguide 200 Hz'); xlabel('range м'); ylabel('|p| дБ'); grid 
 %{
 @play
 {
- "title": "Волновод Пекериса",
+ "title": "Pekeris waveguide",
  "groups": [
   {
-   "name": "Волновод",
+   "name": "Waveguide",
    "controls": [
     {
      "var": "f",
-     "label": "f Гц",
+     "label": "f Hz",
      "min": 50,
      "max": 500,
      "step": 50,
@@ -40,7 +40,7 @@ title('Pekeris waveguide 200 Hz'); xlabel('range м'); ylabel('|p| дБ'); grid 
     },
     {
      "var": "Hw",
-     "label": "Глубина моря м",
+     "label": "Sea depth m",
      "min": 20,
      "max": 100,
      "step": 10,

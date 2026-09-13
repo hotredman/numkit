@@ -6,7 +6,7 @@
 
 <a class="card" {href}>
   <span class="name">{name}</span>
-  <span class="count">{count} скрипт{count === 1 ? '' : 'ов'}</span>
+  <span class="count">{count} script{count === 1 ? '' : 's'}</span>
 </a>
 
 <style>

@@ -13,14 +13,14 @@ title('Analytic signal envelope'); grid on;
 %{
 @play
 {
- "title": "Гильберт: огибающая",
+ "title": "Hilbert: envelope",
  "groups": [
   {
-   "name": "Сигнал",
+   "name": "Signal",
    "controls": [
     {
      "var": "decay",
-     "label": "Затухание",
+     "label": "Attenuation",
      "min": 1,
      "max": 8,
      "step": 1,

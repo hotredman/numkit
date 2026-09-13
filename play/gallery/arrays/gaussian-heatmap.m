@@ -1,15 +1,15 @@
 %{
 @play
 {
-  "title": "2D-гауссиана (imagesc)",
-  "description": "Тепловая карта двумерного гауссова распределения",
+  "title": "2-D Gaussian (imagesc)",
+  "description": "2-D Gaussian heatmap",
   "groups": [
     {
-      "name": "Параметры распределения",
+      "name": "Distribution parameters",
       "controls": [
         { "var": "sigma", "label": "σ", "min": 0.3, "max": 2.0, "step": 0.1, "default": 0.8 },
-        { "var": "n", "label": "Сетка N×N", "min": 16, "max": 96, "step": 16, "default": 48 },
-        { "var": "cm", "label": "Палитра", "type": "select", "options": ["hot", "parula", "jet", "gray"], "default": "parula" }
+        { "var": "n", "label": "N×N grid", "min": 16, "max": 96, "step": 16, "default": 48 },
+        { "var": "cm", "label": "Palette", "type": "select", "options": ["hot", "parula", "jet", "gray"], "default": "parula" }
       ]
     }
   ]

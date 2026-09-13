@@ -12,10 +12,10 @@ title('Resonance, \zeta'); xlabel('\omega/\omega_n'); grid on;
 %{
 @play
 {
- "title": "Резонанс осциллятора",
+ "title": "Oscillator resonance",
  "groups": [
   {
-   "name": "Демпфирование",
+   "name": "Damping",
    "controls": [
     {
      "var": "zeta",

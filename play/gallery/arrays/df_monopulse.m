@@ -14,14 +14,14 @@ title('Monopulse characteristics'); grid on;
 %{
 @play
 {
- "title": "Моноимпульсный пеленгатор",
+ "title": "Monopulse direction finder",
  "groups": [
   {
-   "name": "Цель",
+   "name": "Target",
    "controls": [
     {
      "var": "thetaT",
-     "label": "Цель θ",
+     "label": "Target θ",
      "min": -10,
      "max": 10,
      "step": 1,

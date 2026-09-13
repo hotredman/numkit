@@ -17,11 +17,11 @@ title('MSK constant envelope'); grid on;
  "title": "MSK",
  "groups": [
   {
-   "name": "Сигнал",
+   "name": "Signal",
    "controls": [
     {
      "var": "bitRate",
-     "label": "Бит/с ×10³",
+     "label": "kbit/s",
      "min": 1,
      "max": 20,
      "step": 1,

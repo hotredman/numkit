@@ -9,7 +9,7 @@ title('Half-wave dipole');
 %{
 @play
 {
- "title": "Полуволновой диполь",
+ "title": "Half-wave dipole",
  "groups": []
 }
 %}

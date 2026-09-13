@@ -62,8 +62,8 @@ describe('galleryModel', () => {
   it('groups by first id segment', () => {
     const cats = categoriesOf(fakeGallery);
     expect(cats).toEqual([
-      { id: 'arrays', name: 'Массивы', count: 2 },
-      { id: 'comms', name: 'Связь', count: 1 },
+      { id: 'arrays', name: 'Arrays', count: 2 },
+      { id: 'comms', name: 'Communications', count: 1 },
     ]);
   });
   it('lists scripts of a category', () => {

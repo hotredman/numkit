@@ -11,14 +11,14 @@ title('Del Grosso 1974'); xlabel('T °C'); ylabel('c m/s'); grid on;
 %{
 @play
 {
- "title": "Дель Гроссо 1974",
+ "title": "Del Grosso 1974",
  "groups": [
   {
-   "name": "Среда",
+   "name": "Environment",
    "controls": [
     {
      "var": "Tmax",
-     "label": "T макс °C",
+     "label": "T max °C",
      "min": 5,
      "max": 30,
      "step": 1,
@@ -26,7 +26,7 @@ title('Del Grosso 1974'); xlabel('T °C'); ylabel('c m/s'); grid on;
     },
     {
      "var": "S",
-     "label": "Солёность",
+     "label": "Salinity",
      "min": 30,
      "max": 40,
      "step": 1,
@@ -34,7 +34,7 @@ title('Del Grosso 1974'); xlabel('T °C'); ylabel('c m/s'); grid on;
     },
     {
      "var": "D",
-     "label": "Глубина м",
+     "label": "Depth m",
      "min": 0,
      "max": 4000,
      "step": 100,

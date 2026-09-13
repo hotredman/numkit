@@ -16,14 +16,14 @@ title('FM spectrum'); xlabel('f Гц'); grid on;
 %{
 @play
 {
- "title": "FM: спектр Бесселя",
+ "title": "FM: Bessel spectrum",
  "groups": [
   {
-   "name": "Модуляция",
+   "name": "Modulation",
    "controls": [
     {
      "var": "df",
-     "label": "Девиация Гц",
+     "label": "Deviation Hz",
      "min": 50,
      "max": 500,
      "step": 10,

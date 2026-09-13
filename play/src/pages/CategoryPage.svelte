@@ -16,7 +16,7 @@
 <PageShell>
   {#snippet topbar()}
     <TopBar crumbs={[
-      { label: 'Галерея', href: '#/' },
+      { label: 'Gallery', href: '#/' },
       { label: categoryName(id) },
     ]} />
   {/snippet}

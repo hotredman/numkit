@@ -12,14 +12,14 @@ title('LoRa up-chirp spectrogram');
 %{
 @play
 {
- "title": "ЛЧМ-чирп (LoRa)",
+ "title": "LFM chirp (LoRa)",
  "groups": [
   {
-   "name": "Чирп",
+   "name": "Chirp",
    "controls": [
     {
      "var": "chirpMs",
-     "label": "Длительность мс",
+     "label": "Duration ms",
      "min": 2,
      "max": 16,
      "step": 2,
