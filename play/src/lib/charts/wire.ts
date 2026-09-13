@@ -87,13 +87,19 @@ export interface WireParseResult {
 }
 
 export function parseFigureWire(text: string | null | undefined): WireParseResult {
-  const figures: WireFigure[] = [];
+  // The engine emits one __FIGURE_DATA__ line per figure CHANGE during
+  // a run — the SAME figure id can appear several times (plot, then
+  // hold on, then title…). LAST emission wins; first-appearance order
+  // is kept. Deduping here is load-bearing: a keyed {#each fig.id}
+  // upstream throws on duplicate keys and kills the whole render flush.
+  const byId = new Map<string | number, WireFigure>();
   const closed: (number | 'all')[] = [];
   for (const line of String(text ?? '').split('\n')) {
     const t = line.trim();
     if (t.startsWith('__FIGURE_DATA__:')) {
       try {
-        figures.push(JSON.parse(t.slice('__FIGURE_DATA__:'.length)));
+        const fig: WireFigure = JSON.parse(t.slice('__FIGURE_DATA__:'.length));
+        byId.set(fig.id, fig);
       } catch { /* skip malformed line */ }
     } else if (t.startsWith('__FIGURE_CLOSE__:')) {
       closed.push(parseInt(t.split(':')[1], 10));
@@ -101,7 +107,7 @@ export function parseFigureWire(text: string | null | undefined): WireParseResul
       closed.push('all');
     }
   }
-  return { figures, closed };
+  return { figures: [...byId.values()], closed };
 }
 
 // ── @play manifest ──────────────────────────────────────────────────

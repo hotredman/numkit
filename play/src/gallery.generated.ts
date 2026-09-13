@@ -129,6 +129,18 @@ export const gallery: GalleryEntry[] = [
     "source": "% Короткий диполь\n% F(θ) = cos θ\n\nth = linspace(0, 2*pi, 361);\nfigure;\npolarplot(th, abs(cos(th)));\ntitle('Short dipole F=cos\\theta');\n\n%{\n@play\n{\n \"title\": \"Короткий диполь\",\n \"groups\": []\n}\n%}\n"
   },
   {
+    "id": "arrays/gaussian-heatmap.m",
+    "title": "2D-гауссиана (imagesc)",
+    "description": "Тепловая карта двумерного гауссова распределения",
+    "source": "%{\n@play\n{\n  \"title\": \"2D-гауссиана (imagesc)\",\n  \"description\": \"Тепловая карта двумерного гауссова распределения\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры распределения\",\n      \"controls\": [\n        { \"var\": \"sigma\", \"label\": \"σ\", \"min\": 0.3, \"max\": 2.0, \"step\": 0.1, \"default\": 0.8 },\n        { \"var\": \"n\", \"label\": \"Сетка N×N\", \"min\": 16, \"max\": 96, \"step\": 16, \"default\": 48 },\n        { \"var\": \"cm\", \"label\": \"Палитра\", \"type\": \"select\", \"options\": [\"hot\", \"parula\", \"jet\", \"gray\"], \"default\": \"parula\" }\n      ]\n    }\n  ]\n}\n%}\n% 2D-гауссиана на сетке N×N\nsigma = 0.8;\nn = 48;\nxs = linspace(-3, 3, n);\nZ = zeros(n, n);\nfor i = 1:n\n    for j = 1:n\n        Z(i, j) = exp(-(xs(i)^2 + xs(j)^2) / (2 * sigma^2));\n    end\nend\nimagesc(xs, xs, Z);\ncolorbar;\ntitle('2D Gaussian');\nxlabel('x');\nylabel('y');\n"
+  },
+  {
+    "id": "arrays/phased-array-beamforming.m",
+    "title": "Фазированная антенная решётка (Beamforming)",
+    "description": "Интерактивный расчёт диаграммы направленности и подавления боковых лепестков",
+    "source": "%{\n@play\n{\n  \"title\": \"Фазированная антенная решётка (Beamforming)\",\n  \"description\": \"Интерактивный расчёт диаграммы направленности и подавления боковых лепестков\",\n  \"groups\": [\n    {\n      \"name\": \"Геометрия антенны\",\n      \"controls\": [\n        { \"var\": \"N\", \"label\": \"Число элементов\", \"min\": 8, \"max\": 64, \"step\": 2, \"default\": 16 },\n        { \"var\": \"d\", \"label\": \"Шаг решётки (d/λ)\", \"min\": 0.1, \"max\": 1.5, \"step\": 0.05, \"default\": 0.5 }\n      ]\n    },\n    {\n      \"name\": \"Управление лучом\",\n      \"controls\": [\n        { \"var\": \"theta0\", \"label\": \"Угол поворота\", \"min\": -60, \"max\": 60, \"step\": 1, \"unit\": \"°\", \"default\": 25 },\n        { \"var\": \"win\", \"label\": \"Оконная функция\", \"type\": \"select\", \"options\": [\"rect\", \"hamming\", \"chebwin\"], \"default\": \"hamming\" }\n      ]\n    }\n  ]\n}\n%}\n% =========================================================================\n% Фазированная решётка: array factor в polar-координатах\n% =========================================================================\nN = 16;\ntheta0 = 25;\nd = 0.5;\nwin = 'hamming';\n% Весовые коэффициенты\nif strcmp(win, 'chebwin')\n    w = chebwin(N, 30);\nelseif strcmp(win, 'hamming')\n    w = hamming(N);\nelse\n    w = ones(N, 1);\nend\n% Угловая развёртка и множитель решётки\ntheta = -90:0.5:90;\nph = 2 * pi * d * (sin(theta * pi / 180) - sin(theta0 * pi / 180));\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + w(k) * exp(1i * (k - 1) * ph);\nend\nmag = abs(AF) / sum(w);\npolarplot(theta * pi / 180, mag);\n"
+  },
+  {
     "id": "comms/mod_16qam_phasenoise.m",
     "title": "16-QAM + фазовый шум",
     "description": "",
@@ -237,12 +249,6 @@ export const gallery: GalleryEntry[] = [
     "source": "% Кинематика 2-звенника\n% Рабочая зона схвата\n\nL1 = 1.0; L2 = 0.7;\nth1 = linspace(0, pi/2, 30);\nth2 = linspace(0, pi, 30);\nfigure;\nhold on;\nfor k = 1:numel(th1)\n    xj = L1*cos(th1(k)); yj = L1*sin(th1(k));\n    xe = xj + L2*cos(th1(k) + th2(k));\n    ye = yj + L2*sin(th1(k) + th2(k));\n    plot([0 xj xe], [0 yj ye], 'b-');\n    plot(xe, ye, 'r.');\nend\nplot(0, 0, 'ko', 'MarkerFaceColor', 'k');\ntitle('2-link FK workspace'); axis equal; grid on;\n\n%{\n@play\n{\n \"title\": \"Кинематика 2-звенника\",\n \"groups\": [\n  {\n   \"name\": \"Манипулятор\",\n   \"controls\": [\n    {\n     \"var\": \"L1\",\n     \"label\": \"L₁ м\",\n     \"min\": 0.5,\n     \"max\": 1.5,\n     \"step\": 0.1,\n     \"default\": 1.0\n    },\n    {\n     \"var\": \"L2\",\n     \"label\": \"L₂ м\",\n     \"min\": 0.3,\n     \"max\": 1.2,\n     \"step\": 0.1,\n     \"default\": 0.7\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
-    "id": "damped-oscillation.m",
-    "title": "Затухающие колебания",
-    "description": "Влияние коэффициента демпфирования на переходный процесс",
-    "source": "%{\n@play\n{\n  \"title\": \"Затухающие колебания\",\n  \"description\": \"Влияние коэффициента демпфирования на переходный процесс\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры системы\",\n      \"controls\": [\n        { \"var\": \"zeta\", \"label\": \"Демпфирование ζ\", \"min\": 0.05, \"max\": 1.0, \"step\": 0.05, \"default\": 0.2 },\n        { \"var\": \"f0\", \"label\": \"Частота, Гц\", \"min\": 0.5, \"max\": 5.0, \"step\": 0.5, \"default\": 2.0 }\n      ]\n    }\n  ]\n}\n%}\n% Затухающие колебания: x(t) = exp(-zeta*w*t) * cos(wd*t)\nzeta = 0.2;\nf0 = 2;\nw = 2 * pi * f0;\nwd = w * sqrt(1 - zeta * zeta);\nt = 0:0.005:3;\nx = exp(-zeta * w * t) .* cos(wd * t);\nenv = exp(-zeta * w * t);\nplot(t, x, 'b');\nhold on;\nplot(t, env, 'r--');\nplot(t, -env, 'r--');\ntitle('Damped oscillation');\nxlabel('t, s');\nylabel('x(t)');\nlegend('x(t)', 'envelope');\ngrid on;\n"
-  },
-  {
     "id": "dsp/dsp_biquad_eq.m",
     "title": "Биквад-эквалайзер",
     "description": "",
@@ -271,12 +277,6 @@ export const gallery: GalleryEntry[] = [
     "title": "Гильберт: огибающая",
     "description": "",
     "source": "% Гильберт: огибающая\n% Аналитический сигнал (степень 2 — workaround, см. hilbert bug)\n\ndecay = 3;\nts5 = 0:1/1000:0.063;\nx5 = cos(2*pi*50*ts5).*exp(-decay*ts5);\nz5 = hilbert(x5);\nfigure;\nplot(ts5, x5, ts5, abs(z5));\nlegend('x(t)','|x(t)|');\ntitle('Analytic signal envelope'); grid on;\n\n%{\n@play\n{\n \"title\": \"Гильберт: огибающая\",\n \"groups\": [\n  {\n   \"name\": \"Сигнал\",\n   \"controls\": [\n    {\n     \"var\": \"decay\",\n     \"label\": \"Затухание\",\n     \"min\": 1,\n     \"max\": 8,\n     \"step\": 1,\n     \"default\": 3\n    }\n   ]\n  }\n ]\n}\n%}\n"
-  },
-  {
-    "id": "gaussian-heatmap.m",
-    "title": "2D-гауссиана (imagesc)",
-    "description": "Тепловая карта двумерного гауссова распределения",
-    "source": "%{\n@play\n{\n  \"title\": \"2D-гауссиана (imagesc)\",\n  \"description\": \"Тепловая карта двумерного гауссова распределения\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры распределения\",\n      \"controls\": [\n        { \"var\": \"sigma\", \"label\": \"σ\", \"min\": 0.3, \"max\": 2.0, \"step\": 0.1, \"default\": 0.8 },\n        { \"var\": \"n\", \"label\": \"Сетка N×N\", \"min\": 16, \"max\": 96, \"step\": 16, \"default\": 48 },\n        { \"var\": \"cm\", \"label\": \"Палитра\", \"type\": \"select\", \"options\": [\"hot\", \"parula\", \"jet\", \"gray\"], \"default\": \"parula\" }\n      ]\n    }\n  ]\n}\n%}\n% 2D-гауссиана на сетке N×N\nsigma = 0.8;\nn = 48;\nxs = linspace(-3, 3, n);\nZ = zeros(n, n);\nfor i = 1:n\n    for j = 1:n\n        Z(i, j) = exp(-(xs(i)^2 + xs(j)^2) / (2 * sigma^2));\n    end\nend\nimagesc(xs, xs, Z);\ncolorbar;\ntitle('2D Gaussian');\nxlabel('x');\nylabel('y');\n"
   },
   {
     "id": "hydroacoustics/sonar_ambient_noise_wenz.m",
@@ -357,10 +357,10 @@ export const gallery: GalleryEntry[] = [
     "source": "% ЮНЕСКО 1983\n% Чен-Миллеро, международный стандарт\n\nTmax = 30; S = 35; D = 10;\nT = 2:1:Tmax;\nc = 1449.2 + 4.6*T - 5.48e-2*T.^2 + 2.91e-4*T.^3 + 1.34*(S-35) + 1.60e-2*D + 1.6e-7*D^2 - 1.02e-2*T*(S-35);\nfigure;\nplot(T, c);\ntitle('UNESCO 1983'); xlabel('T °C'); ylabel('c m/s'); grid on;\n\n%{\n@play\n{\n \"title\": \"ЮНЕСКО 1983\",\n \"groups\": [\n  {\n   \"name\": \"Среда\",\n   \"controls\": [\n    {\n     \"var\": \"Tmax\",\n     \"label\": \"T макс °C\",\n     \"min\": 5,\n     \"max\": 30,\n     \"step\": 1,\n     \"default\": 30\n    },\n    {\n     \"var\": \"S\",\n     \"label\": \"Солёность\",\n     \"min\": 30,\n     \"max\": 40,\n     \"step\": 1,\n     \"default\": 35\n    },\n    {\n     \"var\": \"D\",\n     \"label\": \"Глубина м\",\n     \"min\": 0,\n     \"max\": 4000,\n     \"step\": 100,\n     \"default\": 10\n    }\n   ]\n  }\n ]\n}\n%}\n"
   },
   {
-    "id": "phased-array-beamforming.m",
-    "title": "Фазированная антенная решётка (Beamforming)",
-    "description": "Интерактивный расчёт диаграммы направленности и подавления боковых лепестков",
-    "source": "%{\n@play\n{\n  \"title\": \"Фазированная антенная решётка (Beamforming)\",\n  \"description\": \"Интерактивный расчёт диаграммы направленности и подавления боковых лепестков\",\n  \"groups\": [\n    {\n      \"name\": \"Геометрия антенны\",\n      \"controls\": [\n        { \"var\": \"N\", \"label\": \"Число элементов\", \"min\": 8, \"max\": 64, \"step\": 2, \"default\": 16 },\n        { \"var\": \"d\", \"label\": \"Шаг решётки (d/λ)\", \"min\": 0.1, \"max\": 1.5, \"step\": 0.05, \"default\": 0.5 }\n      ]\n    },\n    {\n      \"name\": \"Управление лучом\",\n      \"controls\": [\n        { \"var\": \"theta0\", \"label\": \"Угол поворота\", \"min\": -60, \"max\": 60, \"step\": 1, \"unit\": \"°\", \"default\": 25 },\n        { \"var\": \"win\", \"label\": \"Оконная функция\", \"type\": \"select\", \"options\": [\"rect\", \"hamming\", \"chebwin\"], \"default\": \"hamming\" }\n      ]\n    }\n  ]\n}\n%}\n% =========================================================================\n% Фазированная решётка: array factor в polar-координатах\n% =========================================================================\nN = 16;\ntheta0 = 25;\nd = 0.5;\nwin = 'hamming';\n% Весовые коэффициенты\nif strcmp(win, 'chebwin')\n    w = chebwin(N, 30);\nelseif strcmp(win, 'hamming')\n    w = hamming(N);\nelse\n    w = ones(N, 1);\nend\n% Угловая развёртка и множитель решётки\ntheta = -90:0.5:90;\nph = 2 * pi * d * (sin(theta * pi / 180) - sin(theta0 * pi / 180));\nAF = zeros(1, numel(theta));\nfor k = 1:N\n    AF = AF + w(k) * exp(1i * (k - 1) * ph);\nend\nmag = abs(AF) / sum(w);\npolarplot(theta * pi / 180, mag);\n"
+    "id": "physics/damped-oscillation.m",
+    "title": "Затухающие колебания",
+    "description": "Влияние коэффициента демпфирования на переходный процесс",
+    "source": "%{\n@play\n{\n  \"title\": \"Затухающие колебания\",\n  \"description\": \"Влияние коэффициента демпфирования на переходный процесс\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры системы\",\n      \"controls\": [\n        { \"var\": \"zeta\", \"label\": \"Демпфирование ζ\", \"min\": 0.05, \"max\": 1.0, \"step\": 0.05, \"default\": 0.2 },\n        { \"var\": \"f0\", \"label\": \"Частота, Гц\", \"min\": 0.5, \"max\": 5.0, \"step\": 0.5, \"default\": 2.0 }\n      ]\n    }\n  ]\n}\n%}\n% Затухающие колебания: x(t) = exp(-zeta*w*t) * cos(wd*t)\nzeta = 0.2;\nf0 = 2;\nw = 2 * pi * f0;\nwd = w * sqrt(1 - zeta * zeta);\nt = 0:0.005:3;\nx = exp(-zeta * w * t) .* cos(wd * t);\nenv = exp(-zeta * w * t);\nplot(t, x, 'b');\nhold on;\nplot(t, env, 'r--');\nplot(t, -env, 'r--');\ntitle('Damped oscillation');\nxlabel('t, s');\nylabel('x(t)');\nlegend('x(t)', 'envelope');\ngrid on;\n"
   },
   {
     "id": "physics/optics_airy_disk.m",
