@@ -110,6 +110,25 @@ export function parseFigureWire(text: string | null | undefined): WireParseResul
   return { figures: [...byId.values()], closed };
 }
 
+/** Stateful merge for one reactive tick: last-wins per figure id,
+ * close markers REMOVE figures (a re-run `figure;` after a rollback
+ * mints a new id and closes the old one — the user must see ONE
+ * card, not one per tick). Figures not re-emitted keep their state. */
+export function mergeWireState(prev: WireFigure[],
+                                text: string | null | undefined): WireFigure[] {
+  const { figures, closed } = parseFigureWire(text);
+  const byId = new Map<WireFigure['id'], WireFigure>(
+    prev.map((f) => [f.id, f]));
+  if (closed.includes('all'))
+    byId.clear();
+  for (const c of closed)
+    if (c !== 'all')
+      byId.delete(c);
+  for (const f of figures)
+    byId.set(f.id, f);
+  return [...byId.values()];
+}
+
 // ── @play manifest ──────────────────────────────────────────────────
 export interface PlaySliderControl {
   kind: 'slider';

@@ -15,7 +15,7 @@
   import FigureCard from '../lib/ui/FigureCard.svelte';
   import MatlabEditor from '../lib/editor/MatlabEditor.svelte';
   import Figure from '../lib/charts/Figure.svelte';
-  import { parseFigureWire, flattenControls } from '../lib/charts/wire.js';
+  import { mergeWireState, flattenControls } from '../lib/charts/wire.js';
   import { getEngine } from '../engine.js';
   import type { PlayEngine } from '../engine.js';
   import type {
@@ -57,8 +57,7 @@
   }
 
   function applyWire(text: string) {
-    const { figures: figs } = parseFigureWire(text);
-    if (figs.length) wireFigures = figs;
+    wireFigures = mergeWireState(wireFigures, text);
   }
 
   function onControl(c: PlayControl) {

@@ -49,6 +49,10 @@ bool ReactiveSession::load(const std::string &source)
     // figure state is captured after every statement — evalDirty's
     // rollback depends on them.
     checkpoints_.assign(statements_.size(), {});
+    // State that preceded the script (figures of a PREVIOUS script in
+    // the same engine session): the rollback target when the dirty
+    // set starts at statement 0 (wildcard-prefix pull).
+    preScriptCp_ = engine_.figureManager().checkpointFigures();
     try {
         for (size_t i = 0; i < statements_.size(); ++i) {
             const ASTNode *s = statements_[i].get();
@@ -111,9 +115,17 @@ size_t ReactiveSession::evalDirty()
     // Roll the figure state back to the last CLEAN statement before
     // the dirty set: re-run plots under a persisted `hold on` would
     // otherwise APPEND lines on every tick (figure-state equivalence).
-    if (!order.empty() && order.front() > 0
-        && order.front() - 1 < checkpoints_.size())
-        engine_.figureManager().restoreFigures(checkpoints_[order.front() - 1]);
+    if (!order.empty()) {
+        if (order.front() == 0) {
+            // The wildcard-prefix rule pulls the whole prefix (pure
+            // defs of NON-params included) — roll back to the state
+            // that preceded the script itself.
+            engine_.figureManager().restoreFigures(preScriptCp_);
+        } else if (order.front() - 1 < checkpoints_.size()) {
+            engine_.figureManager().restoreFigures(
+                checkpoints_[order.front() - 1]);
+        }
+    }
     for (size_t idx : order) {
         if (idx >= statements_.size() || !statements_[idx])
             continue;

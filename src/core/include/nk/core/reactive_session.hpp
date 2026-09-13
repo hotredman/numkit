@@ -105,6 +105,10 @@ private:
     // statements reproduce the full-re-run figure (no `hold on`
     // line accumulation across ticks).
     std::vector<FigureManager::FigureCheckpoint> checkpoints_;
+    // Figure state captured in load() BEFORE the first statement runs
+    // (may hold a PREVIOUS script's figures — sessions share the
+    // engine). The rollback target when a dirty set starts at 0.
+    FigureManager::FigureCheckpoint preScriptCp_;
     std::set<size_t> dirty_;
     std::set<std::string> params_;   // externally-set variables
     std::string lastError_;

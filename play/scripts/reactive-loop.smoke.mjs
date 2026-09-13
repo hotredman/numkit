@@ -207,5 +207,34 @@ colormap(parula);
   ok(n2 === 3, 'damped: 3 lines after tick 2', `${n2}`);
 }
 
+// 8. A wildcard-tail `figure;` re-runs on ticks and mints a NEW
+// figure id each time (user report on beamform_delay_sum). The
+// checkpoint rollback now deletes post-checkpoint figures and emits
+// close markers; the front-end merge must show exactly ONE figure
+// card across any number of ticks.
+{
+  const src = await readFile(
+    path.resolve(here, '../gallery/arrays/beamform_delay_sum.m'), 'utf-8');
+  M.playLoadScript(src);
+  const merge = (prev, text) => {
+    const byId = new Map(prev.map((f) => [f.id, f]));
+    for (const l of text.split('\n')) {
+      if (l.startsWith('__FIGURE_CLOSE__:'))
+        byId.delete(parseInt(l.split(':')[1], 10));
+      else if (l.startsWith('__FIGURE_DATA__:'))
+        { const f = JSON.parse(l.slice('__FIGURE_DATA__:'.length)); byId.set(f.id, f); }
+    }
+    return [...byId.values()];
+  };
+  let state = merge([], M.playEvalDirty());
+  ok(state.length === 1, 'delay_sum: 1 figure after load', `${state.length}`);
+  for (const th of [20, -15, 40]) {
+    M.playSetParamDouble('theta0', th);
+    state = merge(state, M.playEvalDirty());
+    ok(state.length === 1,
+       `delay_sum: 1 figure after theta0=${th}`, `${state.length}`);
+  }
+}
+
 console.log(failed === 0 ? '\nALL PLAY-LOOP SMOKES GREEN' : `\n${failed} FAILURES`);
 process.exit(failed === 0 ? 0 : 1);

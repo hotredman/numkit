@@ -1335,6 +1335,28 @@ void FigureManager::restoreFigures(const FigureCheckpoint &cp)
                 return &p.second;
         return nullptr;
     };
+    // Figures created AFTER the checkpoint are effects of statements
+    // that are about to re-run (a wildcard-tail `figure;` re-executes
+    // and would mint a new id on every tick). Delete them and emit
+    // close markers so the renderer drops the stale cards; the replay
+    // re-creates whatever the script actually needs.
+    for (auto it = figures_.begin(); it != figures_.end();) {
+        if (!find(it->first)) {
+            const int id = it->first;
+            for (auto &[hid, rec] : handleRegistry_)
+                if (rec.figureId == id)
+                    rec.deleted = true;
+            it = figures_.erase(it);
+            std::string marker =
+                "__FIGURE_CLOSE__:" + std::to_string(id) + "\n";
+            if (outputFunc_)
+                outputFunc_(marker);
+            else
+                std::cout << marker;
+            continue;
+        }
+        ++it;
+    }
     for (auto &[id, fig] : figures_) {
         const auto *snaps = find(id);
         for (size_t i = 0; i < fig.axes.size(); ++i) {
@@ -1356,9 +1378,8 @@ void FigureManager::restoreFigures(const FigureCheckpoint &cp)
                     fig.modified = true;
                 }
             } else {
-                // Axes (or the whole figure) created AFTER the
-                // checkpoint: their producing statements sit in the
-                // dirty set and will re-run — start from a clean slate.
+                // Axes created after the checkpoint within a surviving
+                // figure: their producing statements re-run — clean slate.
                 if (!ax.datasets.empty()) {
                     ax.datasets.clear();
                     fig.modified = true;
