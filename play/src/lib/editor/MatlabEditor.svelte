@@ -55,6 +55,6 @@
 <div class="editor" bind:this={host}></div>
 
 <style>
-  .editor { flex: 1; min-height: 0; overflow: hidden; }
-  .editor :global(.cm-editor) { height: 100%; }
+  .editor { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+  .editor :global(.cm-editor) { height: 100%; min-width: 0; }
 </style>
