@@ -12,12 +12,18 @@ JSON_PATH="$OUT_DIR/nk.log.json"
 INPUT_JSON=""
 DO_COMMIT=0
 
+FILTER_PATH=""
+
 show_help() {
     echo "Usage: $(basename "$0") [options]"
     echo
     echo "Runs PVS-Studio static analysis and updates bugs/pvs/ reports."
     echo
     echo "Options:"
+    echo "  --all                  Scan full project (default)"
+    echo "  --core                 Scan interpreter core only (src/core)"
+    echo "  --toolboxes            Scan numerical toolboxes only (src/toolboxes)"
+    echo "  --bundle               Scan bundle wiring only (src/bundle)"
     echo "  --commit               Automatically commit the generated report to git (if working tree clean)"
     echo "  --input <file>         Process an existing PVS JSON report instead of running analyzer"
     echo "  --compile-commands <f> Path to compile_commands.json"
@@ -27,6 +33,22 @@ show_help() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --all)
+            FILTER_PATH=""
+            shift
+            ;;
+        --core)
+            FILTER_PATH="src/core"
+            shift
+            ;;
+        --toolboxes)
+            FILTER_PATH="src/toolboxes"
+            shift
+            ;;
+        --bundle)
+            FILTER_PATH="src/bundle"
+            shift
+            ;;
         --commit)
             DO_COMMIT=1
             shift
@@ -84,8 +106,11 @@ else
         exit 1
     fi
 
-    echo "Converting log to JSON..."
-    plog-converter -t json -m cwe -o "$OUT_DIR" -r "$PROJECT_DIR" "$LOG_PATH"
+    CONV_ARGS=(-t json -m cwe -e "build;thirdparty;node_modules;fieldtest;.vs" -o "$OUT_DIR" -r "$PROJECT_DIR")
+    if [[ -n "$FILTER_PATH" ]]; then
+        CONV_ARGS+=(-i "$FILTER_PATH")
+    fi
+    plog-converter "${CONV_ARGS[@]}" "$LOG_PATH"
     INPUT_JSON="$JSON_PATH"
 fi
 

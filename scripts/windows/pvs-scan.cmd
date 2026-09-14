@@ -21,6 +21,26 @@ set DO_COMMIT=0
 if "%~1"=="" goto after_args
 if "%~1"=="-h" goto show_help
 if "%~1"=="--help" goto show_help
+if "%~1"=="--all" (
+    set "SLN_PATH=%PROJECT_DIR%build\windows\release\nk.sln"
+    shift
+    goto parse_args
+)
+if "%~1"=="--core" (
+    set "SLN_PATH=%PROJECT_DIR%build\windows\release\nk_core_obj.vcxproj"
+    shift
+    goto parse_args
+)
+if "%~1"=="--toolboxes" (
+    set "SLN_PATH=%PROJECT_DIR%build\windows\release\nk_toolboxes_obj.vcxproj"
+    shift
+    goto parse_args
+)
+if "%~1"=="--bundle" (
+    set "SLN_PATH=%PROJECT_DIR%build\windows\release\nk_bundle_obj.vcxproj"
+    shift
+    goto parse_args
+)
 if "%~1"=="--commit" (
     set DO_COMMIT=1
     shift
@@ -110,8 +130,12 @@ echo.
 echo Runs PVS-Studio static analysis and updates bugs\pvs\ reports.
 echo.
 echo Options:
+echo   --all            Scan full project solution (default: nk.sln)
+echo   --core           Scan interpreter core only (nk_core_obj)
+echo   --toolboxes      Scan numerical toolboxes only (nk_toolboxes_obj)
+echo   --bundle         Scan bundle wiring and registrations (nk_bundle_obj)
+echo   --target ^<path^>  Specify custom solution or vcxproj file
 echo   --commit         Automatically commit the generated report to git (if working tree clean)
 echo   --input ^<file^>   Process an existing PVS JSON report instead of running analyzer
-echo   --target ^<path^>  Specify custom solution or vcxproj file
 echo   -h, --help       Show this help message
 exit /b 0
