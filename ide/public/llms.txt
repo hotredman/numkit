@@ -6,10 +6,10 @@
 > handles, `A\b` solving, and numerical toolboxes — with no MATLAB license and
 > no native toolchain.
 
-Links: [Web IDE](https://hotredman.github.io/nk-demo/) |
+Links: [Web IDE](https://hotredman.github.io/numkit-demo/) |
 [GitHub](https://github.com/hotredman/nk) |
 [npm](https://www.npmjs.com/package/nk) |
-[C++ docs](https://hotredman.github.io/nk-doxy/)
+[C++ docs](https://hotredman.github.io/numkit-doxy/)
 
 ## Run MATLAB code from a terminal (for humans AND AI agents)
 

@@ -49,9 +49,9 @@ def deploy(target_type, source_dir, repo_url, dest_dir=None, push=True, skip_bui
         elif target_type == 'demo':
             print("Building Web IDE bundle...")
             if sys.platform == 'win32':
-                run_cmd([str(ROOT / 'scripts' / 'web-build.bat')], cwd=ROOT)
+                run_cmd([str(ROOT / 'scripts' / 'windows' / 'web-build.cmd')], cwd=ROOT)
             else:
-                run_cmd([str(ROOT / 'scripts' / 'web-build.sh')], cwd=ROOT)
+                run_cmd([str(ROOT / 'scripts' / 'linux' / 'web-build.sh')], cwd=ROOT)
 
     if not (source_dir / 'index.html').exists():
         print(f"ERROR: {source_dir / 'index.html'} not found after build!", file=sys.stderr)
@@ -146,9 +146,9 @@ if __name__ == '__main__':
         'demo': ROOT / 'deploy'
     }
     default_repos = {
-        'bugs': os.environ.get('NK_BUGS_REPO', 'git@github.com:hotredman/nk-bugs.git'),
-        'doxy': os.environ.get('NK_DOXY_REPO', 'git@github.com:hotredman/nk-doxy.git'),
-        'demo': os.environ.get('NK_DEMO_REPO', 'git@github.com:hotredman/nk-demo.git')
+        'bugs': os.environ.get('NK_BUGS_REPO', os.environ.get('NUMKIT_BUGS_REPO', 'git@github.com:hotredman/numkit-bugs.git')),
+        'doxy': os.environ.get('NK_DOXY_REPO', os.environ.get('NUMKIT_DOXY_REPO', 'git@github.com:hotredman/numkit-doxy.git')),
+        'demo': os.environ.get('NK_DEMO_REPO', os.environ.get('NUMKIT_DEMO_REPO', 'git@github.com:hotredman/numkit-demo.git'))
     }
 
     src = args.source or default_sources[args.type]

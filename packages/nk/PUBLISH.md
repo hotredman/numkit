@@ -37,7 +37,7 @@ the tarball. Verify at https://www.npmjs.com/package/nk and test
 ## After first publish — make agents find it
 
 1. **Demo site**: `scripts\windows\web-publish.cmd --push` — deploys `llms.txt` to
-   https://hotredman.github.io/nk-demo/llms.txt (agents and LLM crawlers read it).
+   https://hotredman.github.io/numkit-demo/llms.txt (agents and LLM crawlers read it).
 2. **README badge** (already added) links to npm.
 3. **GitHub Release** with the native CLI binaries per platform (optional but
    useful: agents on machines without Node can `curl` the binary).

@@ -24,6 +24,6 @@ NK exposes more than 1,000 public C++ functions and types across 15+ toolboxes a
 ## Verification & Deployment
 - Automated tests pass in `nk_gtest` (29 tests in General/Help).
 - Full pipeline deployed:
-  - Source Code: `https://github.com/hotredman/nk`
-  - Web IDE Demo: `https://hotredman.github.io/nk-demo/`
-  - Doxygen API: `https://hotredman.github.io/nk-doxy/`
+  - Source Code: `https://github.com/hotredman/numkit`
+  - Web IDE Demo: `https://hotredman.github.io/numkit-demo/`
+  - Doxygen API: `https://hotredman.github.io/numkit-doxy/`

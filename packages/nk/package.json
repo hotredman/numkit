@@ -37,6 +37,6 @@
     "type": "git",
     "url": "git+https://github.com/hotredman/nk.git"
   },
-  "homepage": "https://hotredman.github.io/nk-demo/",
+  "homepage": "https://hotredman.github.io/numkit-demo/",
   "bugs": "https://github.com/hotredman/nk/issues"
 }

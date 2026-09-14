@@ -73,11 +73,11 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Использование: python tools/clean_deployments.py <GITHUB_TOKEN> [repo1] [repo2] ...")
         print("\nПример:")
-        print("  python tools/clean_deployments.py ghp_xxxxxxxxxxxx hotredman/nk-demo hotredman/nk-doxy")
+        print("  python tools/clean_deployments.py ghp_xxxxxxxxxxxx hotredman/numkit-demo hotredman/numkit-doxy hotredman/numkit-bugs")
         sys.exit(1)
 
     token = sys.argv[1].strip()
-    repos = sys.argv[2:] if len(sys.argv) > 2 else ["hotredman/nk-demo", "hotredman/nk-doxy"]
+    repos = sys.argv[2:] if len(sys.argv) > 2 else ["hotredman/numkit-demo", "hotredman/numkit-doxy", "hotredman/numkit-bugs"]
 
     for r in repos:
         clean_repo_deployments(r, token, keep_latest=1)

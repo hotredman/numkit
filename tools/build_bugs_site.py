@@ -590,7 +590,7 @@ def build_site(out_dir):
         "",
         "---",
         "* [🐙 **GitHub Repository**](https://github.com/hotredman/nk)",
-        "* [📚 **Doxygen C++ Docs**](https://hotredman.github.io/nk-doxy/)"
+        "* [📚 **Doxygen C++ Docs**](https://hotredman.github.io/numkit-doxy/)"
     ]
     (out_dir / '_sidebar.md').write_text('\n'.join(root_sidebar), encoding='utf-8')
 
@@ -667,7 +667,7 @@ def build_site(out_dir):
         f"* [✅ Closed ({total_closed})](closed/README.md)",
         f"* [❌ Missing ({missing_count})](missing/README.md)",
         "* [🐙 GitHub](https://github.com/hotredman/nk)",
-        "* [📚 Doxygen](https://hotredman.github.io/nk-doxy/)"
+        "* [📚 Doxygen](https://hotredman.github.io/numkit-doxy/)"
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 

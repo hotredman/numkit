@@ -38,8 +38,8 @@ Naming convention:
 |---|---|---|
 | `code-publish.cmd` | `code-publish.sh` | Push source code, main branch, and tags to GitHub public mirror. |
 | `web-publish.cmd` | `web-publish.sh` | Deploy built web static distribution to GitHub Pages (`--push` to push). |
-| `doxy-publish.cmd` | `doxy-publish.sh` | Generate and deploy Doxygen API docs to `nk-doxy` Pages repo (`--push` to push). |
-| `bugs-publish.cmd` | `bugs-publish.sh` | Generate and deploy bugs catalog site to `nk-bugs` Pages repo (`--push` to push). |
+| `doxy-publish.cmd` | `doxy-publish.sh` | Generate and deploy Doxygen API docs to `numkit-doxy` Pages repo (`--push` to push). |
+| `bugs-publish.cmd` | `bugs-publish.sh` | Generate and deploy bugs catalog site to `numkit-bugs` Pages repo (`--push` to push). |
 | `npm-publish.cmd` | `npm-publish.sh` | Refresh WASM package and publish `packages/nk` to npm (`--dry-run` to preview). |
 | `all-publish.cmd` | `all-publish.sh` | One-shot publish: code, web, doxy, and bugs sites (`--push` to push). |
 

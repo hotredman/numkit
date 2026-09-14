@@ -7,6 +7,7 @@ build*/
 !engine-build.bat
 !desktop-build.bat
 .qtcreator
+.vs/
 
 # ── Compiled artefacts ────────────────────────────────
 *.d

@@ -84,7 +84,7 @@ structs, function handles, `end` indexing, `A\b` solving, vectorization.
 | File I/O         | MAT-file (v5) read/write, CSV, delimited text |
 
 Full browser IDE with plotting, workspace inspector and a debugger:
-**https://hotredman.github.io/nk-demo/**
+**https://hotredman.github.io/numkit-demo/**
 
 ## Verify it works (agents love this)
 
