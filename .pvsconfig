@@ -1,0 +1,26 @@
+# PVS-Studio configuration for NK / NumKit
+# Syntax reference: https://pvs-studio.com/en/docs/manual/0038/
+
+# ── Excluded directories (dependencies, build outputs, disposable corpus) ──
+//-V::1,2,3:build
+//-V::1,2,3:thirdparty
+//-V::1,2,3:ide
+//-V::1,2,3:node_modules
+//-V::1,2,3:fieldtest
+//-V::1,2,3:.vs
+
+# ── General noise suppressions ──
+# V807: Decreased performance. Pointer/reference could be used to avoid repeated dereference (often optimized by compiler).
+//-V::807
+# V823: Decreased performance. Object is temporary and could be eliminated.
+//-V::823
+# V826: Decreased performance. Consider reserving memory in std::vector (minor micro-hints in non-hot paths).
+//-V::826
+# V837: An empty/trivial std::move has no effect.
+//-V::837
+
+# ── Path-specific suppressions ──
+# V550: Comparing real numbers with == or !=.
+# In core interpreter and math routines, exact float equality is intentional (e.g. floor(x) == x, exp == 2.0 fast paths).
+//-V::550:src/core/
+//-V::550:src/toolboxes/math/

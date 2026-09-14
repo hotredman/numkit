@@ -31,6 +31,7 @@ Naming convention:
 | `desktop-build.cmd` | `desktop-build.sh` | Build packaged Electron desktop application (`.exe` on Windows, `AppImage` / dir on Linux). |
 | `doxy-run.cmd` | `doxy-run.sh` | Generate Doxygen docs (if needed) and serve locally on `http://localhost:8080/`. |
 | `bugs-run.cmd` | `bugs-run.sh` | Generate static bugs catalog site and serve locally at `http://localhost:8081/`. |
+| `pvs-scan.cmd` | `pvs-scan.sh` | Run PVS-Studio static analysis and generate reports in `bugs/pvs/` (`--commit` to commit). |
 
 ## Publishing & Deployment
 

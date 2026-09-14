@@ -37,6 +37,11 @@ surface to the user**. Do not silently work on top of someone else's work.
   `origin` (git.megahard.ru). The public GitHub mirror
   (`github` remote, hotredman/nk) is pushed manually by the user
   via `scripts/windows/code-publish.cmd` (or `scripts/linux/code-publish.sh`) — the agent never pushes to it.
+- **Static analysis defect commits (PVS-Studio)** (user rule, 2026-09-14):
+  when fixing defects detected by static analysis, include the diagnostic
+  code in the subject line (e.g. `fix(core): ... (PVS V1004)`) and add the
+  standard Git trailer `Found-By: PVS-Studio (<rule>, <CWE>)` alongside
+  `Co-Authored-By:`.
 
 ## Documentation map (`dev-docs/`)
 
