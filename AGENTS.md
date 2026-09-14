@@ -31,7 +31,11 @@ surface to the user**. Do not silently work on top of someone else's work.
   2026-09-01). A commit is a permanent, searchable artifact read by
   tools (`git log --grep`) and strangers. Bug ids, file paths and code
   snippets stay as-is.
-- Co-authored trailer required (see prior commits for style).
+- **Co-authored trailer required per agent** (user rule, 2026-09-14): every AI agent
+  MUST sign commits with its own identity, never blind-copy from prior commits:
+  - Gemini / Antigravity: `Co-Authored-By: Gemini <noreply@google.com>`
+  - Claude: `Co-Authored-By: Claude <noreply@anthropic.com>`
+  - Z.ai / ZCode: `Co-Authored-By: ZCode <noreply@z.ai>`
 - `main` is the integration branch. Never force-push.
 - **Push policy** (user rule, 2026-09-01): the agent pushes ONLY to
   `origin` (git.megahard.ru). The public GitHub mirror

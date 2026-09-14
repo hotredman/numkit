@@ -3,6 +3,7 @@
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Web_IDE-Live_Demo-success.svg)](https://hotredman.github.io/numkit-demo/)
 [![Bugs & Parity](https://img.shields.io/badge/Bugs_%26_Parity-Catalog-orange.svg)](https://hotredman.github.io/numkit-bugs/)
+[![SAST: PVS-Studio](https://img.shields.io/badge/SAST-PVS--Studio-01a8e5.svg)](bugs/pvs/summary.md)
 [![npm](https://img.shields.io/badge/npm-nk-red.svg)](https://www.npmjs.com/package/nk)
 
 **NK** is an ultra-fast, lightweight numerical computing engine and matrix-scripting interpreter written in modern C++17. Designed from the ground up for **AI Agents, WebAssembly sandboxes, and embedded C++ applications**, it delivers MATLAB/Octave compatibility with instant startup and zero external dependencies.
@@ -15,7 +16,19 @@
 
 ---
 
+## Coding Agents
+
+[![Claude](https://img.shields.io/badge/Claude-Anthropic-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai)
+[![Gemini](https://img.shields.io/badge/Gemini-Google_DeepMind-8E75C2?style=for-the-badge&logo=google-gemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Z.ai](https://img.shields.io/badge/Z.ai-ZCode-1E88E5?style=for-the-badge)](https://z.ai)
+
+NK is engineered in continuous pair-programming with autonomous AI coding agents (Claude, Gemini, Z.ai). Each agent co-authors and signs its work with a dedicated `Co-Authored-By` Git trailer.
+
+---
+
 ## SAST Tools
+
+[![PVS-Studio](https://img.shields.io/badge/PVS--Studio-SAST%20Verified-01a8e5?style=for-the-badge)](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source)
 
 [PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static code analyzer for Enterprise (C, C++, C#, Go, and Java) and Web (JS and TS) development.
 
