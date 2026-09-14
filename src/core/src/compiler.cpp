@@ -984,7 +984,7 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
             // the dotted name, but the HEAD is a plain callable → the
             // callee is a VALUE (call-then-fields chain, portion 30) and
             // the args index it — fall through to CALL_METHOD_MULTI.
-            && !(engine_.hasCallableName(rootIdent->strValue)
+            && !(rootIdent && engine_.hasCallableName(rootIdent->strValue)
                  && !engine_.findClass(rootIdent->strValue)
                  && !engine_.classCtor(rootIdent->strValue)
                  && !engine_.hasExternalFunction(qualified))) {
@@ -4093,10 +4093,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
         varRegWrite(param);
     }
 
-    // Allocate registers for return variables
-    // Registers default to empty — no initialization needed.
-    // Skip allocation if return var is also a parameter (already loaded by caller)
-    std::unordered_set<std::string> paramSet(funcDef->paramNames.begin(), funcDef->paramNames.end());
+    // Allocate registers for return variables (default to empty; no initialization needed).
     for (auto &ret : funcDef->returnNames) {
         varRegWrite(ret); // will be populated by the body
     }

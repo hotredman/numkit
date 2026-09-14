@@ -1280,22 +1280,24 @@ void Engine::registerClassDef(const ASTNode *cd, const std::string &qualifiedNam
     // an underlying value is set) and tagged with its member name.
     if (desc->isEnum) {
         const BuiltinClass *ecls = findClass(desc->name);
-        for (const auto &childPtr : cd->children) {
-            const ASTNode *child = childPtr.get();
-            if (child->type != NodeType::CLASSDEF_ENUM_MEMBER)
-                continue;
-            std::vector<Value> args;
-            if (treeWalker_)
-                for (const auto &a : child->children)
-                    args.push_back(
-                        treeWalker_->evalExpressionPublic(a.get(), &constantsEnv()));
-            CallContext ctx{this, workspaceEnv_.get()};
-            Value inst = ecls->construct(Span<const Value>(args.data(), args.size()), ctx);
-            if (inst.isObject())
-                inst.objectStateMut()->enumName = child->strValue;
-            registerFunction(desc->name, child->strValue,
-                             [inst](Span<const Value>, size_t, Span<Value> outs,
-                                    CallContext &) { outs[0] = inst; });
+        if (ecls) {
+            for (const auto &childPtr : cd->children) {
+                const ASTNode *child = childPtr.get();
+                if (child->type != NodeType::CLASSDEF_ENUM_MEMBER)
+                    continue;
+                std::vector<Value> args;
+                if (treeWalker_)
+                    for (const auto &a : child->children)
+                        args.push_back(
+                            treeWalker_->evalExpressionPublic(a.get(), &constantsEnv()));
+                CallContext ctx{this, workspaceEnv_.get()};
+                Value inst = ecls->construct(Span<const Value>(args.data(), args.size()), ctx);
+                if (inst.isObject())
+                    inst.objectStateMut()->enumName = child->strValue;
+                registerFunction(desc->name, child->strValue,
+                                 [inst](Span<const Value>, size_t, Span<Value> outs,
+                                        CallContext &) { outs[0] = inst; });
+            }
         }
     }
 

@@ -80,7 +80,7 @@ enum class TokenType {
 
 struct Token
 {
-    TokenType type;
+    TokenType type = TokenType::END_OF_INPUT;
     std::string value;
     int line = 0;
     int col = 0;

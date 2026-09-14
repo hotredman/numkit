@@ -558,7 +558,11 @@ public:
         if (!ds)
             return;
         auto fit = figures_.find(it->second.figureId);
+        if (fit == figures_.end() || it->second.axesIndex >= fit->second.axes.size())
+            return;
         auto &ax = fit->second.axes[it->second.axesIndex];
+        if (it->second.datasetIndex >= ax.datasets.size())
+            return;
         ax.datasets.erase(ax.datasets.begin() + it->second.datasetIndex);
         fit->second.modified = true;
         for (auto &[hid, rec] : handleRegistry_) {
