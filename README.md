@@ -1,4 +1,4 @@
-# NK — lightweight numerical computing engine & MATLAB-compatible runtime
+# Lightweight numerical computing engine & MATLAB-compatible runtime
 
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Web_IDE-Live_Demo-success.svg)](https://hotredman.github.io/numkit-demo/)
@@ -6,7 +6,7 @@
 [![SAST: PVS-Studio](https://img.shields.io/badge/SAST-PVS--Studio-01a8e5.svg)](bugs/pvs/summary.md)
 [![npm](https://img.shields.io/badge/npm-nk-red.svg)](https://www.npmjs.com/package/nk)
 
-**NK** is an ultra-fast, lightweight numerical computing engine and matrix-scripting interpreter written in modern C++17. Designed from the ground up for **AI Agents, WebAssembly sandboxes, and embedded C++ applications**, it delivers MATLAB/Octave compatibility with instant startup and zero external dependencies.
+A lightweight numerical computing engine and matrix-scripting interpreter written in modern C++17. Designed from the ground up for **AI Agents, WebAssembly sandboxes, and embedded C++ applications**, it delivers MATLAB/Octave compatibility with instant startup and zero external dependencies.
 
 👉 **Try it in your browser:** [https://hotredman.github.io/numkit-demo/](https://hotredman.github.io/numkit-demo/)  
 👉 **C++ Library Documentation:** [https://hotredman.github.io/numkit-doxy/](https://hotredman.github.io/numkit-doxy/)  
@@ -22,7 +22,7 @@
 [![Gemini](https://img.shields.io/badge/Gemini-Google_DeepMind-8E75C2?style=for-the-badge&logo=google-gemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
 [![Z.ai](https://img.shields.io/badge/Z.ai-ZCode-1E88E5?style=for-the-badge)](https://z.ai)
 
-NK is engineered in continuous pair-programming with autonomous AI coding agents (Claude, Gemini, Z.ai). Each agent co-authors and signs its work with a dedicated `Co-Authored-By` Git trailer.
+Engineered in continuous pair-programming with autonomous AI coding agents (Claude, Gemini, Z.ai). Each agent co-authors and signs its work with a dedicated `Co-Authored-By` Git trailer.
 
 ---
 
@@ -50,7 +50,7 @@ Status so far: the *Signals and Systems* book's examples pass end-to-end (19/19 
 
 ## 🤖 Built for AI Agents & LLMs
 
-Modern AI coding agents (Claude, Cursor, Antigravity, AutoGen, LangChain) need to execute mathematics, DSP, and numerical analysis reliably. Running Python/Jupyter in Docker is heavy, slow to boot, and token-expensive. NK provides the ideal execution runtime for agent tool-calling loops:
+Modern AI coding agents (Claude, Cursor, Antigravity, AutoGen, LangChain) need to execute mathematics, DSP, and numerical analysis reliably. Running Python/Jupyter in Docker is heavy, slow to boot, and token-expensive. This runtime provides the ideal execution environment for agent tool-calling loops:
 
 * ⚡ **Instant Startup (< 1 ms)** — Zero cold-start latency compared to 300–800 ms for Python / Jupyter runtimes.
 * 🪙 **Token-Efficient Syntax** — Native matrix operations (`A \ b`, `[b, a] = butter(4, 0.2);`, `fft(x)`) require 2–3× fewer tokens than Python imports and boilerplate, preserving context window and reducing LLM syntax mistakes.
@@ -67,9 +67,9 @@ npx -y nk -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
 npx -y nk script.m
 ```
 
-### Why AI Agents Choose NK over Python
+### Why AI Agents Choose This Runtime over Python
 
-| Feature | Python (NumPy / SciPy) | NK |
+| Feature | Python (NumPy / SciPy) | This Runtime |
 | :--- | :--- | :--- |
 | **Startup Latency** | 300–800 ms (cold start) | **< 1 ms (instant)** |
 | **Isolation / Sandbox** | Heavy Docker / gVisor container | **In-process WebAssembly / C++** |
@@ -204,6 +204,6 @@ For development servers, documentation generators, and deployment workflows, see
 
 ## License
 
-NK is open-source software released under the **[BSD Zero Clause License (0BSD)](LICENSE)**.
+This project is open-source software released under the **[BSD Zero Clause License (0BSD)](LICENSE)**.
 
 You are free to use, copy, modify, and distribute this software for any purpose, commercial or noncommercial, with or without fee, with no attribution required. See [NOTICE](NOTICE) for third-party component licenses.
