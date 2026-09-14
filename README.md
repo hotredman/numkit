@@ -99,6 +99,12 @@ int main() {
 
 ---
 
+## SAST Tools
+
+[PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static code analyzer for Enterprise (C, C++, C#, Go, and Java) and Web (JS and TS) development.
+
+---
+
 ## Building
 
 ### Prerequisites
