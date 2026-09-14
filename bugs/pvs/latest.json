@@ -1,0 +1,812 @@
+[
+  {
+    "code": "V1071",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/include/nk/core/compiler.hpp",
+    "line": 221,
+    "column": 0,
+    "message": "Consider inspecting the 'tempReg' function. The return value is not always used. Total calls: 121, discarded results: 9.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1071",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/include/nk/core/compiler.hpp",
+    "line": 248,
+    "column": 0,
+    "message": "Consider inspecting the 'compileNode' function. The return value is not always used. Total calls: 104, discarded results: 9.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V730",
+    "cwe": 457,
+    "severity": "Medium",
+    "file": "src/core/include/nk/core/debugger.hpp",
+    "line": 112,
+    "column": 0,
+    "message": "Not all members of a class are initialized inside the compiler generated constructor. Consider inspecting: id, line.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V524",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/include/nk/core/debug_session.hpp",
+    "line": 178,
+    "column": 0,
+    "message": "It is odd that the body of 'onBreakpoint' function is fully equivalent to the body of 'onLine' function.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1071",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/include/nk/core/parser.hpp",
+    "line": 58,
+    "column": 0,
+    "message": "Consider inspecting the 'match' function. The return value is not always used. Total calls: 17, discarded results: 1.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1096",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/include/nk/core/vm.hpp",
+    "line": 156,
+    "column": 0,
+    "message": "The 'kEmpty' variable with static storage duration is declared inside the inline function with external linkage. This may lead to ODR violation.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1096",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/include/nk/core/vm.hpp",
+    "line": 218,
+    "column": 0,
+    "message": "The 'kEmpty' variable with static storage duration is declared inside the inline function with external linkage. This may lead to ODR violation.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Medium",
+    "file": "src/core/src/compiler.cpp",
+    "line": 1885,
+    "column": 0,
+    "message": "The 'stepReg' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V560",
+    "cwe": 571,
+    "severity": "Medium",
+    "file": "src/core/src/compiler.cpp",
+    "line": 849,
+    "column": 0,
+    "message": "A part of conditional expression is always true: !node->lhsTargets.empty().",
+    "subsystem": "core"
+  },
+  {
+    "code": "V560",
+    "cwe": 571,
+    "severity": "Medium",
+    "file": "src/core/src/compiler.cpp",
+    "line": 3556,
+    "column": 0,
+    "message": "A part of conditional expression is always true: nargs > 0.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V571",
+    "cwe": 571,
+    "severity": "Medium",
+    "file": "src/core/src/compiler.cpp",
+    "line": 4595,
+    "column": 0,
+    "message": "Recurring check. The 'ins.d < (int16_t) chunk.constants.size()' condition was already verified in line 4594.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V730",
+    "cwe": 457,
+    "severity": "Medium",
+    "file": "src/core/src/compiler.cpp",
+    "line": 2798,
+    "column": 0,
+    "message": "Not all members of a class are initialized inside the compiler generated constructor. Consider inspecting: kind, node.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 124,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 282,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 442,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 453,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 496,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 505,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 666,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 3709,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 3824,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 3839,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 16-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 3884,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 8-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 4079,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 8-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 4080,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 8-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/compiler.cpp",
+    "line": 2751,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 2751, 2756",
+    "subsystem": "core"
+  },
+  {
+    "code": "V522",
+    "cwe": 690,
+    "severity": "Low",
+    "file": "src/core/src/debug_session.cpp",
+    "line": 294,
+    "column": 0,
+    "message": "There might be dereferencing of a potential null pointer 'ctl->currentFrame()'.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V522",
+    "cwe": 690,
+    "severity": "Low",
+    "file": "src/core/src/debug_session.cpp",
+    "line": 413,
+    "column": 0,
+    "message": "There might be dereferencing of a potential null pointer 'ctl->currentFrame()'.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Medium",
+    "file": "src/core/src/dependency_graph.cpp",
+    "line": 176,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 176, 179",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Medium",
+    "file": "src/core/src/engine.cpp",
+    "line": 2752,
+    "column": 0,
+    "message": "The 'node->suppressOutput' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V524",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/src/engine.cpp",
+    "line": 662,
+    "column": 0,
+    "message": "It is odd that the body of 'accessWord' function is fully equivalent to the body of 'accessName' function.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V565",
+    "cwe": 544,
+    "severity": "Low",
+    "file": "src/core/src/engine.cpp",
+    "line": 1974,
+    "column": 0,
+    "message": "An empty exception handler. Silent suppression of exceptions can hide the presence of bugs in source code during testing.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V565",
+    "cwe": 544,
+    "severity": "Low",
+    "file": "src/core/src/engine.cpp",
+    "line": 2312,
+    "column": 0,
+    "message": "An empty exception handler. Silent suppression of exceptions can hide the presence of bugs in source code during testing.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V565",
+    "cwe": 544,
+    "severity": "Low",
+    "file": "src/core/src/engine.cpp",
+    "line": 2351,
+    "column": 0,
+    "message": "An empty exception handler. Silent suppression of exceptions can hide the presence of bugs in source code during testing.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V524",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/src/environment.cpp",
+    "line": 130,
+    "column": 0,
+    "message": "It is odd that the body of 'setLocalFast' function is fully equivalent to the body of 'setLocal' function.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Medium",
+    "file": "src/core/src/parser.cpp",
+    "line": 17,
+    "column": 0,
+    "message": "The 'eof.type' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/parser.cpp",
+    "line": 20,
+    "column": 0,
+    "message": "The 'eof.col' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V522",
+    "cwe": 690,
+    "severity": "Low",
+    "file": "src/core/src/parser.cpp",
+    "line": 510,
+    "column": 0,
+    "message": "There might be dereferencing of a potential null pointer 'expr'.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Medium",
+    "file": "src/core/src/vm.cpp",
+    "line": 2768,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 2768, 2771",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Medium",
+    "file": "src/core/src/vm.cpp",
+    "line": 811,
+    "column": 0,
+    "message": "The 'fs.rangeType' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Medium",
+    "file": "src/core/src/vm.cpp",
+    "line": 851,
+    "column": 0,
+    "message": "The 'fs.rangeType' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V730",
+    "cwe": 457,
+    "severity": "Medium",
+    "file": "src/core/src/vm.cpp",
+    "line": 211,
+    "column": 0,
+    "message": "Not all members of a class are initialized inside the compiler generated constructor. Consider inspecting: reentrant.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 2202,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 8-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 2419,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 8-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 2499,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 8-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1029",
+    "cwe": 197,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 2670,
+    "column": 0,
+    "message": "Numeric Truncation Error. Return value of the 'size' function is written to the 8-bit variable.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 3176,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 3176, 3188",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 3177,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 3177, 3189",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 3178,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 3178, 3190",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 3179,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 3179, 3191",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 3181,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 3181, 3192",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 3193,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 3193, 3196",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1037",
+    "cwe": 691,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 3198,
+    "column": 0,
+    "message": "Two or more case-branches perform the same actions. Check lines: 3198, 3199",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 357,
+    "column": 0,
+    "message": "The 'cf.regBase' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 359,
+    "column": 0,
+    "message": "The 'cf.forStackBase' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 360,
+    "column": 0,
+    "message": "The 'cf.tryStackBase' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 805,
+    "column": 0,
+    "message": "The 'fs.index' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 809,
+    "column": 0,
+    "message": "The 'fs.rows' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 810,
+    "column": 0,
+    "message": "The 'fs.data' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 813,
+    "column": 0,
+    "message": "The 'fs.count' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V1048",
+    "cwe": 1164,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 848,
+    "column": 0,
+    "message": "The 'fs.index' variable was assigned the same value.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V522",
+    "cwe": 690,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 2246,
+    "column": 0,
+    "message": "There might be dereferencing of a potential null pointer 'AB'.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V522",
+    "cwe": 690,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 2428,
+    "column": 0,
+    "message": "There might be dereferencing of a potential null pointer 'AB'.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V522",
+    "cwe": 690,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 2516,
+    "column": 0,
+    "message": "There might be dereferencing of a potential null pointer 'argPtr'.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V553",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 420,
+    "column": 0,
+    "message": "The length of 'dispatchLoop' function's body is more than 2000 lines long. You should consider refactoring the code.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V656",
+    "cwe": 665,
+    "severity": "Low",
+    "file": "src/ops/include/nk/ops/rng_context.hpp",
+    "line": 81,
+    "column": 0,
+    "message": "Variables 'v1', 'v2' are initialized through the call to the same function. It's probably an error or un-optimized code. Consider inspecting the '2.0 * v4Uniform() - 1.0' expression. Check lines: 80, 81.",
+    "subsystem": "other"
+  },
+  {
+    "code": "V524",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/value/include/nk/value/value.hpp",
+    "line": 682,
+    "column": 0,
+    "message": "It is odd that the body of 'isHeap' function is fully equivalent to the body of 'hasHeap' function.",
+    "subsystem": "other"
+  },
+  {
+    "code": "V812",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/include/nk/core/engine.hpp",
+    "line": 313,
+    "column": 0,
+    "message": "Decreased performance. Ineffective use of the 'count' function. It can possibly be replaced by the call to the 'find' function.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V802",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/include/nk/core/vm.hpp",
+    "line": 301,
+    "column": 0,
+    "message": "On 64-bit platform, structure size can be reduced from 88 to 80 bytes by rearranging the fields according to their sizes in decreasing order.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V836",
+    "cwe": 0,
+    "severity": "High",
+    "file": "src/core/src/compiler.cpp",
+    "line": 1195,
+    "column": 0,
+    "message": "Expression's value is copied at the 'savedConsts' variable declaration. The variable is never modified.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V802",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/src/compiler.cpp",
+    "line": 2799,
+    "column": 0,
+    "message": "On 64-bit platform, structure size can be reduced from 24 to 16 bytes by rearranging the fields according to their sizes in decreasing order.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V833",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/src/compiler.cpp",
+    "line": 4053,
+    "column": 0,
+    "message": "Passing the const-qualified object 'entry.second' to the 'std::move' function disables move semantics.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V812",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/src/engine.cpp",
+    "line": 2376,
+    "column": 0,
+    "message": "Decreased performance. Ineffective use of the 'count' function. It can possibly be replaced by the call to the 'find' function.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V820",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/src/engine.cpp",
+    "line": 233,
+    "column": 0,
+    "message": "The 'hdr' variable is not used after copying. Copying can be replaced with move/swap for optimization.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V820",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/src/engine.cpp",
+    "line": 2323,
+    "column": 0,
+    "message": "The 'userPath' variable is not used after copying. Copying can be replaced with move/swap for optimization.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V833",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/core/src/engine.cpp",
+    "line": 2573,
+    "column": 0,
+    "message": "Passing the const-qualified object 'entry.second' to the 'std::move' function disables move semantics.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V820",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/src/environment.cpp",
+    "line": 162,
+    "column": 0,
+    "message": "The 'newParent' variable is not used after copying. Copying can be replaced with move/swap for optimization.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V815",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/src/parser.cpp",
+    "line": 18,
+    "column": 0,
+    "message": "Decreased performance. Consider replacing the expression 'eof.value = \"\"' with 'eof.value.clear()'.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V821",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/src/tree_walker.cpp",
+    "line": 1074,
+    "column": 0,
+    "message": "Decreased performance. The 'fname' variable can be constructed in a lower level scope.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V821",
+    "cwe": 0,
+    "severity": "Low",
+    "file": "src/core/src/vm.cpp",
+    "line": 228,
+    "column": 0,
+    "message": "Decreased performance. The 'restorer' variable can be constructed in a lower level scope.",
+    "subsystem": "core"
+  },
+  {
+    "code": "V820",
+    "cwe": 0,
+    "severity": "Medium",
+    "file": "src/figure/include/nk/figure/figure_manager.hpp",
+    "line": 821,
+    "column": 0,
+    "message": "The 'savedColorScale' variable is not used after copying. Copying can be replaced with move/swap for optimization.",
+    "subsystem": "other"
+  }
+]
