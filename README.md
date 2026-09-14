@@ -10,6 +10,7 @@
 👉 **Try it in your browser:** [https://hotredman.github.io/numkit-demo/](https://hotredman.github.io/numkit-demo/)  
 👉 **C++ Library Documentation:** [https://hotredman.github.io/numkit-doxy/](https://hotredman.github.io/numkit-doxy/)  
 👉 **Defect & Parity Catalog:** [https://hotredman.github.io/numkit-bugs/](https://hotredman.github.io/numkit-bugs/)  
+👉 **Static Analysis Report (PVS-Studio):** [`bugs/pvs/summary.md`](bugs/pvs/summary.md)  
 👉 **LLM / Agent context spec:** [`llms.txt`](ide/public/llms.txt)
 
 ---
@@ -177,7 +178,7 @@ For development servers, documentation generators, and deployment workflows, see
   disposable and gitignored; see `fieldtest/README.md`).
 - `tests/` — Comprehensive C++ unit and integration test suite.
 - `tools/` — Parity testing harness, benchmarks, and validation utilities.
-- `bugs/` — Structured defect catalog and MATLAB parity tracking ([live catalog](https://hotredman.github.io/numkit-bugs/)).
+- `bugs/` — Structured defect catalog, MATLAB parity tracking ([live catalog](https://hotredman.github.io/numkit-bugs/)), and [PVS-Studio reports](bugs/pvs/summary.md).
 - `dev-docs/` — Architecture documentation, memory records, and API guidelines.
 
 ---
