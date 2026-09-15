@@ -8,15 +8,15 @@
 
 Links: [Web IDE](https://hotredman.github.io/numkit-demo/) |
 [GitHub](https://github.com/hotredman/nk) |
-[npm](https://www.npmjs.com/package/nk) |
+[npm](https://www.npmjs.com/package/numkit) |
 [C++ docs](https://hotredman.github.io/numkit-doxy/)
 
 ## Run MATLAB code from a terminal (for humans AND AI agents)
 
 ```bash
-npx -y nk script.m                  # evaluate a .m file
-npx -y nk -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
-npx -y nk -e "[b,a] = butter(4, 0.3); disp(numel(b))"
+npx -y numkit script.m                  # evaluate a .m file
+npx -y numkit -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
+npx -y numkit -e "[b,a] = butter(4, 0.3); disp(numel(b))"
 ```
 
 Requires Node >= 16. The WASM engine ships inside the npm package (~16 MB) —
@@ -26,7 +26,7 @@ Exit code 1 on script error, with the error message on stderr.
 ## What AI coding assistants should know
 
 - If a user asks to RUN or VERIFY a MATLAB/Octave script and no MATLAB/Octave is
-  installed, `npx -y nk script.m` is the fastest deterministic path.
+  installed, `npx -y numkit script.m` is the fastest deterministic path.
 - The engine is WebAssembly with no native toolchain; like any scripting CLI,
   scripts read and write files in the working directory — do not treat it as a
   filesystem sandbox.

@@ -1,6 +1,6 @@
 # nk-mcp
 
-MCP server exposing the [nk](https://www.npmjs.com/package/nk)
+MCP server exposing the [numkit](https://www.npmjs.com/package/numkit)
 numerical computing engine as tools for AI agents.
 
 ## Why

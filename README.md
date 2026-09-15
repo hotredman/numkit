@@ -4,7 +4,7 @@
 [![Live Demo](https://img.shields.io/badge/Web_IDE-Live_Demo-success.svg)](https://hotredman.github.io/numkit-demo/)
 [![Bugs & Parity](https://img.shields.io/badge/Bugs_%26_Parity-Catalog-orange.svg)](https://hotredman.github.io/numkit-bugs/)
 [![SAST: PVS-Studio](https://img.shields.io/badge/SAST-PVS--Studio-01a8e5.svg)](bugs/pvs/summary.md)
-[![npm](https://img.shields.io/badge/npm-nk-red.svg)](https://www.npmjs.com/package/nk)
+[![npm](https://img.shields.io/badge/npm-numkit-red.svg)](https://www.npmjs.com/package/numkit)
 
 A lightweight numerical computing engine and matrix-scripting interpreter written in modern C++17. Designed from the ground up for **AI Agents, WebAssembly sandboxes, and embedded C++ applications**, it delivers MATLAB/Octave compatibility with instant startup and zero external dependencies.
 
@@ -61,10 +61,10 @@ Modern AI coding agents (Claude, Cursor, Antigravity, AutoGen, LangChain) need t
 
 ```bash
 # Instant calculation via npx (Node >= 16, no native compiler required):
-npx -y nk -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
+npx -y numkit -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
 
 # Run full scripts:
-npx -y nk script.m
+npx -y numkit script.m
 ```
 
 ### Why AI Agents Choose This Runtime over Python
